@@ -43,7 +43,7 @@ button:focus-visible, input:focus-visible, [tabindex]:focus-visible { outline: 2
   display: grid; grid-template-columns: 230px minmax(0, 1fr) 310px; gap: 16px;
   padding: 0 20px 20px; height: calc(100% - 64px); min-height: 560px;
 }
-.panel { border: 1.5px solid #cfcfcf55; border-radius: 18px; padding: 14px 16px; background: var(--panel); overflow: auto; }
+.panel { border: 1.5px solid #cfcfcf55; border-radius: var(--radio-panel); padding: 14px 16px; background: var(--panel); overflow: auto; }
 .panel h2 { font-size: 17px; margin: 0 0 4px; font-weight: 600; }
 .panel h3 { font-size: 14px; margin: 14px 0 6px; font-weight: 500; }
 .ayuda { color: var(--suave); font-size: 12px; margin: 0 0 8px; }
@@ -99,7 +99,7 @@ button:focus-visible, input:focus-visible, [tabindex]:focus-visible { outline: 2
 .bloque.atenuado, .tarea-card.atenuado { opacity: .25; }
 .bloque.hecha { opacity: .6; text-decoration: line-through; }
 
-.conflictos { border: 1.5px dashed #777; border-radius: 14px; padding: 8px 14px; background: #1f1f1f; }
+.conflictos { border: 1.5px dashed #777; border-radius: 8px; padding: 8px 14px; background: #1f1f1f; }
 .conflictos h3 { margin: 0 0 4px; }
 .conflictos ul { margin: 0; padding-left: 18px; }
 .conflictos li { cursor: pointer; }
@@ -121,7 +121,7 @@ button:focus-visible, input:focus-visible, [tabindex]:focus-visible { outline: 2
 .tarea-card.planificada { opacity: .55; border-style: dashed; }
 .tarea-card .hora { margin-left: auto; font: 11px var(--mono); white-space: nowrap; }
 
-.detalle { border: 1.5px dashed #777; border-radius: 14px; padding: 8px 14px; margin-top: 12px; font-size: 13px; }
+.detalle { border: 1.5px dashed #777; border-radius: 8px; padding: 8px 14px; margin-top: 12px; font-size: 13px; }
 .detalle h3 { margin: 0 0 6px; }
 .detalle .vacio { color: var(--suave); }
 .detalle dl { display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; margin: 0; }
@@ -150,7 +150,7 @@ button:focus-visible, input:focus-visible, [tabindex]:focus-visible { outline: 2
 
 /* ---------- Login ---------- */
 .login { min-height: 100%; display: grid; place-items: center; padding: 16px; }
-.login form { width: min(360px, 100%); display: grid; gap: 10px; background: var(--panel); border: 1.5px solid var(--borde); border-radius: 18px; padding: 24px; }
+.login form { width: min(360px, 100%); display: grid; gap: 10px; background: var(--panel); border: 1.5px solid var(--borde); border-radius: var(--radio-panel); padding: 24px; }
 .login h1 { font-size: 20px; margin: 0 0 6px; }
 .login input { background: #1f1f1f; border: 1px solid var(--borde); border-radius: 8px; padding: 8px 10px; }
 .login button { background: var(--azul-bg); border-color: var(--azul); padding: 8px; }
@@ -171,7 +171,7 @@ button:focus-visible, input:focus-visible, [tabindex]:focus-visible { outline: 2
 .cal-vacio { padding: 24px 0; color: var(--suave); }
 
 dialog {
-  background: var(--panel); color: var(--texto); border: 1.5px solid var(--borde); border-radius: 18px;
+  background: var(--panel); color: var(--texto); border: 1.5px solid var(--borde); border-radius: var(--radio-panel);
   padding: 18px 20px; width: min(860px, calc(100vw - 32px)); max-height: calc(100vh - 32px);
 }
 dialog::backdrop { background: #000a; }
@@ -489,26 +489,29 @@ button.dia-cab:hover { background: #262626; }
 
 /* ---------- Barras de desplazamiento oscuras e integradas ---------- */
 :root {
-  color-scheme: dark;                 /* controles nativos (selects, fechas, scroll) en oscuro */
-  --scroll-thumb: #ffffff1f;
-  --scroll-thumb-hover: #ffffff3d;
+  color-scheme: dark;                 /* controles nativos (selects, fechas) en oscuro */
+  --radio-panel: 10px;
+  --scroll-thumb: #ffffff26;
+  --scroll-thumb-hover: #ffffff4d;
 }
-/* Firefox y Chrome/Edge modernos */
-* { scrollbar-width: thin; scrollbar-color: var(--scroll-thumb) transparent; }
-*:hover { scrollbar-color: var(--scroll-thumb-hover) transparent; }
-/* Chrome / Edge / Safari (WebKit) */
-::-webkit-scrollbar { width: 8px; height: 8px; }
+/* Chrome / Edge / Safari: estilo propio (sin flechas). Chrome ignora estas reglas si se
+   define scrollbar-color, por eso scrollbar-color solo se aplica en Firefox (abajo). */
+::-webkit-scrollbar { width: 10px; height: 10px; }
 ::-webkit-scrollbar-track, ::-webkit-scrollbar-corner { background: transparent; }
+/* la pista se separa de los bordes para no pisar las esquinas redondeadas */
+::-webkit-scrollbar-track { margin: 12px 0; }
 ::-webkit-scrollbar-thumb {
-  background: var(--scroll-thumb); border-radius: 8px;
-  border: 2px solid transparent; background-clip: padding-box;
+  background: var(--scroll-thumb); border-radius: 10px;
+  border: 3px solid transparent; background-clip: padding-box;
 }
 ::-webkit-scrollbar-thumb:hover { background-color: var(--scroll-thumb-hover); }
-::-webkit-scrollbar-button { display: none; height: 0; width: 0; }
-/* el scroll no pisa el borde redondeado de los paneles */
-.panel { scrollbar-gutter: stable; }
+::-webkit-scrollbar-button { display: none; width: 0; height: 0; }
+/* Firefox */
+@supports not selector(::-webkit-scrollbar) {
+  * { scrollbar-width: thin; scrollbar-color: var(--scroll-thumb) transparent; }
+}
 /* panel de recursos: barra con su tono verde */
 .recursos {
-  --scroll-thumb: color-mix(in srgb, var(--verde) 35%, transparent);
-  --scroll-thumb-hover: color-mix(in srgb, var(--verde) 65%, transparent);
+  --scroll-thumb: color-mix(in srgb, var(--verde) 40%, transparent);
+  --scroll-thumb-hover: color-mix(in srgb, var(--verde) 70%, transparent);
 }
