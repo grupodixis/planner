@@ -18,14 +18,14 @@ function calcularConflictos(tramos, jornada, tiposDisponibles = new Set()) {
   for (const t of tramos) {
     const ops = t.asignados.filter((r) => r.tipo === 'operario').length;
     if (ops < (t.operarios_req || 0)) {
-      out.push({ tipo: 'operarios', ids: [t.id],
+      out.push({ tipo: 'operarios', ids: [t.id], falta: t.operarios_req - ops,
         mensaje: `${etiqueta(t)}: ${ops}/${t.operarios_req} operarios asignados` });
     }
     const asignadosIds = new Set(t.asignados.map((r) => r.id));
     for (const req of t.requisitos || []) {
       if (!asignadosIds.has(req.id)) {
         const falta = req.tipo === 'subcontrata' ? 'sin confirmar' : 'sin asignar';
-        out.push({ tipo: 'requisito', ids: [t.id], mensaje: `${etiqueta(t)} requiere ${req.nombre} (${falta})` });
+        out.push({ tipo: 'requisito', ids: [t.id], recurso_id: req.id, mensaje: `${etiqueta(t)} requiere ${req.nombre} (${falta})` });
       }
     }
     // Requisitos por tipo («una Soldadora MIG», «2 × Soldador»): se cumplen con cualquier recurso
@@ -35,20 +35,20 @@ function calcularConflictos(tramos, jornada, tiposDisponibles = new Set()) {
       if (tienen >= q.cantidad) continue;
       const que = `${q.cantidad > 1 ? `${q.cantidad} × ` : ''}${q.nombre}`;
       if (!tiposDisponibles.has(q.id)) {
-        out.push({ tipo: 'requisito_tipo', ids: [t.id], leve: true,
+        out.push({ tipo: 'requisito_tipo', ids: [t.id], leve: true, tipo_recurso_id: q.id, clase: q.clase, falta: q.cantidad - tienen, sin_alta: true,
           mensaje: `${etiqueta(t)} requiere ${que} (no hay ninguno dado de alta)` });
       } else {
-        out.push({ tipo: 'requisito_tipo', ids: [t.id],
+        out.push({ tipo: 'requisito_tipo', ids: [t.id], tipo_recurso_id: q.id, clase: q.clase, falta: q.cantidad - tienen,
           mensaje: `${etiqueta(t)} requiere ${que}${tienen ? ` (${tienen} asignado${tienen > 1 ? 's' : ''})` : ' (sin asignar)'}` });
       }
     }
     const fin = t.hora_inicio + t.duracion_h;
     if (fin > jornada.fin) {
-      out.push({ tipo: 'jornada', ids: [t.id],
+      out.push({ tipo: 'jornada', ids: [t.id], lado: 'fin',
         mensaje: `${etiqueta(t)} termina a las ${hhmm(fin)}: ${horas(fin - Math.max(t.hora_inicio, jornada.fin))} fuera de jornada` });
     }
     if (t.hora_inicio < jornada.inicio) {
-      out.push({ tipo: 'jornada', ids: [t.id], mensaje: `${etiqueta(t)} empieza a las ${hhmm(t.hora_inicio)}, antes de la jornada` });
+      out.push({ tipo: 'jornada', ids: [t.id], lado: 'inicio', mensaje: `${etiqueta(t)} empieza a las ${hhmm(t.hora_inicio)}, antes de la jornada` });
     }
     // Dependencias: no empezar antes de que termine la tarea previa (+ espera de secado, curado…)
     for (const d of t.dependencias || []) {
@@ -56,14 +56,16 @@ function calcularConflictos(tramos, jornada, tiposDisponibles = new Set()) {
       const espera = d.espera_h ? ` + ${horas(d.espera_h)} de espera` : '';
       if (!d.fin) {
         if (d.estado !== 'hecha') {
-          out.push({ tipo: 'dependencia', ids: [t.id], leve: true, mensaje: `${etiqueta(t)} va después de ${previa}, que aún no está planificada` });
+          out.push({ tipo: 'dependencia', ids: [t.id], leve: true, previa_id: d.id, mensaje: `${etiqueta(t)} va después de ${previa}, que aún no está planificada` });
         }
         continue;
       }
       const inicio = instante(t.fecha, t.hora_inicio);
       const libre = instante(d.fin.fecha, d.fin.hora) + (d.espera_h || 0) * 3600e3;
       if (inicio < libre) {
-        out.push({ tipo: 'dependencia', ids: [t.id], leve: true,
+        const l = new Date(libre);
+        out.push({ tipo: 'dependencia', ids: [t.id], leve: true, previa_id: d.id,
+          libre: { fecha: l.toISOString().slice(0, 10), hora: l.getUTCHours() + l.getUTCMinutes() / 60 },
           mensaje: `${etiqueta(t)} empieza antes de que termine ${previa}${espera} (${fechaHora(libre)})` });
       }
     }

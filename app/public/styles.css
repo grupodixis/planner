@@ -641,3 +641,87 @@ tr.baja > td > input { text-decoration: line-through; opacity: .7; }
 .rec .sub-tag { font-size: 9.5px; text-transform: uppercase; letter-spacing: .4px; color: var(--naranja); border: 1px solid var(--naranja); border-radius: 99px; padding: 0 5px; margin-left: 6px; }
 .pasar-operario { flex-direction: row !important; align-items: center; gap: 10px; border-top: 1px solid var(--linea); padding-top: 10px; }
 .pasar-operario button { white-space: nowrap; }
+
+/* ---------- Panel «Por planificar»: Proyecto › Partida › OT ---------- */
+.solo-pend { font-size: 12px; color: var(--suave); display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
+.ordenes > .ayuda { margin: 2px 0 8px; }
+.proy { border-top: 1px solid var(--linea); padding: 6px 0 4px; }
+.proy:first-child { border-top: 0; }
+.proy-cab, .ot-cab {
+  display: flex; width: 100%; text-align: left; background: none; border: 0; border-radius: 6px; padding: 4px 4px; gap: 6px; align-items: center;
+}
+.proy-cab:hover, .ot-cab:hover { background: #222; }
+.proy-cab .flecha { color: var(--suave); width: 10px; flex: none; }
+.proy-txt { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+.proy-nom { font-size: 13.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.proy-sub { font-size: 11px; color: var(--suave); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.proy-pend { font-size: 11px; color: var(--suave); white-space: nowrap; }
+.cond-chip { font-size: 11px; color: var(--naranja); border: 1px solid var(--naranja); border-radius: 99px; padding: 0 6px; white-space: nowrap; }
+.proy-cuerpo { padding-left: 14px; }
+.part-cab { font-size: 11px; text-transform: uppercase; letter-spacing: .4px; color: var(--suave); margin: 8px 0 2px 4px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ot-b { --c: var(--azul); margin: 2px 0 6px; border-left: 3px solid var(--c); border-radius: 4px; }
+.ot-cab { flex-direction: column; align-items: stretch; gap: 2px; padding: 4px 6px; }
+.ot-l1 { display: flex; align-items: baseline; gap: 6px; min-width: 0; font-size: 13px; }
+.ot-l1 b { color: var(--c); white-space: nowrap; }
+.ot-l1 .punto { display: none; }
+.ot-tit { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.ot-l2 { display: flex; align-items: center; gap: 8px; font-size: 11px; color: var(--suave); }
+.ot-l2 .tarde { color: var(--rojo); }
+.ot-l2 .prio { border-radius: 99px; padding: 0 5px; border: 1px solid; }
+.ot-l2 .prio.p1 { color: var(--rojo); } .ot-l2 .prio.p2 { color: var(--naranja); }
+.mini-barra { flex: 1; min-width: 30px; height: 4px; border-radius: 2px; background: #2c2c2c; overflow: hidden; }
+.mini-barra span { display: block; height: 100%; background: var(--c); }
+.ot-h { font-family: var(--mono); font-size: 10.5px; white-space: nowrap; }
+.ot-tareas { display: flex; flex-direction: column; gap: 3px; padding: 2px 0 2px 8px; }
+.ot-b .tarea-card {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 8px; align-items: center; margin: 0;
+  padding: 4px 8px; font-size: 12.5px; border-radius: 6px;
+  background: color-mix(in srgb, var(--c) 14%, #171717); border: 1px solid color-mix(in srgb, var(--c) 45%, transparent); color: var(--texto);
+}
+.ot-b .tarea-card .tc-nom { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ot-b .tarea-card .tc-der { display: flex; gap: 6px; align-items: center; color: var(--suave); font-size: 11px; }
+.ot-b .tarea-card .hora { font: 11px var(--mono); color: color-mix(in srgb, var(--c) 60%, #fff); }
+.ot-b .tarea-card .tc-barra { grid-column: 1 / -1; }
+.ot-b .tarea-card.planificada { opacity: .5; border-style: dashed; }
+.ot-b .tarea-card.sel { outline: 2px solid #fff; outline-offset: 0; }
+
+/* ---------- Detalle flotante ---------- */
+dialog.dlg-detalle {
+  --c: var(--azul);
+  position: fixed; inset: 78px 20px auto auto; margin: 0; z-index: 50;
+  width: min(440px, calc(100vw - 32px)); max-height: calc(100vh - 100px); padding: 0;
+  display: none; flex-direction: column; box-shadow: 0 12px 40px #000c; border-top: 4px solid var(--c);
+}
+dialog.dlg-detalle[open] { display: flex; }
+.det-cab { display: flex; gap: 8px; align-items: flex-start; padding: 12px 14px 8px; border-bottom: 1px solid var(--linea); }
+.det-titulos { flex: 1; min-width: 0; }
+.det-migas { font-size: 12px; color: var(--suave); }
+.det-migas b { color: var(--texto); font-weight: 600; }
+.det-cab h2 { margin: 2px 0 2px; font-size: 16px; color: var(--c); line-height: 1.3; }
+.det-cab h2 .punto { display: none; }
+.det-meta { font-size: 12px; color: var(--suave); }
+.dlg-detalle .detalle { border: 0; margin: 0; padding: 10px 14px 14px; overflow: auto; }
+.avisos-det { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.avisos-det > li { color: var(--rojo); }
+.avisos-det > li.leve { color: var(--naranja); }
+.aviso-l { display: flex; gap: 8px; align-items: flex-start; justify-content: space-between; }
+.aviso-l button { flex: none; color: var(--texto); }
+.aviso-l button.activo { border-color: var(--azul); }
+.sol { color: var(--texto); background: #202020; border: 1px solid var(--borde); border-radius: 8px; padding: 8px 10px; margin-top: 4px;
+  display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
+.sol .ayuda { margin: 0; }
+.sol-acc { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.cands { list-style: none; margin: 0; padding: 0; width: 100%; }
+.cands li { display: grid; grid-template-columns: auto 1fr auto; gap: 8px; align-items: center; padding: 3px 0; border-top: 1px solid var(--linea); }
+.cands li:first-child { border-top: 0; }
+.cands .cand-info { font-size: 11px; color: var(--suave); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cands li.ocupado { opacity: .55; grid-template-columns: auto 1fr; }
+.cands .sub-tag { font-size: 9px; color: var(--naranja); border: 1px solid var(--naranja); border-radius: 99px; padding: 0 4px; margin-left: 5px; }
+button.primario.mini { background: var(--azul-bg); border-color: var(--azul); }
+.conflictos .btn-sol { margin-left: 8px; color: var(--texto); vertical-align: 1px; }
+.ot-l2 > span:not(.mini-barra) { white-space: nowrap; }
+
+.det-cab { cursor: move; user-select: none; touch-action: none; }
+.det-cab button { cursor: pointer; }
+.ot-l1 .flecha { margin-left: auto; color: var(--suave); font-size: 11px; }

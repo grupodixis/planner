@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>s360 · Tablero de planificación</title>
-  <link rel="stylesheet" href="styles.css?v=202611121653">
+  <link rel="stylesheet" href="styles.css?v=202611121726">
 </head>
 <body>
   <header class="top">
@@ -67,16 +67,28 @@
     </section>
 
     <!-- Derecha: OTs y detalle -->
-    <aside class="panel ordenes" aria-label="OTs prioritarias">
-      <h2>OTs prioritarias</h2>
-      <p class="ayuda">Arrastra una tarea al calendario. Suéltala aquí para desplanificarla.</p>
-      <div id="ordenes-lista" class="ordenes-lista"></div>
-      <div class="detalle" id="detalle">
-        <h3>Detalle tarea seleccionada</h3>
-        <div id="detalle-cuerpo" class="vacio">Pulsa un bloque o una tarea para ver su detalle.</div>
+    <aside class="panel ordenes" aria-label="Trabajo por planificar">
+      <div class="cab-panel">
+        <h2>Por planificar</h2>
+        <label class="solo-pend" title="Oculta las tareas que ya están planificadas enteras"><input type="checkbox" id="solo-pend"> Solo lo pendiente</label>
       </div>
+      <p class="ayuda">Proyecto › partida › OT. Arrastra una tarea al calendario; suéltala aquí para desplanificarla.</p>
+      <div id="ordenes-lista" class="ordenes-lista"></div>
     </aside>
   </main>
+
+  <!-- Detalle de lo seleccionado: ventana flotante (no bloquea el tablero: se pueden seguir arrastrando recursos) -->
+  <dialog id="dlg-detalle" class="dlg-detalle" aria-labelledby="det-tit">
+    <div class="det-cab" title="Arrastra para mover la ventana · doble clic: volver a su sitio">
+      <div class="det-titulos">
+        <div id="det-migas" class="det-migas"></div>
+        <h2 id="det-tit"></h2>
+        <div id="det-meta" class="det-meta"></div>
+      </div>
+      <button type="button" class="ghost" id="det-cerrar" aria-label="Cerrar detalle" title="Cerrar (Esc)">✕</button>
+    </div>
+    <div id="detalle-cuerpo" class="detalle"></div>
+  </dialog>
 
   <dialog id="dlg-areas" aria-labelledby="dlg-areas-tit">
     <div class="dlg-cab">
@@ -107,6 +119,6 @@
   </dialog>
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
-  <script src="app.js?v=202611121653"></script>
+  <script src="app.js?v=202611121726"></script>
 </body>
 </html>

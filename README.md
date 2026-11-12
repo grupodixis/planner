@@ -71,8 +71,11 @@ semana o un mes. La URL y el navegador recuerdan el periodo (`?fecha=…&periodo
 - **Centro – calendario del día:** una fila por **área de trabajo** (una obra, una zona del
   taller, la oficina técnica, la cabina de pintura…), 07:00–17:00, encaje cada 30 min. Arrastra tareas para moverlas; si se solapan
   en la misma fila se apilan.
-- **Derecha – OTs prioritarias:** tareas de las OTs abiertas, por prioridad y fecha de entrega,
-  cada OT con su color. Cada tarjeta muestra las horas que quedan por planificar.
+- **Derecha – Por planificar:** agrupado **Proyecto › Partida › OT**. Cada proyecto muestra su
+  cliente, condiciones previas pendientes (⚠) y cuántas tareas quedan; cada OT, prioridad, entrega,
+  avance (barra y horas planificadas/estimadas). Proyectos y OTs se pliegan (se recuerda en el
+  navegador). «Solo lo pendiente» oculta las tareas ya planificadas enteras. Cada tarjeta de
+  tarea: nombre y horas que quedan (×2 = operarios a la vez, ⤷ = va después de otra).
 - **Tramos (tareas largas):** al soltar una tarea en el calendario se crea un **tramo** que
   llega como mucho al fin de jornada (07:00–15:00 por defecto); lo que no cabe queda pendiente
   en la tarjeta («quedan 44h») para arrastrarlo otro día. Cada tramo tiene sus propios
@@ -102,10 +105,21 @@ semana o un mes. La URL y el navegador recuerdan el periodo (`?fecha=…&periodo
 - **Áreas de trabajo** (botón en el calendario): crear, renombrar, tipo (taller, obra, oficina
   técnica, pintura, transporte, otro), ubicación, orden y activar/desactivar. Un área con tareas
   no se borra: se desactiva y deja de salir en el calendario salvo los días en que tenga tareas.
-- **Detalle de la tarea:** proyecto, obra, partida, requisitos, recursos asignados (quitar con ×),
-  avisos, estado.
-- **Sin asignar / conflictos:** faltan operarios, falta máquina/subcontrata requerida, mismo
-  recurso en dos tareas a la vez, tarea que termina fuera de jornada.
+- **Detalle (ventana flotante):** al pulsar un bloque o una tarea se abre una ventana con el
+  proyecto y la partida de la OT, la tarea (requisitos, planificado, dependencias, notas,
+  condiciones), el tramo (recursos asignados, avisos, horas, empujar, repartir, mover) y todos sus
+  tramos. No bloquea el tablero (se siguen arrastrando recursos); se mueve arrastrando su cabecera
+  (doble clic la devuelve a su sitio) y se cierra con ✕ o Esc.
+- **Sin asignar / conflictos:** faltan operarios, falta máquina/subcontrata o tipo requerido,
+  mismo recurso en dos tareas a la vez, fuera de jornada, exceso sobre lo estimado, tarea que
+  empieza antes que su previa. Cada aviso tiene **«Solucionar»**, que propone:
+  - faltan operarios / un tipo: los recursos **libres a esa hora** de ese tipo (primero los que
+    tienen el oficio pedido) con «Asignar»; los ocupados se ven con dónde están;
+  - recurso concreto: asignarlo (o confirmarlo, si es subcontrata);
+  - solape: cambiar a esa persona/máquina por otra libre del mismo tipo, o empujar lo siguiente;
+  - fuera de jornada: recortar hasta el fin de jornada (lo demás queda pendiente) o empezar a las 07:00;
+  - exceso: subir la estimación o recortar el tramo;
+  - dependencia: mover el tramo al primer hueco tras la tarea previa (+ espera), o ir a la previa.
 - **Multiusuario:** login, roles `admin` / `planificador` / `consulta` (solo lectura),
   historial de cada cambio con usuario y hora, refresco automático cada 20 s.
 

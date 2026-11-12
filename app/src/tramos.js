@@ -66,7 +66,7 @@ async function ajustarFranjas(c, tramoId, delta) {
 const SQL_TAREAS = `
   SELECT t.id, t.nombre, t.duracion_h, t.operarios_req, t.linea_id, t.estado, t.orden_en_of, t.notas, t.baja_presupuesto,
          o.proyecto_id, o.id AS orden_id, o.codigo AS orden_codigo, o.color AS orden_color, o.titulo AS orden_titulo,
-         o.prioridad, pa.codigo AS partida_codigo, pa.nombre AS partida, o.fecha_entrega,
+         o.prioridad, o.partida_id, pa.codigo AS partida_codigo, pa.nombre AS partida, pa.orden AS partida_orden, o.fecha_entrega,
          p.codigo AS proyecto, p.nombre AS proyecto_nombre, p.cliente, p.obra,
          COALESCE((SELECT json_agg(json_build_object('id', r.id, 'nombre', r.nombre, 'tipo', r.tipo) ORDER BY r.tipo, r.nombre)
                      FROM tarea_requisitos tr JOIN recursos r ON r.id = tr.recurso_id

@@ -41,6 +41,7 @@
     datos: null,
     usuario: null,
     sel: null,          // { tipo: 'tramo' | 'tarea', id }
+    solucion: null,     // aviso con las propuestas de «Solucionar» desplegadas
     arrastre: null,     // { tipo: 'tarea' | 'tramo' | 'recurso', id, agarre }
     filtro: '',
     vista: leerPref('vista', 'areas'),   // 'areas' | 'operarios'
@@ -63,6 +64,7 @@
     const [y, m, d] = iso.split('-').map(Number);
     return new Date(y, m - 1, d).toLocaleDateString('es-ES', { weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric' });
   };
+  const ddmm = (iso) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`;
   const fechaCorta = (iso) => {
     const [y, m, d] = iso.split('-').map(Number);
     return new Date(y, m - 1, d).toLocaleDateString('es-ES', { weekday: 'short', day: '2-digit', month: '2-digit' });
@@ -973,28 +975,84 @@
   }
 
   /* ---------- OTs y tareas (derecha) ---------- */
+  // Panel derecho: Proyecto › Partida › OT › tareas. Proyectos y OTs se pliegan (se recuerda por navegador).
+  const plegados = new Set((() => { try { return JSON.parse(leerPref('plegados', '[]')); } catch { return []; } })());
+  function plegar(clave) {
+    if (plegados.has(clave)) plegados.delete(clave); else plegados.add(clave);
+    guardarPref('plegados', JSON.stringify([...plegados].slice(-300)));
+    pintarOrdenes();
+    aplicarFiltro();
+  }
+  const soloPendiente = () => leerPref('solo_pend', '1') === '1';
+
   function pintarOrdenes() {
-    const grupos = new Map();
+    const solo = soloPendiente();
+    $('#solo-pend').checked = solo;
+    const proyectos = new Map();
     for (const t of estado.datos.tareas) {
       if (t.estado === 'hecha') continue;
-      if (!grupos.has(t.orden_id)) grupos.set(t.orden_id, { t0: t, tareas: [] });
-      grupos.get(t.orden_id).tareas.push(t);
+      const pk = t.proyecto_id || 0;
+      if (!proyectos.has(pk)) proyectos.set(pk, { t0: t, partidas: new Map(), pend: 0, cond: t.condiciones_pendientes || [] });
+      const P = proyectos.get(pk);
+      const ak = t.partida_id || 0;
+      if (!P.partidas.has(ak)) P.partidas.set(ak, { t0: t, ots: new Map() });
+      const A = P.partidas.get(ak);
+      if (!A.ots.has(t.orden_id)) A.ots.set(t.orden_id, { t0: t, tareas: [] });
+      A.ots.get(t.orden_id).tareas.push(t);
+      if (pendientes(t) > 0) P.pend++;
     }
     const lista = $('#ordenes-lista');
-    if (!grupos.size) { lista.replaceChildren(el('p', { class: 'ayuda' }, 'No hay órdenes abiertas.')); return; }
+    if (!proyectos.size) { lista.replaceChildren(el('p', { class: 'ayuda' }, 'No hay órdenes abiertas.')); return; }
+    const tSel = estado.sel ? (estado.sel.tipo === 'tarea' ? tarea(estado.sel.id) : tarea(tramo(estado.sel.id)?.tarea_id)) : null;
 
-    lista.replaceChildren(...[...grupos.values()].map(({ t0, tareas }) =>
-      el('div', { class: 'orden', style: `--c:${t0.orden_color}` },
-        el('h3', {}, `${t0.orden_codigo} / ${t0.orden_titulo}`),
-        (t0.proyecto || t0.fecha_entrega) ? el('div', { class: 'meta' },
-          [t0.proyecto && `${t0.proyecto}${t0.proyecto_nombre ? ' · ' + t0.proyecto_nombre : ''}`,
-           t0.partida && `${t0.partida_codigo ? t0.partida_codigo + ' ' : ''}${t0.partida}`,
-           t0.fecha_entrega && `entrega ${t0.fecha_entrega.split('-').reverse().join('/')}`].filter(Boolean).join(' · '),
-          t0.condiciones_pendientes?.length ? el('span', {
-            class: 'cond', title: `Condiciones previas sin confirmar:\n· ${t0.condiciones_pendientes.join('\n· ')}`,
-          }, ` · ⚠ ${t0.condiciones_pendientes.length} condición(es) pendiente(s)`) : null) : null,
-        tareas.map(tarjetaTarea),
-      )));
+    lista.replaceChildren(...[...proyectos].map(([pk, P]) => {
+      const t0 = P.t0;
+      const claveP = `p:${pk}`;
+      const abierto = !plegados.has(claveP) || tSel?.proyecto_id === (pk || null);
+      const partidas = [...P.partidas.values()].sort((a, b) => (a.t0.partida_orden ?? 1e9) - (b.t0.partida_orden ?? 1e9));
+      const conPartidas = partidas.some((a) => a.t0.partida_id);
+      return el('section', { class: `proy${abierto ? '' : ' plegado'}` },
+        el('button', {
+          type: 'button', class: 'proy-cab', 'aria-expanded': abierto ? 'true' : 'false',
+          onclick: () => plegar(claveP),
+          title: [t0.proyecto_nombre, t0.cliente, t0.obra].filter(Boolean).join(' · '),
+        },
+          el('span', { class: 'flecha', 'aria-hidden': 'true' }, abierto ? '▾' : '▸'),
+          el('span', { class: 'proy-txt' },
+            el('span', { class: 'proy-nom' }, pk ? el('b', {}, t0.proyecto) : null, pk ? ` ${t0.proyecto_nombre || ''}` : 'Sin proyecto'),
+            t0.cliente ? el('span', { class: 'proy-sub' }, t0.cliente) : null),
+          P.cond.length ? el('span', { class: 'cond-chip', title: `Condiciones previas sin confirmar:\n· ${P.cond.join('\n· ')}` }, `⚠ ${P.cond.length}`) : null,
+          el('span', { class: 'proy-pend', title: 'Tareas con horas por planificar' }, P.pend ? `${P.pend} pend.` : '✓')),
+        abierto ? el('div', { class: 'proy-cuerpo' }, partidas.map((A) => [
+          conPartidas ? el('div', { class: 'part-cab', title: A.t0.partida || '' },
+            A.t0.partida_id ? `${A.t0.partida_codigo ? A.t0.partida_codigo + ' · ' : ''}${A.t0.partida}` : 'Sin partida') : null,
+          [...A.ots.values()].map(({ t0: o, tareas }) => bloqueOT(o, tareas, solo, tSel)),
+        ])) : null);
+    }));
+  }
+
+  function bloqueOT(o, tareas, solo, tSel) {
+    const claveO = `o:${o.orden_id}`;
+    const abierta = !plegados.has(claveO) || tSel?.orden_id === o.orden_id;
+    const horas = tareas.reduce((s, t) => s + t.duracion_h, 0);
+    const plan = tareas.reduce((s, t) => s + Math.min(t.duracion_h, t.horas_planificadas), 0);
+    const pend = tareas.filter((t) => pendientes(t) > 0);
+    const visibles = solo ? pend : tareas;
+    const entrega = o.fecha_entrega ? ddmm(o.fecha_entrega) : null;
+    const tarde = o.fecha_entrega && o.fecha_entrega < hoyISO();
+    return el('div', { class: `ot-b${abierta ? '' : ' plegada'}`, style: `--c:${o.orden_color}`, 'data-buscar': `${o.orden_codigo} ${o.orden_titulo} ${o.proyecto || ''} ${o.partida || ''}`.toLowerCase() },
+      el('button', { type: 'button', class: 'ot-cab', 'aria-expanded': abierta ? 'true' : 'false', onclick: () => plegar(claveO), title: o.orden_titulo },
+        el('span', { class: 'ot-l1' },
+          el('span', { class: 'punto', 'aria-hidden': 'true' }),
+          el('b', {}, o.orden_codigo), el('span', { class: 'ot-tit' }, o.orden_titulo),
+          el('span', { class: 'flecha', 'aria-hidden': 'true' }, abierta ? '▾' : '▸')),
+        el('span', { class: 'ot-l2' },
+          o.prioridad <= 2 ? el('span', { class: `prio p${o.prioridad}` }, o.prioridad === 1 ? 'urgente' : 'alta') : null,
+          entrega ? el('span', { class: tarde ? 'tarde' : '' }, `entrega ${entrega}`) : null,
+          el('span', { title: `${pend.length} de ${tareas.length} tareas con horas por planificar` }, pend.length ? `${pend.length}/${tareas.length} pend.` : '✓ planificada'),
+          el('span', { class: 'mini-barra', 'aria-hidden': 'true' }, el('span', { style: `width:${horas ? (plan / horas) * 100 : 0}%` })),
+          el('span', { class: 'ot-h' }, `${durTxt(+plan.toFixed(1))}/${durTxt(+horas.toFixed(1))}`))),
+      abierta && visibles.length ? el('div', { class: 'ot-tareas' }, visibles.map(tarjetaTarea)) : null);
   }
 
   function tarjetaTarea(t) {
@@ -1002,24 +1060,20 @@
     const completa = pend === 0;
     const req = [...(t.requisitos_tipo || []).map((q) => `${q.cantidad > 1 ? q.cantidad + '× ' : ''}${q.nombre}`),
       ...t.requisitos.map((r) => r.nombre)].join(', ');
-    const hoy = t.tramos.filter((x) => x.fecha === estado.fecha);
     const sel = estado.sel?.tipo === 'tarea' && estado.sel.id === t.id;
     const arrastrable = puedeEditar() && !completa;
-
-    let estadoTxt;
-    if (completa && t.tramos.length === 1) estadoTxt = t.tramos[0].fecha === estado.fecha ? hhmm(t.tramos[0].hora_inicio) : fechaCorta(t.tramos[0].fecha);
-    else if (completa) estadoTxt = `${t.tramos.length} tramos`;
-    else if (t.horas_planificadas) estadoTxt = `quedan ${durTxt(pend)}`;
-    else estadoTxt = null;
+    const estadoTxt = completa ? (t.tramos.length === 1 ? ddmm(t.tramos[0].fecha) : `${t.tramos.length} tramos`)
+      : t.horas_planificadas ? `quedan ${durTxt(pend)}` : durTxt(t.duracion_h);
 
     return el('div', {
       class: `tarea-card${completa ? ' planificada' : ''}${t.horas_planificadas && !completa ? ' parcial' : ''}${sel ? ' sel' : ''}${t.baja_presupuesto ? ' baja' : ''}`,
       draggable: arrastrable ? 'true' : 'false', tabindex: '0', role: 'button',
       'data-tarea': t.id,
-      'data-buscar': `${t.orden_codigo} ${t.orden_titulo} ${t.nombre} ${req} ${t.partida_codigo || ''} ${t.partida || ''}`.toLowerCase(),
-      title: completa ? 'Planificada entera. Pulsa para ver sus tramos.'
-        : t.horas_planificadas ? `${durTxt(t.horas_planificadas)} planificadas de ${durTxt(t.duracion_h)}. Arrastra para planificar el resto.`
-          : 'Arrastra al calendario para planificarla',
+      'data-buscar': `${t.orden_codigo} ${t.orden_titulo} ${t.nombre} ${req} ${t.partida_codigo || ''} ${t.partida || ''} ${t.proyecto || ''} ${t.proyecto_nombre || ''}`.toLowerCase(),
+      title: `${t.nombre}\n${durTxt(t.duracion_h)}${t.operarios_req ? ` · ${t.operarios_req} op` : ''}${req ? ` · ${req}` : ''}\n`
+        + (completa ? 'Planificada entera. Pulsa para ver el detalle.'
+          : t.horas_planificadas ? `${durTxt(t.horas_planificadas)} planificadas de ${durTxt(t.duracion_h)}. Arrastra para planificar el resto.`
+            : 'Arrastra al calendario para planificarla'),
       onclick: () => seleccionar({ tipo: 'tarea', id: t.id }),
       onkeydown: (ev) => { if (ev.key === 'Enter') seleccionar({ tipo: 'tarea', id: t.id }); },
       ondragstart: (ev) => {
@@ -1029,16 +1083,14 @@
       },
       ondragend: finArrastre,
     },
-      el('div', { class: 'tc-linea' },
-        el('span', { class: 'tc-txt' }, [t.nombre, durTxt(t.duracion_h), t.operarios_req ? `${t.operarios_req} op` : null, req || null]
-          .filter(Boolean).join(' · ')),
-        estadoTxt ? el('span', { class: 'hora' }, estadoTxt) : null),
-      t.duracion_h > J().horas || (t.horas_planificadas && !completa)
-        ? el('span', { class: 'tc-barra', 'aria-hidden': 'true' },
-          el('span', { style: `width:${Math.min(100, (t.horas_planificadas / t.duracion_h) * 100)}%` }))
-        : null,
-      hoy.length && !completa && estado.periodo === 'dia' ? el('span', { class: 'tc-hoy' }, `hoy ${hoy.map((x) => hhmm(x.hora_inicio)).join(', ')}`) : null,
-    );
+      el('span', { class: 'tc-nom' }, t.nombre),
+      el('span', { class: 'tc-der' },
+        t.operarios_req > 1 ? el('span', { class: 'tc-ops', title: `${t.operarios_req} operarios a la vez` }, `×${t.operarios_req}`) : null,
+        (t.dependencias || []).length ? el('span', { class: 'tc-dep', title: `Va después de: ${t.dependencias.map((d) => d.nombre).join(', ')}` }, '⤷') : null,
+        el('span', { class: 'hora' }, estadoTxt)),
+      t.horas_planificadas && !completa
+        ? el('span', { class: 'tc-barra', 'aria-hidden': 'true' }, el('span', { style: `width:${Math.min(100, (t.horas_planificadas / t.duracion_h) * 100)}%` }))
+        : null);
   }
 
   // soltar un tramo del calendario en el panel derecho = quitarlo del tablero
@@ -1070,9 +1122,13 @@
     }
     const conFecha = estado.periodo !== 'dia';
     ul.replaceChildren(...cs.map((c) => el('li', {
-      class: c.leve ? 'leve' : '', tabindex: '0', onclick: () => seleccionar({ tipo: 'tramo', id: c.ids[0] }),
-      onkeydown: (ev) => { if (ev.key === 'Enter') seleccionar({ tipo: 'tramo', id: c.ids[0] }); },
-    }, conFecha ? el('b', { class: 'conf-fecha' }, `${fechaCorta(c.fecha)} · `) : null, c.mensaje)));
+      class: c.leve ? 'leve' : '', tabindex: '0', onclick: () => seleccionar({ tipo: 'tramo', id: tramoDeAviso(c) }),
+      onkeydown: (ev) => { if (ev.key === 'Enter') seleccionar({ tipo: 'tramo', id: tramoDeAviso(c) }); },
+    }, conFecha ? el('b', { class: 'conf-fecha' }, `${fechaCorta(c.fecha)} · `) : null, c.mensaje,
+    puedeEditar() && tieneSolucion(c) ? el('button', {
+      type: 'button', class: 'ghost mini btn-sol',
+      onclick: (ev) => { ev.stopPropagation(); estado.solucion = claveAviso(c); seleccionar({ tipo: 'tramo', id: tramoDeAviso(c) }); },
+    }, 'Solucionar') : null)));
   }
 
   /* ---------- detalle (derecha abajo) ---------- */
@@ -1081,17 +1137,27 @@
     const s = estado.sel;
     const tr = s?.tipo === 'tramo' ? tramo(s.id) : null;
     const t = tr ? tarea(tr.tarea_id) : s?.tipo === 'tarea' ? tarea(s.id) : null;
-    if (!t) { caja.className = 'vacio'; caja.textContent = 'Pulsa un bloque o una tarea para ver su detalle.'; return; }
-    caja.className = '';
+    const dlg = $('#dlg-detalle');
+    if (!t) { if (dlg.open) dlg.close(); return; }
+    const scroll = dlg.open ? caja.scrollTop : 0;
     const editar = puedeEditar();
     const pend = pendientes(t);
 
+    // Cabecera: de qué proyecto y partida es, y la OT
+    dlg.style.setProperty('--c', t.orden_color);
+    $('#det-migas').replaceChildren(
+      t.proyecto ? el('span', { title: [t.cliente, t.obra].filter(Boolean).join(' · ') }, el('b', {}, t.proyecto), ` ${t.proyecto_nombre || ''}`) : el('span', {}, 'Sin proyecto'),
+      t.partida ? el('span', { class: 'sep' }, ' › ') : null,
+      t.partida ? el('span', {}, `${t.partida_codigo ? t.partida_codigo + ' · ' : ''}${t.partida}`) : null);
+    $('#det-tit').replaceChildren(el('span', { class: 'punto', 'aria-hidden': 'true' }), `${t.orden_codigo} · ${t.orden_titulo}`);
+    $('#det-meta').textContent = [
+      { 1: 'Urgente', 2: 'Prioridad alta', 3: null, 4: 'Prioridad baja' }[t.prioridad],
+      t.fecha_entrega && `entrega ${fechaCorta(t.fecha_entrega)}`,
+      [t.cliente, t.obra].filter(Boolean).join(' · ') || null,
+    ].filter(Boolean).join(' · ');
+
     const filas = [
-      el('dt', {}, 'Orden'), el('dd', {}, `${t.orden_codigo} · ${t.orden_titulo}`),
-      el('dt', {}, 'Tarea'), el('dd', {}, `${t.nombre} · ${durTxt(t.duracion_h)}`),
-      el('dt', {}, 'Proyecto'), el('dd', {}, [t.proyecto, t.proyecto_nombre].filter(Boolean).join(' · ') || '—'),
-      el('dt', {}, 'Partida'), el('dd', {}, t.partida ? `${t.partida_codigo ? t.partida_codigo + ' · ' : ''}${t.partida}` : '—'),
-      el('dt', {}, 'Obra'), el('dd', {}, [t.cliente, t.obra].filter(Boolean).join(' / ') || '—'),
+      el('dt', {}, 'Tarea'), el('dd', {}, el('b', {}, t.nombre), ` · ${durTxt(t.duracion_h)}`),
       el('dt', {}, 'Requiere'), el('dd', {},
         [t.operarios_req ? `${t.operarios_req} op` : null,
           ...(t.requisitos_tipo || []).map((q) => `${q.cantidad > 1 ? q.cantidad + ' × ' : ''}${q.nombre}`),
@@ -1151,10 +1217,201 @@
         el('a', { class: 'boton ghost', href: `/proyectos.html?ot=${t.orden_id}` }, 'Editar OT')));
     }
     caja.replaceChildren(...partes);
+    if (!dlg.open) dlg.show();
+    caja.scrollTop = scroll;
+  }
+
+  // La ventana de detalle se arrastra por su cabecera; se recuerda dónde se dejó
+  function moverDetalle() {
+    const dlg = $('#dlg-detalle');
+    const colocar = (x, y) => {
+      const w = dlg.offsetWidth || 440;
+      const nx = Math.max(8, Math.min(window.innerWidth - w - 8, x));
+      const ny = Math.max(8, Math.min(window.innerHeight - 80, y));
+      dlg.style.left = `${nx}px`; dlg.style.top = `${ny}px`; dlg.style.right = 'auto';
+      return [nx, ny];
+    };
+    try { const p = JSON.parse(leerPref('detalle_pos', 'null')); if (p) requestAnimationFrame(() => colocar(...p)); } catch { /* posición por defecto */ }
+    const cab = dlg.querySelector('.det-cab');
+    cab.addEventListener('pointerdown', (ev) => {
+      if (ev.target.closest('button, a')) return;
+      ev.preventDefault();
+      const r = dlg.getBoundingClientRect();
+      const dx = ev.clientX - r.left, dy = ev.clientY - r.top;
+      cab.setPointerCapture(ev.pointerId);
+      const mover = (e) => colocar(e.clientX - dx, e.clientY - dy);
+      const soltar = (e) => {
+        cab.removeEventListener('pointermove', mover);
+        cab.removeEventListener('pointerup', soltar);
+        guardarPref('detalle_pos', JSON.stringify(colocar(e.clientX - dx, e.clientY - dy)));
+      };
+      cab.addEventListener('pointermove', mover);
+      cab.addEventListener('pointerup', soltar);
+    });
+    cab.addEventListener('dblclick', (ev) => {
+      if (ev.target.closest('button, a')) return;
+      dlg.style.left = ''; dlg.style.top = ''; dlg.style.right = '';
+      guardarPref('detalle_pos', 'null');
+    });
+  }
+
+  /* ---------- avisos con «Solucionar» ---------- */
+  const claveAviso = (c) => `${c.tipo}|${c.ids.join(',')}|${c.mensaje}`;
+  // El tramo sobre el que se actúa: en un solape, el que empieza más tarde
+  function tramoDeAviso(c) {
+    if (c.tipo !== 'solape') return c.ids[0];
+    const [a, b] = c.ids.map(tramo);
+    return a && b && b.hora_inicio < a.hora_inicio ? a.id : c.ids[1];
+  }
+  const tieneSolucion = (c) => ['operarios', 'requisito', 'requisito_tipo', 'solape', 'jornada', 'exceso', 'dependencia'].includes(c.tipo);
+  const recurso = (id) => estado.datos.recursos.find((r) => r.id === id);
+  const activos = (tipo) => estado.datos.recursos.filter((r) => r.activo !== false && (!tipo || r.tipo === tipo));
+  // Dónde está ocupado un recurso ese día (sin contar el tramo indicado)
+  const ocupaciones = (recursoId, fecha, excluir) => estado.datos.tramos
+    .filter((x) => x.fecha === fecha && x.id !== excluir)
+    .flatMap((x) => x.asignados.filter((a) => a.id === recursoId).map((a) => ({ x, desde: a.desde, hasta: a.hasta })));
+
+  // Lista de recursos propuestos para un tramo: primero los libres a esa hora
+  function candidatos(lista, tr, { asignar, boton = 'Asignar', prefiere = () => false, motivo = '' }) {
+    const ini = tr.hora_inicio, fin = tr.hora_inicio + tr.duracion_h;
+    const filas = lista.map((r) => {
+      const choca = ocupaciones(r.id, tr.fecha, tr.id).filter((o) => o.desde < fin && ini < o.hasta);
+      return { r, choca, pref: prefiere(r) };
+    }).sort((a, b) => (a.choca.length - b.choca.length) || (b.pref - a.pref) || a.r.nombre.localeCompare(b.r.nombre, 'es'));
+    const libres = filas.filter((f) => !f.choca.length);
+    const ocupados = filas.filter((f) => f.choca.length);
+    if (!filas.length) return el('p', { class: 'ayuda' }, 'No hay ningún recurso que encaje dado de alta.');
+    return el('div', {},
+      libres.length ? null : el('p', { class: 'ayuda' }, `Nadie libre de ${hhmm(ini)} a ${hhmm(fin)}.`),
+      el('ul', { class: 'cands' },
+        libres.slice(0, 8).map(({ r, pref }) => el('li', {},
+          el('span', { class: 'cand-nom' }, r.nombre, r.vinculo === 'subcontratado' ? el('span', { class: 'sub-tag' }, 'sub') : null),
+          el('span', { class: 'cand-info' }, pref && motivo ? `✓ ${motivo}` : (r.tipos_txt || 'libre')),
+          el('button', { type: 'button', class: 'primario mini', onclick: () => asignar(r) }, boton))),
+        ocupados.slice(0, 4).map(({ r, choca }) => el('li', { class: 'ocupado' },
+          el('span', { class: 'cand-nom' }, r.nombre),
+          el('span', { class: 'cand-info' }, `ocupado ${choca.map((o) => `${hhmm(o.desde)}–${hhmm(o.hasta)} ${tarea(o.x.tarea_id)?.orden_codigo || ''}`).join(', ')}`)))),
+      libres.length > 8 ? el('p', { class: 'ayuda' }, `y ${libres.length - 8} más libres`) : null);
+  }
+
+  // Primer hueco laborable a partir de un instante (fecha + hora)
+  function siguienteHueco(fecha, hora) {
+    let f = fecha, h = Math.ceil(hora / PASO) * PASO;
+    if (h >= J().fin) { f = sumarDias(f, 1); h = J().inicio; }
+    if (h < J().inicio) h = J().inicio;
+    while (esFinde(f)) f = sumarDias(f, 1);
+    return { fecha: f, hora: h };
+  }
+
+  function propuestas(c, tr, t) {
+    const ini = tr.hora_inicio, fin = tr.hora_inicio + tr.duracion_h;
+    const yaEn = new Set(tr.asignados.map((r) => r.id));
+    const asignar = (r) => accion(() => api('POST', `/api/tramos/${tr.id}/asignaciones`, { recurso_id: r.id }), `${r.nombre} asignado`);
+    const caja = (...hijos) => el('div', { class: 'sol' }, ...hijos);
+    switch (c.tipo) {
+      case 'operarios': {
+        const oficios = (t.requisitos_tipo || []).filter((q) => q.clase === 'operario');
+        return caja(el('p', { class: 'ayuda' }, `Faltan ${c.falta} operario(s)${oficios.length ? ` · se proponen primero los de ${oficios.map((q) => q.nombre).join(', ')}` : ''}:`),
+          candidatos(activos('operario').filter((r) => !yaEn.has(r.id)), tr, {
+            asignar, motivo: 'tiene el oficio', prefiere: (r) => oficios.some((q) => (r.tipos || []).includes(q.id)),
+          }));
+      }
+      case 'requisito_tipo': {
+        const nombre = (t.requisitos_tipo || []).find((q) => q.id === c.tipo_recurso_id)?.nombre || 'ese tipo';
+        if (c.sin_alta) {
+          return caja(el('p', { class: 'ayuda' }, `No hay ningún «${nombre}» dado de alta. Si es una máquina o subcontrata que no está en el sistema, puedes ignorar el aviso (es leve) o darla de alta.`),
+            el('a', { class: 'boton ghost', href: `/recursos.html?tipo=${c.clase || 'maquina'}` }, 'Dar de alta en Recursos'));
+        }
+        return caja(el('p', { class: 'ayuda' }, `${nombre}${c.falta > 1 ? ` · faltan ${c.falta}` : ''}:`),
+          candidatos(activos().filter((r) => (r.tipos || []).includes(c.tipo_recurso_id) && !yaEn.has(r.id)), tr, { asignar }));
+      }
+      case 'requisito': {
+        const r = recurso(c.recurso_id);
+        return caja(r ? candidatos([r], tr, { asignar, boton: r.tipo === 'subcontrata' ? 'Confirmar' : 'Asignar' }) : el('p', { class: 'ayuda' }, 'Ese recurso ya no existe.'));
+      }
+      case 'solape': {
+        const r = recurso(c.recurso_id);
+        const otro = tramo(c.ids.find((id) => id !== tr.id));
+        if (!r) return caja();
+        const mismos = activos(r.tipo).filter((x) => x.id !== r.id && !yaEn.has(x.id)
+          && (!(r.tipos || []).length || (x.tipos || []).some((id) => r.tipos.includes(id))));
+        const primero = otro && otro.hora_inicio < tr.hora_inicio ? otro : tr;
+        return caja(
+          el('p', { class: 'ayuda' }, `Cambiar a ${r.nombre} en este tramo (${hhmm(ini)}–${hhmm(fin)}) por otro${(r.tipos || []).length ? ' del mismo tipo' : ''}:`),
+          candidatos(mismos, tr, {
+            boton: 'Cambiar',
+            asignar: (x) => accion(() => api('PATCH', `/api/tramos/${tr.id}/asignaciones/${r.id}`, { recurso_id: x.id }), `${r.nombre} → ${x.nombre}`),
+          }),
+          el('div', { class: 'sol-acc' }, el('span', { class: 'ayuda' }, 'O retrasa lo que viene detrás:'),
+            el('button', { type: 'button', class: 'ghost mini', onclick: () => proponerEmpuje(primero.id, { siempre: true }) }, 'Empujar lo siguiente…')));
+      }
+      case 'jornada': {
+        if (c.lado === 'inicio') {
+          return caja(el('button', {
+            type: 'button', class: 'primario mini',
+            onclick: () => accion(() => api('PATCH', `/api/tramos/${tr.id}`, { hora_inicio: J().inicio }), `Empieza a las ${hhmm(J().inicio)}`),
+          }, `Empezar a las ${hhmm(J().inicio)}`));
+        }
+        const fuera = +(fin - Math.max(ini, J().fin)).toFixed(1);
+        return caja(
+          ini < J().fin ? el('button', {
+            type: 'button', class: 'primario mini', title: 'Lo que no cabe queda pendiente en el panel derecho',
+            onclick: () => guardarResizeTramo(tr, ini, J().fin),
+          }, `Recortar hasta las ${hhmm(J().fin)} (${durTxt(fuera)} quedan pendientes)`) : null,
+          el('span', { class: 'ayuda' }, ' Si son horas extra previstas, puedes dejarlo así.'));
+      }
+      case 'exceso': {
+        const nueva = Math.ceil(t.horas_planificadas / PASO) * PASO;
+        return caja(
+          el('button', {
+            type: 'button', class: 'primario mini', title: 'Si el trabajo de verdad lleva más horas',
+            onclick: () => accion(() => api('PATCH', `/api/tareas/${t.id}`, { duracion_h: nueva }), `Estimación: ${durTxt(nueva)}`),
+          }, `Subir la estimación a ${durTxt(nueva)}`),
+          tr.duracion_h - tr.exceso >= PASO ? el('button', {
+            type: 'button', class: 'ghost mini',
+            onclick: () => guardarResizeTramo(tr, ini, fin - tr.exceso),
+          }, `Recortar este tramo ${durTxt(tr.exceso)}`) : null);
+      }
+      case 'dependencia': {
+        const previa = (t.dependencias || []).find((d) => d.id === c.previa_id);
+        if (!c.libre) {
+          return caja(el('p', { class: 'ayuda' }, `Planifica antes «${previa?.nombre || 'la tarea previa'}».`),
+            previa && tarea(previa.id) ? el('button', { type: 'button', class: 'ghost mini', onclick: () => seleccionar({ tipo: 'tarea', id: previa.id }) }, 'Ver esa tarea') : null);
+        }
+        const dest = siguienteHueco(c.libre.fecha, c.libre.hora);
+        return caja(el('button', {
+          type: 'button', class: 'primario mini',
+          onclick: () => accion(async () => {
+            await api('PATCH', `/api/tramos/${tr.id}`, { fecha: dest.fecha, hora_inicio: dest.hora });
+            if (estado.periodo === 'dia') estado.fecha = dest.fecha;
+            return `Tramo movido al ${fechaCorta(dest.fecha)} a las ${hhmm(dest.hora)}`;
+          }),
+        }, `Mover a ${fechaCorta(dest.fecha)} · ${hhmm(dest.hora)}`),
+        el('span', { class: 'ayuda' }, ` cuando ya ha terminado «${previa?.nombre || 'la previa'}»`));
+      }
+      default: return caja();
+    }
+  }
+
+  // Avisos de un tramo, cada uno con su «Solucionar»
+  function listaAvisos(tr, t) {
+    const lista = conflictosDe(tr.id);
+    if (!lista.length) return el('span', { class: 'dep-ok' }, 'ninguno');
+    return el('ul', { class: 'avisos-det' }, lista.map((c) => {
+      const k = claveAviso(c);
+      const abierto = estado.solucion === k;
+      return el('li', { class: c.leve ? 'leve' : '' },
+        el('div', { class: 'aviso-l' },
+          el('span', {}, c.mensaje.replace(/^OT-\S+ [^:]*?(:| requiere| empieza| termina| va después| solapado)/i, (m, g) => g === ':' ? '' : g.trim()) ),
+          puedeEditar() && tieneSolucion(c) ? el('button', {
+            type: 'button', class: `ghost mini${abierto ? ' activo' : ''}`, 'aria-expanded': abierto ? 'true' : 'false',
+            onclick: () => { estado.solucion = abierto ? null : k; pintarDetalle(); },
+          }, abierto ? 'Ocultar' : 'Solucionar') : null),
+        abierto ? propuestas(c, tr, t) : null);
+    }));
   }
 
   function seccionTramo(t, tr, pend, editar) {
-    const bloqueos = conflictosDe(tr.id);
     const ops = tr.asignados.filter((r) => r.tipo === 'operario').length;
     const maxH = Math.max(PASO, H_FIN() - tr.hora_inicio);
     const hastaFin = Math.max(PASO, finDelDia(tr.hora_inicio) - tr.hora_inicio);
@@ -1180,8 +1437,7 @@
                 { desde: tr.hora_inicio, hasta: tr.hora_inicio + tr.duracion_h }), `${r.nombre}: todo el tramo`),
             }, 'todo el tramo') : null))) : '—',
           ops < t.operarios_req ? el('div', { class: 'ayuda' }, `Faltan ${t.operarios_req - ops} operario(s): arrástralos al bloque`) : null),
-        el('dt', {}, 'Avisos'), el('dd', {},
-          bloqueos.length ? bloqueos.map((c) => el('div', { class: 'bloqueo' }, c.mensaje)) : 'ninguno'),
+        el('dt', {}, 'Avisos'), el('dd', {}, listaAvisos(tr, t)),
       ),
     );
     if (!editar) return sec;
@@ -1354,6 +1610,13 @@
     $('#hoy').onclick = () => irA(hoyISO());
     $('#fecha-input').onchange = (ev) => ev.target.value && irA(ev.target.value);
     $('#buscar').oninput = (ev) => { estado.filtro = ev.target.value; aplicarFiltro(); };
+    $('#solo-pend').onchange = (ev) => { guardarPref('solo_pend', ev.target.checked ? '1' : '0'); pintarOrdenes(); aplicarFiltro(); };
+    $('#det-cerrar').onclick = () => { estado.solucion = null; seleccionar(null); };
+    moverDetalle();
+    $('#dlg-detalle').addEventListener('cancel', (ev) => { ev.preventDefault(); estado.solucion = null; seleccionar(null); });
+    document.addEventListener('keydown', (ev) => {
+      if (ev.key === 'Escape' && $('#dlg-detalle').open && !document.querySelector('dialog[open]:modal')) { estado.solucion = null; seleccionar(null); }
+    });
     $('#salir').onclick = async () => { await api('POST', '/api/logout'); location.href = '/login.html'; };
     prepararDropOrdenes();
     prepararAreas();
