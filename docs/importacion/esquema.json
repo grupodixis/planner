@@ -1,0 +1,121 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/grupodixis/planner/docs/importacion/esquema.json",
+  "title": "s360 · Importación de proyectos (s360-import/1)",
+  "description": "Un archivo = un proyecto con sus partidas, OTs y tareas con horas estimadas. Ver docs/importacion/README.md.",
+  "type": "object",
+  "required": ["formato", "proyecto"],
+  "additionalProperties": false,
+  "properties": {
+    "formato": { "const": "s360-import/1", "description": "Versión del formato. Obligatorio y exacto." },
+    "generado": { "type": "string", "format": "date-time", "description": "Cuándo se generó el archivo (ISO 8601)." },
+    "origen": {
+      "type": "object",
+      "description": "Qué programa generó el archivo (informativo).",
+      "additionalProperties": false,
+      "properties": {
+        "sistema": { "type": "string", "maxLength": 80 },
+        "version": { "type": "string", "maxLength": 40 },
+        "usuario": { "type": "string", "maxLength": 120 }
+      }
+    },
+    "proyecto": { "$ref": "#/$defs/proyecto" },
+    "extra": { "$ref": "#/$defs/extra" }
+  },
+  "$defs": {
+    "ref": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 80,
+      "pattern": "^[^\\s].*[^\\s]$|^[^\\s]$",
+      "description": "Identificador estable en el sistema de origen. No debe cambiar entre exportaciones del mismo elemento."
+    },
+    "texto": { "type": "string", "pattern": "\\S" },
+    "fecha": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$", "description": "Fecha AAAA-MM-DD." },
+    "extra": {
+      "type": "object",
+      "description": "Datos libres del origen (importes, mediciones…). Se guardan pero el planificador no los interpreta."
+    },
+    "proyecto": {
+      "type": "object",
+      "required": ["ref_externa", "nombre", "partidas"],
+      "additionalProperties": false,
+      "properties": {
+        "ref_externa": { "$ref": "#/$defs/ref" },
+        "codigo": { "type": "string", "maxLength": 30, "description": "Código visible (p. ej. PR-2026-045). Si falta, el planificador asigna PR-###." },
+        "nombre": { "allOf": [{ "$ref": "#/$defs/texto" }], "maxLength": 120 },
+        "cliente": { "type": "string", "maxLength": 120 },
+        "obra": { "type": "string", "maxLength": 200, "description": "Dirección o ubicación de la obra." },
+        "notas": { "type": "string", "maxLength": 2000 },
+        "partidas": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/partida" } },
+        "extra": { "$ref": "#/$defs/extra" }
+      }
+    },
+    "partida": {
+      "type": "object",
+      "required": ["ref_externa", "nombre", "ots"],
+      "additionalProperties": false,
+      "properties": {
+        "ref_externa": { "$ref": "#/$defs/ref" },
+        "codigo": { "type": "string", "maxLength": 30, "description": "Código de la partida en el presupuesto (p. ej. C4.001)." },
+        "nombre": { "allOf": [{ "$ref": "#/$defs/texto" }], "maxLength": 120 },
+        "ots": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/ot" } },
+        "extra": { "$ref": "#/$defs/extra" }
+      }
+    },
+    "ot": {
+      "type": "object",
+      "required": ["ref_externa", "titulo", "tareas"],
+      "additionalProperties": false,
+      "properties": {
+        "ref_externa": { "$ref": "#/$defs/ref" },
+        "codigo": { "type": "string", "maxLength": 30, "description": "Si falta, el planificador asigna OT-####." },
+        "titulo": { "allOf": [{ "$ref": "#/$defs/texto" }], "maxLength": 120 },
+        "descripcion": { "type": "string", "maxLength": 4000 },
+        "prioridad": { "enum": ["urgente", "alta", "normal", "baja"], "default": "normal" },
+        "fecha_entrega": { "$ref": "#/$defs/fecha" },
+        "color": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$", "description": "Color en el tablero. Si falta, se asigna uno." },
+        "tareas": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/tarea" } },
+        "extra": { "$ref": "#/$defs/extra" }
+      }
+    },
+    "tarea": {
+      "type": "object",
+      "required": ["ref_externa", "nombre", "horas"],
+      "additionalProperties": false,
+      "properties": {
+        "ref_externa": { "$ref": "#/$defs/ref" },
+        "nombre": { "allOf": [{ "$ref": "#/$defs/texto" }], "maxLength": 120 },
+        "horas": { "type": "number", "exclusiveMinimum": 0, "maximum": 999, "multipleOf": 0.5, "description": "Horas estimadas de la tarea (duración, no horas-persona). En medias horas." },
+        "operarios": { "type": "integer", "minimum": 0, "maximum": 50, "default": 1, "description": "Personas que trabajan a la vez. Horas-persona = horas × operarios." },
+        "area": { "type": "string", "maxLength": 80, "description": "Nombre del área de trabajo por defecto (p. ej. «Taller corte»)." },
+        "requiere": {
+          "type": "array",
+          "description": "Máquinas o subcontratas/alquileres que necesita la tarea. No se ponen personas.",
+          "items": {
+            "oneOf": [
+              { "type": "string", "minLength": 1, "maxLength": 80 },
+              {
+                "type": "object",
+                "required": ["nombre"],
+                "additionalProperties": false,
+                "properties": {
+                  "nombre": { "type": "string", "minLength": 1, "maxLength": 80 },
+                  "tipo": { "enum": ["maquina", "subcontrata"] }
+                }
+              }
+            ]
+          }
+        },
+        "oficio": { "type": "string", "maxLength": 60, "description": "Oficio recomendado (p. ej. «Soldador»). Informativo en v1." },
+        "despues_de": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/ref" },
+          "description": "ref_externa de tareas que deben ir antes. Reservado: v1 lo guarda pero no lo aplica."
+        },
+        "notas": { "type": "string", "maxLength": 2000 },
+        "extra": { "$ref": "#/$defs/extra" }
+      }
+    }
+  }
+}

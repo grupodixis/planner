@@ -137,6 +137,12 @@ asignación e historial. **Baja:** si el recurso se ha usado alguna vez se **da 
 (deja de salir en el panel del tablero para asignar, pero conserva su historial y sigue
 viéndose los días en que ya tenía trabajo); si nunca se usó, se borra. «Reactivar» lo devuelve.
 
+## Importación de proyectos (especificación)
+
+Formato `s360-import/1` para que el compositor de proyectos genere proyectos con sus partidas,
+OTs y tareas con horas estimadas: [`docs/importacion/`](docs/importacion/README.md)
+(especificación, JSON Schema y ejemplo). El importador del planificador está pendiente de construir.
+
 ## API
 
 | Método | Ruta | Uso |
