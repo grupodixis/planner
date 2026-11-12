@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>s360 · Tablero operativo diario</title>
+  <link rel="stylesheet" href="styles.css?v=202611112110">
+</head>
+<body>
+  <header class="top">
+    <h1>s360_planificacion <span>· tablero operativo diario</span></h1>
+    <nav class="menu" aria-label="Pantallas">
+      <a href="/" aria-current="page">Tablero</a>
+      <a href="/proyectos.html">Proyectos y OTs</a>
+      <a href="/recursos.html">Recursos</a>
+    </nav>
+    <nav class="fecha-nav" aria-label="Cambiar día">
+      <button id="dia-ant" title="Día anterior" aria-label="Día anterior">‹</button>
+      <label class="fecha">
+        <span id="fecha-txt"></span>
+        <input type="date" id="fecha-input" aria-label="Elegir fecha">
+      </label>
+      <button id="dia-sig" title="Día siguiente" aria-label="Día siguiente">›</button>
+      <button id="hoy" class="ghost">Hoy</button>
+    </nav>
+    <div class="buscar">
+      <input id="buscar" type="search" placeholder="Buscar OT, tarea, recurso…" autocomplete="off">
+    </div>
+    <div class="usuario"><span id="usuario-nombre"></span> <button id="salir" class="ghost">Salir</button></div>
+  </header>
+
+  <main class="tablero">
+    <!-- Izquierda: recursos -->
+    <aside class="panel recursos" aria-label="Recursos disponibles">
+      <h2>Recursos disponibles <a class="gestionar" href="/recursos.html" title="Alta, baja y modificación de recursos">gestionar</a></h2>
+      <p class="ayuda">Arrastra un recurso sobre una tarea del calendario.</p>
+      <section><h3 class="t-operario">Operarios</h3><ul id="rec-operario" class="lista-rec"></ul></section>
+      <section><h3 class="t-maquina">Maquinaria propia</h3><ul id="rec-maquina" class="lista-rec"></ul></section>
+      <section><h3 class="t-subcontrata">Subcontratas / alquiler</h3><ul id="rec-subcontrata" class="lista-rec"></ul></section>
+    </aside>
+
+    <!-- Centro: calendario -->
+    <section class="panel calendario" aria-label="Calendario del día">
+      <div class="cab-panel">
+        <h2>Calendario central · vista día</h2>
+        <div class="cab-acciones">
+          <div id="vista-sel" class="grupo-botones" role="group" aria-label="Vista del calendario">
+            <button type="button" data-vista="areas" title="Una fila por área de trabajo">Áreas</button>
+            <button type="button" data-vista="operarios" title="Una fila por operario: su franja en cada OT">Operarios</button>
+          </div>
+          <button id="btn-areas" class="ghost">Áreas de trabajo</button>
+        </div>
+      </div>
+      <div class="cal" id="cal">
+        <div class="cal-head" id="cal-head"></div>
+        <div class="cal-body" id="cal-body"></div>
+      </div>
+      <div class="conflictos" id="conflictos">
+        <h3>Sin asignar / conflictos</h3>
+        <ul id="conflictos-lista"></ul>
+      </div>
+    </section>
+
+    <!-- Derecha: OTs y detalle -->
+    <aside class="panel ordenes" aria-label="OTs prioritarias">
+      <h2>OTs prioritarias</h2>
+      <p class="ayuda">Arrastra una tarea al calendario. Suéltala aquí para desplanificarla.</p>
+      <div id="ordenes-lista" class="ordenes-lista"></div>
+      <div class="detalle" id="detalle">
+        <h3>Detalle tarea seleccionada</h3>
+        <div id="detalle-cuerpo" class="vacio">Pulsa un bloque o una tarea para ver su detalle.</div>
+      </div>
+    </aside>
+  </main>
+
+  <dialog id="dlg-areas" aria-labelledby="dlg-areas-tit">
+    <div class="dlg-cab">
+      <h2 id="dlg-areas-tit">Áreas de trabajo</h2>
+      <button class="ghost" id="dlg-areas-cerrar" aria-label="Cerrar">✕</button>
+    </div>
+    <p class="ayuda">Cada área es una fila del calendario: una obra, una zona del taller, la oficina técnica, la cabina de pintura… Los cambios se guardan al salir de cada campo.</p>
+    <form id="form-area" class="form-area">
+      <input name="nombre" placeholder="Nombre (p. ej. Cabina de pintura)" required maxlength="80">
+      <select name="tipo" aria-label="Tipo"></select>
+      <input name="ubicacion" placeholder="Ubicación / dirección (opcional)" maxlength="200">
+      <button type="submit">Añadir área</button>
+    </form>
+    <table class="tabla-areas">
+      <thead><tr><th>Orden</th><th>Nombre</th><th>Tipo</th><th>Ubicación</th><th>Activa</th><th></th></tr></thead>
+      <tbody id="areas-tbody"></tbody>
+    </table>
+  </dialog>
+
+  <dialog id="dlg-empujar" aria-labelledby="dlg-empujar-tit">
+    <h2 id="dlg-empujar-tit">¿Empujar lo siguiente?</h2>
+    <p class="ayuda">Este tramo ahora se solapa con lo que venía después en la misma área o con las mismas personas. Si empujas, se retrasa esto:</p>
+    <ul id="empujar-lista" class="empujar-lista"></ul>
+    <div class="acciones dlg-acciones">
+      <button type="button" id="empujar-si" class="primario">Empujar</button>
+      <button type="button" id="empujar-no" class="ghost">No, dejar el solape</button>
+    </div>
+  </dialog>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <script src="app.js?v=202611112110"></script>
+</body>
+</html>

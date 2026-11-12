@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>s360 · Recursos</title>
+  <link rel="stylesheet" href="styles.css?v=202611112110">
+</head>
+<body>
+  <header class="top">
+    <h1>s360_planificacion <span>· recursos</span></h1>
+    <nav class="menu" aria-label="Pantallas">
+      <a href="/">Tablero</a>
+      <a href="/proyectos.html">Proyectos y OTs</a>
+      <a href="/recursos.html" aria-current="page">Recursos</a>
+    </nav>
+    <div class="usuario"><span id="usuario-nombre"></span> <button id="salir" class="ghost">Salir</button></div>
+  </header>
+
+  <div class="pestanas" role="tablist" aria-label="Tipo de recurso">
+    <button role="tab" data-tipo="operario" id="tab-operario" aria-controls="panel-recursos">Operarios</button>
+    <button role="tab" data-tipo="maquina" id="tab-maquina" aria-controls="panel-recursos">Maquinaria</button>
+    <button role="tab" data-tipo="subcontrata" id="tab-subcontrata" aria-controls="panel-recursos">Subcontratas y alquileres</button>
+  </div>
+
+  <main class="gestion recursos-pant" id="panel-recursos" role="tabpanel">
+    <aside class="panel g-proyectos" aria-label="Lista">
+      <h2 id="lista-titulo"></h2>
+      <form id="form-alta" class="alta">
+        <input name="nombre" required maxlength="80" aria-label="Nombre del nuevo recurso">
+        <button type="submit">Dar de alta</button>
+      </form>
+      <div class="filtros">
+        <input id="buscar" type="search" placeholder="Buscar…" aria-label="Buscar">
+        <label><input type="checkbox" id="ver-inactivos"> Ver dados de baja</label>
+      </div>
+      <ul id="lista" class="lista-sel"></ul>
+    </aside>
+
+    <section class="panel g-ot" aria-label="Ficha">
+      <div id="ficha-vacia" class="vacio-grande">Elige uno de la lista o da de alta uno nuevo.</div>
+      <div id="ficha" hidden>
+        <div class="cab-panel">
+          <h2 id="ficha-titulo"></h2>
+          <div class="acciones-cab">
+            <a id="ver-tablero" class="boton ghost" href="/" hidden>Ver en el tablero</a>
+            <button id="baja" class="ghost borrar"></button>
+          </div>
+        </div>
+        <div class="ficha" id="campos"></div>
+        <div class="cab-panel sep"><h2>Uso</h2></div>
+        <dl class="uso-recurso" id="uso"></dl>
+      </div>
+    </section>
+  </main>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <script src="recursos.js?v=202611112110"></script>
+</body>
+</html>

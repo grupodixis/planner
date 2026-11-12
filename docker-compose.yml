@@ -1,0 +1,42 @@
+name: s360
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-s360}
+      POSTGRES_USER: ${POSTGRES_USER:-s360}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-s360_cambiame}
+      TZ: Europe/Madrid
+      PGTZ: Europe/Madrid
+    volumes:
+      - db_data:/var/lib/postgresql/data
+      # Solo se ejecutan la primera vez (con el volumen vacío)
+      - ./db/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  web:
+    build: ./app
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-s360}:${POSTGRES_PASSWORD:-s360_cambiame}@db:5432/${POSTGRES_DB:-s360}
+      PORT: 3000
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@s360.local}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-cambiame}
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
+      JORNADA_INICIO: ${JORNADA_INICIO:-7}
+      JORNADA_FIN: ${JORNADA_FIN:-15}
+      TZ: Europe/Madrid
+    ports:
+      - "${WEB_PORT:-8080}:3000"
+
+volumes:
+  db_data:

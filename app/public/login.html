@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>s360 · Entrar</title>
+  <link rel="stylesheet" href="styles.css?v=202611112110">
+</head>
+<body class="login">
+  <form id="f">
+    <h1>s360_planificacion</h1>
+    <label>Email <input name="email" type="email" autocomplete="username" required></label>
+    <label>Contraseña <input name="password" type="password" autocomplete="current-password" required></label>
+    <p class="error" id="err" role="alert"></p>
+    <button type="submit">Entrar</button>
+  </form>
+  <script>
+    document.getElementById('f').addEventListener('submit', async (ev) => {
+      ev.preventDefault();
+      const fd = new FormData(ev.target);
+      const r = await fetch('/api/login', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: fd.get('email'), password: fd.get('password') }),
+      });
+      if (r.ok) location.href = '/';
+      else document.getElementById('err').textContent = (await r.json().catch(() => ({}))).error || 'Error al entrar';
+    });
+  </script>
+</body>
+</html>

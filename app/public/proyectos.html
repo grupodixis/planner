@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>s360 · Proyectos y OTs</title>
+  <link rel="stylesheet" href="styles.css?v=202611112110">
+</head>
+<body>
+  <header class="top">
+    <h1>s360_planificacion <span>· proyectos y OTs</span></h1>
+    <nav class="menu" aria-label="Pantallas">
+      <a href="/">Tablero</a>
+      <a href="/proyectos.html" aria-current="page">Proyectos y OTs</a>
+      <a href="/recursos.html">Recursos</a>
+    </nav>
+    <div class="usuario"><span id="usuario-nombre"></span> <button id="salir" class="ghost">Salir</button></div>
+  </header>
+
+  <main class="gestion">
+    <!-- Proyectos -->
+    <aside class="panel g-proyectos" aria-label="Proyectos">
+      <h2>Proyectos</h2>
+      <form id="form-proyecto" class="alta">
+        <input name="nombre" placeholder="Nombre del nuevo proyecto" required maxlength="120" aria-label="Nombre del nuevo proyecto">
+        <button type="submit">Crear</button>
+      </form>
+      <div class="filtros">
+        <input id="buscar-proyecto" type="search" placeholder="Buscar proyecto o cliente…" aria-label="Buscar proyecto">
+        <label><input type="checkbox" id="ver-cerrados"> Ver cerrados</label>
+      </div>
+      <ul id="lista-proyectos" class="lista-sel"></ul>
+    </aside>
+
+    <!-- Proyecto seleccionado + sus OTs -->
+    <section class="panel g-ots" aria-label="Proyecto y OTs">
+      <div id="proyecto-vacio" class="vacio-grande">Elige un proyecto o crea uno nuevo.</div>
+      <div id="proyecto-ficha" hidden>
+        <div class="cab-panel">
+          <h2 id="proyecto-titulo"></h2>
+          <button id="proyecto-borrar" class="ghost borrar">Borrar</button>
+        </div>
+        <div class="ficha" id="proyecto-campos"></div>
+
+        <div class="cab-panel sep">
+          <h2>Órdenes de trabajo</h2>
+        </div>
+        <form id="form-ot" class="alta">
+          <input name="titulo" placeholder="Título de la nueva OT (p. ej. Estructura pérgola)" required maxlength="120" aria-label="Título de la nueva OT">
+          <button type="submit">Crear OT</button>
+        </form>
+        <ul id="lista-ots" class="lista-sel"></ul>
+      </div>
+    </section>
+
+    <!-- OT seleccionada + tareas -->
+    <section class="panel g-ot" aria-label="Orden de trabajo">
+      <div id="ot-vacio" class="vacio-grande">Elige una OT para ver y editar sus tareas.</div>
+      <div id="ot-ficha" hidden>
+        <div class="cab-panel">
+          <h2 id="ot-titulo"></h2>
+          <div class="acciones-cab">
+            <a id="ot-tablero" class="boton ghost" href="/">Ver en tablero</a>
+            <button id="ot-borrar" class="ghost borrar">Borrar</button>
+          </div>
+        </div>
+        <div class="ficha" id="ot-campos"></div>
+
+        <div class="cab-panel sep">
+          <h2>Tareas</h2>
+          <span id="ot-resumen" class="ayuda"></span>
+        </div>
+        <p class="ayuda">Las tareas son lo que se arrastra al tablero. Los requisitos (máquinas, subcontratas) generan aviso si no se asignan.</p>
+        <table class="tabla-tareas">
+          <colgroup><col class="c-ord"><col><col class="c-num"><col class="c-num"><col class="c-area"><col class="c-req"><col class="c-est"><col class="c-x"></colgroup>
+          <thead><tr><th></th><th>Tarea</th><th>Horas</th><th>Oper.</th><th>Área</th><th>Requiere</th><th>Estado</th><th></th></tr></thead>
+          <tbody id="tareas-tbody"></tbody>
+        </table>
+        <form id="form-tarea" class="alta alta-tarea">
+          <input name="nombre" placeholder="Nueva tarea (p. ej. Corte perfiles)" required maxlength="120" aria-label="Nombre de la nueva tarea">
+          <input name="duracion_h" type="number" min="0.5" step="0.5" value="1" aria-label="Horas" title="Horas">
+          <input name="operarios_req" type="number" min="0" step="1" value="1" aria-label="Operarios" title="Operarios">
+          <button type="submit">Añadir</button>
+        </form>
+      </div>
+    </section>
+  </main>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <script src="proyectos.js?v=202611112110"></script>
+</body>
+</html>

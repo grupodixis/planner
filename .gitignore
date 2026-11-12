@@ -1,0 +1,16 @@
+# Secretos y configuración local (usar .env.example como plantilla)
+.env
+
+# Datos: copias de la base de datos y registros
+backups/
+*.sql.gz
+levantar.log
+*.log
+
+# Dependencias y paquetes
+node_modules/
+*.zip
+
+# Sistema
+.DS_Store
+Thumbs.db
