@@ -31,9 +31,13 @@
     return n;
   };
 
-  const fechaURL = new URLSearchParams(location.search).get('fecha');
+  const PERIODOS = ['dia', 'semana', 'mes'];
+  const params = new URLSearchParams(location.search);
+  const fechaURL = params.get('fecha');
+  const periodoURL = params.get('periodo');
   const estado = {
     fecha: /^\d{4}-\d{2}-\d{2}$/.test(fechaURL || '') ? fechaURL : hoyISO(),
+    periodo: PERIODOS.includes(periodoURL) ? periodoURL : (PERIODOS.includes(leerPref('periodo', '')) ? leerPref('periodo', '') : 'dia'),
     datos: null,
     usuario: null,
     sel: null,          // { tipo: 'tramo' | 'tarea', id }
@@ -63,6 +67,53 @@
     const [y, m, d] = iso.split('-').map(Number);
     return new Date(y, m - 1, d).toLocaleDateString('es-ES', { weekday: 'short', day: '2-digit', month: '2-digit' });
   };
+  const aFecha = (iso) => { const [y, m, d] = iso.split('-').map(Number); return new Date(y, m - 1, d); };
+  const diaSemana = (iso) => (aFecha(iso).getDay() + 6) % 7;          // 0 = lunes … 6 = domingo
+  const lunesDe = (iso) => sumarDias(iso, -diaSemana(iso));
+  const esFinde = (iso) => diaSemana(iso) >= 5;
+  // Número de semana ISO-8601 (la semana 1 es la que contiene el primer jueves del año)
+  function semanaISO(iso) {
+    const [y, m, d] = iso.split('-').map(Number);
+    const f = new Date(Date.UTC(y, m - 1, d));
+    f.setUTCDate(f.getUTCDate() + 3 - ((f.getUTCDay() + 6) % 7));     // jueves de esa semana
+    const anio = f.getUTCFullYear();
+    return { anio, semana: 1 + Math.floor((f - Date.UTC(anio, 0, 1)) / 864e5 / 7) };
+  }
+  function sumarMeses(iso, n) {
+    const [y, m, d] = iso.split('-').map(Number);
+    const ultimo = new Date(y, m - 1 + n + 1, 0).getDate();
+    const f = new Date(y, m - 1 + n, Math.min(d, ultimo));
+    return `${f.getFullYear()}-${String(f.getMonth() + 1).padStart(2, '0')}-${String(f.getDate()).padStart(2, '0')}`;
+  }
+  const primeroDeMes = (iso) => `${iso.slice(0, 8)}01`;
+  const ultimoDeMes = (iso) => sumarDias(sumarMeses(primeroDeMes(iso), 1), -1);
+  const diasEntre = (a, b) => { const out = []; for (let f = a; f <= b; f = sumarDias(f, 1)) out.push(f); return out; };
+
+  // Fechas que se cargan (el mes se carga en semanas completas) y fechas que cuentan del periodo
+  function rangoCarga() {
+    if (estado.periodo === 'semana') { const l = lunesDe(estado.fecha); return [l, sumarDias(l, 6)]; }
+    if (estado.periodo === 'mes') return [lunesDe(primeroDeMes(estado.fecha)), sumarDias(lunesDe(ultimoDeMes(estado.fecha)), 6)];
+    return [estado.fecha, estado.fecha];
+  }
+  function rangoPeriodo() {
+    if (estado.periodo === 'mes') return [primeroDeMes(estado.fecha), ultimoDeMes(estado.fecha)];
+    return rangoCarga();
+  }
+  const enPeriodo = (iso) => { const [a, b] = rangoPeriodo(); return iso >= a && iso <= b; };
+  const MES_CORTO = (iso) => aFecha(iso).toLocaleDateString('es-ES', { month: 'short' }).replace('.', '');
+  function tituloPeriodo() {
+    const { semana } = semanaISO(estado.fecha);
+    if (estado.periodo === 'dia') return `${fechaLarga(estado.fecha)} · S${semana}`;
+    if (estado.periodo === 'mes') {
+      const t = aFecha(estado.fecha).toLocaleDateString('es-ES', { month: 'long', year: 'numeric' });
+      return t.charAt(0).toUpperCase() + t.slice(1);
+    }
+    const [a, b] = rangoCarga();
+    const [ya, , da] = a.split('-'), [yb, , db] = b.split('-');
+    const ini = `${+da}${a.slice(5, 7) !== b.slice(5, 7) ? ` ${MES_CORTO(a)}` : ''}${ya !== yb ? ` ${ya}` : ''}`;
+    return `Semana ${semana} · ${ini}–${+db} ${MES_CORTO(b)} ${yb}`;
+  }
+
   const hhmm = (h) => `${String(Math.floor(h)).padStart(2, '0')}:${String(Math.round((h % 1) * 60)).padStart(2, '0')}`;
   const durTxt = (h) => `${String(h).replace('.', ',')}h`;
   const puedeEditar = () => estado.usuario && estado.usuario.rol !== 'consulta';
@@ -101,7 +152,10 @@
   /* ---------- datos ---------- */
   async function cargar() {
     try {
-      estado.datos = await api('GET', `/api/tablero?fecha=${estado.fecha}`);
+      const [desde, hasta] = rangoCarga();
+      const datos = await api('GET', `/api/tablero?desde=${desde}&hasta=${hasta}`);
+      if (datos.desde !== rangoCarga()[0]) return;   // llegó tarde: el usuario ya cambió de periodo
+      estado.datos = datos;
       pintar();
     } catch (e) { if (e.message !== 'No autenticado') toast(e.message, true); }
   }
@@ -112,8 +166,16 @@
   const conflictosDe = (tramoId) => estado.datos.conflictos.filter((c) => c.ids.includes(tramoId));
 
   function pintar() {
-    $('#fecha-txt').textContent = fechaLarga(estado.fecha);
+    $('#fecha-txt').textContent = tituloPeriodo();
     $('#fecha-input').value = estado.fecha;
+    const paso = { dia: 'Día', semana: 'Semana', mes: 'Mes' }[estado.periodo];
+    $('#dia-ant').title = `${paso} anterior`; $('#dia-ant').setAttribute('aria-label', `${paso} anterior`);
+    $('#dia-sig').title = `${paso === 'Semana' ? 'Semana siguiente' : `${paso} siguiente`}`;
+    $('#dia-sig').setAttribute('aria-label', $('#dia-sig').title);
+    const url = new URL(location.href);
+    url.searchParams.set('fecha', estado.fecha);
+    url.searchParams.set('periodo', estado.periodo);
+    history.replaceState(null, '', url);
     // si lo seleccionado ya no existe (otro usuario lo quitó), se deselecciona
     if (estado.sel?.tipo === 'tramo' && !tramo(estado.sel.id)) estado.sel = null;
     if (estado.sel?.tipo === 'tarea' && !tarea(estado.sel.id)) estado.sel = null;
@@ -127,24 +189,31 @@
 
   /* ---------- recursos (izquierda) ---------- */
   function pintarRecursos() {
-    const uso = new Map();   // horas asignadas hoy por recurso
-    for (const tr of estado.datos.tramos) for (const r of tr.asignados) uso.set(r.id, (uso.get(r.id) || 0) + (r.hasta - r.desde));
+    const uso = new Map();   // horas asignadas en el periodo por recurso
+    for (const tr of estado.datos.tramos) {
+      if (!enPeriodo(tr.fecha)) continue;
+      for (const r of tr.asignados) uso.set(r.id, (uso.get(r.id) || 0) + (r.hasta - r.desde));
+    }
+    // capacidad: jornada × días laborables del periodo (en la vista día, la jornada)
+    const laborables = estado.periodo === 'dia' ? 1 : diasEntre(...rangoPeriodo()).filter((f) => !esFinde(f)).length;
+    const cap = J().horas * laborables;
+    const cuando = { dia: 'hoy', semana: 'esta semana', mes: 'este mes' }[estado.periodo];
 
     for (const tipo of ['operario', 'maquina', 'subcontrata']) {
       $(`#rec-${tipo}`).replaceChildren(...estado.datos.recursos.filter((r) => r.tipo === tipo && r.activo !== false).map((r) => {
-        const h = uso.get(r.id) || 0;
+        const h = +(uso.get(r.id) || 0).toFixed(1);
         return el('li', {
-          class: `rec ${tipo}${h ? ' ocupado' : ''}${h > J().horas ? ' sobrecarga' : ''}`,
+          class: `rec ${tipo}${h ? ' ocupado' : ''}${h > cap ? ' sobrecarga' : ''}`,
           draggable: puedeEditar() ? 'true' : 'false',
           'data-buscar': r.nombre.toLowerCase(),
-          title: `${r.categoria ? r.categoria + ' · ' : ''}${h ? `${durTxt(h)} asignadas hoy` : 'Libre hoy'}`,
+          title: `${r.categoria ? r.categoria + ' · ' : ''}${h ? `${durTxt(h)} asignadas ${cuando} (capacidad ${durTxt(cap)})` : `Libre ${cuando}`}`,
           ondragstart: (ev) => {
             estado.arrastre = { tipo: 'recurso', id: r.id };
             ev.dataTransfer.setData(MIME_REC, String(r.id));
             ev.dataTransfer.effectAllowed = 'copy';
           },
           ondragend: finArrastre,
-        }, r.nombre, el('span', { class: 'uso' }, h ? `${durTxt(h)}/${J().horas}h` : 'libre'));
+        }, r.nombre, el('span', { class: 'uso' }, h ? `${durTxt(h)}/${durTxt(cap)}` : 'libre'));
       }));
     }
   }
@@ -201,12 +270,20 @@
   }
 
   function pintarCalendario() {
-    cabeceraHoras();
-    document.querySelectorAll('#vista-sel button').forEach((b) => {
-      const activo = b.dataset.vista === estado.vista;
+    const marcar = (sel, attr, valor) => document.querySelectorAll(`${sel} button`).forEach((b) => {
+      const activo = b.dataset[attr] === valor;
       b.classList.toggle('activo', activo);
       b.setAttribute('aria-pressed', activo ? 'true' : 'false');
     });
+    marcar('#vista-sel', 'vista', estado.vista);
+    marcar('#periodo-sel', 'periodo', estado.periodo);
+    $('#vista-sel').hidden = estado.periodo === 'mes';
+    $('#cal-titulo').textContent = `Calendario central · vista ${{ dia: 'día', semana: 'semana', mes: 'mes' }[estado.periodo]}`;
+    $('#cal').className = `cal cal-${estado.periodo}`;
+    if (estado.periodo === 'semana') return pintarSemana();
+    if (estado.periodo === 'mes') return pintarMes();
+
+    cabeceraHoras();
     if (estado.vista === 'operarios') return pintarVistaOperarios();
 
     const filas = estado.datos.lineas.map((linea) => {
@@ -657,6 +734,239 @@
     });
   }
 
+  /* ---------- vistas semana y mes ---------- */
+  // Semana: columnas lunes–domingo, filas = áreas u operarios (igual que la vista día).
+  // Mes: cuadrícula por semanas con su número (ISO). En las dos, cada tramo es una ficha que se
+  // arrastra a otro día (conserva la hora) y una tarea del panel derecho se suelta en un día:
+  // se planifica en el primer hueco libre de la jornada.
+  const hoyEs = (iso) => iso === hoyISO();
+
+  function irAPeriodo(periodo, fecha) {
+    estado.periodo = periodo;
+    estado.fecha = fecha;
+    guardarPref('periodo', periodo);
+    cargar();
+  }
+
+  function cabeceraDia(f, attrs = {}) {
+    return el('button', {
+      type: 'button', class: `dia-cab${hoyEs(f) ? ' hoy' : ''}${esFinde(f) ? ' finde' : ''}`,
+      title: 'Abrir este día en la vista día', onclick: () => irAPeriodo('dia', f), ...attrs,
+    }, fechaCorta(f));
+  }
+
+  function chipTramo(tr, r = null, { compacto = false } = {}) {
+    const t = tarea(tr.tarea_id);
+    const ini = r ? r.desde : tr.hora_inicio;
+    const fin = r ? r.hasta : tr.hora_inicio + tr.duracion_h;
+    const confs = conflictosDe(tr.id).filter((c) => !c.leve);
+    const sel = estado.sel?.tipo === 'tramo' && estado.sel.id === tr.id;
+    const hermano = !sel && estado.sel && (estado.sel.tipo === 'tarea' ? estado.sel.id : tramo(estado.sel.id)?.tarea_id) === t.id;
+    const area = estado.datos.lineas.find((l) => l.id === tr.linea_id)?.nombre || 'sin área';
+    const gente = operariosDe(tr).map((x) => x.nombre).join(', ');
+    const editar = puedeEditar();
+    const c = el('div', {
+      class: `chip-tr${confs.length ? ' conflicto' : ''}${sel ? ' sel' : ''}${hermano ? ' hermano' : ''}${t.estado === 'hecha' ? ' hecha' : ''}${r === undefined ? ' sin-op' : ''}`,
+      draggable: editar ? 'true' : 'false', tabindex: '0', role: 'button', 'data-tramo': tr.id,
+      'data-buscar': `${t.orden_codigo} ${t.orden_titulo} ${t.nombre} ${tr.asignados.map((x) => x.nombre).join(' ')} ${t.proyecto || ''} ${area}`.toLowerCase(),
+      title: `${t.orden_codigo} · ${t.orden_titulo}\n${t.nombre} · ${hhmm(ini)}–${hhmm(fin)} · ${durTxt(fin - ini)}\n${area}${gente ? ` · ${gente}` : ' · sin operarios'}`
+        + (confs.length ? `\n⚠ ${confs.map((x) => x.mensaje).join('\n⚠ ')}` : '')
+        + (editar ? '\nArrástralo a otro día (conserva la hora)' : ''),
+      onclick: () => seleccionar({ tipo: 'tramo', id: tr.id }),
+      onkeydown: (ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); seleccionar({ tipo: 'tramo', id: tr.id }); } },
+      ondragstart: (ev) => {
+        estado.arrastre = { tipo: 'tramo', id: tr.id, recurso: r ? r.id : null };
+        ev.dataTransfer.setData(MIME_TRAMO, String(tr.id));
+        ev.dataTransfer.effectAllowed = 'move';
+      },
+      ondragend: finArrastre,
+    },
+      compacto
+        ? el('span', { class: 'ct-tit' }, el('span', { class: 'ct-hora' }, hhmm(ini)), ` ${t.nombre}`)
+        : el('span', { class: 'ct-tit dos' }, el('span', { class: 'ct-ot' }, t.orden_codigo), ` ${t.nombre}`),
+      compacto ? null : el('span', { class: 'ct-sub' }, `${hhmm(ini)}–${hhmm(fin)} · ${durTxt(fin - ini)}`),
+      compacto ? null : el('span', { class: 'ct-sub' }, estado.vista === 'operarios' && r !== null ? area : gente || 'sin operarios'),
+    );
+    c.style.setProperty('--c', t.orden_color);
+    return c;
+  }
+
+  // Primera hora libre de un día en un área o para un operario (null si la jornada está llena)
+  function hueco(fecha, { lineaId = null, recursoId = null }) {
+    let fin = J().inicio;
+    for (const tr of estado.datos.tramos) {
+      if (tr.fecha !== fecha) continue;
+      if (lineaId && tr.linea_id === lineaId) fin = Math.max(fin, tr.hora_inicio + tr.duracion_h);
+      if (recursoId) for (const r of tr.asignados) if (r.id === recursoId) fin = Math.max(fin, r.hasta);
+    }
+    fin = Math.ceil(fin / PASO - 1e-9) * PASO;
+    return fin < J().fin ? fin : null;
+  }
+
+  // Soltar en una celda (día): modo 'area' | 'operario' | 'mes'
+  function prepararDropCelda(celda, { fecha, modo, lineaId = null, recurso = null }) {
+    const valido = () => {
+      const a = estado.arrastre;
+      if (!a || (a.tipo !== 'tarea' && a.tipo !== 'tramo')) return false;
+      if (modo === 'operario' && !recurso) return false;
+      return true;
+    };
+    celda.addEventListener('dragover', (ev) => {
+      if (!valido()) return;
+      ev.preventDefault();
+      ev.dataTransfer.dropEffect = 'move';
+      celda.classList.add('drop');
+    });
+    celda.addEventListener('dragleave', (ev) => { if (!celda.contains(ev.relatedTarget)) celda.classList.remove('drop'); });
+    celda.addEventListener('drop', async (ev) => {
+      if (!valido()) return;
+      ev.preventDefault();
+      celda.classList.remove('drop');
+      const a = estado.arrastre;
+
+      if (a.tipo === 'tarea') {
+        const t = tarea(a.id);
+        const linea = modo === 'area' ? lineaId : modo === 'mes' ? t.linea_id : null;
+        if (modo === 'mes' && !linea) return toast('La tarea no tiene área por defecto: suéltala en la vista semana (Áreas) o asígnale un área en Proyectos y OTs', true);
+        const h = hueco(fecha, modo === 'operario' ? { recursoId: recurso.id } : { lineaId: linea });
+        if (h == null) return toast(`El ${fechaCorta(fecha)} ya está lleno hasta el fin de jornada: ábrelo en la vista día para usar horas extra`, true);
+        await accion(async () => {
+          const r = await api('POST', `/api/tareas/${a.id}/tramos`,
+            { fecha, hora_inicio: h, ...(modo === 'operario' ? { recurso_id: recurso.id } : { linea_id: linea }) });
+          estado.sel = { tipo: 'tramo', id: r.tramo.id };
+          return `Planificada el ${fechaCorta(fecha)} a las ${hhmm(h)} · ${durTxt(r.tramo.duracion_h)}`
+            + (r.pendientes > 0 ? ` · quedan ${durTxt(r.pendientes)} por planificar` : '');
+        });
+        return;
+      }
+
+      // mover un tramo: a otro día (y otra área / otro operario en la vista semana)
+      const tr = tramo(a.id);
+      if (!tr) return;
+      estado.sel = { tipo: 'tramo', id: tr.id };
+      const cambios = {};
+      if (fecha !== tr.fecha) cambios.fecha = fecha;
+      if (modo === 'area' && lineaId !== tr.linea_id) cambios.linea_id = lineaId;
+      const otraPersona = modo === 'operario' && a.recurso !== recurso.id;
+      if (!Object.keys(cambios).length && !otraPersona) return;
+      if (otraPersona && tr.asignados.some((x) => x.id === recurso.id)) {
+        if (!Object.keys(cambios).length) return toast(`${recurso.nombre} ya está en ese tramo`);
+      }
+      await accion(async () => {
+        if (otraPersona && !tr.asignados.some((x) => x.id === recurso.id)) {
+          if (a.recurso) await api('PATCH', `/api/tramos/${tr.id}/asignaciones/${a.recurso}`, { recurso_id: recurso.id });
+          else await api('POST', `/api/tramos/${tr.id}/asignaciones`, { recurso_id: recurso.id });
+        }
+        if (Object.keys(cambios).length) await api('PATCH', `/api/tramos/${tr.id}`, cambios);
+        return [cambios.fecha ? `Movido al ${fechaCorta(fecha)} (${hhmm(tr.hora_inicio)})` : null,
+          otraPersona ? `pasado a ${recurso.nombre}` : null,
+          cambios.linea_id ? `área ${estado.datos.lineas.find((l) => l.id === lineaId)?.nombre}` : null].filter(Boolean).join(' · ');
+      });
+    });
+  }
+
+  function pintarSemana() {
+    const dias = diasEntre(...rangoCarga());
+    const { semana } = semanaISO(dias[0]);
+    $('#cal-head').replaceChildren(
+      el('div', { class: 'sem-num', title: `Semana ${semana} del año (ISO)` }, `S${semana}`),
+      ...dias.map((f) => cabeceraDia(f)));
+
+    const tramosDe = (f, filtro) => estado.datos.tramos.filter((tr) => tr.fecha === f && filtro(tr))
+      .sort((a, b) => a.hora_inicio - b.hora_inicio || a.id - b.id);
+    const filaSemana = (nombre, sub, clase, celdas) =>
+      el('div', { class: `fila-sem ${clase}` }, el('div', { class: 'fila-nombre' }, ...nombre, sub ? el('span', { class: 'ubic' }, sub) : null), ...celdas);
+    const celda = (f, hijos, pie, opts) => {
+      const c = el('div', { class: `celda${hoyEs(f) ? ' hoy' : ''}${esFinde(f) ? ' finde' : ''}` }, ...hijos,
+        pie ? el('div', { class: `celda-pie${pie.clase ? ` ${pie.clase}` : ''}` }, pie.txt) : null);
+      prepararDropCelda(c, { fecha: f, ...opts });
+      return c;
+    };
+
+    let filas;
+    if (estado.vista === 'operarios') {
+      const operarios = estado.datos.recursos.filter((r) => r.tipo === 'operario');
+      filas = operarios.map((o) => {
+        let total = 0;
+        const celdas = dias.map((f) => {
+          const usos = tramosDe(f, (tr) => tr.asignados.some((r) => r.id === o.id))
+            .map((tr) => ({ tr, r: tr.asignados.find((x) => x.id === o.id) }))
+            .sort((a, b) => a.r.desde - b.r.desde);
+          const h = usos.reduce((s, u) => s + (u.r.hasta - u.r.desde), 0);
+          total += h;
+          return celda(f, usos.map((u) => chipTramo(u.tr, u.r)),
+            h ? { txt: `${durTxt(+h.toFixed(1))}/${J().horas}h`, clase: h > J().horas ? 'sobrecarga' : '' } : null,
+            { modo: 'operario', recurso: o });
+        });
+        return filaSemana([o.nombre], total ? `${durTxt(+total.toFixed(1))} en la semana` : 'libre', '', celdas);
+      });
+      const sinOp = estado.datos.tramos.filter((tr) => !operariosDe(tr).length);
+      if (sinOp.length) {
+        filas.push(filaSemana(['Sin operario'], 'arrastra a una persona', 'sin-operario',
+          dias.map((f) => celda(f, tramosDe(f, (tr) => !operariosDe(tr).length).map((tr) => chipTramo(tr, undefined)), null, { modo: 'operario' }))));
+      }
+      if (!operarios.length) filas = [el('p', { class: 'cal-vacio' }, 'No hay operarios dados de alta.')];
+    } else {
+      filas = estado.datos.lineas.map((linea) => {
+        let total = 0;
+        const celdas = dias.map((f) => {
+          const lista = tramosDe(f, (tr) => tr.linea_id === linea.id);
+          const h = lista.reduce((s, tr) => s + tr.duracion_h, 0);
+          total += h;
+          return celda(f, lista.map((tr) => chipTramo(tr)),
+            h ? { txt: durTxt(+h.toFixed(1)), clase: h > J().horas ? 'sobrecarga' : '' } : null,
+            { modo: 'area', lineaId: linea.id });
+        });
+        return filaSemana([linea.nombre, el('span', { class: `tipo-area tipo-${linea.tipo}` }, TIPO_TXT[linea.tipo] || linea.tipo, linea.activo ? '' : ' · inactiva')],
+          total ? `${durTxt(+total.toFixed(1))} en la semana` : '', linea.activo ? '' : 'inactiva', celdas);
+      });
+      if (!filas.length) filas = [el('p', { class: 'cal-vacio' }, 'No hay áreas de trabajo activas. Crea una con el botón «Áreas de trabajo».')];
+    }
+    $('#cal-body').replaceChildren(...filas);
+  }
+
+  function pintarMes() {
+    const [desde, hasta] = rangoCarga();
+    const mes = estado.fecha.slice(0, 7);
+    const nombres = ['lun', 'mar', 'mié', 'jue', 'vie', 'sáb', 'dom'];
+    $('#cal-head').replaceChildren(el('div', { class: 'sem-num' }, 'Sem'),
+      ...nombres.map((n, i) => el('div', { class: `dia-cab${i >= 5 ? ' finde' : ''}` }, n)));
+
+    const nOps = estado.datos.recursos.filter((r) => r.tipo === 'operario' && r.activo !== false).length;
+    const MAX_FICHAS = 4;
+    const semanas = [];
+    for (let l = desde; l <= hasta; l = sumarDias(l, 7)) {
+      const { semana } = semanaISO(l);
+      const celdas = diasEntre(l, sumarDias(l, 6)).map((f) => {
+        const lista = estado.datos.tramos.filter((tr) => tr.fecha === f)
+          .sort((a, b) => a.hora_inicio - b.hora_inicio || a.id - b.id);
+        const horasOp = lista.reduce((s, tr) => s + operariosDe(tr).reduce((x, r) => x + (r.hasta - r.desde), 0), 0);
+        const carga = nOps ? horasOp / (nOps * J().horas) : 0;
+        const conf = estado.datos.conflictos.some((c) => c.fecha === f && !c.leve);
+        const resto = lista.length - MAX_FICHAS;
+        const c = el('div', { class: `celda mes-dia${f.slice(0, 7) !== mes ? ' fuera' : ''}${hoyEs(f) ? ' hoy' : ''}${esFinde(f) ? ' finde' : ''}` },
+          el('div', { class: 'mes-cab' },
+            el('button', { type: 'button', class: 'ghost num-dia', title: 'Abrir este día en la vista día', onclick: () => irAPeriodo('dia', f) },
+              f.slice(8) === '01' ? `${+f.slice(8)} ${MES_CORTO(f)}` : String(+f.slice(8))),
+            conf ? el('span', { class: 'aviso', title: 'Hay conflictos este día' }, '!') : null,
+            lista.length ? el('span', { class: 'mes-horas', title: `${lista.length} tramo(s) · ${durTxt(+horasOp.toFixed(1))} de operarios` },
+              durTxt(+lista.reduce((s, tr) => s + tr.duracion_h, 0).toFixed(1))) : null),
+          lista.length && nOps ? el('span', {
+            class: `carga${carga > 1 ? ' sobre' : carga > 0.85 ? ' alta' : ''}`, 'aria-hidden': 'true',
+            title: `Ocupación de operarios: ${Math.round(carga * 100)}%`,
+          }, el('span', { style: `width:${Math.min(100, carga * 100)}%` })) : null,
+          ...lista.slice(0, resto > 0 ? MAX_FICHAS - 1 : MAX_FICHAS).map((tr) => chipTramo(tr, null, { compacto: true })),
+          resto > 0 ? el('button', { type: 'button', class: 'ghost mas', onclick: () => irAPeriodo('dia', f) }, `+${resto + 1} más`) : null);
+        prepararDropCelda(c, { fecha: f, modo: 'mes' });
+        return c;
+      });
+      semanas.push(el('div', { class: 'fila-mes' },
+        el('button', { type: 'button', class: 'ghost sem-num', title: `Abrir la semana ${semana}`, onclick: () => irAPeriodo('semana', l) }, `S${semana}`),
+        ...celdas));
+    }
+    $('#cal-body').replaceChildren(...semanas);
+  }
+
   /* ---------- OTs y tareas (derecha) ---------- */
   function pintarOrdenes() {
     const grupos = new Map();
@@ -717,7 +1027,7 @@
         ? el('span', { class: 'tc-barra', 'aria-hidden': 'true' },
           el('span', { style: `width:${Math.min(100, (t.horas_planificadas / t.duracion_h) * 100)}%` }))
         : null,
-      hoy.length && !completa ? el('span', { class: 'tc-hoy' }, `hoy ${hoy.map((x) => hhmm(x.hora_inicio)).join(', ')}`) : null,
+      hoy.length && !completa && estado.periodo === 'dia' ? el('span', { class: 'tc-hoy' }, `hoy ${hoy.map((x) => hhmm(x.hora_inicio)).join(', ')}`) : null,
     );
   }
 
@@ -743,12 +1053,16 @@
 
   function pintarConflictos() {
     const ul = $('#conflictos-lista');
-    const cs = estado.datos.conflictos;
-    if (!cs.length) { ul.replaceChildren(el('li', { class: 'ok' }, '✓ Sin conflictos en este día')); return; }
+    const cs = estado.datos.conflictos.filter((c) => enPeriodo(c.fecha));
+    if (!cs.length) {
+      ul.replaceChildren(el('li', { class: 'ok' }, `✓ Sin conflictos ${{ dia: 'en este día', semana: 'esta semana', mes: 'este mes' }[estado.periodo]}`));
+      return;
+    }
+    const conFecha = estado.periodo !== 'dia';
     ul.replaceChildren(...cs.map((c) => el('li', {
       class: c.leve ? 'leve' : '', tabindex: '0', onclick: () => seleccionar({ tipo: 'tramo', id: c.ids[0] }),
       onkeydown: (ev) => { if (ev.key === 'Enter') seleccionar({ tipo: 'tramo', id: c.ids[0] }); },
-    }, c.mensaje)));
+    }, conFecha ? el('b', { class: 'conf-fecha' }, `${fechaCorta(c.fecha)} · `) : null, c.mensaje)));
   }
 
   /* ---------- detalle (derecha abajo) ---------- */
@@ -890,9 +1204,10 @@
 
   function irATramo(x) {
     estado.sel = { tipo: 'tramo', id: x.id };
-    if (x.fecha !== estado.fecha) { estado.fecha = x.fecha; cargar(); return; }
+    const [a, b] = rangoCarga();
+    if (x.fecha < a || x.fecha > b || (estado.periodo === 'dia' && x.fecha !== estado.fecha)) { estado.fecha = x.fecha; cargar(); return; }
     pintar();
-    document.querySelector(`.bloque[data-tramo="${x.id}"]`)?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    document.querySelector(`[data-tramo="${x.id}"]`)?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
   }
 
   function seleccionar(sel) {
@@ -999,8 +1314,13 @@
     try { estado.usuario = await api('GET', '/api/me'); } catch { return; }
     $('#usuario-nombre').textContent = `${estado.usuario.nombre}${estado.usuario.rol === 'consulta' ? ' (consulta)' : ''}`;
 
-    $('#dia-ant').onclick = () => irA(sumarDias(estado.fecha, -1));
-    $('#dia-sig').onclick = () => irA(sumarDias(estado.fecha, 1));
+    const paso = (n) => (estado.periodo === 'mes' ? sumarMeses(estado.fecha, n)
+      : sumarDias(estado.fecha, estado.periodo === 'semana' ? 7 * n : n));
+    $('#dia-ant').onclick = () => irA(paso(-1));
+    $('#dia-sig').onclick = () => irA(paso(1));
+    document.querySelectorAll('#periodo-sel button').forEach((b) => {
+      b.onclick = () => b.dataset.periodo !== estado.periodo && irAPeriodo(b.dataset.periodo, estado.fecha);
+    });
     $('#hoy').onclick = () => irA(hoyISO());
     $('#fecha-input').onchange = (ev) => ev.target.value && irA(ev.target.value);
     $('#buscar').oninput = (ev) => { estado.filtro = ev.target.value; aplicarFiltro(); };
@@ -1008,7 +1328,7 @@
     prepararDropOrdenes();
     prepararAreas();
     document.querySelectorAll('#vista-sel button').forEach((b) => {
-      b.onclick = () => { estado.vista = b.dataset.vista; guardarPref('vista', estado.vista); pintarCalendario(); aplicarFiltro(); };
+      b.onclick = () => { estado.vista = b.dataset.vista; guardarPref('vista', estado.vista); pintar(); };
     });
 
     await cargar();

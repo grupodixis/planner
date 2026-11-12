@@ -44,6 +44,25 @@ app/src/migraciones.js    cambios de esquema que se aplican solos al arrancar
 app/public/               frontend sin compilación: index (tablero), proyectos, recursos
 ```
 
+## Vistas Día, Semana y Mes
+
+Selector **Día | Semana | Mes** en la cabecera del calendario; las flechas avanzan un día, una
+semana o un mes. La URL y el navegador recuerdan el periodo (`?fecha=…&periodo=semana`).
+
+- **Semana:** lunes a domingo, con el **número de semana ISO** (S46) y el rango de fechas en la
+  cabecera. Filas por área o por operario (selector Áreas | Operarios), una ficha por tramo con
+  hora, horas y operarios; al pie de cada día, las horas de esa área (o del operario, en rojo si
+  pasa de la jornada). Pulsar un día abre la vista día.
+- **Mes:** cuadrícula por semanas con su número a la izquierda (pulsarlo abre esa semana). Cada día
+  muestra sus tramos, las horas planificadas, una barra de ocupación de operarios y «!» si hay
+  conflictos; «+N más» y el número del día abren la vista día.
+- **Arrastrar en semana y mes:** una tarea del panel derecho soltada en un día se planifica en el
+  primer hueco libre de la jornada (en el mes, en el área por defecto de la tarea); un tramo
+  arrastrado a otro día conserva su hora (en la semana también puede cambiar de área o de
+  operario). Para horas extra o ajustar horas, la vista día.
+- El panel de recursos muestra las horas del periodo frente a su capacidad (jornada × días
+  laborables) y la lista de conflictos, los del periodo con su fecha.
+
 ## Tablero operativo diario (fase 1, incluido)
 
 - **Izquierda – recursos:** operarios, maquinaria y subcontratas, con horas ocupadas en el día.
@@ -124,7 +143,7 @@ viéndose los días en que ya tenía trabajo); si nunca se usó, se borra. «Rea
 |---|---|---|
 | POST | `/api/login` · `/api/logout` | Sesión |
 | GET | `/api/me` | Usuario actual |
-| GET | `/api/tablero?fecha=YYYY-MM-DD` | jornada, áreas, recursos, tareas abiertas, tramos del día y avisos |
+| GET | `/api/tablero?fecha=YYYY-MM-DD` · `?desde=…&hasta=…` | jornada, áreas, recursos, tareas abiertas, tramos del día o del rango (máx. 62 días) y avisos (cada uno con su `fecha`) |
 | PATCH | `/api/tareas/:id` | `{estado, nombre, duracion_h, operarios_req, linea_id, requisitos}` |
 | POST | `/api/tareas/:id/tramos` | `{fecha, hora_inicio, linea_id?, recurso_id?, duracion_h?}` planificar (sin horas: hasta fin de jornada) |
 | PATCH · DELETE | `/api/tramos/:id` | mover / cambiar horas `{fecha, hora_inicio, linea_id, duracion_h}` · quitar |
@@ -158,7 +177,7 @@ Hecho también: recursos (operarios, maquinaria, subcontratas). Pendiente: panta
 **Fase 3 – Registro real.** Hecho en parte: franjas por operario, horas-persona, exceso sobre lo
 estimado y empujar. Pendiente: cierre de cada tramo (hecho / faltan X h / no se hizo), estado en curso/hecha desde el móvil (vista simple para taller y obra).
 
-**Fase 4 – Vista semana y capacidad.** Calendario semanal por recurso, carga vs. capacidad,
+**Fase 4 – Vista semana y capacidad.** Hecho: vistas semana (con nº de semana) y mes, carga por día y por periodo. Pendiente: carga vs. capacidad más detallada,
 calendario laboral (festivos, vacaciones, ausencias), arrastre entre días.
 
 **Fase 5 – Dependencias y avisos.** Orden entre tareas (no montar antes de fabricar),

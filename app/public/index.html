@@ -3,18 +3,18 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>s360 · Tablero operativo diario</title>
-  <link rel="stylesheet" href="styles.css?v=202611112110">
+  <title>s360 · Tablero de planificación</title>
+  <link rel="stylesheet" href="styles.css?v=202611121100">
 </head>
 <body>
   <header class="top">
-    <h1>s360_planificacion <span>· tablero operativo diario</span></h1>
+    <h1>s360_planificacion <span>· tablero de planificación</span></h1>
     <nav class="menu" aria-label="Pantallas">
       <a href="/" aria-current="page">Tablero</a>
       <a href="/proyectos.html">Proyectos y OTs</a>
       <a href="/recursos.html">Recursos</a>
     </nav>
-    <nav class="fecha-nav" aria-label="Cambiar día">
+    <nav class="fecha-nav" aria-label="Cambiar fecha">
       <button id="dia-ant" title="Día anterior" aria-label="Día anterior">‹</button>
       <label class="fecha">
         <span id="fecha-txt"></span>
@@ -42,8 +42,13 @@
     <!-- Centro: calendario -->
     <section class="panel calendario" aria-label="Calendario del día">
       <div class="cab-panel">
-        <h2>Calendario central · vista día</h2>
+        <h2 id="cal-titulo">Calendario central · vista día</h2>
         <div class="cab-acciones">
+          <div id="periodo-sel" class="grupo-botones" role="group" aria-label="Periodo del calendario">
+            <button type="button" data-periodo="dia" title="Un día, hora a hora">Día</button>
+            <button type="button" data-periodo="semana" title="Lunes a domingo, con el número de semana">Semana</button>
+            <button type="button" data-periodo="mes" title="El mes completo, por semanas">Mes</button>
+          </div>
           <div id="vista-sel" class="grupo-botones" role="group" aria-label="Vista del calendario">
             <button type="button" data-vista="areas" title="Una fila por área de trabajo">Áreas</button>
             <button type="button" data-vista="operarios" title="Una fila por operario: su franja en cada OT">Operarios</button>
@@ -102,6 +107,6 @@
   </dialog>
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
-  <script src="app.js?v=202611112110"></script>
+  <script src="app.js?v=202611121100"></script>
 </body>
 </html>
