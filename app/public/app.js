@@ -210,14 +210,15 @@
           class: `rec ${tipo}${h ? ' ocupado' : ''}${h > cap ? ' sobrecarga' : ''}${cumple(r) ? ' cumple' : ''}`,
           draggable: puedeEditar() ? 'true' : 'false',
           'data-buscar': `${r.nombre} ${r.tipos_txt || ''}`.toLowerCase(),
-          title: `${cumple(r) ? '✓ Cumple lo que pide la tarea seleccionada\n' : ''}${r.tipos_txt ? r.tipos_txt + ' · ' : ''}${h ? `${durTxt(h)} asignadas ${cuando} (capacidad ${durTxt(cap)})` : `Libre ${cuando}`}`,
+          title: `${cumple(r) ? '✓ Cumple lo que pide la tarea seleccionada\n' : ''}${r.vinculo === 'subcontratado' ? `Subcontratado${r.empresa ? ' (' + r.empresa + ')' : ''} · ` : ''}${r.tipos_txt ? r.tipos_txt + ' · ' : ''}${h ? `${durTxt(h)} asignadas ${cuando} (capacidad ${durTxt(cap)})` : `Libre ${cuando}`}`,
           ondragstart: (ev) => {
             estado.arrastre = { tipo: 'recurso', id: r.id };
             ev.dataTransfer.setData(MIME_REC, String(r.id));
             ev.dataTransfer.effectAllowed = 'copy';
           },
           ondragend: finArrastre,
-        }, r.nombre, el('span', { class: 'uso' }, h ? `${durTxt(h)}/${durTxt(cap)}` : 'libre'));
+        }, r.nombre, r.vinculo === 'subcontratado' ? el('span', { class: 'sub-tag', 'aria-label': 'subcontratado' }, 'sub') : null,
+        el('span', { class: 'uso' }, h ? `${durTxt(h)}/${durTxt(cap)}` : 'libre'));
       }));
     }
   }

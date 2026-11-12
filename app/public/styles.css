@@ -636,3 +636,8 @@ tr.baja > td > input { text-decoration: line-through; opacity: .7; }
 .detalle .dep-ok { color: var(--verde); }
 .detalle .dep-pend { color: var(--naranja); }
 .detalle ul.deps, .detalle ul.conds { margin: 0; padding-left: 16px; }
+
+/* Operarios subcontratados */
+.rec .sub-tag { font-size: 9.5px; text-transform: uppercase; letter-spacing: .4px; color: var(--naranja); border: 1px solid var(--naranja); border-radius: 99px; padding: 0 5px; margin-left: 6px; }
+.pasar-operario { flex-direction: row !important; align-items: center; gap: 10px; border-top: 1px solid var(--linea); padding-top: 10px; }
+.pasar-operario button { white-space: nowrap; }

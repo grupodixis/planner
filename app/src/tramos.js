@@ -169,7 +169,7 @@ module.exports = function montar(app, asyncH) {
               WHERE activo OR EXISTS (SELECT 1 FROM tramos x WHERE x.linea_id = l.id AND x.fecha BETWEEN $1 AND $2)
               ORDER BY orden, nombre`, [desde, hasta]),
       // Recursos activos + los dados de baja que aún tienen algo asignado en el rango
-      query(`SELECT id, tipo, nombre, categoria, activo,
+      query(`SELECT id, tipo, nombre, categoria, activo, vinculo, empresa,
                     COALESCE((SELECT json_agg(rt.tipo_recurso_id) FROM recurso_tipos rt WHERE rt.recurso_id = r.id), '[]') AS tipos,
                     (SELECT string_agg(ti.nombre, ', ' ORDER BY lower(ti.nombre)) FROM recurso_tipos rt
                        JOIN tipos_recurso ti ON ti.id = rt.tipo_recurso_id WHERE rt.recurso_id = r.id) AS tipos_txt

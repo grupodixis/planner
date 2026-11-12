@@ -140,12 +140,16 @@ los que cumplen lo que pide.
 Tres pestañas, cada una con su lista (buscador, «ver dados de baja») y su ficha, que se guarda
 al salir de cada campo:
 
-- **Operarios:** nombre, nº de empleado, oficios / roles, teléfono, email, coste €/h,
-  área habitual, notas.
+- **Operarios:** nombre, nº de empleado, **vínculo** (plantilla / subcontratado, con su empresa
+  o «Autónomo»), oficios / roles, teléfono, email, coste €/h, área habitual, notas. Un
+  subcontratado que trabaja de operario (pintor, oficial…) cuenta en los operarios de las
+  tareas, cumple oficios y suma horas-persona; en el tablero lleva la etiqueta «SUB».
 - **Maquinaria:** nombre, nº / matrícula, tipo(s) de máquina, ubicación habitual, coste €/h,
   notas (mantenimiento, capacidades…).
-- **Subcontratas y alquileres:** nombre en el tablero, clase (subcontrata / alquiler), tipo,
-  empresa o proveedor, teléfono y email de contacto, coste €/h, notas.
+- **Subcontratas y alquileres:** empresas que hacen un trabajo entero o alquileres (lacado
+  externo, grúa, plataforma): nombre en el tablero, clase (subcontrata / alquiler), tipo,
+  empresa o proveedor, teléfono y email de contacto, coste €/h, notas. Si alguien está aquí pero
+  es una persona que trabaja de operario, «Pasar a Operarios» lo convierte en operario subcontratado.
 
 Cada ficha muestra su **uso**: horas asignadas en las próximas 2 semanas, próxima y última
 asignación e historial. **Baja:** si el recurso se ha usado alguna vez se **da de baja**

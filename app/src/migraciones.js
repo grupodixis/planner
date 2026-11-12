@@ -214,6 +214,15 @@ const MIGRACIONES = [
      archivo      JSONB,
      creado       TIMESTAMPTZ NOT NULL DEFAULT now()
    )`,
+
+  // 2026-11 · Vínculo del operario: de plantilla o subcontratado (personas de otra empresa o
+  // autónomos que trabajan como operarios: cuentan como operarios, tienen oficio y suman horas)
+  `ALTER TABLE recursos ADD COLUMN IF NOT EXISTS vinculo TEXT NOT NULL DEFAULT 'plantilla'`,
+  `DO $$ BEGIN
+     IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'recursos_vinculo_check') THEN
+       ALTER TABLE recursos ADD CONSTRAINT recursos_vinculo_check CHECK (vinculo IN ('plantilla', 'subcontratado'));
+     END IF;
+   END $$`,
 ];
 
 async function migrar() {

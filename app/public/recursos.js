@@ -46,6 +46,8 @@
       campos: [
         { k: 'nombre', e: 'Nombre', ancho: 'c2', obligatorio: true, max: 80 },
         { k: 'codigo', e: 'Nº empleado', ancho: 'c1', max: 30 },
+        { k: 'vinculo', e: 'Vínculo', ancho: 'c1', opciones: { plantilla: 'Plantilla', subcontratado: 'Subcontratado' } },
+        { k: 'empresa', e: 'Empresa (o autónomo)', ancho: 'c2', max: 120, si: (r) => r.vinculo === 'subcontratado' },
         { k: 'tipos', e: 'Oficios / roles', ancho: 'c4', tipos: true, ayuda: 'Una tarea puede pedir un oficio («2 × Soldador»): avisa si los asignados no lo tienen' },
         { k: 'telefono', e: 'Teléfono', ancho: 'c1', max: 40, tipo: 'tel' },
         { k: 'email', e: 'Email', ancho: 'c2', max: 120, tipo: 'email' },
@@ -203,7 +205,8 @@
       },
         el('span', { class: 'item-tit' }, r.codigo ? el('b', {}, `${r.codigo} `) : null, r.nombre),
         el('span', { class: 'item-sub' }, [
-          r.tipo === 'subcontrata' ? r.categoria : null, r.tipos.map((t) => t.nombre).join(', ') || null, r.empresa,
+          r.tipo === 'subcontrata' ? r.categoria : null, r.vinculo === 'subcontratado' ? 'subcontratado' : null,
+          r.tipos.map((t) => t.nombre).join(', ') || null, r.empresa,
           r.proximo ? `próximo ${fechaCorta(r.proximo).slice(0, 5)}` : null,
           r.activo ? null : 'dado de baja',
         ].filter(Boolean).join(' · ') || '—')),
@@ -251,11 +254,27 @@
       const x = await api('PATCH', `/api/recursos/${r.id}`, { [k]: v });
       Object.assign(r, x);
       if (k === 'tipos') { await cargar(); return; }
+      if (k === 'vinculo') { pintarLista(); pintarFicha(); return; }
       if (k === 'nombre' || k === 'codigo' || k === 'categoria' || k === 'empresa' || k === 'activo') { pintarLista(); }
       if (k === 'nombre' || k === 'activo') $('#ficha-titulo').textContent = `${r.nombre}${r.activo ? '' : ' (dado de baja)'}`;
       if (k === 'activo') await cargar();
     }
-    $('#campos').replaceChildren(...T.campos.map((def) => campo(def, r[def.k], guardar, r)));
+    $('#campos').replaceChildren(...T.campos.filter((def) => !def.si || def.si(r)).map((def) => campo(def, r[def.k], guardar, r)),
+      // Una persona dada de alta como subcontrata que en realidad trabaja de operario
+      ...(r.tipo === 'subcontrata' && editar ? [el('div', { class: 'campo c4 pasar-operario' },
+        el('span', { class: 'ayuda' }, '¿Es una persona que trabaja como operario (pintor, montador…)? Como operario subcontratado cuenta en los operarios de las tareas, puede tener oficio y suma horas-persona.'),
+        el('button', {
+          type: 'button', class: 'ghost',
+          onclick: async () => {
+            if (!confirm(`¿Pasar «${r.nombre}» a Operarios como subcontratado? Sus tipos de subcontrata se quitan; luego le pones su oficio.`)) return;
+            try {
+              await api('PATCH', `/api/recursos/${r.id}`, { tipo: 'operario', vinculo: 'subcontratado', categoria: null });
+              toast(`${r.nombre} pasa a Operarios (subcontratado)`);
+              estado.tipo = 'operario';
+              await cargar();
+            } catch (e) { toast(e.message, true); }
+          },
+        }, 'Pasar a Operarios'))] : []));
 
     $('#uso').replaceChildren(
       el('dt', {}, 'Próximas 2 semanas'), el('dd', {}, r.horas_14d ? `${durTxt(r.horas_14d)} asignadas` : 'nada asignado'),

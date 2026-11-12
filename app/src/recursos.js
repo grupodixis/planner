@@ -28,6 +28,10 @@ function leer(b, parcial) {
   }
   if (!parcial || 'linea_id' in b) r.linea_id = b.linea_id ? Number(b.linea_id) : null;
   if ('activo' in b) r.activo = !!b.activo;
+  if ('vinculo' in b) {
+    if (!['plantilla', 'subcontratado'].includes(b.vinculo)) throw fallo(400, 'Vínculo no válido');
+    r.vinculo = b.vinculo;
+  }
   if (r.email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(r.email)) throw fallo(400, 'Email no válido');
   return r;
 }
@@ -138,9 +142,22 @@ module.exports = function montar(app, asyncH) {
     const b = req.body || {};
     const r = leer(b, true);
     const cols = Object.keys(r);
-    const tipos = Array.isArray(b.tipos) ? b.tipos : null;
-    if (!cols.length && !tipos) throw fallo(400, 'Nada que cambiar');
+    let tipos = Array.isArray(b.tipos) ? b.tipos : null;
     const id = Number(req.params.id);
+    // Cambio de clase (p. ej. una subcontrata que en realidad es una persona que trabaja de
+    // operario): sus tipos eran de la otra clase, así que se sustituyen (o se vacían)
+    if ('tipo' in b) {
+      if (!TIPOS.includes(b.tipo)) throw fallo(400, 'Tipo no válido');
+      const { rows: act } = await query('SELECT tipo FROM recursos WHERE id = $1', [id]);
+      if (!act.length) throw fallo(404, 'Recurso no encontrado');
+      if (act[0].tipo !== b.tipo) {
+        r.tipo = b.tipo;
+        cols.push('tipo');
+        if (b.tipo !== 'operario' && !('vinculo' in r)) { r.vinculo = 'plantilla'; cols.push('vinculo'); }
+        if (!tipos) tipos = [];
+      }
+    }
+    if (!cols.length && !tipos) throw fallo(400, 'Nada que cambiar');
     const out = await tx(async (c) => {
       const { rows } = cols.length
         ? await c.query(`UPDATE recursos SET ${cols.map((k, i) => `${k} = $${i + 2}`).join(', ')} WHERE id = $1 RETURNING *`,
