@@ -147,6 +147,7 @@
       campo({ etiqueta: 'Notas', valor: p.notas, max: 2000, ancho: 'c3', filas: 2, guardar: guardar('notas') }),
       campo({ etiqueta: 'Estado', valor: p.estado, opciones: { activo: 'Activo', cerrado: 'Cerrado' }, ancho: 'c1', guardar: guardar('estado') }),
     );
+    pintarObras(p);
     pintarCondiciones(p);
     const im = p.ultima_importacion;
     $('#proyecto-importado').textContent = im
@@ -156,6 +157,58 @@
 
   const condPendientes = (p) => (p.condiciones || []).filter((c) => !c.cumplida).length;
   const fechaHoraTxt = (iso) => new Date(iso).toLocaleString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+
+  // Obras del proyecto: sus filas en el tablero (se ven mientras el proyecto está activo)
+  function pintarObras(p) {
+    const caja = $('#proyecto-obras');
+    const editar = puedeEditar();
+    const obras = p.obras || [];
+    const recargar = async () => {
+      [estado.catalogo] = await Promise.all([api('GET', '/api/catalogo'), cargarProyectos()]);
+      pintarFichaProyecto();
+    };
+    const guardar = (o, k) => async (ev) => {
+      const v = ev.target.value.trim();
+      if (v === (o[k] || '')) return;
+      if (k === 'nombre' && !v) { ev.target.value = o.nombre; return toast('El nombre es obligatorio', true); }
+      try { await api('PATCH', `/api/areas/${o.id}`, { [k]: v }); toast('Obra guardada'); await recargar(); }
+      catch (e) { toast(e.message, true); ev.target.value = o[k] || ''; }
+    };
+    caja.replaceChildren(
+      el('div', { class: 'cond-cab' }, el('h3', {}, 'Obras'),
+        el('span', { class: 'ayuda' }, p.estado === 'cerrado'
+          ? 'proyecto cerrado: no salen en el tablero'
+          : obras.length ? 'filas del tablero mientras el proyecto esté activo' : 'sin obra (se crea al poner la dirección de obra)')),
+      obras.length ? el('ul', { class: 'obras-lista' }, obras.map((o) => el('li', { class: o.activo ? '' : 'cumplida' },
+        el('input', { value: o.nombre, maxlength: 80, disabled: !editar, 'aria-label': 'Nombre de la obra', onchange: guardar(o, 'nombre') }),
+        el('input', { value: o.ubicacion || '', maxlength: 200, disabled: !editar, placeholder: 'Dirección', 'aria-label': 'Dirección de la obra', onchange: guardar(o, 'ubicacion') }),
+        editar ? el('button', {
+          type: 'button', class: 'ghost borrar mini',
+          title: o.usos ? 'Tiene tareas o tramos: se desactiva (deja de salir en el tablero)' : 'Quitar la obra',
+          onclick: async () => {
+            try {
+              const r = o.activo || !o.usos ? await api('DELETE', `/api/areas/${o.id}`) : await api('PATCH', `/api/areas/${o.id}`, { activo: true });
+              toast(r.desactivada ? 'Tiene trabajo: se ha desactivado' : r.borrada ? 'Obra quitada' : 'Obra reactivada');
+              await recargar();
+            } catch (e) { toast(e.message, true); }
+          },
+        }, o.activo || !o.usos ? (o.usos ? 'Desactivar' : 'Quitar') : 'Reactivar') : null))) : null,
+      editar ? el('form', {
+        class: 'alta cond-alta',
+        onsubmit: async (ev) => {
+          ev.preventDefault();
+          const f = ev.target;
+          try {
+            await api('POST', `/api/proyectos/${p.id}/obras`, { nombre: f.nombre.value, ubicacion: f.ubicacion.value });
+            toast('Obra añadida'); await recargar();
+          } catch (e) { toast(e.message, true); }
+        },
+      },
+      el('input', { name: 'nombre', placeholder: obras.length ? 'Otra obra (nombre)' : 'Nombre (p. ej. Obra · Finca Alaior)', maxlength: 80, 'aria-label': 'Nombre de la nueva obra' }),
+      el('input', { name: 'ubicacion', placeholder: 'Dirección', maxlength: 200, 'aria-label': 'Dirección de la nueva obra' }),
+      el('button', { type: 'submit' }, 'Añadir obra')) : null,
+    );
+  }
 
   // Condiciones previas: lo que hay que confirmar antes de ejecutar (pago, RAL, pilares…)
   function pintarCondiciones(p) {
@@ -410,7 +463,11 @@
       tbody.replaceChildren(el('tr', {}, el('td', { colspan: 8, class: 'ayuda' }, 'Sin tareas. Añade la primera abajo.')));
       return;
     }
-    const areas = Object.fromEntries([['', '—'], ...estado.catalogo.areas.map((a) => [a.id, a.nombre])]);
+    const pid = o.proyecto_id;
+    const usadas = new Set(o.lista_tareas.map((t) => t.linea_id));
+    const areas = Object.fromEntries([['', '—'], ...estado.catalogo.areas
+      .filter((a) => a.tipo !== 'obra' || (pid && a.proyecto_id === pid) || usadas.has(a.id))
+      .map((a) => [a.id, a.tipo === 'obra' ? `${a.nombre} (obra)` : a.nombre])]);
     const recursosReq = estado.catalogo.recursos.filter((r) => r.tipo !== 'operario');
 
     const patch = (t, cuerpo) => api('PATCH', `/api/tareas/${t.id}`, cuerpo)

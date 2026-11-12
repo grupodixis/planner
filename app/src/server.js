@@ -63,17 +63,29 @@ function leerArea(b, parcial) {
   return out;
 }
 
+// Áreas fijas (taller, cabina, oficina…). Las obras van con su proyecto (ficha del proyecto);
+// aquí solo se listan aparte las que se han quedado sin proyecto.
 app.get('/api/areas', asyncH(async (req, res) => {
   const { rows } = await query(
-    `SELECT l.id, l.nombre, l.tipo, l.ubicacion, l.orden, l.activo,
+    `SELECT l.id, l.nombre, l.tipo, l.ubicacion, l.orden, l.activo, l.proyecto_id,
             (SELECT count(*)::int FROM tareas t WHERE t.linea_id = l.id AND t.estado <> 'hecha')
-          + (SELECT count(*)::int FROM tramos x WHERE x.linea_id = l.id AND x.fecha >= CURRENT_DATE) AS tareas_abiertas
-       FROM lineas l ORDER BY l.activo DESC, l.orden, l.nombre`);
-  res.json({ tipos: TIPOS_AREA, areas: rows });
+          + (SELECT count(*)::int FROM tramos x WHERE x.linea_id = l.id AND x.fecha >= CURRENT_DATE) AS tareas_abiertas,
+            (SELECT count(*)::int FROM tareas t WHERE t.linea_id = l.id)
+          + (SELECT count(*)::int FROM tramos x WHERE x.linea_id = l.id) AS usos
+       FROM lineas l WHERE l.tipo <> 'obra' OR l.proyecto_id IS NULL
+      ORDER BY l.activo DESC, l.orden, l.nombre`);
+  res.json({
+    tipos: TIPOS_AREA.filter((t) => t !== 'obra'),
+    areas: rows.filter((a) => a.tipo !== 'obra'),
+    obras_sin_proyecto: rows.filter((a) => a.tipo === 'obra'),
+  });
 }));
+
+const OBRA_DESDE_PROYECTO = 'Las obras se crean desde la ficha del proyecto (Proyectos y OTs)';
 
 app.post('/api/areas', auth.puedeEditar, asyncH(async (req, res) => {
   const a = leerArea(req.body || {}, false);
+  if (a.tipo === 'obra') return res.status(400).json({ error: OBRA_DESDE_PROYECTO });
   const { rows } = await query(
     `INSERT INTO lineas (nombre, tipo, ubicacion, orden)
      VALUES ($1, $2, $3, COALESCE((SELECT max(orden) FROM lineas), 0) + 1) RETURNING *`,
@@ -83,6 +95,12 @@ app.post('/api/areas', auth.puedeEditar, asyncH(async (req, res) => {
 
 app.patch('/api/areas/:id', auth.puedeEditar, asyncH(async (req, res) => {
   const a = leerArea(req.body || {}, true);
+  if ('tipo' in a) {
+    const { rows: act } = await query('SELECT tipo, proyecto_id FROM lineas WHERE id = $1', [Number(req.params.id)]);
+    if (act.length && (a.tipo === 'obra') !== (act[0].tipo === 'obra')) {
+      return res.status(400).json({ error: a.tipo === 'obra' ? OBRA_DESDE_PROYECTO : 'Una obra no puede pasar a área fija' });
+    }
+  }
   const cols = Object.keys(a);
   if (!cols.length) return res.status(400).json({ error: 'Nada que cambiar' });
   const { rows } = await query(

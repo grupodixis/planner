@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>s360 · Tablero de planificación</title>
-  <link rel="stylesheet" href="styles.css?v=202611122032">
+  <link rel="stylesheet" href="styles.css?v=202611122315">
 </head>
 <body>
   <header class="top">
@@ -97,7 +97,8 @@
       <h2 id="dlg-areas-tit">Áreas de trabajo</h2>
       <button class="ghost" id="dlg-areas-cerrar" aria-label="Cerrar">✕</button>
     </div>
-    <p class="ayuda">Cada área es una fila del calendario: una obra, una zona del taller, la oficina técnica, la cabina de pintura… Los cambios se guardan al salir de cada campo.</p>
+    <p class="ayuda">Áreas fijas: cada una es una fila del calendario (una zona del taller, la cabina de pintura, la oficina técnica…). Los cambios se guardan al salir de cada campo.
+      <b>Las obras no van aquí</b>: se crean en la ficha de su proyecto y salen solas del tablero cuando el proyecto se cierra.</p>
     <form id="form-area" class="form-area">
       <input name="nombre" placeholder="Nombre (p. ej. Cabina de pintura)" required maxlength="80">
       <select name="tipo" aria-label="Tipo"></select>
@@ -108,6 +109,11 @@
       <thead><tr><th>Orden</th><th>Nombre</th><th>Tipo</th><th>Ubicación</th><th>Activa</th><th></th></tr></thead>
       <tbody id="areas-tbody"></tbody>
     </table>
+    <details id="obras-sueltas" class="obras-sueltas" hidden>
+      <summary></summary>
+      <p class="ayuda">Obras que se han quedado sin proyecto (por ejemplo, porque se borró). No salen en el tablero. Si vuelves a importar o crear su proyecto se enlazan solas.</p>
+      <ul id="obras-sueltas-lista"></ul>
+    </details>
   </dialog>
 
   <dialog id="dlg-empujar" aria-labelledby="dlg-empujar-tit">
@@ -121,7 +127,7 @@
   </dialog>
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
-  <script src="ordenar.js?v=202611122032"></script>
-  <script src="app.js?v=202611122032"></script>
+  <script src="ordenar.js?v=202611122315"></script>
+  <script src="app.js?v=202611122315"></script>
 </body>
 </html>

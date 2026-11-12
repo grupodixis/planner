@@ -164,10 +164,16 @@ module.exports = function montar(app, asyncH) {
     if (dias < 0 || dias > 62) throw fallo(400, 'Rango de fechas no válido (máx. 62 días)');
 
     const [lineas, recursos, tareas, tramos] = await Promise.all([
-      // Áreas activas + las inactivas que aún tengan tramos en el rango (para no perderlos)
-      query(`SELECT id, nombre, tipo, ubicacion, activo FROM lineas l
-              WHERE activo OR EXISTS (SELECT 1 FROM tramos x WHERE x.linea_id = l.id AND x.fecha BETWEEN $1 AND $2)
-              ORDER BY orden, nombre`, [desde, hasta]),
+      // Áreas fijas activas + obras de proyectos activos (al final, por proyecto)
+      // + cualquier área que tenga tramos en el rango (para no perder lo planificado)
+      query(`SELECT l.id, l.nombre, l.tipo, l.ubicacion, l.activo, l.proyecto_id,
+                    p.codigo AS proyecto_codigo, p.nombre AS proyecto_nombre,
+                    (l.tipo = 'obra') AS es_obra,
+                    (l.tipo = 'obra' AND p.estado IS DISTINCT FROM 'activo') AS obra_cerrada
+               FROM lineas l LEFT JOIN proyectos p ON p.id = l.proyecto_id
+              WHERE (l.activo AND (l.tipo <> 'obra' OR p.estado = 'activo'))
+                 OR EXISTS (SELECT 1 FROM tramos x WHERE x.linea_id = l.id AND x.fecha BETWEEN $1 AND $2)
+              ORDER BY (l.tipo = 'obra'), CASE WHEN l.tipo = 'obra' THEN p.codigo END, l.orden, l.nombre`, [desde, hasta]),
       // Recursos activos + los dados de baja que aún tienen algo asignado en el rango
       query(`SELECT id, tipo, nombre, categoria, activo, vinculo, empresa,
                     COALESCE((SELECT json_agg(rt.tipo_recurso_id) FROM recurso_tipos rt WHERE rt.recurso_id = r.id), '[]') AS tipos,

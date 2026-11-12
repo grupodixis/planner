@@ -279,6 +279,16 @@
     aplicarFiltro();
   }
 
+  // Las obras van al final del calendario, con el código de su proyecto; la primera lleva el rótulo «Obras»
+  const claseObra = (l) => {
+    if (!l.es_obra) return '';
+    const primera = estado.datos.lineas.find((x) => x.es_obra) === l;
+    return ` fila-obra${primera ? ' primera-obra' : ''}`;
+  };
+  const etiquetaArea = (l) => el('span', { class: `tipo-area tipo-${l.tipo}` },
+    l.es_obra ? (l.proyecto_codigo ? `Obra · ${l.proyecto_codigo}` : 'Obra sin proyecto') : TIPO_TXT[l.tipo] || l.tipo,
+    l.obra_cerrada && l.proyecto_codigo ? ' · proyecto cerrado' : !l.activo ? ' · inactiva' : '');
+
   /* ---------- calendario (centro) ---------- */
   // Dos vistas del mismo día: «Áreas» (filas = áreas, bloques = tramos con una barra por
   // operario) y «Operarios» (filas = operarios, barras = su franja en cada tramo).
@@ -354,10 +364,10 @@
         return { ini: tr.hora_inicio, fin: tr.hora_inicio + tr.duracion_h, alto: altoBloque(tr), nodo };
       });
       const alto = apilar(items, pista, BLOQUE_H + 2 * GAP);
-      const fila = el('div', { class: `fila${linea.activo ? '' : ' inactiva'}` },
-        el('div', { class: 'fila-nombre', title: linea.ubicacion || '' },
+      const fila = el('div', { class: `fila${linea.activo && !linea.obra_cerrada ? '' : ' inactiva'}${claseObra(linea)}` },
+        el('div', { class: 'fila-nombre', title: [linea.proyecto_nombre, linea.ubicacion].filter(Boolean).join(' · ') },
           linea.nombre,
-          el('span', { class: `tipo-area tipo-${linea.tipo}` }, TIPO_TXT[linea.tipo] || linea.tipo, linea.activo ? '' : ' · inactiva'),
+          etiquetaArea(linea),
           linea.ubicacion ? el('span', { class: 'ubic' }, linea.ubicacion) : null),
         pista);
       fila.style.minHeight = `${alto}px`;
@@ -978,8 +988,8 @@
             h ? { txt: durTxt(+h.toFixed(1)), clase: h > J().horas ? 'sobrecarga' : '' } : null,
             { modo: 'area', lineaId: linea.id });
         });
-        return filaSemana([linea.nombre, el('span', { class: `tipo-area tipo-${linea.tipo}` }, TIPO_TXT[linea.tipo] || linea.tipo, linea.activo ? '' : ' · inactiva')],
-          total ? `${durTxt(+total.toFixed(1))} en la semana` : '', linea.activo ? '' : 'inactiva', celdas);
+        return filaSemana([linea.nombre, etiquetaArea(linea)],
+          total ? `${durTxt(+total.toFixed(1))} en la semana` : '', `${linea.activo && !linea.obra_cerrada ? '' : 'inactiva'}${claseObra(linea)}`, celdas);
       });
       if (!filas.length) filas = [el('p', { class: 'cal-vacio' }, 'No hay áreas de trabajo activas. Crea una con el botón «Áreas de trabajo».')];
     }
@@ -1585,7 +1595,7 @@
   }
 
   async function pintarAreas() {
-    const { tipos, areas } = await api('GET', '/api/areas');
+    const { tipos, areas, obras_sin_proyecto: sueltas = [] } = await api('GET', '/api/areas');
     const editar = puedeEditar();
     const opciones = (sel) => tipos.map((t) => el('option', { value: t, selected: t === sel }, TIPO_TXT[t] || t));
     $('#form-area select[name=tipo]').replaceChildren(...opciones('taller'));
@@ -1619,6 +1629,20 @@
         },
       }, a.tareas_abiertas ? 'Desactivar' : 'Borrar') : ''),
     )));
+    // Obras sin proyecto: apartadas y plegadas, para que no ensucien la lista
+    $('#obras-sueltas').hidden = !sueltas.length;
+    $('#obras-sueltas summary').textContent = `Obras sin proyecto (${sueltas.length})`;
+    $('#obras-sueltas-lista').replaceChildren(...sueltas.map((a) => el('li', {},
+      el('span', {}, a.nombre), a.ubicacion ? el('span', { class: 'ayuda' }, ` · ${a.ubicacion}`) : null,
+      a.usos ? el('span', { class: 'ayuda' }, ` · usada en ${a.usos} tarea(s)/tramo(s)`) : null,
+      editar && !a.usos ? el('button', {
+        type: 'button', class: 'ghost borrar mini',
+        onclick: async () => {
+          const r = await api('DELETE', `/api/areas/${a.id}`).catch((e) => toast(e.message, true));
+          if (r) toast('Obra borrada');
+          await pintarAreas();
+        },
+      }, 'Borrar') : null)));
     if (editar) {
       ordenArrastrable($('#areas-tbody'), async (ids) => {
         try { await api('PUT', '/api/areas/orden', { ids }); toast('Orden guardado'); } catch (e) { toast(e.message, true); }

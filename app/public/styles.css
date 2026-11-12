@@ -771,3 +771,26 @@ button.primario.mini { background: var(--azul-bg); border-color: var(--azul); }
 tbody.ordenando tr[data-id] { transition: transform .12s; }
 tr.arrastrando { opacity: .35; }
 tr.arrastrando td { background: var(--azul-bg); }
+
+/* ---------- Obras: filas del proyecto al final del calendario ---------- */
+.fila.primera-obra, .fila-sem.primera-obra { position: relative; margin-top: 22px; border-top: 1px solid color-mix(in srgb, var(--naranja) 45%, transparent); }
+.fila.primera-obra::before, .fila-sem.primera-obra::before {
+  content: "Obras · salen solas del tablero al cerrar el proyecto"; position: absolute; left: 6px; top: -19px;
+  font-size: 10.5px; text-transform: uppercase; letter-spacing: .4px; color: var(--naranja);
+}
+.fila-obra > .fila-nombre { background: color-mix(in srgb, var(--naranja) 6%, transparent); }
+.obras-sueltas { margin-top: 12px; font-size: 13px; }
+.obras-sueltas summary { cursor: pointer; color: var(--suave); }
+.obras-sueltas ul { list-style: none; margin: 4px 0 0; padding: 0; }
+.obras-sueltas li { display: flex; gap: 6px; align-items: center; padding: 3px 0; border-top: 1px solid var(--linea); }
+.obras-sueltas li .borrar { margin-left: auto; }
+.obras-lista { list-style: none; margin: 6px 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.obras-lista li { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr) auto; gap: 6px; align-items: center; }
+.obras-lista input, .obras-proy .cond-alta input { background: #1f1f1f; border: 1px solid var(--borde); border-radius: 8px; padding: 4px 8px; min-width: 0; }
+.obras-lista li.cumplida input { opacity: .55; }
+.obras-lista li { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "n b" "u u"; padding-bottom: 6px; border-bottom: 1px solid var(--linea); }
+.obras-lista li > input:nth-child(1) { grid-area: n; }
+.obras-lista li > input:nth-child(2) { grid-area: u; }
+.obras-lista li > button { grid-area: b; }
+.obras-proy .cond-alta { flex-wrap: wrap; }
+.obras-proy .cond-alta input { flex: 1 1 140px; }

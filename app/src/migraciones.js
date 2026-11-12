@@ -223,6 +223,17 @@ const MIGRACIONES = [
        ALTER TABLE recursos ADD CONSTRAINT recursos_vinculo_check CHECK (vinculo IN ('plantilla', 'subcontratado'));
      END IF;
    END $$`,
+
+  // 2026-11 · Las obras son áreas de un proyecto: se ven en el tablero mientras el proyecto está
+  // activo y no aparecen entre las áreas fijas (taller, cabina, oficina…)
+  `ALTER TABLE lineas ADD COLUMN IF NOT EXISTS proyecto_id INT REFERENCES proyectos(id) ON DELETE SET NULL`,
+  `CREATE INDEX IF NOT EXISTS lineas_proyecto_idx ON lineas (proyecto_id)`,
+  // Enlaza las obras que ya existían con su proyecto (por nombre, código, dirección u «Obra · …»)
+  `UPDATE lineas l SET proyecto_id = p.id
+     FROM proyectos p
+    WHERE l.tipo = 'obra' AND l.proyecto_id IS NULL
+      AND (lower(l.nombre) IN (lower(p.nombre), lower(p.codigo))
+           OR (p.obra IS NOT NULL AND (lower(l.ubicacion) = lower(p.obra) OR lower(l.nombre) = lower('Obra · ' || p.obra))))`,
 ];
 
 async function migrar() {

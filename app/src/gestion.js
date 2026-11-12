@@ -44,7 +44,9 @@ module.exports = function montar(app, asyncH) {
   /* ---------- Catálogo para formularios ---------- */
   app.get('/api/catalogo', asyncH(async (req, res) => {
     const [areas, recursos, tipos] = await Promise.all([
-      query('SELECT id, nombre, tipo FROM lineas WHERE activo ORDER BY orden, nombre'),
+      query(`SELECT l.id, l.nombre, l.tipo, l.proyecto_id FROM lineas l LEFT JOIN proyectos p ON p.id = l.proyecto_id
+              WHERE l.activo AND (l.tipo <> 'obra' OR p.estado = 'activo')
+              ORDER BY (l.tipo = 'obra'), l.orden, l.nombre`),
       query('SELECT id, tipo, nombre FROM recursos WHERE activo ORDER BY tipo, nombre'),
       query(`SELECT t.id, t.clase, t.nombre,
                     (SELECT count(*)::int FROM recurso_tipos rt JOIN recursos r ON r.id = rt.recurso_id AND r.activo
@@ -80,7 +82,12 @@ module.exports = function montar(app, asyncH) {
                          WHERE c.proyecto_id = p.id), '[]') AS condiciones,
               (SELECT json_build_object('creado', i.creado, 'usuario', u.nombre, 'origen', i.origen)
                  FROM importaciones i LEFT JOIN usuarios u ON u.id = i.usuario_id
-                WHERE i.proyecto_id = p.id ORDER BY i.creado DESC LIMIT 1) AS ultima_importacion
+                WHERE i.proyecto_id = p.id ORDER BY i.creado DESC LIMIT 1) AS ultima_importacion,
+              COALESCE((SELECT json_agg(json_build_object('id', l.id, 'nombre', l.nombre, 'ubicacion', l.ubicacion, 'activo', l.activo,
+                                                          'usos', (SELECT count(*) FROM tareas t WHERE t.linea_id = l.id)
+                                                                + (SELECT count(*) FROM tramos x WHERE x.linea_id = l.id))
+                                          ORDER BY l.id)
+                          FROM lineas l WHERE l.proyecto_id = p.id AND l.tipo = 'obra'), '[]') AS obras
          FROM proyectos p
         ORDER BY (p.estado = 'activo') DESC, p.codigo DESC`);
     res.json(rows);
@@ -92,6 +99,7 @@ module.exports = function montar(app, asyncH) {
     const { rows } = await query(
       `INSERT INTO proyectos (codigo, nombre, cliente, obra, notas) VALUES ($1,$2,$3,$4,$5) RETURNING *`,
       [p.codigo, p.nombre, p.cliente, p.obra, p.notas]);
+    await asegurarObra(rows[0]);
     res.status(201).json(rows[0]);
   }));
 
@@ -102,13 +110,52 @@ module.exports = function montar(app, asyncH) {
     if (!s.n) throw fallo(400, 'Nada que cambiar');
     const { rows } = await query(`UPDATE proyectos SET ${s.sql} WHERE id = $1 RETURNING *`, [Number(req.params.id), ...s.vals]);
     if (!rows.length) throw fallo(404, 'Proyecto no encontrado');
+    if (p.obra) await asegurarObra(rows[0]);
     res.json(rows[0]);
+  }));
+
+  // Si el proyecto tiene dirección de obra y aún no tiene área de obra, se crea
+  async function asegurarObra(p) {
+    if (!p.obra) return;
+    const { rows } = await query(`SELECT 1 FROM lineas WHERE proyecto_id = $1 AND tipo = 'obra'`, [p.id]);
+    if (rows.length) return;
+    await crearObra(p.id, nombreObra(p.obra), p.obra);
+  }
+  const nombreObra = (obra) => `Obra · ${String(obra).split(/[,(]/)[0].trim()}`.slice(0, 80);
+  async function crearObra(proyectoId, nombre, ubicacion) {
+    // si ya hay un área suelta con ese nombre (p. ej. de una importación anterior), se reutiliza
+    const { rows: ya } = await query(
+      `SELECT id FROM lineas WHERE lower(nombre) = lower($1) AND tipo = 'obra' AND (proyecto_id IS NULL OR proyecto_id = $2)`, [nombre, proyectoId]);
+    if (ya.length) {
+      const { rows } = await query(`UPDATE lineas SET proyecto_id = $2, activo = TRUE, ubicacion = COALESCE($3, ubicacion) WHERE id = $1 RETURNING *`,
+        [ya[0].id, proyectoId, ubicacion || null]);
+      return rows[0];
+    }
+    const { rows } = await query(
+      `INSERT INTO lineas (nombre, tipo, ubicacion, orden, proyecto_id)
+       VALUES ($1, 'obra', $2, COALESCE((SELECT max(orden) FROM lineas), 0) + 1, $3) RETURNING *`,
+      [nombre, ubicacion || null, proyectoId]);
+    return rows[0];
+  }
+
+  // Añadir otra obra al proyecto (si trabaja en dos sitios)
+  app.post('/api/proyectos/:id/obras', auth.puedeEditar, asyncH(async (req, res) => {
+    const id = Number(req.params.id);
+    const { rows: p } = await query('SELECT * FROM proyectos WHERE id = $1', [id]);
+    if (!p.length) throw fallo(404, 'Proyecto no encontrado');
+    const ubic = texto(req.body?.ubicacion, 200, false, 'La ubicación') || null;
+    const nombre = texto(req.body?.nombre, 80, false, 'El nombre') || nombreObra(ubic || p[0].obra || p[0].nombre);
+    res.status(201).json(await crearObra(id, nombre, ubic || (p[0].obra && !req.body?.nombre ? p[0].obra : null)));
   }));
 
   app.delete('/api/proyectos/:id', auth.puedeEditar, asyncH(async (req, res) => {
     const id = Number(req.params.id);
     const { rows } = await query('SELECT count(*)::int AS n FROM ordenes WHERE proyecto_id = $1', [id]);
     if (rows[0].n) throw fallo(409, 'El proyecto tiene OTs: ciérralo en lugar de borrarlo');
+    // sus obras sin usar se borran; las usadas se quedan sin proyecto (fuera del tablero)
+    await query(`DELETE FROM lineas l WHERE l.proyecto_id = $1 AND l.tipo = 'obra'
+                   AND NOT EXISTS (SELECT 1 FROM tareas t WHERE t.linea_id = l.id)
+                   AND NOT EXISTS (SELECT 1 FROM tramos x WHERE x.linea_id = l.id)`, [id]);
     await query('DELETE FROM proyectos WHERE id = $1', [id]);
     res.json({ ok: true });
   }));

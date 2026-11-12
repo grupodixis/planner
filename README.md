@@ -107,7 +107,13 @@ semana o un mes. La URL y el navegador recuerdan el periodo (`?fecha=…&periodo
   franja en cada OT y sus horas del día. Bordes = cambiar la franja; arrastrar una barra a otra
   persona = pasársela; soltar una tarea del panel derecho en una persona = planificarla con esa
   persona (en el área por defecto de la tarea). Los tramos sin nadie salen en «Sin operario».
-- **Áreas de trabajo** (botón en el calendario): crear, renombrar, tipo (taller, obra, oficina
+- **Obras:** son áreas **de un proyecto**. Se crean solas al poner la dirección de obra en el
+  proyecto o al importarlo (tareas «de obra»), y desde la ficha del proyecto se renombran o se añade
+  otra obra. En el tablero van al final, bajo el rótulo «Obras», con el código del proyecto, y
+  **solo mientras el proyecto está activo**: al cerrarlo desaparecen solas (los días con trabajo ya
+  planificado se siguen viendo, marcados «proyecto cerrado»). No aparecen en «Áreas de trabajo»;
+  allí solo hay, plegadas, las que se quedaron sin proyecto.
+- **Áreas de trabajo** (botón en el calendario): áreas fijas; crear, renombrar, tipo (taller, oficina
   técnica, pintura, transporte, otro), ubicación, orden (arrastrando el asa ⠿ de cada fila, o
   ↑/↓ con el asa enfocada; igual en las tareas de una OT y en las partidas) y activar/desactivar. Un área con tareas
   no se borra: se desactiva y deja de salir en el calendario salvo los días en que tenga tareas.

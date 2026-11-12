@@ -221,11 +221,12 @@ async function importar(c, archivo, resoluciones, usuario, simular) {
   if (errores.length) return { errores };
 
   /* 2 · Resolver nombres: áreas, tipos de recurso (oficios incluidos) y recursos concretos */
-  const areas = (await c.query('SELECT id, nombre, tipo, activo FROM lineas ORDER BY orden, nombre')).rows;
+  const areas = (await c.query('SELECT id, nombre, tipo, activo, proyecto_id FROM lineas ORDER BY orden, nombre')).rows;
   const tipos = (await c.query('SELECT id, clase, nombre FROM tipos_recurso ORDER BY lower(nombre)')).rows;
   const recursos = (await c.query('SELECT id, tipo, nombre, activo FROM recursos ORDER BY tipo, nombre')).rows;
   const alias = (await c.query('SELECT clase, nombre, destino_id FROM import_alias')).rows;
-  const areasActivas = areas.filter((a) => a.activo);
+  // Áreas que puede usar este proyecto: las fijas y sus propias obras (o las obras sueltas, sin proyecto)
+  const areasActivas = areas.filter((a) => a.activo && (a.tipo !== 'obra' || !a.proyecto_id || a.proyecto_id === proy?.id));
   const recursosActivos = recursos.filter((r) => r.activo);
   const aliasDe = (clase, nombre) => alias.find((a) => a.clase === clase && a.nombre === norm(nombre))?.destino_id;
 
@@ -275,7 +276,9 @@ async function importar(c, archivo, resoluciones, usuario, simular) {
       const delTipo = areasActivas.filter((a) => a.tipo === e.area_tipo);
       opciones = areasActivas;
       if (e.area_tipo === 'obra') {
-        existe = areasActivas.find((a) => norm(a.nombre) === norm(e.nombre));
+        // la obra de este proyecto (reimportación) o una suelta con el mismo nombre
+        existe = areasActivas.find((a) => a.tipo === 'obra' && proy && a.proyecto_id === proy.id)
+          || areasActivas.find((a) => norm(a.nombre) === norm(e.nombre));
         puede = ['crear', 'asociar', 'ignorar'];
         defecto = { accion: 'crear', estado: 'falta' };
         e.crear_tipo = 'obra';
@@ -357,9 +360,9 @@ async function importar(c, archivo, resoluciones, usuario, simular) {
       } else {
         const tipo = TIPOS_AREA.includes(e.crear_tipo) ? e.crear_tipo : 'otro';
         const { rows } = await c.query(
-          `INSERT INTO lineas (nombre, tipo, ubicacion, orden)
-           VALUES ($1, $2, $3, COALESCE((SELECT max(orden) FROM lineas), 0) + 1) RETURNING id`,
-          [e.nombre, tipo, tipo === 'obra' ? P.obra || null : null]);
+          `INSERT INTO lineas (nombre, tipo, ubicacion, orden, proyecto_id)
+           VALUES ($1, $2, $3, COALESCE((SELECT max(orden) FROM lineas), 0) + 1, $4) RETURNING id`,
+          [e.nombre, tipo, tipo === 'obra' ? P.obra || null : null, tipo === 'obra' ? proy?.id ?? null : null]);
         e.final = rows[0].id;
       }
       nombreArea.set(e.final, e.nombre);
@@ -406,6 +409,13 @@ async function importar(c, archivo, resoluciones, usuario, simular) {
     accionProyecto = Object.keys(campos).length || adoptado ? 'actualizar' : 'igual';
     if (adoptado) avisos.push({ ruta: 'proyecto', mensaje: `Se asocia al proyecto ${proy.codigo}, creado a mano con el mismo código` });
     if (Object.keys(campos).length) cambios.push({ nivel: 'proyecto', accion: 'actualizar', ref: P.ref_externa, nombre: P.nombre, campos });
+  }
+
+  // Las áreas de obra que usa el archivo pasan a ser de este proyecto
+  const obrasUsadas = [...resolver.values()].filter((e) => e.final && (e.clase === 'area' || e.clase === 'area_tipo')).map((e) => e.final);
+  if (obrasUsadas.length) {
+    await c.query(`UPDATE lineas SET proyecto_id = $1, ubicacion = COALESCE(ubicacion, $3)
+                    WHERE id = ANY($2) AND tipo = 'obra' AND proyecto_id IS NULL`, [proy.id, obrasUsadas, P.obra || null]);
   }
 
   /* 4 · Condiciones previas (se conserva la marca de las que ya estaban) */
