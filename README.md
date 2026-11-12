@@ -108,7 +108,8 @@ semana o un mes. La URL y el navegador recuerdan el periodo (`?fecha=…&periodo
   persona = pasársela; soltar una tarea del panel derecho en una persona = planificarla con esa
   persona (en el área por defecto de la tarea). Los tramos sin nadie salen en «Sin operario».
 - **Áreas de trabajo** (botón en el calendario): crear, renombrar, tipo (taller, obra, oficina
-  técnica, pintura, transporte, otro), ubicación, orden y activar/desactivar. Un área con tareas
+  técnica, pintura, transporte, otro), ubicación, orden (arrastrando el asa ⠿ de cada fila, o
+  ↑/↓ con el asa enfocada; igual en las tareas de una OT y en las partidas) y activar/desactivar. Un área con tareas
   no se borra: se desactiva y deja de salir en el calendario salvo los días en que tenga tareas.
 - **Detalle (ventana flotante):** al pulsar un bloque o una tarea se abre una ventana con el
   proyecto y la partida de la OT, la tarea (requisitos, planificado, dependencias, notas,

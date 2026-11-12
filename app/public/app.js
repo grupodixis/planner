@@ -1602,19 +1602,9 @@
         cargar();
       } catch (e) { toast(e.message, true); ev.target.value = a[campo] ?? ''; }
     };
-    const mover = (id, delta) => async () => {
-      const i = activas.indexOf(id), j = i + delta;
-      if (i < 0 || j < 0 || j >= activas.length) return;
-      [activas[i], activas[j]] = [activas[j], activas[i]];
-      await api('PUT', '/api/areas/orden', { ids: activas });
-      await pintarAreas(); cargar();
-    };
 
-    $('#areas-tbody').replaceChildren(...areas.map((a) => el('tr', { class: a.activo ? '' : 'inactiva' },
-      el('td', { class: 'ord' }, editar && a.activo ? [
-        el('button', { type: 'button', class: 'ghost', title: 'Subir', 'aria-label': `Subir ${a.nombre}`, onclick: mover(a.id, -1) }, '↑'),
-        el('button', { type: 'button', class: 'ghost', title: 'Bajar', 'aria-label': `Bajar ${a.nombre}`, onclick: mover(a.id, 1) }, '↓'),
-      ] : ''),
+    $('#areas-tbody').replaceChildren(...areas.map((a) => el('tr', { class: a.activo ? '' : 'inactiva', ...(editar && a.activo ? { 'data-id': a.id } : {}) },
+      el('td', { class: 'ord' }, editar && a.activo ? asaOrden(a.nombre) : ''),
       el('td', {}, el('input', { value: a.nombre, 'aria-label': 'Nombre', maxlength: 80, disabled: !editar, onchange: guardar(a, 'nombre') })),
       el('td', {}, el('select', { 'aria-label': 'Tipo', disabled: !editar, onchange: guardar(a, 'tipo') }, opciones(a.tipo))),
       el('td', {}, el('input', { value: a.ubicacion || '', 'aria-label': 'Ubicación', maxlength: 200, disabled: !editar, placeholder: '—', onchange: guardar(a, 'ubicacion') })),
@@ -1629,6 +1619,12 @@
         },
       }, a.tareas_abiertas ? 'Desactivar' : 'Borrar') : ''),
     )));
+    if (editar) {
+      ordenArrastrable($('#areas-tbody'), async (ids) => {
+        try { await api('PUT', '/api/areas/orden', { ids }); toast('Orden guardado'); } catch (e) { toast(e.message, true); }
+        await pintarAreas(); cargar();
+      });
+    }
   }
 
   function prepararAreas() {

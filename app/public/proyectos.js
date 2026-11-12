@@ -412,19 +412,17 @@
     }
     const areas = Object.fromEntries([['', '—'], ...estado.catalogo.areas.map((a) => [a.id, a.nombre])]);
     const recursosReq = estado.catalogo.recursos.filter((r) => r.tipo !== 'operario');
-    const ids = o.lista_tareas.map((t) => t.id);
 
     const patch = (t, cuerpo) => api('PATCH', `/api/tareas/${t.id}`, cuerpo)
       .then(() => { toast('Guardado'); return refrescarOT(); })
       .catch((e) => { toast(e.message, true); pintarTareas(); });
 
-    const mover = (i, d) => async () => {
-      const j = i + d;
-      if (j < 0 || j >= ids.length) return;
-      [ids[i], ids[j]] = [ids[j], ids[i]];
-      await api('PUT', `/api/ordenes/${o.id}/tareas/orden`, { ids }).catch((e) => toast(e.message, true));
-      await cargarOT();
-    };
+    if (editar) {
+      ordenArrastrable(tbody, async (nuevos) => {
+        await api('PUT', `/api/ordenes/${o.id}/tareas/orden`, { ids: nuevos }).then(() => toast('Orden guardado')).catch((e) => toast(e.message, true));
+        await cargarOT();
+      });
+    }
 
     tbody.replaceChildren(...o.lista_tareas.map((t, i) => {
       const bloqueada = ['en_curso', 'hecha'].includes(t.estado);
@@ -440,11 +438,8 @@
             : `${fechaCorta(t.primera_fecha).slice(0, 5)}→${fechaCorta(t.ultima_fecha).slice(0, 5)}`)
         : null;
 
-      return el('tr', { class: `${t.estado}${t.baja_presupuesto ? ' baja' : ''}` },
-        el('td', { class: 'ord' }, editar ? [
-          el('button', { type: 'button', class: 'ghost', title: 'Subir', 'aria-label': `Subir ${t.nombre}`, onclick: mover(i, -1) }, '↑'),
-          el('button', { type: 'button', class: 'ghost', title: 'Bajar', 'aria-label': `Bajar ${t.nombre}`, onclick: mover(i, 1) }, '↓'),
-        ] : ''),
+      return el('tr', { class: `${t.estado}${t.baja_presupuesto ? ' baja' : ''}`, 'data-id': t.id },
+        el('td', { class: 'ord' }, editar ? asaOrden(t.nombre) : ''),
         el('td', {}, el('input', {
           value: t.nombre, maxlength: 120, 'aria-label': 'Nombre de la tarea', disabled: !editar,
           onchange: (ev) => (ev.target.value.trim() ? patch(t, { nombre: ev.target.value }) : (ev.target.value = t.nombre)),
@@ -661,7 +656,6 @@
 
   function pintarPartidasDlg() {
     const editar = puedeEditar();
-    const ids = estado.partidas.map((pa) => pa.id);
     const guardar = (pa, k) => async (ev) => {
       const v = ev.target.value.trim();
       if (v === (pa[k] || '')) return;
@@ -669,18 +663,15 @@
       try { await api('PATCH', `/api/partidas/${pa.id}`, { [k]: v }); toast('Guardado'); await cargarOTs(); await cargarOT(); }
       catch (e) { toast(e.message, true); ev.target.value = pa[k] || ''; }
     };
-    const mover = (i, d) => async () => {
-      const j = i + d;
-      if (j < 0 || j >= ids.length) return;
-      [ids[i], ids[j]] = [ids[j], ids[i]];
-      try { await api('PUT', `/api/proyectos/${estado.proyectoId}/partidas/orden`, { ids }); await cargarOTs(); pintarPartidasDlg(); }
-      catch (e) { toast(e.message, true); }
-    };
-    $('#partidas-tbody').replaceChildren(...(estado.partidas.length ? estado.partidas.map((pa, i) => el('tr', {},
-      el('td', { class: 'ord' }, editar ? [
-        el('button', { type: 'button', class: 'ghost', title: 'Subir', 'aria-label': `Subir ${pa.nombre}`, onclick: mover(i, -1) }, '↑'),
-        el('button', { type: 'button', class: 'ghost', title: 'Bajar', 'aria-label': `Bajar ${pa.nombre}`, onclick: mover(i, 1) }, '↓'),
-      ] : ''),
+    if (editar) {
+      ordenArrastrable($('#partidas-tbody'), async (nuevos) => {
+        try { await api('PUT', `/api/proyectos/${estado.proyectoId}/partidas/orden`, { ids: nuevos }); toast('Orden guardado'); await cargarOTs(); }
+        catch (e) { toast(e.message, true); }
+        pintarPartidasDlg();
+      });
+    }
+    $('#partidas-tbody').replaceChildren(...(estado.partidas.length ? estado.partidas.map((pa) => el('tr', { 'data-id': pa.id },
+      el('td', { class: 'ord' }, editar ? asaOrden(pa.nombre) : ''),
       el('td', {}, el('input', { value: pa.codigo || '', maxlength: 30, 'aria-label': 'Código', placeholder: '—', disabled: !editar, onchange: guardar(pa, 'codigo') })),
       el('td', {}, el('input', { value: pa.nombre, maxlength: 120, 'aria-label': 'Nombre', disabled: !editar, onchange: guardar(pa, 'nombre') })),
       el('td', { class: 'num-txt' }, `${pa.ots} OT · ${durTxt(pa.horas)}`),

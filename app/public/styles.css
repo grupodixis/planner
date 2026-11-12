@@ -760,3 +760,14 @@ button.primario.mini { background: var(--azul-bg); border-color: var(--azul); }
 .rec-grupos .rec.maquina { background: #ffffff08; border-color: #ffffff22; }
 .rec-grupos .rec.subcontrata { background: color-mix(in srgb, var(--rojo) 8%, transparent); border-color: color-mix(in srgb, var(--rojo) 35%, transparent); }
 .rec-grupos .rec.cumple { outline: 2px solid var(--azul); outline-offset: -1px; }
+
+/* Reordenar filas arrastrando el asa */
+.asa-orden {
+  background: none; border: 1px solid transparent; border-radius: 6px; color: var(--suave);
+  cursor: grab; font-size: 16px; line-height: 1; padding: 4px 6px; touch-action: none;
+}
+.asa-orden:hover, .asa-orden:focus-visible { color: var(--texto); border-color: var(--borde); background: #ffffff0a; }
+.asa-orden:active { cursor: grabbing; }
+tbody.ordenando tr[data-id] { transition: transform .12s; }
+tr.arrastrando { opacity: .35; }
+tr.arrastrando td { background: var(--azul-bg); }
