@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>s360 · Proyectos y OTs</title>
-  <link rel="stylesheet" href="styles.css?v=202611121538">
+  <link rel="stylesheet" href="styles.css?v=202611121644">
 </head>
 <body>
   <header class="top">
@@ -20,7 +20,10 @@
   <main class="gestion">
     <!-- Proyectos -->
     <aside class="panel g-proyectos" aria-label="Proyectos">
-      <h2>Proyectos</h2>
+      <div class="cab-panel">
+        <h2>Proyectos</h2>
+        <button type="button" id="btn-importar" class="ghost" title="Importar un proyecto del compositor (archivo .s360.json)">Importar…</button>
+      </div>
       <form id="form-proyecto" class="alta">
         <input name="nombre" placeholder="Nombre del nuevo proyecto" required maxlength="120" aria-label="Nombre del nuevo proyecto">
         <button type="submit">Crear</button>
@@ -41,6 +44,8 @@
           <button id="proyecto-borrar" class="ghost borrar">Borrar</button>
         </div>
         <div class="ficha" id="proyecto-campos"></div>
+        <div id="proyecto-condiciones" class="condiciones"></div>
+        <p id="proyecto-importado" class="ayuda"></p>
 
         <div class="cab-panel sep">
           <h2>Partidas y órdenes de trabajo</h2>
@@ -105,7 +110,27 @@
     </table>
   </dialog>
 
+  <dialog id="dlg-importar" class="dlg-importar" aria-labelledby="dlg-importar-tit">
+    <div class="dlg-cab">
+      <h2 id="dlg-importar-tit">Importar proyecto</h2>
+      <button class="ghost" id="dlg-importar-cerrar" aria-label="Cerrar">✕</button>
+    </div>
+    <label id="imp-soltar" class="soltar" tabindex="0">
+      <input type="file" id="imp-archivo" accept=".json,application/json" hidden>
+      <span class="soltar-tit">Arrastra aquí el archivo <b>.s360.json</b> del compositor</span>
+      <span class="ayuda">o pulsa para elegirlo · formato <code>s360-import/1</code></span>
+    </label>
+    <p class="ayuda" id="imp-intro">Primero verás una vista previa con lo que se va a crear o cambiar. No se toca nada hasta que pulses «Importar».
+      Si el proyecto ya se importó antes, se actualiza (no se duplica) y la planificación hecha se conserva.</p>
+    <div id="imp-informe" class="imp-informe" aria-live="polite"></div>
+    <div class="dlg-pie">
+      <span id="imp-estado" class="ayuda"></span>
+      <button type="button" class="ghost" id="imp-cancelar">Cancelar</button>
+      <button type="button" id="imp-confirmar" disabled>Importar</button>
+    </div>
+  </dialog>
+
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
-  <script src="proyectos.js?v=202611121538"></script>
+  <script src="proyectos.js?v=202611121644"></script>
 </body>
 </html>

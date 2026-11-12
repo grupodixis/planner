@@ -110,6 +110,7 @@
         el('span', { class: 'item-sub' },
           [p.cliente, `${p.ots_abiertas} OT abiertas${p.ots > p.ots_abiertas ? ` · ${p.ots - p.ots_abiertas} cerradas` : ''}`,
            p.estado === 'cerrado' ? 'cerrado' : null].filter(Boolean).join(' · ')),
+        condPendientes(p) ? el('span', { class: 'item-sub aviso-cond' }, `⚠ ${condPendientes(p)} condición(es) previa(s) pendiente(s)`) : null,
       ))) : [el('li', { class: 'ayuda' }, q ? 'Ningún proyecto coincide.' : 'Todavía no hay proyectos.')]));
   }
 
@@ -145,6 +146,53 @@
       campo({ etiqueta: 'Obra / ubicación', valor: p.obra, max: 200, ancho: 'c2', guardar: guardar('obra') }),
       campo({ etiqueta: 'Notas', valor: p.notas, max: 2000, ancho: 'c3', filas: 2, guardar: guardar('notas') }),
       campo({ etiqueta: 'Estado', valor: p.estado, opciones: { activo: 'Activo', cerrado: 'Cerrado' }, ancho: 'c1', guardar: guardar('estado') }),
+    );
+    pintarCondiciones(p);
+    const im = p.ultima_importacion;
+    $('#proyecto-importado').textContent = im
+      ? `Importado del ${im.origen?.sistema || 'compositor'} el ${fechaHoraTxt(im.creado)}${im.usuario ? ` por ${im.usuario}` : ''}${p.ref_externa ? ` · ref. ${p.ref_externa}` : ''}. Reimportar el archivo actualiza este proyecto.`
+      : '';
+  }
+
+  const condPendientes = (p) => (p.condiciones || []).filter((c) => !c.cumplida).length;
+  const fechaHoraTxt = (iso) => new Date(iso).toLocaleString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+
+  // Condiciones previas: lo que hay que confirmar antes de ejecutar (pago, RAL, pilares…)
+  function pintarCondiciones(p) {
+    const caja = $('#proyecto-condiciones');
+    const editar = puedeEditar();
+    const lista = p.condiciones || [];
+    caja.hidden = !lista.length && !editar;
+    const recargar = async () => { await cargarProyectos(); pintarFichaProyecto(); };
+    const pend = condPendientes(p);
+    caja.replaceChildren(
+      el('div', { class: 'cond-cab' }, el('h3', {}, 'Condiciones previas'),
+        el('span', { class: pend ? 'cond-pend' : 'ayuda' }, lista.length ? (pend ? `${pend} pendiente${pend > 1 ? 's' : ''}` : '✓ todas cumplidas') : 'ninguna')),
+      lista.length ? el('ul', {}, lista.map((c) => el('li', { class: c.cumplida ? 'cumplida' : '' },
+        el('label', {},
+          el('input', {
+            type: 'checkbox', checked: c.cumplida, disabled: !editar,
+            onchange: async (ev) => {
+              try { await api('PATCH', `/api/condiciones/${c.id}`, { cumplida: ev.target.checked }); await recargar(); }
+              catch (e) { toast(e.message, true); }
+            },
+          }),
+          ` ${c.texto}`),
+        c.cumplida && c.cumplida_en ? el('span', { class: 'ayuda' }, ` · ${fechaHoraTxt(c.cumplida_en).slice(0, 10)}${c.cumplida_por ? ' · ' + c.cumplida_por : ''}`) : null,
+        editar ? el('button', {
+          type: 'button', class: 'ghost borrar mini', 'aria-label': `Quitar «${c.texto}»`, title: 'Quitar',
+          onclick: async () => { try { await api('DELETE', `/api/condiciones/${c.id}`); await recargar(); } catch (e) { toast(e.message, true); } },
+        }, '✕') : null))) : null,
+      editar ? el('form', {
+        class: 'alta cond-alta',
+        onsubmit: async (ev) => {
+          ev.preventDefault();
+          const i = ev.target.texto;
+          try { await api('POST', `/api/proyectos/${p.id}/condiciones`, { texto: i.value }); await recargar(); $('#proyecto-condiciones input[name=texto]')?.focus(); }
+          catch (e) { toast(e.message, true); }
+        },
+      }, el('input', { name: 'texto', placeholder: 'Nueva condición (p. ej. RAL confirmado por el cliente)', maxlength: 200, required: true, 'aria-label': 'Nueva condición previa' }),
+      el('button', { type: 'submit' }, 'Añadir')) : null,
     );
   }
 
@@ -183,7 +231,7 @@
     if (sueltas.length) grupos.push({ pa: null, ots: sueltas });
     ul.replaceChildren(...grupos.flatMap(({ pa, ots }) => [
       el('li', { class: 'grupo-partida' },
-        el('span', { class: 'gp-nom' }, nombrePartida(pa)),
+        el('span', { class: 'gp-nom' }, nombrePartida(pa), pa?.baja_presupuesto ? el('span', { class: 'baja-txt' }, ' · ya no está en el presupuesto') : null),
         el('span', { class: 'gp-sub' }, [
           `${ots.length} OT`,
           pa?.horas ? `${durTxt(pa.horas_planificadas)}/${durTxt(pa.horas)}` : null,
@@ -208,6 +256,7 @@
           o.horas_planificadas > o.horas ? `+${durTxt(+(o.horas_planificadas - o.horas).toFixed(1))} sobre lo estimado` : null,
           o.estado === 'cerrada' ? 'cerrada' : null,
         ].filter(Boolean).join(' · ')),
+        o.baja_presupuesto ? el('span', { class: 'item-sub baja-txt' }, 'Ya no está en el presupuesto (se conserva por tener planificación)') : null,
         o.tareas ? el('span', { class: 'barra', title: `${o.horas_planificadas}h planificadas de ${o.horas}h · ${o.hechas} de ${o.tareas} tareas hechas` },
           el('span', { class: 'b-plan', style: `width:${o.horas ? (o.horas_planificadas / o.horas) * 100 : 0}%` }),
           el('span', { class: 'b-hecha', style: `width:${(o.hechas / o.tareas) * 100}%` })) : null,
@@ -332,6 +381,27 @@
         el('a', { class: 'req-gestionar', href: '/recursos.html?tipo=tipos' }, 'Gestionar tipos de recurso…')));
   }
 
+  // Debajo del nombre: «ya no está en el presupuesto», dependencias y notas
+  function extrasTarea(t, editar, patch) {
+    const deps = t.dependencias || [];
+    const espera = (d) => (d.espera_h ? ` (+${durTxt(d.espera_h)} espera)` : '');
+    const depTxt = deps.map((d) => `${d.orden_codigo === estado.ot.codigo ? '' : d.orden_codigo + ' '}${d.nombre}${espera(d)}`);
+    return el('div', { class: 't-extra' },
+      t.baja_presupuesto ? el('span', { class: 'baja-txt' }, 'Ya no está en el presupuesto',
+        editar ? el('button', {
+          type: 'button', class: 'ghost mini', title: 'Quitar la marca y conservar la tarea',
+          onclick: () => patch(t, { baja_presupuesto: false }),
+        }, 'Mantener') : null) : null,
+      deps.length ? el('span', { class: 't-deps', title: `Va después de:\n${depTxt.join('\n')}` },
+        `⤷ después de ${depTxt.length === 1 ? depTxt[0] : `${depTxt[0]} y ${depTxt.length - 1} más`}`) : null,
+      t.notas || editar ? el('details', { class: `t-notas${t.notas ? '' : ' vacia'}` },
+        el('summary', {}, t.notas ? `Notas: ${t.notas.length > 70 ? t.notas.slice(0, 70) + '…' : t.notas}` : '+ notas'),
+        el('textarea', {
+          rows: 3, maxlength: 4000, 'aria-label': `Notas de ${t.nombre}`, disabled: !editar,
+          onchange: (ev) => patch(t, { notas: ev.target.value }),
+        }, t.notas || '')) : null);
+  }
+
   function pintarTareas() {
     const o = estado.ot;
     const editar = puedeEditar();
@@ -370,7 +440,7 @@
             : `${fechaCorta(t.primera_fecha).slice(0, 5)}→${fechaCorta(t.ultima_fecha).slice(0, 5)}`)
         : null;
 
-      return el('tr', { class: t.estado },
+      return el('tr', { class: `${t.estado}${t.baja_presupuesto ? ' baja' : ''}` },
         el('td', { class: 'ord' }, editar ? [
           el('button', { type: 'button', class: 'ghost', title: 'Subir', 'aria-label': `Subir ${t.nombre}`, onclick: mover(i, -1) }, '↑'),
           el('button', { type: 'button', class: 'ghost', title: 'Bajar', 'aria-label': `Bajar ${t.nombre}`, onclick: mover(i, 1) }, '↓'),
@@ -378,7 +448,7 @@
         el('td', {}, el('input', {
           value: t.nombre, maxlength: 120, 'aria-label': 'Nombre de la tarea', disabled: !editar,
           onchange: (ev) => (ev.target.value.trim() ? patch(t, { nombre: ev.target.value }) : (ev.target.value = t.nombre)),
-        })),
+        }), extrasTarea(t, editar, patch)),
         el('td', { class: 'num' }, el('input', {
           type: 'number', min: 0.5, step: 0.5, value: t.duracion_h, 'aria-label': 'Horas', disabled: !editar,
           onchange: (ev) => patch(t, { duracion_h: Number(ev.target.value) }),
@@ -405,6 +475,179 @@
         }, '✕') : ''),
       );
     }));
+  }
+
+  /* ---------- importar proyecto del compositor (diálogo) ---------- */
+  const imp = { archivo: null, nombre: '', resoluciones: {}, informe: null, ocupado: false };
+  const CLASE_TXT = { area: 'Área', area_tipo: 'Área de obra', tipo: { operario: 'Oficio', maquina: 'Tipo de máquina', subcontrata: 'Subcontrata / alquiler' }, recurso: 'Recurso concreto' };
+  const ESTADO_RES = { recordado: ['recordado', 'Asociación recordada de una importación anterior'], parecido: ['parecido', 'Se parece a uno que ya existe: compruébalo'], falta: ['nuevo', 'No existe en el planificador'], varias: ['varias', 'Hay varias áreas de ese tipo: elige una'], elegido: ['elegido', 'Lo has elegido en esta vista previa'] };
+  const CAMPO_TXT = { nombre: 'nombre', titulo: 'título', duracion_h: 'horas', operarios_req: 'operarios', linea_id: 'área', notas: 'notas', descripcion: 'descripción', prioridad: 'prioridad', fecha_entrega: 'entrega', codigo: 'código', tipos: 'requisitos', recursos: 'recursos concretos', dependencias: 'dependencias', ot: 'OT', orden: 'posición', extra: 'datos extra', cliente: 'cliente', obra: 'obra', partida_id: 'partida', color: 'color' };
+
+  function abrirImportar() {
+    Object.assign(imp, { archivo: null, nombre: '', resoluciones: {}, informe: null });
+    $('#imp-informe').replaceChildren();
+    $('#imp-estado').textContent = '';
+    $('#imp-soltar').hidden = false;
+    $('#imp-intro').hidden = false;
+    $('#imp-confirmar').disabled = true;
+    $('#imp-archivo').value = '';
+    $('#dlg-importar').showModal();
+  }
+
+  async function leerArchivoImp(f) {
+    if (!f) return;
+    if (f.size > 2 * 1024 * 1024) return toast('El archivo pasa de 2 MB', true);
+    let datos;
+    try { datos = JSON.parse(await f.text()); }
+    catch (e) { return pintarInforme({ ok: false, errores: [{ ruta: f.name, mensaje: `No es un JSON válido: ${e.message}` }] }); }
+    Object.assign(imp, { archivo: datos, nombre: f.name, resoluciones: {} });
+    await simularImp();
+  }
+
+  async function simularImp() {
+    imp.ocupado = true;
+    $('#imp-confirmar').disabled = true;
+    $('#imp-estado').textContent = 'Comprobando…';
+    try {
+      pintarInforme(await api('POST', '/api/importar?simular=1', { archivo: imp.archivo, resoluciones: imp.resoluciones }));
+    } catch (e) {
+      $('#imp-estado').textContent = '';
+      toast(e.message, true);
+    } finally { imp.ocupado = false; }
+  }
+
+  function pintarInforme(r) {
+    imp.informe = r;
+    const caja = $('#imp-informe');
+    $('#imp-soltar').hidden = !!imp.archivo && r.ok;
+    $('#imp-intro').hidden = !!imp.archivo;
+    $('#imp-confirmar').disabled = !r.ok || !puedeEditar();
+    if (!r.ok) {
+      $('#imp-estado').textContent = '';
+      caja.replaceChildren(
+        el('div', { class: 'imp-error' },
+          el('h3', {}, `${imp.nombre ? imp.nombre + ': ' : ''}${r.errores.length} error${r.errores.length === 1 ? '' : 'es'} · no se puede importar`),
+          el('p', { class: 'ayuda' }, 'Corrige el archivo en el compositor y vuelve a exportarlo. No se ha cambiado nada.'),
+          el('ul', {}, r.errores.map((e) => el('li', {}, el('code', {}, e.ruta), ` ${e.mensaje}`)))));
+      return;
+    }
+    const R = r.resumen;
+    const n = (o) => [o.crear && `${o.crear} nueva${o.crear > 1 ? 's' : ''}`, o.actualizar && `${o.actualizar} cambian`,
+      o.igual && `${o.igual} igual`, o.borrar && `${o.borrar} se borran`, o.baja && `${o.baja} fuera de presupuesto`].filter(Boolean).join(' · ') || '—';
+    const accionTxt = { crear: 'Proyecto nuevo', actualizar: 'Se actualiza el proyecto', igual: 'Proyecto sin cambios' }[r.proyecto.accion];
+    const hayCambios = r.cambios.length || r.proyecto.accion === 'crear';
+    $('#imp-estado').textContent = hayCambios ? 'Vista previa: aún no se ha cambiado nada' : 'El archivo no trae cambios';
+
+    caja.replaceChildren(
+      el('div', { class: `imp-proy ${r.proyecto.accion}` },
+        el('span', { class: 'imp-accion' }, accionTxt),
+        el('h3', {}, `${r.proyecto.codigo} · ${r.proyecto.nombre}`),
+        el('dl', { class: 'imp-resumen' },
+          el('dt', {}, 'Partidas'), el('dd', {}, n(R.partidas)),
+          el('dt', {}, 'OTs'), el('dd', {}, n(R.ots)),
+          el('dt', {}, 'Tareas'), el('dd', {}, n(R.tareas)),
+          el('dt', {}, 'Horas'), el('dd', {}, `${durTxt(R.horas)} de duración · ${durTxt(R.horas_persona)} horas-persona`),
+          R.dependencias ? el('dt', {}, 'Dependencias') : null, R.dependencias ? el('dd', {}, `${R.dependencias} «después de»`) : null,
+          R.condiciones.crear || R.condiciones.quitar ? el('dt', {}, 'Condiciones') : null,
+          R.condiciones.crear || R.condiciones.quitar ? el('dd', {}, [R.condiciones.crear && `${R.condiciones.crear} nuevas`, R.condiciones.quitar && `${R.condiciones.quitar} se quitan`].filter(Boolean).join(' · ')) : null)),
+      seccionResolver(r),
+      r.avisos.length ? el('details', { class: 'imp-avisos', open: r.avisos.length <= 6 },
+        el('summary', {}, `${r.avisos.length} aviso${r.avisos.length > 1 ? 's' : ''}`),
+        el('ul', {}, r.avisos.map((a) => el('li', {}, a.mensaje)))) : null,
+      r.cambios.length ? el('details', { class: 'imp-cambios', open: r.proyecto.accion !== 'crear' && r.cambios.length <= 15 },
+        el('summary', {}, `Detalle de cambios (${r.cambios.length})`),
+        el('ul', {}, r.cambios.map(lineaCambio))) : null,
+    );
+  }
+
+  function lineaCambio(c) {
+    const signo = { crear: '+', actualizar: '~', borrar: '−', baja: '!' }[c.accion];
+    const nivel = { proyecto: 'Proyecto', partida: 'Partida', ot: 'OT', tarea: 'Tarea' }[c.nivel];
+    const corto = (v) => { const x = v == null || v === '' ? '—' : String(v); return x.length > 40 ? x.slice(0, 40) + '…' : x; };
+    const campos = c.campos ? Object.entries(c.campos).map(([k, [a, b]]) =>
+      k === 'extra' ? 'datos extra' : `${CAMPO_TXT[k] || k}: ${corto(k === 'prioridad' ? PRIORIDADES[a] : a)} → ${corto(k === 'prioridad' ? PRIORIDADES[b] : b)}`) : [];
+    return el('li', { class: `c-${c.accion}` },
+      el('b', { class: 'c-signo' }, signo), ` ${nivel} `, el('span', {}, `${c.codigo ? c.codigo + ' · ' : ''}${c.nombre}`),
+      c.horas ? el('span', { class: 'ayuda' }, ` · ${durTxt(c.horas)}`) : null,
+      c.accion === 'baja' ? el('span', { class: 'ayuda' }, ' · ya no está en el presupuesto, se conserva porque tiene planificación') : null,
+      campos.length ? el('span', { class: 'ayuda' }, ` · ${campos.join(' · ')}`) : null);
+  }
+
+  // Nombres del archivo que no coinciden con lo que hay en el planificador
+  function seccionResolver(r) {
+    const usados = r.usados.length
+      ? el('p', { class: 'ayuda' }, `${r.usados.length} nombre${r.usados.length > 1 ? 's' : ''} del archivo coincide${r.usados.length > 1 ? 'n' : ''} con áreas, tipos o recursos que ya existen.`)
+      : null;
+    if (!r.resolver.length) return el('div', { class: 'imp-resolver' }, usados);
+    const orden = { area_tipo: 0, area: 1, tipo: 2, recurso: 3 };
+    const lista = [...r.resolver].sort((a, b) => orden[a.clase] - orden[b.clase] || (a.subclase || '').localeCompare(b.subclase || ''));
+    return el('div', { class: 'imp-resolver' },
+      el('h4', {}, 'Nombres que no coinciden'),
+      el('p', { class: 'ayuda' }, 'Elige qué hacer con cada uno. Lo que asocies a algo existente se recuerda para la próxima importación.'),
+      el('table', {},
+        el('thead', {}, el('tr', {}, el('th', {}, 'En el archivo'), el('th', {}, 'Qué es'), el('th', { class: 'num' }, 'Tareas'), el('th', {}, 'Qué hacer'))),
+        el('tbody', {}, lista.map((e) => {
+          const [badge, ayudaBadge] = ESTADO_RES[e.elegido ? 'elegido' : e.estado] || [e.estado, ''];
+          const clase = e.clase === 'tipo' ? CLASE_TXT.tipo[e.subclase] : CLASE_TXT[e.clase];
+          const valor = e.accion === 'asociar' ? `asociar:${e.id}` : e.accion;
+          const sel = el('select', {
+            'aria-label': `Qué hacer con «${e.nombre}»`, disabled: !puedeEditar(),
+            onchange: (ev) => {
+              const [accion, id] = ev.target.value.split(':');
+              imp.resoluciones[e.clave] = accion === 'asociar' ? { accion, id: Number(id) } : { accion };
+              simularImp();
+            },
+          },
+          e.puede.includes('crear') ? el('option', { value: 'crear', selected: valor === 'crear' },
+            e.clase === 'tipo' ? `Crear «${e.nombre}»` : `Crear área «${e.nombre}»`) : null,
+          e.puede.includes('asociar') && e.opciones.length ? el('optgroup', { label: 'Usar uno que ya existe' },
+            e.opciones.map((o) => el('option', { value: `asociar:${o.id}`, selected: valor === `asociar:${o.id}` }, o.nombre))) : null,
+          el('option', { value: 'ignorar', selected: valor === 'ignorar' },
+            e.clase === 'area' || e.clase === 'area_tipo' ? 'Sin área (se elige al planificar)' : 'No pedirlo'));
+          return el('tr', { class: e.accion === 'ignorar' ? 'ignorado' : '' },
+            el('td', {}, el('span', { class: 'imp-nombre' }, e.nombre),
+              e.desde?.length ? el('span', { class: 'ayuda' }, ` ← «${e.desde.join('», «')}»`) : null,
+              el('span', { class: `imp-badge ${e.estado}`, title: ayudaBadge }, badge)),
+            el('td', { class: 'ayuda' }, clase),
+            el('td', { class: 'num' }, String(e.usos)),
+            el('td', {}, sel));
+        }))),
+      usados);
+  }
+
+  async function confirmarImp() {
+    if (!imp.archivo || imp.ocupado) return;
+    $('#imp-confirmar').disabled = true;
+    $('#imp-estado').textContent = 'Importando…';
+    try {
+      const r = await api('POST', '/api/importar', { archivo: imp.archivo, resoluciones: imp.resoluciones });
+      if (!r.ok) return pintarInforme(r);
+      $('#dlg-importar').close();
+      const R = r.resumen.tareas;
+      toast(`${r.proyecto.codigo} importado: ${R.crear} tareas nuevas, ${R.actualizar} actualizadas${R.borrar ? `, ${R.borrar} borradas` : ''}`);
+      // la importación puede haber creado tipos de recurso y áreas
+      [estado.catalogo] = await Promise.all([api('GET', '/api/catalogo'), cargarProyectos()]);
+      estado.otId = null; estado.ot = null; pintarOT();
+      await elegirProyecto(r.proyecto.id);
+    } catch (e) {
+      toast(e.message, true);
+      $('#imp-estado').textContent = '';
+      $('#imp-confirmar').disabled = false;
+    }
+  }
+
+  function prepararImportar() {
+    $('#btn-importar').hidden = !puedeEditar();
+    $('#btn-importar').onclick = abrirImportar;
+    $('#dlg-importar-cerrar').onclick = () => $('#dlg-importar').close();
+    $('#imp-cancelar').onclick = () => $('#dlg-importar').close();
+    $('#imp-confirmar').onclick = confirmarImp;
+    const zona = $('#imp-soltar');
+    $('#imp-archivo').onchange = (ev) => leerArchivoImp(ev.target.files[0]);
+    zona.addEventListener('keydown', (ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); $('#imp-archivo').click(); } });
+    zona.addEventListener('dragover', (ev) => { ev.preventDefault(); zona.classList.add('encima'); });
+    zona.addEventListener('dragleave', () => zona.classList.remove('encima'));
+    zona.addEventListener('drop', (ev) => { ev.preventDefault(); zona.classList.remove('encima'); leerArchivoImp(ev.dataTransfer.files[0]); });
   }
 
   /* ---------- partidas del proyecto (diálogo) ---------- */
@@ -495,6 +738,7 @@
       } catch (e) { toast(e.message, true); }
     });
 
+    prepararImportar();
     $('#btn-partidas').onclick = abrirPartidas;
     $('#dlg-partidas-cerrar').onclick = () => $('#dlg-partidas').close();
     $('#form-partida').addEventListener('submit', async (ev) => {

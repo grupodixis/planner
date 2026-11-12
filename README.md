@@ -40,6 +40,7 @@ app/src/gestion.js        API de proyectos, OTs y sus tareas
 app/src/recursos.js       API de operarios, maquinaria y subcontratas
 app/src/auth.js           login, sesiones en BD, roles
 app/src/conflictos.js     reglas de conflicto del día
+app/src/importar.js       importación de proyectos del compositor (s360-import/1)
 app/src/migraciones.js    cambios de esquema que se aplican solos al arrancar
 app/public/               frontend sin compilación: index (tablero), proyectos, recursos
 ```
@@ -151,11 +152,29 @@ asignación e historial. **Baja:** si el recurso se ha usado alguna vez se **da 
 (deja de salir en el panel del tablero para asignar, pero conserva su historial y sigue
 viéndose los días en que ya tenía trabajo); si nunca se usó, se borra. «Reactivar» lo devuelve.
 
-## Importación de proyectos (especificación)
+## Importación de proyectos
 
-Formato `s360-import/1` para que el compositor de proyectos genere proyectos con sus partidas,
-OTs y tareas con horas estimadas: [`docs/importacion/`](docs/importacion/README.md)
-(especificación, JSON Schema y ejemplo). El importador del planificador está pendiente de construir.
+El compositor de proyectos exporta un archivo `.s360.json` (formato `s360-import/1`) con el
+proyecto, sus partidas, OTs y tareas con horas estimadas. Especificación, JSON Schema y ejemplo
+en [`docs/importacion/`](docs/importacion/README.md).
+
+**Proyectos y OTs → «Importar…»**: se arrastra el archivo y sale una **vista previa** (no cambia
+nada): qué se crea o actualiza, avisos, y una tabla con los **nombres que no coinciden** con lo
+que hay en el planificador (áreas, oficios, tipos de máquina, recursos). Para cada uno se elige
+crearlo, usar uno que ya existe o no asignarlo; lo que se asocia se **recuerda** para la próxima
+vez. Al confirmar se importa todo de una vez (o nada).
+
+- `requiere` por **tipo de recurso** con cantidad; `oficio` + `operarios` → requisito «2 × Soldador».
+- Áreas por nombre o por tipo; lo que es de **obra** («Montaje en Obra», `area_tipo: "obra"`) va
+  al área «Obra · ‹obra del proyecto›», que se crea sola.
+- **Dependencias** (`despues_de`, con `espera_h` de secado/curado): se ven en el detalle de la
+  tarea y el tablero avisa (leve) si un tramo empieza antes de que termine la tarea previa.
+- **Condiciones previas** del proyecto (pago, RAL, pilares…): casillas en la ficha del proyecto;
+  las pendientes se ven en la lista de proyectos y en las OTs del tablero.
+- **Notas** de cada tarea: en la tabla de tareas (editables) y en el detalle del tablero.
+- **Reimportar** el mismo proyecto (mismo `ref_externa`) actualiza sin duplicar y conserva la
+  planificación. Lo que ya no está en el archivo se borra si no tiene nada planificado; si lo
+  tiene, se conserva marcado «ya no está en el presupuesto».
 
 ## API
 
@@ -164,7 +183,7 @@ OTs y tareas con horas estimadas: [`docs/importacion/`](docs/importacion/README.
 | POST | `/api/login` · `/api/logout` | Sesión |
 | GET | `/api/me` | Usuario actual |
 | GET | `/api/tablero?fecha=YYYY-MM-DD` · `?desde=…&hasta=…` | jornada, áreas, recursos, tareas abiertas, tramos del día o del rango (máx. 62 días) y avisos (cada uno con su `fecha`) |
-| PATCH | `/api/tareas/:id` | `{estado, nombre, duracion_h, operarios_req, linea_id, requisitos}` |
+| PATCH | `/api/tareas/:id` | `{estado, nombre, duracion_h, operarios_req, linea_id, requisitos, requisitos_tipo, notas, baja_presupuesto}` |
 | POST | `/api/tareas/:id/tramos` | `{fecha, hora_inicio, linea_id?, recurso_id?, duracion_h?}` planificar (sin horas: hasta fin de jornada) |
 | PATCH · DELETE | `/api/tramos/:id` | mover / cambiar horas `{fecha, hora_inicio, linea_id, duracion_h}` · quitar |
 | POST | `/api/tramos/:id/empujar` | `{aplicar?}` vista previa / aplicar el empuje de lo siguiente |
@@ -191,6 +210,11 @@ OTs y tareas con horas estimadas: [`docs/importacion/`](docs/importacion/README.
 | GET · POST | `/api/areas` | listar · crear `{nombre, tipo, ubicacion}` |
 | PATCH · DELETE | `/api/areas/:id` | editar · borrar (o desactivar si tiene tareas) |
 | PUT | `/api/areas/orden` | `{ids: [...]}` nuevo orden |
+| POST | `/api/importar?simular=1` | vista previa de una importación (archivo o `{archivo, resoluciones}`) |
+| POST | `/api/importar` | importar (transacción; devuelve el informe y el id del proyecto) |
+| GET | `/api/importaciones` | historial (`?proyecto_id=`) |
+| POST | `/api/proyectos/:id/condiciones` | `{texto}` añadir condición previa |
+| PATCH · DELETE | `/api/condiciones/:id` | `{cumplida, texto}` · quitar |
 
 ## Plan por fases
 
@@ -205,8 +229,9 @@ estimado y empujar. Pendiente: cierre de cada tramo (hecho / faltan X h / no se 
 **Fase 4 – Vista semana y capacidad.** Hecho: vistas semana (con nº de semana) y mes, carga por día y por periodo. Pendiente: carga vs. capacidad más detallada,
 calendario laboral (festivos, vacaciones, ausencias), arrastre entre días.
 
-**Fase 5 – Dependencias y avisos.** Orden entre tareas (no montar antes de fabricar),
-confirmación de subcontratas/alquileres con fecha, avisos de retrasos, actualización en tiempo
+**Fase 5 – Dependencias y avisos.** Hecho en parte: dependencias entre tareas con espera
+(se importan del compositor; aviso leve si se planifica antes de tiempo) y condiciones previas
+del proyecto. Pendiente: editar dependencias a mano, confirmación de subcontratas/alquileres con fecha, avisos de retrasos, actualización en tiempo
 real (WebSocket) en lugar de refresco periódico.
 
 **Fase 6 – Informes.** Horas por proyecto/partida/operario, ocupación de máquinas, coste de

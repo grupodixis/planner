@@ -1,7 +1,7 @@
 {
   "formato": "s360-import/1",
   "generado": "2026-11-12T13:45:00+01:00",
-  "origen": { "sistema": "compositor-proyectos", "version": "0.1", "usuario": "Pablo S. Sánchez" },
+  "origen": { "sistema": "compositor-proyectos", "version": "0.2", "usuario": "Pablo S. Sánchez" },
   "proyecto": {
     "ref_externa": "PRES-2026-0045",
     "codigo": "PR-2026-045",
@@ -9,6 +9,11 @@
     "cliente": "Hotel Fornells",
     "obra": "Carrer Major 12, Fornells",
     "notas": "Acceso a obra por la parte trasera. Montaje antes del 15/12.",
+    "condiciones": [
+      "Anticipo del 40 % cobrado",
+      "RAL confirmado por el cliente",
+      "Pilares de obra replanteados"
+    ],
     "partidas": [
       {
         "ref_externa": "PRES-2026-0045/C4.001",
@@ -22,10 +27,29 @@
             "prioridad": "alta",
             "fecha_entrega": "2026-12-05",
             "tareas": [
-              { "ref_externa": "PRES-2026-0045/C4.001/OT1/T1", "nombre": "Corte perfiles", "horas": 6, "operarios": 1, "area": "Taller corte", "requiere": ["Sierra 1"], "oficio": "Oficial cerrajero" },
-              { "ref_externa": "PRES-2026-0045/C4.001/OT1/T2", "nombre": "Armado y punteado", "horas": 12, "operarios": 2, "area": "Taller armado", "requiere": ["MIG 1"], "despues_de": ["PRES-2026-0045/C4.001/OT1/T1"] },
-              { "ref_externa": "PRES-2026-0045/C4.001/OT1/T3", "nombre": "Soldadura y repasos", "horas": 16, "operarios": 1, "area": "Taller armado", "requiere": [{ "nombre": "MIG 1", "tipo": "maquina" }], "oficio": "Soldador" },
-              { "ref_externa": "PRES-2026-0045/C4.001/OT1/T4", "nombre": "Lacado (externo)", "horas": 24, "operarios": 0, "requiere": [{ "nombre": "Taller externo", "tipo": "subcontrata" }], "notas": "RAL 7016 texturado" }
+              {
+                "ref_externa": "PRES-2026-0045/C4.001/OT1/T1", "nombre": "Corte perfiles", "horas": 6, "operarios": 1,
+                "oficio": "Oficial cerrajero", "area": "Taller corte",
+                "requiere": [{ "tipo_recurso": "Sierra de cinta" }]
+              },
+              {
+                "ref_externa": "PRES-2026-0045/C4.001/OT1/T2", "nombre": "Armado y punteado", "horas": 12, "operarios": 2,
+                "oficio": "Soldador", "area_tipo": "taller",
+                "requiere": [{ "tipo_recurso": "Soldadora MIG/MAG", "cantidad": 2 }],
+                "despues_de": ["PRES-2026-0045/C4.001/OT1/T1"]
+              },
+              {
+                "ref_externa": "PRES-2026-0045/C4.001/OT1/T3", "nombre": "Soldadura y repasos", "horas": 16, "operarios": 1,
+                "oficio": "Soldador", "area": "Taller armado",
+                "requiere": [{ "recurso": "MIG 1" }],
+                "despues_de": ["PRES-2026-0045/C4.001/OT1/T2"]
+              },
+              {
+                "ref_externa": "PRES-2026-0045/C4.001/OT1/T4", "nombre": "Lacado (externo)", "horas": 24, "operarios": 0,
+                "requiere": [{ "tipo_recurso": "Lacado", "clase": "subcontrata" }],
+                "despues_de": [{ "ref": "PRES-2026-0045/C4.001/OT1/T3" }],
+                "notas": "RAL 7016 texturado"
+              }
             ]
           },
           {
@@ -34,8 +58,19 @@
             "prioridad": "normal",
             "fecha_entrega": "2026-12-15",
             "tareas": [
-              { "ref_externa": "PRES-2026-0045/C4.001/OT2/T1", "nombre": "Transporte a obra", "horas": 2, "operarios": 1, "area": "Transporte", "requiere": ["Grúa 1"] },
-              { "ref_externa": "PRES-2026-0045/C4.001/OT2/T2", "nombre": "Montaje y anclajes", "horas": 8, "operarios": 2, "area": "Obra montaje", "requiere": ["Plataforma"] }
+              {
+                "ref_externa": "PRES-2026-0045/C4.001/OT2/T1", "nombre": "Transporte a obra", "horas": 2, "operarios": 1,
+                "area_tipo": "transporte",
+                "requiere": [{ "tipo_recurso": "Camión grúa" }],
+                "despues_de": [{ "ref": "PRES-2026-0045/C4.001/OT1/T4", "espera_h": 24 }],
+                "notas": "Esperar 24 h a que cure el lacado antes de cargar."
+              },
+              {
+                "ref_externa": "PRES-2026-0045/C4.001/OT2/T2", "nombre": "Montaje y anclajes", "horas": 8, "operarios": 2,
+                "oficio": "Montador", "area_tipo": "obra",
+                "requiere": [{ "tipo_recurso": "Plataforma elevadora", "clase": "subcontrata" }, { "tipo_recurso": "Taladro percutor" }],
+                "despues_de": ["PRES-2026-0045/C4.001/OT2/T1"]
+              }
             ]
           }
         ]
@@ -50,8 +85,8 @@
             "titulo": "Barandilla terraza",
             "tareas": [
               { "ref_externa": "PRES-2026-0045/C5.002/OT1/T1", "nombre": "Corte y taladrado", "horas": 4, "operarios": 1, "area": "Taller corte" },
-              { "ref_externa": "PRES-2026-0045/C5.002/OT1/T2", "nombre": "Soldadura", "horas": 6.5, "operarios": 1, "area": "Taller armado", "requiere": ["MIG 1"] },
-              { "ref_externa": "PRES-2026-0045/C5.002/OT1/T3", "nombre": "Montaje", "horas": 5, "operarios": 2, "area": "Obra montaje" }
+              { "ref_externa": "PRES-2026-0045/C5.002/OT1/T2", "nombre": "Soldadura", "horas": 6.5, "operarios": 1, "oficio": "Soldador", "area_tipo": "taller", "requiere": [{ "tipo_recurso": "Soldadora MIG/MAG" }], "despues_de": ["PRES-2026-0045/C5.002/OT1/T1"] },
+              { "ref_externa": "PRES-2026-0045/C5.002/OT1/T3", "nombre": "Montaje", "horas": 5, "operarios": 2, "oficio": "Montador", "area_tipo": "obra", "despues_de": ["PRES-2026-0045/C5.002/OT1/T2"] }
             ]
           }
         ]

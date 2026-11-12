@@ -7,6 +7,8 @@ const { migrar } = require('./migraciones');
 
 const app = express();
 app.disable('x-powered-by');
+// La importación de proyectos admite archivos grandes; el resto, 100 kB
+app.use('/api/importar', express.json({ limit: '2mb' }));
 app.use(express.json({ limit: '100kb' }));
 
 const asyncH = (fn) => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
@@ -140,6 +142,13 @@ app.patch('/api/tareas/:id', auth.puedeEditar, asyncH(async (req, res) => {
     if (!Number.isInteger(o) || o < 0 || o > 50) return mal('Operarios no válidos');
     cambios.operarios_req = o;
   }
+  if ('notas' in b) {
+    const n = String(b.notas ?? '').trim();
+    if (n.length > 4000) return mal('Notas: máximo 4000 caracteres');
+    cambios.notas = n || null;
+  }
+  // Una tarea marcada «ya no está en el presupuesto» se puede volver a dar por buena
+  if ('baja_presupuesto' in b) cambios.baja_presupuesto = !!b.baja_presupuesto;
   const requisitos = Array.isArray(b.requisitos) ? b.requisitos.map(Number) : null;
   const requisitosTipo = leerRequisitosTipo(b.requisitos_tipo);
   if (!Object.keys(cambios).length && !requisitos && !requisitosTipo) return mal('Nada que cambiar');
@@ -179,6 +188,7 @@ app.patch('/api/tareas/:id', auth.puedeEditar, asyncH(async (req, res) => {
 
 require('./gestion')(app, asyncH);
 require('./recursos')(app, asyncH);
+require('./importar')(app, asyncH);
 
 /* ---------- Historial ---------- */
 

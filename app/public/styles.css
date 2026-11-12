@@ -551,3 +551,88 @@ button.dia-cab:hover { background: #262626; }
 }
 .req-lista label { display: flex; align-items: center; gap: 4px; }
 .req-lista .rt { margin-left: auto; }
+
+/* ---------- Importación de proyectos ---------- */
+dialog.dlg-importar { width: min(920px, calc(100vw - 32px)); display: none; }
+dialog.dlg-importar[open] { display: flex; flex-direction: column; gap: 10px; }
+.soltar {
+  display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 26px 16px; cursor: pointer;
+  border: 1.5px dashed var(--borde); border-radius: var(--radio-panel); text-align: center;
+}
+.soltar[hidden] { display: none; }
+.soltar:hover, .soltar.encima { border-color: var(--azul); background: var(--azul-bg); }
+.soltar-tit { font-size: 15px; }
+.imp-informe { overflow: auto; min-height: 0; flex: 1; display: flex; flex-direction: column; gap: 12px; }
+.imp-informe:empty { display: none; }
+.imp-proy { border: 1px solid var(--borde); border-radius: var(--radio-panel); padding: 10px 14px; }
+.imp-proy h3 { margin: 2px 0 8px; font-size: 16px; }
+.imp-accion { font-size: 11px; text-transform: uppercase; letter-spacing: .5px; color: var(--verde); }
+.imp-proy.actualizar .imp-accion { color: var(--naranja); }
+.imp-proy.igual .imp-accion { color: var(--suave); }
+.imp-resumen { display: grid; grid-template-columns: max-content 1fr; gap: 2px 14px; margin: 0; font-size: 13px; }
+.imp-resumen dt { color: var(--suave); }
+.imp-resumen dd { margin: 0; }
+.imp-resolver h4 { margin: 0 0 2px; font-size: 14px; }
+.imp-resolver > .ayuda { margin: 0 0 6px; }
+.imp-resolver table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.imp-resolver th { text-align: left; font-weight: 500; color: var(--suave); font-size: 12px; padding: 4px 6px; }
+.imp-resolver td { padding: 5px 6px; border-top: 1px solid var(--linea); vertical-align: middle; }
+.imp-resolver .num { text-align: right; width: 56px; }
+.imp-resolver td:last-child { width: 38%; }
+.imp-resolver select { width: 100%; background: #1f1f1f; border: 1px solid var(--borde); border-radius: 8px; padding: 4px 6px; }
+.imp-resolver tr.ignorado .imp-nombre { color: var(--suave); }
+.imp-badge { display: inline-block; margin-left: 6px; font-size: 10.5px; padding: 0 6px; border-radius: 99px; border: 1px solid var(--borde); color: var(--suave); vertical-align: 1px; }
+.imp-badge.falta { color: var(--azul); border-color: var(--azul); }
+.imp-badge.parecido, .imp-badge.varias { color: var(--naranja); border-color: var(--naranja); }
+.imp-badge.recordado, .imp-badge.elegido { color: var(--verde); border-color: var(--verde); }
+.imp-avisos, .imp-cambios { font-size: 13px; }
+.imp-avisos summary { color: var(--naranja); cursor: pointer; }
+.imp-cambios summary { cursor: pointer; color: var(--suave); }
+.imp-avisos ul, .imp-cambios ul { margin: 6px 0 0; padding-left: 18px; }
+.imp-cambios ul { list-style: none; padding-left: 4px; }
+.imp-cambios li { padding: 1px 0; }
+.c-signo { display: inline-block; width: 14px; text-align: center; }
+.c-crear .c-signo { color: var(--verde); } .c-actualizar .c-signo { color: var(--naranja); }
+.c-borrar .c-signo, .c-baja .c-signo { color: var(--rojo); }
+.imp-error { border: 1px solid var(--rojo); background: var(--rojo-bg); border-radius: var(--radio-panel); padding: 10px 14px; }
+.imp-error h3 { margin: 0 0 4px; font-size: 15px; color: var(--rojo); }
+.imp-error ul { margin: 6px 0 0; padding-left: 18px; font-size: 13px; }
+.imp-error code { font-family: var(--mono); font-size: 12px; color: var(--suave); }
+.dlg-pie { display: flex; align-items: center; justify-content: flex-end; gap: 8px; }
+.dlg-pie #imp-estado { margin-right: auto; }
+#imp-confirmar { background: var(--azul-bg); border-color: var(--azul); }
+#imp-confirmar:disabled { opacity: .45; cursor: default; }
+
+/* Condiciones previas del proyecto */
+.condiciones { margin: 12px 0 4px; border: 1px solid var(--linea); border-radius: var(--radio-panel); padding: 8px 12px; }
+.condiciones[hidden] { display: none; }
+.cond-cab { display: flex; align-items: baseline; gap: 10px; }
+.cond-cab h3 { margin: 0; font-size: 13px; font-weight: 600; }
+.cond-pend { color: var(--naranja); font-size: 12px; font-weight: 600; }
+.condiciones ul { list-style: none; margin: 6px 0; padding: 0; }
+.condiciones li { display: flex; align-items: center; gap: 4px; padding: 2px 0; font-size: 13px; }
+.condiciones li.cumplida label { color: var(--suave); text-decoration: line-through; }
+.condiciones li .borrar { margin-left: auto; }
+.cond-alta { display: flex; gap: 6px; margin: 4px 0 2px; }
+.cond-alta input { flex: 1; background: #1f1f1f; border: 1px solid var(--borde); border-radius: 8px; padding: 4px 8px; }
+.aviso-cond { color: var(--naranja) !important; }
+button.mini { padding: 0 6px; font-size: 12px; }
+
+/* Extras de la tarea: fuera de presupuesto, dependencias, notas */
+.t-extra { display: flex; flex-direction: column; gap: 1px; margin-top: 2px; font-size: 11.5px; }
+.t-extra:empty { display: none; }
+.t-deps { color: var(--suave); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.t-notas summary { color: var(--suave); cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.t-notas.vacia summary { opacity: .55; }
+.t-notas textarea { width: 100%; margin-top: 3px; background: #1f1f1f; border: 1px solid var(--borde); border-radius: 8px; padding: 4px 6px; font: inherit; color: inherit; resize: vertical; }
+.baja-txt { color: var(--rojo); }
+.baja-txt button { margin-left: 6px; }
+tr.baja > td > input { text-decoration: line-through; opacity: .7; }
+
+/* Tablero: condiciones, dependencias y notas */
+.orden .meta .cond { color: var(--naranja); }
+.tarea-card.baja .tc-txt { text-decoration: line-through; opacity: .7; }
+.detalle .notas { white-space: pre-wrap; }
+.detalle .dep-ok { color: var(--verde); }
+.detalle .dep-pend { color: var(--naranja); }
+.detalle ul.deps, .detalle ul.conds { margin: 0; padding-left: 16px; }

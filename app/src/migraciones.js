@@ -159,6 +159,61 @@ const MIGRACIONES = [
         WHERE r.tipo IN ('operario', 'maquina') AND t.clase = r.tipo AND lower(t.nombre) = lower(btrim(x));
      END IF;
    END $$`,
+
+  // 2026-11 · Importación de proyectos (formato s360-import/1, ver docs/importacion)
+  `ALTER TABLE proyectos ADD COLUMN IF NOT EXISTS ref_externa TEXT`,
+  `ALTER TABLE proyectos ADD COLUMN IF NOT EXISTS extra JSONB`,
+  `ALTER TABLE partidas  ADD COLUMN IF NOT EXISTS extra JSONB`,
+  `ALTER TABLE partidas  ADD COLUMN IF NOT EXISTS baja_presupuesto BOOLEAN NOT NULL DEFAULT FALSE`,
+  `ALTER TABLE ordenes   ADD COLUMN IF NOT EXISTS ref_externa TEXT`,
+  `ALTER TABLE ordenes   ADD COLUMN IF NOT EXISTS extra JSONB`,
+  `ALTER TABLE ordenes   ADD COLUMN IF NOT EXISTS baja_presupuesto BOOLEAN NOT NULL DEFAULT FALSE`,
+  `ALTER TABLE tareas    ADD COLUMN IF NOT EXISTS ref_externa TEXT`,
+  `ALTER TABLE tareas    ADD COLUMN IF NOT EXISTS notas TEXT`,
+  `ALTER TABLE tareas    ADD COLUMN IF NOT EXISTS extra JSONB`,
+  `ALTER TABLE tareas    ADD COLUMN IF NOT EXISTS baja_presupuesto BOOLEAN NOT NULL DEFAULT FALSE`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS proyectos_ref_idx ON proyectos (ref_externa) WHERE ref_externa IS NOT NULL`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS partidas_ref_idx  ON partidas  (ref_externa) WHERE ref_externa IS NOT NULL`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS ordenes_ref_idx   ON ordenes   (ref_externa) WHERE ref_externa IS NOT NULL`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS tareas_ref_idx    ON tareas    (ref_externa) WHERE ref_externa IS NOT NULL`,
+  // Dependencias entre tareas: "tarea_id va después de depende_de_id (+ espera_h de calendario)"
+  `CREATE TABLE IF NOT EXISTS tarea_dependencias (
+     tarea_id       INT NOT NULL REFERENCES tareas(id) ON DELETE CASCADE,
+     depende_de_id  INT NOT NULL REFERENCES tareas(id) ON DELETE CASCADE,
+     espera_h       NUMERIC(5,1) NOT NULL DEFAULT 0,
+     PRIMARY KEY (tarea_id, depende_de_id),
+     CHECK (tarea_id <> depende_de_id)
+   )`,
+  `CREATE INDEX IF NOT EXISTS tarea_dependencias_prev_idx ON tarea_dependencias (depende_de_id)`,
+  // Condiciones previas del proyecto (pago, RAL, pilares…), pendientes hasta que se marcan
+  `CREATE TABLE IF NOT EXISTS proyecto_condiciones (
+     id           SERIAL PRIMARY KEY,
+     proyecto_id  INT NOT NULL REFERENCES proyectos(id) ON DELETE CASCADE,
+     texto        TEXT NOT NULL,
+     orden        INT NOT NULL DEFAULT 0,
+     cumplida     BOOLEAN NOT NULL DEFAULT FALSE,
+     cumplida_por INT REFERENCES usuarios(id),
+     cumplida_en  TIMESTAMPTZ
+   )`,
+  `CREATE INDEX IF NOT EXISTS proyecto_condiciones_idx ON proyecto_condiciones (proyecto_id)`,
+  // Asociaciones recordadas: nombre del compositor → área / tipo / recurso del planificador
+  `CREATE TABLE IF NOT EXISTS import_alias (
+     clase       TEXT NOT NULL,          -- area | tipo:operario | tipo:maquina | tipo:subcontrata | recurso
+     nombre      TEXT NOT NULL,          -- normalizado (minúsculas, sin acentos ni espacios dobles)
+     destino_id  INT NOT NULL,
+     creado      TIMESTAMPTZ NOT NULL DEFAULT now(),
+     PRIMARY KEY (clase, nombre)
+   )`,
+  `CREATE TABLE IF NOT EXISTS importaciones (
+     id           SERIAL PRIMARY KEY,
+     proyecto_id  INT REFERENCES proyectos(id) ON DELETE SET NULL,
+     ref_externa  TEXT NOT NULL,
+     usuario_id   INT REFERENCES usuarios(id),
+     origen       JSONB,
+     resumen      JSONB,
+     archivo      JSONB,
+     creado       TIMESTAMPTZ NOT NULL DEFAULT now()
+   )`,
 ];
 
 async function migrar() {

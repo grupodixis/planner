@@ -64,8 +64,8 @@ async function ajustarFranjas(c, tramoId, delta) {
 }
 
 const SQL_TAREAS = `
-  SELECT t.id, t.nombre, t.duracion_h, t.operarios_req, t.linea_id, t.estado, t.orden_en_of,
-         o.id AS orden_id, o.codigo AS orden_codigo, o.color AS orden_color, o.titulo AS orden_titulo,
+  SELECT t.id, t.nombre, t.duracion_h, t.operarios_req, t.linea_id, t.estado, t.orden_en_of, t.notas, t.baja_presupuesto,
+         o.proyecto_id, o.id AS orden_id, o.codigo AS orden_codigo, o.color AS orden_color, o.titulo AS orden_titulo,
          o.prioridad, pa.codigo AS partida_codigo, pa.nombre AS partida, o.fecha_entrega,
          p.codigo AS proyecto, p.nombre AS proyecto_nombre, p.cliente, p.obra,
          COALESCE((SELECT json_agg(json_build_object('id', r.id, 'nombre', r.nombre, 'tipo', r.tipo) ORDER BY r.tipo, r.nombre)
@@ -82,7 +82,19 @@ const SQL_TAREAS = `
          COALESCE((SELECT sum(COALESCE(a.hasta, x.hora_inicio + x.duracion_h) - COALESCE(a.desde, x.hora_inicio))
                      FROM tramos x JOIN tramo_asignaciones a ON a.tramo_id = x.id
                      JOIN recursos r ON r.id = a.recurso_id AND r.tipo = 'operario'
-                    WHERE x.tarea_id = t.id), 0)::float AS horas_persona
+                    WHERE x.tarea_id = t.id), 0)::float AS horas_persona,
+         -- tareas que deben ir antes, con el final de su último tramo
+         COALESCE((SELECT json_agg(json_build_object(
+                     'id', p2.id, 'nombre', p2.nombre, 'orden_codigo', o2.codigo, 'espera_h', d.espera_h, 'estado', p2.estado,
+                     'duracion_h', p2.duracion_h,
+                     'planificadas', (SELECT COALESCE(sum(x.duracion_h), 0) FROM tramos x WHERE x.tarea_id = p2.id),
+                     'fin', (SELECT json_build_object('fecha', x.fecha, 'hora', x.hora_inicio + x.duracion_h) FROM tramos x
+                              WHERE x.tarea_id = p2.id ORDER BY x.fecha DESC, x.hora_inicio + x.duracion_h DESC LIMIT 1))
+                     ORDER BY o2.codigo, p2.orden_en_of)
+                     FROM tarea_dependencias d JOIN tareas p2 ON p2.id = d.depende_de_id JOIN ordenes o2 ON o2.id = p2.orden_id
+                    WHERE d.tarea_id = t.id), '[]') AS dependencias,
+         COALESCE((SELECT json_agg(c.texto ORDER BY c.orden, c.id) FROM proyecto_condiciones c
+                    WHERE c.proyecto_id = o.proyecto_id AND NOT c.cumplida), '[]') AS condiciones_pendientes
     FROM tareas t
     JOIN ordenes o ON o.id = t.orden_id
     LEFT JOIN partidas pa ON pa.id = o.partida_id

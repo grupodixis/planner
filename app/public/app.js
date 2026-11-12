@@ -988,7 +988,10 @@
         (t0.proyecto || t0.fecha_entrega) ? el('div', { class: 'meta' },
           [t0.proyecto && `${t0.proyecto}${t0.proyecto_nombre ? ' · ' + t0.proyecto_nombre : ''}`,
            t0.partida && `${t0.partida_codigo ? t0.partida_codigo + ' ' : ''}${t0.partida}`,
-           t0.fecha_entrega && `entrega ${t0.fecha_entrega.split('-').reverse().join('/')}`].filter(Boolean).join(' · ')) : null,
+           t0.fecha_entrega && `entrega ${t0.fecha_entrega.split('-').reverse().join('/')}`].filter(Boolean).join(' · '),
+          t0.condiciones_pendientes?.length ? el('span', {
+            class: 'cond', title: `Condiciones previas sin confirmar:\n· ${t0.condiciones_pendientes.join('\n· ')}`,
+          }, ` · ⚠ ${t0.condiciones_pendientes.length} condición(es) pendiente(s)`) : null) : null,
         tareas.map(tarjetaTarea),
       )));
   }
@@ -1009,7 +1012,7 @@
     else estadoTxt = null;
 
     return el('div', {
-      class: `tarea-card${completa ? ' planificada' : ''}${t.horas_planificadas && !completa ? ' parcial' : ''}${sel ? ' sel' : ''}`,
+      class: `tarea-card${completa ? ' planificada' : ''}${t.horas_planificadas && !completa ? ' parcial' : ''}${sel ? ' sel' : ''}${t.baja_presupuesto ? ' baja' : ''}`,
       draggable: arrastrable ? 'true' : 'false', tabindex: '0', role: 'button',
       'data-tarea': t.id,
       'data-buscar': `${t.orden_codigo} ${t.orden_titulo} ${t.nombre} ${req} ${t.partida_codigo || ''} ${t.partida || ''}`.toLowerCase(),
@@ -1100,6 +1103,22 @@
               : ' · completa'),
         el('span', { class: 'tc-barra', 'aria-hidden': 'true', style: `--c:${t.orden_color}` },
           el('span', { style: `width:${Math.min(100, (t.horas_planificadas / t.duracion_h) * 100)}%` }))),
+      t.dependencias?.length ? el('dt', {}, 'Después de') : null,
+      t.dependencias?.length ? el('dd', {}, el('ul', { class: 'deps' }, t.dependencias.map((d) => {
+        const terminada = d.fin && d.planificadas >= d.duracion_h;
+        const libre = d.fin ? `${fechaCorta(d.fin.fecha)} ${hhmm(d.fin.hora)}` : null;
+        return el('li', {}, `${d.orden_codigo} ${d.nombre}`,
+          d.espera_h ? el('span', { class: 'ayuda' }, ` · +${durTxt(d.espera_h)} de espera`) : null,
+          el('span', { class: d.estado === 'hecha' || terminada ? 'dep-ok' : 'dep-pend' },
+            d.estado === 'hecha' ? ' · hecha' : !d.fin ? ' · sin planificar' : terminada ? ` · acaba ${libre}` : ` · planificada en parte (hasta ${libre})`));
+      }))) : null,
+      t.notas ? el('dt', {}, 'Notas') : null,
+      t.notas ? el('dd', { class: 'notas' }, t.notas) : null,
+      t.condiciones_pendientes?.length ? el('dt', {}, 'Condiciones') : null,
+      t.condiciones_pendientes?.length ? el('dd', {}, el('span', { class: 'dep-pend' }, 'Pendientes de confirmar en el proyecto:'),
+        el('ul', { class: 'conds' }, t.condiciones_pendientes.map((c) => el('li', {}, c)))) : null,
+      t.baja_presupuesto ? el('dt', {}, 'Presupuesto') : null,
+      t.baja_presupuesto ? el('dd', { class: 'baja-txt' }, 'Ya no está en el presupuesto (se conserva por tener planificación)') : null,
       t.operarios_req ? el('dt', {}, 'Horas-persona') : null,
       t.operarios_req ? el('dd', {}, `${durTxt(+t.horas_persona.toFixed(1))} de ${durTxt(t.duracion_h * t.operarios_req)} previstas`,
         el('span', { class: 'ayuda' }, ` (${durTxt(t.duracion_h)} × ${t.operarios_req} op)`)) : null,

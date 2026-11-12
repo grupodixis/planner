@@ -73,7 +73,14 @@ module.exports = function montar(app, asyncH) {
     const { rows } = await query(
       `SELECT p.*,
               (SELECT count(*)::int FROM ordenes o WHERE o.proyecto_id = p.id) AS ots,
-              (SELECT count(*)::int FROM ordenes o WHERE o.proyecto_id = p.id AND o.estado = 'abierta') AS ots_abiertas
+              (SELECT count(*)::int FROM ordenes o WHERE o.proyecto_id = p.id AND o.estado = 'abierta') AS ots_abiertas,
+              COALESCE((SELECT json_agg(json_build_object('id', c.id, 'texto', c.texto, 'cumplida', c.cumplida,
+                                                          'cumplida_en', c.cumplida_en, 'cumplida_por', u.nombre) ORDER BY c.orden, c.id)
+                          FROM proyecto_condiciones c LEFT JOIN usuarios u ON u.id = c.cumplida_por
+                         WHERE c.proyecto_id = p.id), '[]') AS condiciones,
+              (SELECT json_build_object('creado', i.creado, 'usuario', u.nombre, 'origen', i.origen)
+                 FROM importaciones i LEFT JOIN usuarios u ON u.id = i.usuario_id
+                WHERE i.proyecto_id = p.id ORDER BY i.creado DESC LIMIT 1) AS ultima_importacion
          FROM proyectos p
         ORDER BY (p.estado = 'activo') DESC, p.codigo DESC`);
     res.json(rows);
@@ -103,6 +110,34 @@ module.exports = function montar(app, asyncH) {
     const { rows } = await query('SELECT count(*)::int AS n FROM ordenes WHERE proyecto_id = $1', [id]);
     if (rows[0].n) throw fallo(409, 'El proyecto tiene OTs: ciérralo en lugar de borrarlo');
     await query('DELETE FROM proyectos WHERE id = $1', [id]);
+    res.json({ ok: true });
+  }));
+
+  /* ---------- Condiciones previas del proyecto (pago, RAL, pilares…) ---------- */
+  app.post('/api/proyectos/:id/condiciones', auth.puedeEditar, asyncH(async (req, res) => {
+    const textoC = texto(req.body?.texto, 200, true, 'El texto');
+    const { rows } = await query(
+      `INSERT INTO proyecto_condiciones (proyecto_id, texto, orden)
+       VALUES ($1, $2, COALESCE((SELECT max(orden) FROM proyecto_condiciones WHERE proyecto_id = $1), 0) + 1) RETURNING *`,
+      [Number(req.params.id), textoC]);
+    res.status(201).json(rows[0]);
+  }));
+
+  app.patch('/api/condiciones/:id', auth.puedeEditar, asyncH(async (req, res) => {
+    const b = req.body || {};
+    const id = Number(req.params.id);
+    if ('texto' in b) await query('UPDATE proyecto_condiciones SET texto = $2 WHERE id = $1', [id, texto(b.texto, 200, true, 'El texto')]);
+    if ('cumplida' in b) {
+      await query(`UPDATE proyecto_condiciones SET cumplida = $2, cumplida_por = CASE WHEN $2 THEN $3::int END,
+                          cumplida_en = CASE WHEN $2 THEN now() END WHERE id = $1`, [id, !!b.cumplida, req.usuario.id]);
+    }
+    const { rows } = await query('SELECT * FROM proyecto_condiciones WHERE id = $1', [id]);
+    if (!rows.length) throw fallo(404, 'Condición no encontrada');
+    res.json(rows[0]);
+  }));
+
+  app.delete('/api/condiciones/:id', auth.puedeEditar, asyncH(async (req, res) => {
+    await query('DELETE FROM proyecto_condiciones WHERE id = $1', [Number(req.params.id)]);
     res.json({ ok: true });
   }));
 
@@ -238,6 +273,11 @@ module.exports = function montar(app, asyncH) {
                          WHERE x.tarea_id = t.id), 0)::float AS horas_persona,
               (SELECT min(x.fecha) FROM tramos x WHERE x.tarea_id = t.id) AS primera_fecha,
               (SELECT max(x.fecha) FROM tramos x WHERE x.tarea_id = t.id) AS ultima_fecha,
+              t.notas, t.baja_presupuesto, t.ref_externa,
+              COALESCE((SELECT json_agg(json_build_object('id', p2.id, 'nombre', p2.nombre, 'orden_codigo', o2.codigo,
+                                                          'espera_h', d.espera_h) ORDER BY o2.codigo, p2.orden_en_of)
+                          FROM tarea_dependencias d JOIN tareas p2 ON p2.id = d.depende_de_id JOIN ordenes o2 ON o2.id = p2.orden_id
+                         WHERE d.tarea_id = t.id), '[]') AS dependencias,
               COALESCE((SELECT json_agg(tr.recurso_id) FROM tarea_requisitos tr WHERE tr.tarea_id = t.id), '[]') AS requisitos,
               COALESCE((SELECT json_agg(json_build_object('id', q.tipo_recurso_id, 'cantidad', q.cantidad))
                           FROM tarea_requisitos_tipo q WHERE q.tarea_id = t.id), '[]') AS requisitos_tipo

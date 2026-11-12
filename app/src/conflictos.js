@@ -5,6 +5,13 @@ const hhmm = (h) => `${String(Math.floor(h)).padStart(2, '0')}:${String(Math.rou
 const horas = (h) => `${String(Math.round(h * 100) / 100).replace('.', ',')}h`;
 const etiqueta = (t) => `${t.orden_codigo} ${String(t.nombre || '').toLowerCase()}${t.tramos?.length > 1 ? ` (tramo ${t.indice})` : ''}`;
 
+// fecha 'AAAA-MM-DD' + hora decimal → milisegundos (en UTC, solo para comparar)
+const instante = (fecha, h) => Date.parse(`${fecha}T00:00:00Z`) + h * 3600e3;
+const fechaHora = (ms) => {
+  const d = new Date(ms);
+  return `${String(d.getUTCDate()).padStart(2, '0')}/${String(d.getUTCMonth() + 1).padStart(2, '0')} ${hhmm(d.getUTCHours() + d.getUTCMinutes() / 60)}`;
+};
+
 function calcularConflictos(tramos, jornada, tiposDisponibles = new Set()) {
   const out = [];
 
@@ -42,6 +49,23 @@ function calcularConflictos(tramos, jornada, tiposDisponibles = new Set()) {
     }
     if (t.hora_inicio < jornada.inicio) {
       out.push({ tipo: 'jornada', ids: [t.id], mensaje: `${etiqueta(t)} empieza a las ${hhmm(t.hora_inicio)}, antes de la jornada` });
+    }
+    // Dependencias: no empezar antes de que termine la tarea previa (+ espera de secado, curado…)
+    for (const d of t.dependencias || []) {
+      const previa = `${d.orden_codigo} ${String(d.nombre).toLowerCase()}`;
+      const espera = d.espera_h ? ` + ${horas(d.espera_h)} de espera` : '';
+      if (!d.fin) {
+        if (d.estado !== 'hecha') {
+          out.push({ tipo: 'dependencia', ids: [t.id], leve: true, mensaje: `${etiqueta(t)} va después de ${previa}, que aún no está planificada` });
+        }
+        continue;
+      }
+      const inicio = instante(t.fecha, t.hora_inicio);
+      const libre = instante(d.fin.fecha, d.fin.hora) + (d.espera_h || 0) * 3600e3;
+      if (inicio < libre) {
+        out.push({ tipo: 'dependencia', ids: [t.id], leve: true,
+          mensaje: `${etiqueta(t)} empieza antes de que termine ${previa}${espera} (${fechaHora(libre)})` });
+      }
     }
     if (t.exceso > 0) {
       out.push({ tipo: 'exceso', ids: [t.id], leve: true,
