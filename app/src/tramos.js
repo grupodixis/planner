@@ -136,26 +136,30 @@ function planEmpuje(base, tramosDia, nombres) {
 }
 
 module.exports = function montar(app, asyncH) {
-  /* ---------- Tablero del día ---------- */
+  /* ---------- Tablero (un día, una semana o un mes) ---------- */
+  // ?fecha=YYYY-MM-DD (un día) o ?desde=YYYY-MM-DD&hasta=YYYY-MM-DD (rango, máx. 62 días)
   app.get('/api/tablero', asyncH(async (req, res) => {
-    const fecha = leerFecha(req.query.fecha);
+    const desde = leerFecha(req.query.desde ?? req.query.fecha);
+    const hasta = req.query.hasta != null ? leerFecha(req.query.hasta) : desde;
+    const dias = (Date.parse(hasta) - Date.parse(desde)) / 864e5;
+    if (dias < 0 || dias > 62) throw fallo(400, 'Rango de fechas no válido (máx. 62 días)');
 
     const [lineas, recursos, tareas, tramos] = await Promise.all([
-      // Áreas activas + las inactivas que aún tengan tramos ese día (para no perderlos)
+      // Áreas activas + las inactivas que aún tengan tramos en el rango (para no perderlos)
       query(`SELECT id, nombre, tipo, ubicacion, activo FROM lineas l
-              WHERE activo OR EXISTS (SELECT 1 FROM tramos x WHERE x.linea_id = l.id AND x.fecha = $1)
-              ORDER BY orden, nombre`, [fecha]),
-      // Recursos activos + los dados de baja que aún tienen algo asignado ese día
+              WHERE activo OR EXISTS (SELECT 1 FROM tramos x WHERE x.linea_id = l.id AND x.fecha BETWEEN $1 AND $2)
+              ORDER BY orden, nombre`, [desde, hasta]),
+      // Recursos activos + los dados de baja que aún tienen algo asignado en el rango
       query(`SELECT id, tipo, nombre, categoria, activo FROM recursos r
               WHERE activo OR EXISTS (SELECT 1 FROM tramo_asignaciones a JOIN tramos x ON x.id = a.tramo_id
-                                       WHERE a.recurso_id = r.id AND x.fecha = $1)
-              ORDER BY tipo, nombre`, [fecha]),
-      // Tareas de OTs abiertas + las que tienen algún tramo este día
+                                       WHERE a.recurso_id = r.id AND x.fecha BETWEEN $1 AND $2)
+              ORDER BY tipo, nombre`, [desde, hasta]),
+      // Tareas de OTs abiertas + las que tienen algún tramo en el rango
       query(`${SQL_TAREAS}
               WHERE (o.estado = 'abierta' AND t.estado <> 'hecha')
-                 OR EXISTS (SELECT 1 FROM tramos x WHERE x.tarea_id = t.id AND x.fecha = $1)
-              ORDER BY o.prioridad, o.fecha_entrega NULLS LAST, o.codigo, t.orden_en_of, t.id`, [fecha]),
-      query(`${SQL_TRAMOS_DIA} WHERE tr.fecha = $1 ORDER BY tr.hora_inicio, tr.id`, [fecha]),
+                 OR EXISTS (SELECT 1 FROM tramos x WHERE x.tarea_id = t.id AND x.fecha BETWEEN $1 AND $2)
+              ORDER BY o.prioridad, o.fecha_entrega NULLS LAST, o.codigo, t.orden_en_of, t.id`, [desde, hasta]),
+      query(`${SQL_TRAMOS_DIA} WHERE tr.fecha BETWEEN $1 AND $2 ORDER BY tr.fecha, tr.hora_inicio, tr.id`, [desde, hasta]),
     ]);
 
     // Cada tramo lleva su número dentro de la tarea ("2 de 3") y su exceso sobre lo estimado
@@ -167,12 +171,18 @@ module.exports = function montar(app, asyncH) {
       const acumulado = t ? t.tramos.slice(0, i + 1).reduce((s, x) => s + x.duracion_h, 0) : 0;
       tr.exceso = t ? Math.max(0, Math.min(tr.duracion_h, r1(acumulado - t.duracion_h))) : 0;
     }
-    const conflictos = calcularConflictos(tramos.rows.map((tr) => {
+    // Los conflictos se calculan día a día (un solape solo existe dentro del mismo día)
+    const porDia = new Map();
+    for (const tr of tramos.rows) {
+      if (!porDia.has(tr.fecha)) porDia.set(tr.fecha, []);
       const t = porTarea.get(tr.tarea_id);
-      return { ...t, ...tr, duracion_h_tarea: t?.duracion_h };
-    }), jornada);
+      porDia.get(tr.fecha).push({ ...t, ...tr, duracion_h_tarea: t?.duracion_h });
+    }
+    const conflictos = [...porDia].flatMap(([f, lista]) =>
+      calcularConflictos(lista, jornada).map((c) => ({ ...c, fecha: f })));
 
-    res.json({ fecha, jornada, lineas: lineas.rows, recursos: recursos.rows, tareas: tareas.rows, tramos: tramos.rows, conflictos });
+    res.json({ fecha: desde, desde, hasta, jornada, lineas: lineas.rows, recursos: recursos.rows,
+      tareas: tareas.rows, tramos: tramos.rows, conflictos });
   }));
 
   /* ---------- Crear tramo (soltar una tarea en el calendario) ---------- */
