@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>s360 · Recursos</title>
-  <link rel="stylesheet" href="styles.css?v=202611121412">
+  <link rel="stylesheet" href="styles.css?v=202611121538">
 </head>
 <body>
   <header class="top">
@@ -21,12 +21,18 @@
     <button role="tab" data-tipo="operario" id="tab-operario" aria-controls="panel-recursos">Operarios</button>
     <button role="tab" data-tipo="maquina" id="tab-maquina" aria-controls="panel-recursos">Maquinaria</button>
     <button role="tab" data-tipo="subcontrata" id="tab-subcontrata" aria-controls="panel-recursos">Subcontratas y alquileres</button>
+    <button role="tab" data-tipo="tipos" id="tab-tipos" aria-controls="panel-recursos">Tipos de recurso</button>
   </div>
 
   <main class="gestion recursos-pant" id="panel-recursos" role="tabpanel">
     <aside class="panel g-proyectos" aria-label="Lista">
       <h2 id="lista-titulo"></h2>
       <form id="form-alta" class="alta">
+        <select name="clase" aria-label="Clase del nuevo tipo" hidden>
+          <option value="maquina">Máquina</option>
+          <option value="subcontrata">Subcontrata / alquiler</option>
+          <option value="operario">Oficio</option>
+        </select>
         <input name="nombre" required maxlength="80" aria-label="Nombre del nuevo recurso">
         <button type="submit">Dar de alta</button>
       </form>
@@ -55,6 +61,6 @@
   </main>
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
-  <script src="recursos.js?v=202611121412"></script>
+  <script src="recursos.js?v=202611121538"></script>
 </body>
 </html>

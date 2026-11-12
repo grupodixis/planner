@@ -2,6 +2,7 @@ const path = require('path');
 const express = require('express');
 const { query, tx, esperarBD } = require('./db');
 const auth = require('./auth');
+const { leerRequisitosTipo } = require('./gestion');
 const { migrar } = require('./migraciones');
 
 const app = express();
@@ -140,7 +141,8 @@ app.patch('/api/tareas/:id', auth.puedeEditar, asyncH(async (req, res) => {
     cambios.operarios_req = o;
   }
   const requisitos = Array.isArray(b.requisitos) ? b.requisitos.map(Number) : null;
-  if (!Object.keys(cambios).length && !requisitos) return mal('Nada que cambiar');
+  const requisitosTipo = leerRequisitosTipo(b.requisitos_tipo);
+  if (!Object.keys(cambios).length && !requisitos && !requisitosTipo) return mal('Nada que cambiar');
 
   const tarea = await tx(async (c) => {
     const { rows: prev } = await c.query('SELECT id FROM tareas WHERE id = $1 FOR UPDATE', [id]);
@@ -156,6 +158,14 @@ app.patch('/api/tareas/:id', auth.puedeEditar, asyncH(async (req, res) => {
       await c.query('DELETE FROM tarea_requisitos WHERE tarea_id = $1', [id]);
       for (const r of requisitos) await c.query('INSERT INTO tarea_requisitos VALUES ($1,$2) ON CONFLICT DO NOTHING', [id, r]);
       cambios.requisitos = requisitos;
+    }
+    if (requisitosTipo) {
+      await c.query('DELETE FROM tarea_requisitos_tipo WHERE tarea_id = $1', [id]);
+      for (const q of requisitosTipo) {
+        await c.query('INSERT INTO tarea_requisitos_tipo (tarea_id, tipo_recurso_id, cantidad) VALUES ($1,$2,$3) ON CONFLICT DO NOTHING',
+          [id, q.id, q.cantidad]);
+      }
+      cambios.requisitos_tipo = requisitosTipo;
     }
     await c.query('INSERT INTO historial (usuario_id, tarea_id, accion, detalle) VALUES ($1,$2,$3,$4)',
       [req.usuario.id, id, 'estado' in cambios ? 'estado' : 'editar', cambios]);

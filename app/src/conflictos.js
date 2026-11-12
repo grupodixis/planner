@@ -5,7 +5,7 @@ const hhmm = (h) => `${String(Math.floor(h)).padStart(2, '0')}:${String(Math.rou
 const horas = (h) => `${String(Math.round(h * 100) / 100).replace('.', ',')}h`;
 const etiqueta = (t) => `${t.orden_codigo} ${String(t.nombre || '').toLowerCase()}${t.tramos?.length > 1 ? ` (tramo ${t.indice})` : ''}`;
 
-function calcularConflictos(tramos, jornada) {
+function calcularConflictos(tramos, jornada, tiposDisponibles = new Set()) {
   const out = [];
 
   for (const t of tramos) {
@@ -19,6 +19,20 @@ function calcularConflictos(tramos, jornada) {
       if (!asignadosIds.has(req.id)) {
         const falta = req.tipo === 'subcontrata' ? 'sin confirmar' : 'sin asignar';
         out.push({ tipo: 'requisito', ids: [t.id], mensaje: `${etiqueta(t)} requiere ${req.nombre} (${falta})` });
+      }
+    }
+    // Requisitos por tipo («una Soldadora MIG», «2 × Soldador»): se cumplen con cualquier recurso
+    // asignado de ese tipo. Si no hay ninguno dado de alta, es un aviso leve (inventario incompleto).
+    for (const q of t.requisitos_tipo || []) {
+      const tienen = t.asignados.filter((r) => (r.tipos || []).includes(q.id)).length;
+      if (tienen >= q.cantidad) continue;
+      const que = `${q.cantidad > 1 ? `${q.cantidad} × ` : ''}${q.nombre}`;
+      if (!tiposDisponibles.has(q.id)) {
+        out.push({ tipo: 'requisito_tipo', ids: [t.id], leve: true,
+          mensaje: `${etiqueta(t)} requiere ${que} (no hay ninguno dado de alta)` });
+      } else {
+        out.push({ tipo: 'requisito_tipo', ids: [t.id],
+          mensaje: `${etiqueta(t)} requiere ${que}${tienen ? ` (${tienen} asignado${tienen > 1 ? 's' : ''})` : ' (sin asignar)'}` });
       }
     }
     const fin = t.hora_inicio + t.duracion_h;

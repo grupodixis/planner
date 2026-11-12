@@ -110,26 +110,40 @@ semana o un mes. La URL y el navegador recuerdan el periodo (`?fecha=…&periodo
 
 ## Proyectos y OTs (pantalla aparte, menú superior)
 
+- **Partidas:** cada proyecto se divide en partidas (código del presupuesto, p. ej. C4.001, y
+  nombre). Las OTs se muestran agrupadas por partida con sus horas; botón «Partidas…» para
+  crearlas, renombrarlas, ordenarlas y borrarlas (solo vacías). Una OT puede ir sin partida.
 - **Proyectos:** crear (código PR-### automático), nombre, cliente, obra/ubicación, notas,
   activo/cerrado. Buscador y filtro de cerrados. Un proyecto con OTs no se borra: se cierra.
 - **Órdenes de trabajo (OT):** sustituyen a las antiguas OF y OM (OF-1565 → OT-1565). Código
   automático, título, partida, prioridad (urgente/alta/normal/baja), fecha de entrega, color
   en el tablero, descripción, abierta/cerrada. Progreso de tareas planificadas y hechas.
   Una OT con tareas planificadas o hechas no se borra: se cierra.
-- **Tareas de la OT:** nombre, horas, operarios necesarios, área por defecto y requisitos
-  (máquinas y subcontratas). Se ordenan con ↑↓. Son lo que se arrastra al tablero.
+- **Tareas de la OT:** nombre, horas, operarios necesarios, área por defecto y requisitos:
+  un **tipo de recurso** con cantidad («una Soldadora MIG», «2 × Oficial 3º») o un recurso
+  concreto («MIG 1»). Se ordenan con ↑↓. Son lo que se arrastra al tablero.
 - Todo se guarda al salir de cada campo. La URL recuerda el proyecto y la OT abiertos.
+
+## Tipos de recurso
+
+Oficios (Soldador, Oficial 3º…), tipos de máquina (Soldadora MIG, Plegadora…) y tipos de
+subcontrata / alquiler (Grúa, Lacado…). Se gestionan en Recursos › «Tipos de recurso» y cada
+recurso puede tener varios (un operario, varios oficios). Una tarea puede pedir un tipo aunque
+no estén dadas de alta todas las máquinas: en el tablero el requisito se cumple con cualquier
+recurso asignado de ese tipo; si falta, aviso; si no hay ninguno de ese tipo dado de alta, aviso
+suave («no hay ninguno dado de alta»). Al seleccionar una tarea, el panel de recursos marca con ✓
+los que cumplen lo que pide.
 
 ## Recursos (pantalla aparte, menú superior)
 
 Tres pestañas, cada una con su lista (buscador, «ver dados de baja») y su ficha, que se guarda
 al salir de cada campo:
 
-- **Operarios:** nombre, nº de empleado, oficio / categoría, teléfono, email, coste €/h,
+- **Operarios:** nombre, nº de empleado, oficios / roles, teléfono, email, coste €/h,
   área habitual, notas.
-- **Maquinaria:** nombre, nº / matrícula, tipo de máquina, ubicación habitual, coste €/h,
+- **Maquinaria:** nombre, nº / matrícula, tipo(s) de máquina, ubicación habitual, coste €/h,
   notas (mantenimiento, capacidades…).
-- **Subcontratas y alquileres:** nombre en el tablero, clase (subcontrata / alquiler),
+- **Subcontratas y alquileres:** nombre en el tablero, clase (subcontrata / alquiler), tipo,
   empresa o proveedor, teléfono y email de contacto, coste €/h, notas.
 
 Cada ficha muestra su **uso**: horas asignadas en las próximas 2 semanas, próxima y última
@@ -167,6 +181,11 @@ OTs y tareas con horas estimadas: [`docs/importacion/`](docs/importacion/README.
 | POST | `/api/ordenes/:id/tareas` | `{nombre, duracion_h, operarios_req, linea_id, requisitos}` |
 | PUT | `/api/ordenes/:id/tareas/orden` | `{ids: [...]}` |
 | DELETE | `/api/tareas/:id` | borrar tarea (no en curso ni hecha) |
+| GET · POST | `/api/partidas` | listar (`?proyecto_id=`) · crear `{proyecto_id, codigo, nombre}` |
+| PATCH · DELETE | `/api/partidas/:id` | editar · borrar (solo sin OTs) |
+| PUT | `/api/proyectos/:id/partidas/orden` | `{ids: [...]}` |
+| GET · POST | `/api/tipos-recurso` | listar (`?clase=`) · crear `{clase, nombre}` |
+| PATCH · DELETE | `/api/tipos-recurso/:id` | renombrar · borrar (no si lo piden tareas) |
 | GET · POST | `/api/recursos` | listar (`?tipo=operario\|maquina\|subcontrata`, con uso) · alta `{tipo, nombre, …}` |
 | PATCH · DELETE | `/api/recursos/:id` | modificar · baja (desactiva si tiene historial, borra si no) |
 | GET · POST | `/api/areas` | listar · crear `{nombre, tipo, ubicacion}` |

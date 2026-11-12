@@ -11,7 +11,7 @@
       else if (k === 'value') n.value = v ?? '';
       else if (v !== false && v != null) n.setAttribute(k, v === true ? '' : v);
     }
-    for (const h of hijos.flat()) if (h != null && h !== false) n.append(h);
+    for (const h of hijos.flat(Infinity)) if (h != null && h !== false) n.append(h);
     return n;
   };
 
@@ -46,7 +46,7 @@
       campos: [
         { k: 'nombre', e: 'Nombre', ancho: 'c2', obligatorio: true, max: 80 },
         { k: 'codigo', e: 'Nº empleado', ancho: 'c1', max: 30 },
-        { k: 'categoria', e: 'Oficio / categoría', ancho: 'c1', max: 60, sugerencias: ['Soldador', 'Montador', 'Oficial cerrajero', 'Ayudante', 'Chófer', 'Técnico de oficina'] },
+        { k: 'tipos', e: 'Oficios / roles', ancho: 'c4', tipos: true, ayuda: 'Una tarea puede pedir un oficio («2 × Soldador»): avisa si los asignados no lo tienen' },
         { k: 'telefono', e: 'Teléfono', ancho: 'c1', max: 40, tipo: 'tel' },
         { k: 'email', e: 'Email', ancho: 'c2', max: 120, tipo: 'email' },
         { k: 'coste_hora', e: 'Coste €/h', ancho: 'c1', tipo: 'number' },
@@ -59,7 +59,7 @@
       campos: [
         { k: 'nombre', e: 'Nombre', ancho: 'c2', obligatorio: true, max: 80 },
         { k: 'codigo', e: 'Nº / matrícula', ancho: 'c1', max: 30 },
-        { k: 'categoria', e: 'Tipo de máquina', ancho: 'c1', max: 60, sugerencias: ['Sierra', 'Soldadora MIG', 'Soldadora TIG', 'Corte láser', 'Plegadora', 'Cizalla', 'Taladro', 'Carretilla'] },
+        { k: 'tipos', e: 'Tipo de máquina', ancho: 'c4', tipos: true, ayuda: 'Las tareas pueden pedir el tipo («una Soldadora MIG») y vale cualquier máquina de ese tipo' },
         { k: 'linea_id', e: 'Ubicación habitual', ancho: 'c2', areas: true },
         { k: 'coste_hora', e: 'Coste €/h', ancho: 'c1', tipo: 'number' },
         { k: 'notas', e: 'Notas (mantenimiento, capacidades…)', ancho: 'c4', max: 2000, filas: 3 },
@@ -70,6 +70,7 @@
       campos: [
         { k: 'nombre', e: 'Nombre en el tablero', ancho: 'c2', obligatorio: true, max: 80 },
         { k: 'categoria', e: 'Clase', ancho: 'c1', opciones: { '': '—', Subcontrata: 'Subcontrata', Alquiler: 'Alquiler' } },
+        { k: 'tipos', e: 'Tipo (grúa, lacado, plataforma…)', ancho: 'c4', tipos: true },
         { k: 'coste_hora', e: 'Coste €/h', ancho: 'c1', tipo: 'number' },
         { k: 'empresa', e: 'Empresa / proveedor', ancho: 'c2', max: 120 },
         { k: 'telefono', e: 'Teléfono de contacto', ancho: 'c1', max: 40, tipo: 'tel' },
@@ -79,6 +80,11 @@
     },
   };
 
+  // Pestaña de catálogo de tipos (no es una clase de recurso)
+  TIPOS.tipos = { titulo: 'Tipos de recurso', singular: 'tipo', alta: 'Nombre del tipo (p. ej. Soldadora MIG)', catalogo: true };
+  const CLASE_TXT = { operario: 'Oficio de operario', maquina: 'Tipo de máquina', subcontrata: 'Tipo de subcontrata / alquiler' };
+  const CLASE_PLURAL = { operario: 'Oficios', maquina: 'Tipos de máquina', subcontrata: 'Subcontratas / alquileres' };
+
   const q0 = new URLSearchParams(location.search);
   const estado = {
     usuario: null,
@@ -86,13 +92,48 @@
     lista: [],
     sel: Number(q0.get('id')) || null,
     areas: [],
+    tipos: [],          // catálogo completo de tipos de recurso
   };
   const puedeEditar = () => estado.usuario && estado.usuario.rol !== 'consulta';
   const guardarURL = () => history.replaceState(null, '',
     `${location.pathname}?tipo=${estado.tipo}${estado.sel ? `&id=${estado.sel}` : ''}`);
 
   /* ---------- campo editable que guarda al salir ---------- */
-  function campo(def, valor, guardar) {
+  // Tipos de un recurso: chips con × y un campo para añadir (o crear) uno de su clase
+  function selectorTipos(def, r, guardar) {
+    const editar = puedeEditar();
+    const clase = r.tipo;
+    const actuales = r.tipos || [];
+    const disponibles = estado.tipos.filter((t) => t.clase === clase && !actuales.some((a) => a.id === t.id));
+    const fijar = (ids) => guardar('tipos', ids).then(() => toast('Guardado')).catch((e) => toast(e.message, true));
+    const listaId = `tipos-${clase}-sug`;
+    const input = el('input', { list: listaId, placeholder: 'Añadir tipo…', maxlength: 60, 'aria-label': `Añadir ${def.e}`, disabled: !editar });
+    const anadir = async () => {
+      const nombre = input.value.trim().replace(/\s+/g, ' ');
+      if (!nombre) return;
+      let t = estado.tipos.find((x) => x.clase === clase && x.nombre.toLowerCase() === nombre.toLowerCase());
+      try {
+        if (!t) { t = await api('POST', '/api/tipos-recurso', { clase, nombre }); estado.tipos.push(t); toast(`Tipo «${t.nombre}» creado`); }
+        if (actuales.some((a) => a.id === t.id)) return;
+        await fijar([...actuales.map((a) => a.id), t.id]);
+      } catch (e) { toast(e.message, true); }
+    };
+    input.addEventListener('keydown', (ev) => { if (ev.key === 'Enter') { ev.preventDefault(); anadir(); } });
+    return el('div', { class: `campo ${def.ancho || 'c4'}` },
+      el('span', { class: 'etq' }, def.e),
+      el('div', { class: 'chips-tipos' },
+        actuales.length ? actuales.map((t) => el('span', { class: 'chip' }, t.nombre,
+          editar ? el('button', {
+            type: 'button', title: `Quitar ${t.nombre}`, 'aria-label': `Quitar ${t.nombre}`,
+            onclick: () => fijar(actuales.filter((a) => a.id !== t.id).map((a) => a.id)),
+          }, '×') : null)) : el('span', { class: 'ayuda' }, 'ninguno'),
+        editar ? el('span', { class: 'anadir-tipo' }, input, el('button', { type: 'button', class: 'ghost', onclick: anadir }, 'Añadir')) : null,
+        el('datalist', { id: listaId }, disponibles.map((t) => el('option', { value: t.nombre })))),
+      def.ayuda ? el('span', { class: 'ayuda' }, def.ayuda) : null);
+  }
+
+  function campo(def, valor, guardar, r) {
+    if (def.tipos) return selectorTipos(def, r, guardar);
     const id = `c-${def.k}`;
     let input;
     if (def.opciones || def.areas) {
@@ -122,7 +163,8 @@
 
   /* ---------- lista ---------- */
   async function cargar() {
-    estado.lista = await api('GET', `/api/recursos?tipo=${estado.tipo}`);
+    estado.tipos = await api('GET', '/api/tipos-recurso');
+    estado.lista = TIPOS[estado.tipo].catalogo ? estado.tipos : await api('GET', `/api/recursos?tipo=${estado.tipo}`);
     if (estado.sel && !estado.lista.some((r) => r.id === estado.sel)) estado.sel = null;
     pintar();
   }
@@ -135,21 +177,24 @@
       b.tabIndex = activo ? 0 : -1;
     });
     $('#panel-recursos').setAttribute('aria-labelledby', `tab-${estado.tipo}`);
-    const activos = estado.lista.filter((r) => r.activo).length;
+    const activos = T.catalogo ? estado.lista.length : estado.lista.filter((r) => r.activo).length;
     $('#lista-titulo').textContent = `${T.titulo} (${activos})`;
     $('#form-alta input').placeholder = T.alta;
     $('#form-alta').hidden = !puedeEditar();
+    $('#form-alta select[name=clase]').hidden = !T.catalogo;
+    $('#ver-inactivos').parentElement.hidden = !!T.catalogo;
     pintarLista();
     pintarFicha();
     guardarURL();
   }
 
   function pintarLista() {
+    if (TIPOS[estado.tipo].catalogo) return pintarListaTipos();
     const q = $('#buscar').value.trim().toLowerCase();
     const inactivos = $('#ver-inactivos').checked;
     const lista = estado.lista.filter((r) =>
       (inactivos || r.activo || r.id === estado.sel) &&
-      (!q || `${r.nombre} ${r.codigo || ''} ${r.categoria || ''} ${r.empresa || ''}`.toLowerCase().includes(q)));
+      (!q || `${r.nombre} ${r.codigo || ''} ${r.categoria || ''} ${r.empresa || ''} ${r.tipos.map((t) => t.nombre).join(' ')}`.toLowerCase().includes(q)));
     $('#lista').replaceChildren(...(lista.length ? lista.map((r) => el('li', {},
       el('button', {
         class: `item${r.id === estado.sel ? ' sel' : ''}${r.activo ? '' : ' cerrado'}`,
@@ -158,7 +203,7 @@
       },
         el('span', { class: 'item-tit' }, r.codigo ? el('b', {}, `${r.codigo} `) : null, r.nombre),
         el('span', { class: 'item-sub' }, [
-          r.categoria, r.empresa,
+          r.tipo === 'subcontrata' ? r.categoria : null, r.tipos.map((t) => t.nombre).join(', ') || null, r.empresa,
           r.proximo ? `próximo ${fechaCorta(r.proximo).slice(0, 5)}` : null,
           r.activo ? null : 'dado de baja',
         ].filter(Boolean).join(' · ') || '—')),
@@ -167,6 +212,7 @@
 
   /* ---------- ficha ---------- */
   function pintarFicha() {
+    if (TIPOS[estado.tipo].catalogo) return pintarFichaTipo();
     const r = estado.lista.find((x) => x.id === estado.sel);
     $('#ficha-vacia').hidden = !!r;
     $('#ficha').hidden = !r;
@@ -204,17 +250,71 @@
     async function guardar(k, v) {
       const x = await api('PATCH', `/api/recursos/${r.id}`, { [k]: v });
       Object.assign(r, x);
+      if (k === 'tipos') { await cargar(); return; }
       if (k === 'nombre' || k === 'codigo' || k === 'categoria' || k === 'empresa' || k === 'activo') { pintarLista(); }
       if (k === 'nombre' || k === 'activo') $('#ficha-titulo').textContent = `${r.nombre}${r.activo ? '' : ' (dado de baja)'}`;
       if (k === 'activo') await cargar();
     }
-    $('#campos').replaceChildren(...T.campos.map((def) => campo(def, r[def.k], guardar)));
+    $('#campos').replaceChildren(...T.campos.map((def) => campo(def, r[def.k], guardar, r)));
 
     $('#uso').replaceChildren(
       el('dt', {}, 'Próximas 2 semanas'), el('dd', {}, r.horas_14d ? `${durTxt(r.horas_14d)} asignadas` : 'nada asignado'),
       el('dt', {}, 'Próxima asignación'), el('dd', {}, r.proximo ? el('a', { href: `/?fecha=${r.proximo}` }, fechaCorta(r.proximo)) : '—'),
       el('dt', {}, 'Última asignación'), el('dd', {}, r.ultimo ? fechaCorta(r.ultimo) : '—'),
       el('dt', {}, 'Historial'), el('dd', {}, `${r.usos} tramo(s)${r.requerido ? ` · requerido en ${r.requerido} tarea(s)` : ''}`),
+    );
+  }
+
+  /* ---------- pestaña «Tipos de recurso» ---------- */
+  function pintarListaTipos() {
+    const q = $('#buscar').value.trim().toLowerCase();
+    const lista = estado.lista.filter((t) => !q || t.nombre.toLowerCase().includes(q));
+    const grupos = ['maquina', 'subcontrata', 'operario'].map((c) => [c, lista.filter((t) => t.clase === c)]);
+    $('#lista').replaceChildren(...(lista.length ? grupos.flatMap(([c, ts]) => (ts.length ? [
+      el('li', { class: 'grupo-partida' }, el('span', { class: 'gp-nom' }, CLASE_PLURAL[c]), el('span', { class: 'gp-sub' }, String(ts.length))),
+      ...ts.map((t) => el('li', {}, el('button', {
+        class: `item${t.id === estado.sel ? ' sel' : ''}`, 'aria-current': t.id === estado.sel ? 'true' : false,
+        onclick: () => { estado.sel = t.id; pintarLista(); pintarFicha(); guardarURL(); },
+      },
+        el('span', { class: 'item-tit' }, t.nombre),
+        el('span', { class: 'item-sub' }, [
+          t.recursos.length ? `${t.recursos.filter((r) => r.activo).length} dado(s) de alta` : 'ninguno dado de alta',
+          t.tareas ? `lo piden ${t.tareas} tarea(s)` : null,
+        ].filter(Boolean).join(' · '))))),
+    ] : [])) : [el('li', { class: 'ayuda' }, q ? 'Nada coincide con la búsqueda.' : 'Todavía no hay tipos. Crea el primero arriba.')]));
+  }
+
+  function pintarFichaTipo() {
+    const t = estado.lista.find((x) => x.id === estado.sel);
+    $('#ficha-vacia').hidden = !!t;
+    $('#ficha').hidden = !t;
+    if (!t) return;
+    const editar = puedeEditar();
+    $('#ficha-titulo').textContent = t.nombre;
+    $('#ver-tablero').hidden = true;
+    const baja = $('#baja');
+    baja.hidden = !editar;
+    baja.textContent = 'Borrar';
+    baja.className = 'ghost borrar';
+    baja.title = t.tareas ? 'Lo piden tareas: quítalo de sus requisitos para poder borrarlo' : 'Borrar el tipo (los recursos que lo tienen lo pierden)';
+    baja.onclick = async () => {
+      if (!confirm(`¿Borrar el tipo «${t.nombre}»?`)) return;
+      try { await api('DELETE', `/api/tipos-recurso/${t.id}`); toast('Tipo borrado'); estado.sel = null; await cargar(); }
+      catch (e) { toast(e.message, true); }
+    };
+    const guardar = async (k, v) => {
+      await api('PATCH', `/api/tipos-recurso/${t.id}`, { nombre: v });
+      await cargar();
+    };
+    $('#campos').replaceChildren(
+      campo({ k: 'nombre', e: 'Nombre', ancho: 'c2', obligatorio: true, max: 60 }, t.nombre, guardar),
+      el('div', { class: 'campo c2' }, el('span', { class: 'etq' }, 'Clase'), el('div', { class: 'valor' }, CLASE_TXT[t.clase])),
+    );
+    $('#uso').replaceChildren(
+      el('dt', {}, 'Recursos de este tipo'), el('dd', {}, t.recursos.length
+        ? t.recursos.map((r, i) => [i ? ', ' : '', el('a', { href: `/recursos.html?tipo=${t.clase}&id=${r.id}` }, r.nombre + (r.activo ? '' : ' (de baja)'))])
+        : 'ninguno dado de alta: las tareas que lo pidan saldrán con un aviso suave'),
+      el('dt', {}, 'Lo piden'), el('dd', {}, t.tareas ? `${t.tareas} tarea(s)` : 'ninguna tarea'),
     );
   }
 
@@ -247,8 +347,10 @@
     $('#form-alta').addEventListener('submit', async (ev) => {
       ev.preventDefault();
       try {
-        const r = await api('POST', '/api/recursos', { tipo: estado.tipo, nombre: ev.target.nombre.value });
-        ev.target.reset();
+        const r = TIPOS[estado.tipo].catalogo
+          ? await api('POST', '/api/tipos-recurso', { clase: ev.target.clase.value, nombre: ev.target.nombre.value })
+          : await api('POST', '/api/recursos', { tipo: estado.tipo, nombre: ev.target.nombre.value });
+        ev.target.nombre.value = '';
         estado.sel = r.id;
         toast(`${r.nombre} dado de alta`);
         await cargar();

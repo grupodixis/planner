@@ -515,3 +515,39 @@ button.dia-cab:hover { background: #262626; }
   --scroll-thumb: color-mix(in srgb, var(--verde) 40%, transparent);
   --scroll-thumb-hover: color-mix(in srgb, var(--verde) 70%, transparent);
 }
+
+/* ---------- Partidas ---------- */
+.lista-sel .grupo-partida {
+  display: flex; justify-content: space-between; align-items: baseline; gap: 8px;
+  margin: 10px 0 0; padding: 4px 2px; border-bottom: 1px solid var(--linea);
+  font-size: 12.5px; color: var(--texto); font-weight: 600;
+}
+.lista-sel .grupo-partida:first-child { margin-top: 0; }
+.gp-sub { color: var(--suave); font-weight: 400; font-size: 11.5px; white-space: nowrap; }
+.lista-sel .vacia { font-size: 12px; padding: 2px 4px; }
+#form-ot select { flex: 0 0 34%; min-width: 0; background: #1f1f1f; border: 1px solid var(--borde); border-radius: 8px; padding: 6px 8px; }
+.form-partida { grid-template-columns: 1fr 2fr auto; }
+.num-txt { white-space: nowrap; color: var(--suave); font-size: 12.5px; }
+
+/* ---------- Tipos de recurso ---------- */
+.req-grupo { font-size: 11px; text-transform: uppercase; letter-spacing: .4px; color: var(--suave); margin: 6px 0 2px; }
+.req-grupo:first-child { margin-top: 0; }
+.req-tipo .cant { width: 46px !important; padding: 1px 4px; margin-left: 4px; background: #1f1f1f; border: 1px solid var(--borde); border-radius: 6px; }
+.rt.sin { color: var(--naranja); }
+.req-gestionar { display: block; margin-top: 8px; font-size: 12px; color: var(--azul); }
+.req-lista { max-height: 320px; overflow: auto; min-width: 230px; }
+.chips-tipos { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; min-height: 32px; }
+.anadir-tipo { display: inline-flex; gap: 4px; }
+.anadir-tipo input { width: 180px; }
+.campo .valor { padding: 6px 0; }
+.rec.cumple { outline: 2px solid var(--azul); outline-offset: 1px; }
+.rec.cumple::after { content: "✓"; margin-left: 4px; color: var(--azul); font-weight: 700; }
+/* el selector de requisitos se abre como panel flotante con su propio ancho */
+.req { position: relative; }
+.req[open] .req-lista {
+  position: absolute; right: 0; top: calc(100% + 4px); z-index: 30; width: 290px;
+  background: var(--panel); border: 1px solid var(--borde); border-radius: 8px; padding: 8px 10px;
+  box-shadow: 0 10px 28px #000a;
+}
+.req-lista label { display: flex; align-items: center; gap: 4px; }
+.req-lista .rt { margin-left: auto; }

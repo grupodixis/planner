@@ -66,11 +66,15 @@ async function ajustarFranjas(c, tramoId, delta) {
 const SQL_TAREAS = `
   SELECT t.id, t.nombre, t.duracion_h, t.operarios_req, t.linea_id, t.estado, t.orden_en_of,
          o.id AS orden_id, o.codigo AS orden_codigo, o.color AS orden_color, o.titulo AS orden_titulo,
-         o.prioridad, o.partida, o.fecha_entrega,
+         o.prioridad, pa.codigo AS partida_codigo, pa.nombre AS partida, o.fecha_entrega,
          p.codigo AS proyecto, p.nombre AS proyecto_nombre, p.cliente, p.obra,
          COALESCE((SELECT json_agg(json_build_object('id', r.id, 'nombre', r.nombre, 'tipo', r.tipo) ORDER BY r.tipo, r.nombre)
                      FROM tarea_requisitos tr JOIN recursos r ON r.id = tr.recurso_id
                     WHERE tr.tarea_id = t.id), '[]') AS requisitos,
+         COALESCE((SELECT json_agg(json_build_object('id', ti.id, 'nombre', ti.nombre, 'clase', ti.clase, 'cantidad', q.cantidad)
+                                   ORDER BY ti.clase, lower(ti.nombre))
+                     FROM tarea_requisitos_tipo q JOIN tipos_recurso ti ON ti.id = q.tipo_recurso_id
+                    WHERE q.tarea_id = t.id), '[]') AS requisitos_tipo,
          COALESCE((SELECT json_agg(json_build_object('id', x.id, 'fecha', x.fecha, 'hora_inicio', x.hora_inicio,
                                                      'duracion_h', x.duracion_h) ORDER BY x.fecha, x.hora_inicio, x.id)
                      FROM tramos x WHERE x.tarea_id = t.id), '[]') AS tramos,
@@ -81,6 +85,7 @@ const SQL_TAREAS = `
                     WHERE x.tarea_id = t.id), 0)::float AS horas_persona
     FROM tareas t
     JOIN ordenes o ON o.id = t.orden_id
+    LEFT JOIN partidas pa ON pa.id = o.partida_id
     LEFT JOIN proyectos p ON p.id = o.proyecto_id`;
 
 // Tramos de un día con sus recursos y la franja efectiva de cada uno
@@ -90,7 +95,9 @@ const SQL_TRAMOS_DIA = `
                      'id', r.id, 'nombre', r.nombre, 'tipo', r.tipo,
                      'desde', COALESCE(a.desde, tr.hora_inicio),
                      'hasta', COALESCE(a.hasta, tr.hora_inicio + tr.duracion_h),
-                     'propia', a.desde IS NOT NULL) ORDER BY r.tipo, r.nombre)
+                     'propia', a.desde IS NOT NULL,
+                     'tipos', COALESCE((SELECT json_agg(rt.tipo_recurso_id) FROM recurso_tipos rt WHERE rt.recurso_id = r.id), '[]'))
+                     ORDER BY r.tipo, r.nombre)
                      FROM tramo_asignaciones a JOIN recursos r ON r.id = a.recurso_id
                     WHERE a.tramo_id = tr.id), '[]') AS asignados
     FROM tramos tr`;
@@ -150,7 +157,11 @@ module.exports = function montar(app, asyncH) {
               WHERE activo OR EXISTS (SELECT 1 FROM tramos x WHERE x.linea_id = l.id AND x.fecha BETWEEN $1 AND $2)
               ORDER BY orden, nombre`, [desde, hasta]),
       // Recursos activos + los dados de baja que aún tienen algo asignado en el rango
-      query(`SELECT id, tipo, nombre, categoria, activo FROM recursos r
+      query(`SELECT id, tipo, nombre, categoria, activo,
+                    COALESCE((SELECT json_agg(rt.tipo_recurso_id) FROM recurso_tipos rt WHERE rt.recurso_id = r.id), '[]') AS tipos,
+                    (SELECT string_agg(ti.nombre, ', ' ORDER BY lower(ti.nombre)) FROM recurso_tipos rt
+                       JOIN tipos_recurso ti ON ti.id = rt.tipo_recurso_id WHERE rt.recurso_id = r.id) AS tipos_txt
+               FROM recursos r
               WHERE activo OR EXISTS (SELECT 1 FROM tramo_asignaciones a JOIN tramos x ON x.id = a.tramo_id
                                        WHERE a.recurso_id = r.id AND x.fecha BETWEEN $1 AND $2)
               ORDER BY tipo, nombre`, [desde, hasta]),
@@ -171,6 +182,9 @@ module.exports = function montar(app, asyncH) {
       const acumulado = t ? t.tramos.slice(0, i + 1).reduce((s, x) => s + x.duracion_h, 0) : 0;
       tr.exceso = t ? Math.max(0, Math.min(tr.duracion_h, r1(acumulado - t.duracion_h))) : 0;
     }
+    // Tipos de recurso de los que hay al menos un recurso activo (para distinguir «sin asignar»
+    // de «no hay ninguno dado de alta»)
+    const tiposDisponibles = new Set(recursos.rows.filter((r) => r.activo).flatMap((r) => r.tipos));
     // Los conflictos se calculan día a día (un solape solo existe dentro del mismo día)
     const porDia = new Map();
     for (const tr of tramos.rows) {
@@ -179,7 +193,7 @@ module.exports = function montar(app, asyncH) {
       porDia.get(tr.fecha).push({ ...t, ...tr, duracion_h_tarea: t?.duracion_h });
     }
     const conflictos = [...porDia].flatMap(([f, lista]) =>
-      calcularConflictos(lista, jornada).map((c) => ({ ...c, fecha: f })));
+      calcularConflictos(lista, jornada, tiposDisponibles).map((c) => ({ ...c, fecha: f })));
 
     res.json({ fecha: desde, desde, hasta, jornada, lineas: lineas.rows, recursos: recursos.rows,
       tareas: tareas.rows, tramos: tramos.rows, conflictos });

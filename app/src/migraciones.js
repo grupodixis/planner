@@ -91,6 +91,74 @@ const MIGRACIONES = [
   `ALTER TABLE recursos ADD COLUMN IF NOT EXISTS linea_id INT REFERENCES lineas(id)`,
   `ALTER TABLE recursos ADD COLUMN IF NOT EXISTS notas TEXT`,
   `ALTER TABLE recursos ADD COLUMN IF NOT EXISTS creado TIMESTAMPTZ NOT NULL DEFAULT now()`,
+
+  // 2026-11 · Partidas: nivel propio entre proyecto y OT (antes, texto libre en la OT)
+  `CREATE TABLE IF NOT EXISTS partidas (
+     id           SERIAL PRIMARY KEY,
+     proyecto_id  INT NOT NULL REFERENCES proyectos(id) ON DELETE CASCADE,
+     codigo       TEXT,                     -- código del presupuesto (p. ej. C4.001)
+     nombre       TEXT NOT NULL,
+     orden        INT NOT NULL DEFAULT 0,
+     ref_externa  TEXT,                     -- id. en el compositor (importación)
+     creado       TIMESTAMPTZ NOT NULL DEFAULT now()
+   )`,
+  `CREATE INDEX IF NOT EXISTS partidas_proyecto_idx ON partidas (proyecto_id)`,
+  `ALTER TABLE ordenes ADD COLUMN IF NOT EXISTS partida_id INT REFERENCES partidas(id) ON DELETE SET NULL`,
+  // Los textos de partida de cada OT pasan a ser partidas reales de su proyecto
+  // (las que se escriben igual, sin distinguir mayúsculas ni espacios, se juntan)
+  `DO $$ BEGIN
+     IF EXISTS (SELECT 1 FROM information_schema.columns
+                 WHERE table_name = 'ordenes' AND column_name = 'partida') THEN
+       INSERT INTO partidas (proyecto_id, nombre, orden)
+       SELECT proyecto_id, min(btrim(partida)), row_number() OVER (PARTITION BY proyecto_id ORDER BY min(id))
+         FROM ordenes
+        WHERE proyecto_id IS NOT NULL AND btrim(COALESCE(partida, '')) <> ''
+        GROUP BY proyecto_id, lower(regexp_replace(btrim(partida), '\\s+', ' ', 'g'));
+       UPDATE ordenes o SET partida_id = pa.id
+         FROM partidas pa
+        WHERE pa.proyecto_id = o.proyecto_id
+          AND lower(regexp_replace(btrim(pa.nombre), '\\s+', ' ', 'g')) = lower(regexp_replace(btrim(o.partida), '\\s+', ' ', 'g'));
+       ALTER TABLE ordenes DROP COLUMN partida;
+     END IF;
+   END $$`,
+
+  // 2026-11 · Tipos de recurso (oficios, tipos de máquina, tipos de subcontrata/alquiler).
+  // Una tarea puede requerir un tipo («una Soldadora MIG») aunque no estén todas las
+  // máquinas dadas de alta; un recurso puede tener varios tipos (un operario, varios oficios).
+  `CREATE TABLE IF NOT EXISTS tipos_recurso (
+     id      SERIAL PRIMARY KEY,
+     clase   TEXT NOT NULL CHECK (clase IN ('operario', 'maquina', 'subcontrata')),
+     nombre  TEXT NOT NULL,
+     creado  TIMESTAMPTZ NOT NULL DEFAULT now()
+   )`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS tipos_recurso_nombre_idx ON tipos_recurso (clase, lower(nombre))`,
+  `CREATE TABLE IF NOT EXISTS recurso_tipos (
+     recurso_id      INT NOT NULL REFERENCES recursos(id) ON DELETE CASCADE,
+     tipo_recurso_id INT NOT NULL REFERENCES tipos_recurso(id) ON DELETE CASCADE,
+     PRIMARY KEY (recurso_id, tipo_recurso_id)
+   )`,
+  `CREATE TABLE IF NOT EXISTS tarea_requisitos_tipo (
+     tarea_id        INT NOT NULL REFERENCES tareas(id) ON DELETE CASCADE,
+     tipo_recurso_id INT NOT NULL REFERENCES tipos_recurso(id),
+     cantidad        INT NOT NULL DEFAULT 1 CHECK (cantidad BETWEEN 1 AND 50),
+     PRIMARY KEY (tarea_id, tipo_recurso_id)
+   )`,
+  // Las categorías escritas en las fichas de operarios y máquinas pasan a ser tipos
+  // («Administrativo · Resp. Administrativa» → dos oficios). En subcontratas la categoría
+  // sigue siendo la clase (Subcontrata / Alquiler) y no se convierte.
+  `DO $$ BEGIN
+     IF NOT EXISTS (SELECT 1 FROM tipos_recurso) AND NOT EXISTS (SELECT 1 FROM recurso_tipos) THEN
+       INSERT INTO tipos_recurso (clase, nombre)
+       SELECT DISTINCT ON (r.tipo, lower(btrim(x))) r.tipo, btrim(x)
+         FROM recursos r, regexp_split_to_table(r.categoria, '\\s*·\\s*') AS x
+        WHERE r.tipo IN ('operario', 'maquina') AND btrim(COALESCE(x, '')) <> ''
+        ORDER BY r.tipo, lower(btrim(x)), btrim(x);
+       INSERT INTO recurso_tipos (recurso_id, tipo_recurso_id)
+       SELECT DISTINCT r.id, t.id
+         FROM recursos r, regexp_split_to_table(r.categoria, '\\s*·\\s*') AS x, tipos_recurso t
+        WHERE r.tipo IN ('operario', 'maquina') AND t.clase = r.tipo AND lower(t.nombre) = lower(btrim(x));
+     END IF;
+   END $$`,
 ];
 
 async function migrar() {

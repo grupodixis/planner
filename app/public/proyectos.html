@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>s360 · Proyectos y OTs</title>
-  <link rel="stylesheet" href="styles.css?v=202611121412">
+  <link rel="stylesheet" href="styles.css?v=202611121538">
 </head>
 <body>
   <header class="top">
@@ -43,9 +43,11 @@
         <div class="ficha" id="proyecto-campos"></div>
 
         <div class="cab-panel sep">
-          <h2>Órdenes de trabajo</h2>
+          <h2>Partidas y órdenes de trabajo</h2>
+          <button type="button" id="btn-partidas" class="ghost">Partidas…</button>
         </div>
         <form id="form-ot" class="alta">
+          <select name="partida_id" aria-label="Partida de la nueva OT" title="Partida de la nueva OT"></select>
           <input name="titulo" placeholder="Título de la nueva OT (p. ej. Estructura pérgola)" required maxlength="120" aria-label="Título de la nueva OT">
           <button type="submit">Crear OT</button>
         </form>
@@ -70,7 +72,7 @@
           <h2>Tareas</h2>
           <span id="ot-resumen" class="ayuda"></span>
         </div>
-        <p class="ayuda">Las tareas son lo que se arrastra al tablero. Los requisitos (máquinas, subcontratas) generan aviso si no se asignan.</p>
+        <p class="ayuda">Las tareas son lo que se arrastra al tablero. En «Requiere» se pide un tipo («una Soldadora MIG», «2 × Oficial 3º») o un recurso concreto; el tablero avisa si al planificar no se asigna.</p>
         <table class="tabla-tareas">
           <colgroup><col class="c-ord"><col><col class="c-num"><col class="c-num"><col class="c-area"><col class="c-req"><col class="c-est"><col class="c-x"></colgroup>
           <thead><tr><th></th><th>Tarea</th><th>Horas</th><th>Oper.</th><th>Área</th><th>Requiere</th><th>Estado</th><th></th></tr></thead>
@@ -86,7 +88,24 @@
     </section>
   </main>
 
+  <dialog id="dlg-partidas" aria-labelledby="dlg-partidas-tit">
+    <div class="dlg-cab">
+      <h2 id="dlg-partidas-tit">Partidas</h2>
+      <button class="ghost" id="dlg-partidas-cerrar" aria-label="Cerrar">✕</button>
+    </div>
+    <p class="ayuda">Las partidas del presupuesto agrupan las OTs del proyecto. Los cambios se guardan al salir de cada campo. Solo se borra una partida sin OTs.</p>
+    <form id="form-partida" class="form-area form-partida">
+      <input name="codigo" placeholder="Código (p. ej. C4.001)" maxlength="30" aria-label="Código de la partida">
+      <input name="nombre" placeholder="Nombre de la partida" required maxlength="120" aria-label="Nombre de la partida">
+      <button type="submit">Añadir partida</button>
+    </form>
+    <table class="tabla-areas">
+      <thead><tr><th>Orden</th><th>Código</th><th>Nombre</th><th>Contenido</th><th></th></tr></thead>
+      <tbody id="partidas-tbody"></tbody>
+    </table>
+  </dialog>
+
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
-  <script src="proyectos.js?v=202611121412"></script>
+  <script src="proyectos.js?v=202611121538"></script>
 </body>
 </html>

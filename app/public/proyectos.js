@@ -11,12 +11,13 @@
       else if (k === 'value') n.value = v ?? '';
       else if (v !== false && v != null) n.setAttribute(k, v === true ? '' : v);
     }
-    for (const h of hijos.flat()) if (h != null && h !== false) n.append(h);
+    for (const h of hijos.flat(Infinity)) if (h != null && h !== false) n.append(h);
     return n;
   };
 
   function toast(msg, error = false) {
     const t = $('#toast');
+    (document.querySelector('dialog[open]') || document.body).append(t);
     t.textContent = msg;
     t.className = `toast ver${error ? ' error' : ''}`;
     clearTimeout(toast._t);
@@ -44,7 +45,8 @@
 
   const estado = {
     usuario: null,
-    catalogo: { areas: [], recursos: [], colores: [] },
+    catalogo: { areas: [], recursos: [], tipos: [], colores: [] },
+    partidas: [],
     proyectos: [],
     proyectoId: null,
     ots: [],
@@ -149,14 +151,49 @@
   /* ---------- OTs del proyecto ---------- */
   async function cargarOTs() {
     if (!estado.proyectoId) return;
-    estado.ots = await api('GET', `/api/ordenes?proyecto_id=${estado.proyectoId}`);
+    [estado.ots, estado.partidas] = await Promise.all([
+      api('GET', `/api/ordenes?proyecto_id=${estado.proyectoId}`),
+      api('GET', `/api/partidas?proyecto_id=${estado.proyectoId}`),
+    ]);
+    pintarSelectorPartida();
     pintarOTs();
+  }
+
+  const nombrePartida = (pa) => (pa ? `${pa.codigo ? pa.codigo + ' · ' : ''}${pa.nombre}` : 'Sin partida');
+
+  // Selector de partida del formulario «Crear OT»
+  function pintarSelectorPartida() {
+    const sel = $('#form-ot select[name=partida_id]');
+    const previo = sel.value;
+    sel.replaceChildren(
+      ...estado.partidas.map((pa) => el('option', { value: pa.id }, nombrePartida(pa))),
+      el('option', { value: '' }, 'Sin partida'));
+    if ([...sel.options].some((o) => o.value === previo)) sel.value = previo;
   }
 
   function pintarOTs() {
     const ul = $('#lista-ots');
-    if (!estado.ots.length) { ul.replaceChildren(el('li', { class: 'ayuda' }, 'Este proyecto todavía no tiene OTs.')); return; }
-    ul.replaceChildren(...estado.ots.map((o) => el('li', {},
+    if (!estado.ots.length && !estado.partidas.length) {
+      ul.replaceChildren(el('li', { class: 'ayuda' }, 'Este proyecto todavía no tiene partidas ni OTs.'));
+      return;
+    }
+    // una cabecera por partida (aunque esté vacía) y, al final, las OTs sin partida
+    const grupos = estado.partidas.map((pa) => ({ pa, ots: estado.ots.filter((o) => o.partida_id === pa.id) }));
+    const sueltas = estado.ots.filter((o) => !o.partida_id);
+    if (sueltas.length) grupos.push({ pa: null, ots: sueltas });
+    ul.replaceChildren(...grupos.flatMap(({ pa, ots }) => [
+      el('li', { class: 'grupo-partida' },
+        el('span', { class: 'gp-nom' }, nombrePartida(pa)),
+        el('span', { class: 'gp-sub' }, [
+          `${ots.length} OT`,
+          pa?.horas ? `${durTxt(pa.horas_planificadas)}/${durTxt(pa.horas)}` : null,
+        ].filter(Boolean).join(' · '))),
+      ...(ots.length ? ots.map(itemOT) : [el('li', { class: 'ayuda vacia' }, 'Sin OTs todavía')]),
+    ]));
+  }
+
+  function itemOT(o) {
+    return el('li', {},
       el('button', {
         class: `item ot${o.id === estado.otId ? ' sel' : ''}${o.estado === 'cerrada' ? ' cerrado' : ''}`,
         style: `--c:${o.color}`, 'aria-current': o.id === estado.otId ? 'true' : false,
@@ -174,7 +211,7 @@
         o.tareas ? el('span', { class: 'barra', title: `${o.horas_planificadas}h planificadas de ${o.horas}h · ${o.hechas} de ${o.tareas} tareas hechas` },
           el('span', { class: 'b-plan', style: `width:${o.horas ? (o.horas_planificadas / o.horas) * 100 : 0}%` }),
           el('span', { class: 'b-hecha', style: `width:${(o.hechas / o.tareas) * 100}%` })) : null,
-      ))));
+      ));
   }
 
   async function elegirOT(id) {
@@ -227,7 +264,12 @@
       campo({ etiqueta: 'Código', valor: o.codigo, max: 30, ancho: 'c1', obligatorio: true, guardar: guardar('codigo') }),
       campo({ etiqueta: 'Título', valor: o.titulo, max: 120, ancho: 'c3', obligatorio: true, guardar: guardar('titulo') }),
       campo({ etiqueta: 'Proyecto', valor: o.proyecto_id, opciones: proyectos, ancho: 'c2', guardar: guardar('proyecto_id') }),
-      campo({ etiqueta: 'Partida', valor: o.partida, max: 120, ancho: 'c2', guardar: guardar('partida') }),
+      campo({
+        etiqueta: 'Partida', valor: o.partida_id ?? '', ancho: 'c2',
+        opciones: Object.fromEntries([...(o.proyecto_id === estado.proyectoId ? estado.partidas : [])
+          .map((pa) => [pa.id, nombrePartida(pa)]), ['', 'Sin partida']]),
+        guardar: (v) => guardar('partida_id')(v ? Number(v) : null),
+      }),
       campo({ etiqueta: 'Prioridad', valor: o.prioridad, opciones: PRIORIDADES, ancho: 'c1', guardar: (v) => guardar('prioridad')(Number(v)) }),
       campo({ etiqueta: 'Entrega', valor: o.fecha_entrega, tipo: 'date', ancho: 'c1', guardar: guardar('fecha_entrega') }),
       campo({ etiqueta: 'Estado', valor: o.estado, opciones: { abierta: 'Abierta', cerrada: 'Cerrada' }, ancho: 'c1', guardar: guardar('estado') }),
@@ -242,6 +284,52 @@
         + (o.hp_estimadas ? ` · ${durTxt(+o.hp_planificadas.toFixed(1))} de ${durTxt(o.hp_estimadas)} horas-persona` : '')
         + ` · ${o.hechas} hechas` : '';
     pintarTareas();
+  }
+
+  // Requisitos de una tarea: tipos de recurso (con cantidad) y recursos concretos
+  const CLASES = [['maquina', 'Tipos de máquina'], ['subcontrata', 'Subcontratas / alquileres'], ['operario', 'Oficios']];
+  function selectorRequisitos(t, recursosReq, editar, patch) {
+    const tipos = estado.catalogo.tipos;
+    const reqTipo = t.requisitos_tipo || [];
+    const resumen = [
+      ...reqTipo.map((q) => { const ti = tipos.find((x) => x.id === q.id); return ti ? `${q.cantidad > 1 ? q.cantidad + '× ' : ''}${ti.nombre}` : null; }),
+      ...t.requisitos.map((id) => recursosReq.find((r) => r.id === id)?.nombre),
+    ].filter(Boolean);
+    const guardarTipos = (lista) => patch(t, { requisitos_tipo: lista });
+
+    const filaTipo = (ti) => {
+      const q = reqTipo.find((x) => x.id === ti.id);
+      return el('label', { class: 'req-tipo' },
+        el('input', {
+          type: 'checkbox', checked: !!q, disabled: !editar,
+          onchange: (ev) => guardarTipos(ev.target.checked ? [...reqTipo, { id: ti.id, cantidad: 1 }] : reqTipo.filter((x) => x.id !== ti.id)),
+        }),
+        ` ${ti.nombre}`,
+        q ? el('input', {
+          type: 'number', min: 1, max: 50, value: q.cantidad, class: 'cant', 'aria-label': `Cantidad de ${ti.nombre}`, disabled: !editar,
+          title: 'Cuántos hacen falta a la vez',
+          onclick: (ev) => ev.preventDefault(),
+          onchange: (ev) => guardarTipos(reqTipo.map((x) => (x.id === ti.id ? { ...x, cantidad: Math.max(1, Number(ev.target.value) || 1) } : x))),
+        }) : null,
+        el('span', { class: `rt${ti.recursos ? '' : ' sin'}`, title: ti.recursos ? `${ti.recursos} dado(s) de alta` : 'Ninguno dado de alta todavía' },
+          ti.recursos ? String(ti.recursos) : 'ninguno'));
+    };
+
+    return el('details', { class: 'req' },
+      el('summary', {}, resumen.length ? resumen.join(', ') : '—'),
+      el('div', { class: 'req-lista' },
+        CLASES.map(([clase, titulo]) => {
+          const lista = tipos.filter((ti) => ti.clase === clase);
+          return lista.length ? [el('div', { class: 'req-grupo' }, titulo), lista.map(filaTipo)] : null;
+        }),
+        recursosReq.length ? el('div', { class: 'req-grupo' }, 'Recurso concreto') : null,
+        recursosReq.map((r) => el('label', {},
+          el('input', {
+            type: 'checkbox', checked: t.requisitos.includes(r.id), disabled: !editar,
+            onchange: (ev) => patch(t, { requisitos: ev.target.checked ? [...t.requisitos, r.id] : t.requisitos.filter((x) => x !== r.id) }),
+          }),
+          ` ${r.nombre}`, el('span', { class: `rt ${r.tipo}` }, r.tipo === 'maquina' ? 'máquina' : 'subcontrata'))),
+        el('a', { class: 'req-gestionar', href: '/recursos.html?tipo=tipos' }, 'Gestionar tipos de recurso…')));
   }
 
   function pintarTareas() {
@@ -270,18 +358,7 @@
 
     tbody.replaceChildren(...o.lista_tareas.map((t, i) => {
       const bloqueada = ['en_curso', 'hecha'].includes(t.estado);
-      const nombres = t.requisitos.map((id) => recursosReq.find((r) => r.id === id)?.nombre).filter(Boolean);
-      const req = el('details', { class: 'req' },
-        el('summary', {}, nombres.length ? nombres.join(', ') : '—'),
-        el('div', { class: 'req-lista' }, recursosReq.map((r) => el('label', {},
-          el('input', {
-            type: 'checkbox', checked: t.requisitos.includes(r.id), disabled: !editar,
-            onchange: (ev) => {
-              const nuevo = ev.target.checked ? [...t.requisitos, r.id] : t.requisitos.filter((x) => x !== r.id);
-              patch(t, { requisitos: nuevo });
-            },
-          }),
-          ` ${r.nombre}`, el('span', { class: `rt ${r.tipo}` }, r.tipo === 'maquina' ? 'máquina' : 'subcontrata')))));
+      const req = selectorRequisitos(t, recursosReq, editar, patch);
 
       const hp = t.horas_planificadas;
       const etiquetaPlan = ESTADO_TAREA[t.estado]
@@ -330,6 +407,52 @@
     }));
   }
 
+  /* ---------- partidas del proyecto (diálogo) ---------- */
+  function abrirPartidas() {
+    const p = estado.proyectos.find((x) => x.id === estado.proyectoId);
+    $('#dlg-partidas-tit').textContent = `Partidas · ${p?.codigo || ''} ${p?.nombre || ''}`;
+    $('#form-partida').hidden = !puedeEditar();
+    pintarPartidasDlg();
+    $('#dlg-partidas').showModal();
+  }
+
+  function pintarPartidasDlg() {
+    const editar = puedeEditar();
+    const ids = estado.partidas.map((pa) => pa.id);
+    const guardar = (pa, k) => async (ev) => {
+      const v = ev.target.value.trim();
+      if (v === (pa[k] || '')) return;
+      if (k === 'nombre' && !v) { ev.target.value = pa.nombre; return toast('El nombre es obligatorio', true); }
+      try { await api('PATCH', `/api/partidas/${pa.id}`, { [k]: v }); toast('Guardado'); await cargarOTs(); await cargarOT(); }
+      catch (e) { toast(e.message, true); ev.target.value = pa[k] || ''; }
+    };
+    const mover = (i, d) => async () => {
+      const j = i + d;
+      if (j < 0 || j >= ids.length) return;
+      [ids[i], ids[j]] = [ids[j], ids[i]];
+      try { await api('PUT', `/api/proyectos/${estado.proyectoId}/partidas/orden`, { ids }); await cargarOTs(); pintarPartidasDlg(); }
+      catch (e) { toast(e.message, true); }
+    };
+    $('#partidas-tbody').replaceChildren(...(estado.partidas.length ? estado.partidas.map((pa, i) => el('tr', {},
+      el('td', { class: 'ord' }, editar ? [
+        el('button', { type: 'button', class: 'ghost', title: 'Subir', 'aria-label': `Subir ${pa.nombre}`, onclick: mover(i, -1) }, '↑'),
+        el('button', { type: 'button', class: 'ghost', title: 'Bajar', 'aria-label': `Bajar ${pa.nombre}`, onclick: mover(i, 1) }, '↓'),
+      ] : ''),
+      el('td', {}, el('input', { value: pa.codigo || '', maxlength: 30, 'aria-label': 'Código', placeholder: '—', disabled: !editar, onchange: guardar(pa, 'codigo') })),
+      el('td', {}, el('input', { value: pa.nombre, maxlength: 120, 'aria-label': 'Nombre', disabled: !editar, onchange: guardar(pa, 'nombre') })),
+      el('td', { class: 'num-txt' }, `${pa.ots} OT · ${durTxt(pa.horas)}`),
+      el('td', {}, editar ? el('button', {
+        type: 'button', class: 'ghost borrar', disabled: pa.ots > 0,
+        title: pa.ots ? 'Tiene OTs: muévelas a otra partida para poder borrarla' : 'Borrar partida',
+        'aria-label': `Borrar ${pa.nombre}`,
+        onclick: async () => {
+          try { await api('DELETE', `/api/partidas/${pa.id}`); toast('Partida borrada'); await cargarOTs(); pintarPartidasDlg(); }
+          catch (e) { toast(e.message, true); }
+        },
+      }, '✕') : ''),
+    )) : [el('tr', {}, el('td', { colspan: 5, class: 'ayuda' }, 'Este proyecto no tiene partidas. Crea la primera arriba.'))]));
+  }
+
   /* ---------- altas y borrados ---------- */
   function prepararFormularios() {
     $('#form-proyecto').addEventListener('submit', async (ev) => {
@@ -346,8 +469,11 @@
     $('#form-ot').addEventListener('submit', async (ev) => {
       ev.preventDefault();
       try {
-        const o = await api('POST', '/api/ordenes', { titulo: ev.target.titulo.value, proyecto_id: estado.proyectoId });
-        ev.target.reset();
+        const pid = ev.target.partida_id.value;
+        const o = await api('POST', '/api/ordenes', {
+          titulo: ev.target.titulo.value, proyecto_id: estado.proyectoId, partida_id: pid ? Number(pid) : null,
+        });
+        ev.target.titulo.value = '';
         toast(`${o.codigo} creada`);
         await Promise.all([cargarOTs(), cargarProyectos()]);
         await elegirOT(o.id);
@@ -366,6 +492,20 @@
         f.nombre.focus();
         toast('Tarea añadida');
         await refrescarOT();
+      } catch (e) { toast(e.message, true); }
+    });
+
+    $('#btn-partidas').onclick = abrirPartidas;
+    $('#dlg-partidas-cerrar').onclick = () => $('#dlg-partidas').close();
+    $('#form-partida').addEventListener('submit', async (ev) => {
+      ev.preventDefault();
+      try {
+        await api('POST', '/api/partidas', { proyecto_id: estado.proyectoId, codigo: ev.target.codigo.value, nombre: ev.target.nombre.value });
+        ev.target.reset();
+        ev.target.codigo.focus();
+        toast('Partida creada');
+        await cargarOTs();
+        pintarPartidasDlg();
       } catch (e) { toast(e.message, true); }
     });
 

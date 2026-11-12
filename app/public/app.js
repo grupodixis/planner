@@ -27,7 +27,7 @@
       else if (k === 'value') n.value = v ?? '';
       else if (v !== false && v != null) n.setAttribute(k, v === true ? '' : v);
     }
-    for (const h of hijos.flat()) if (h != null && h !== false) n.append(h);
+    for (const h of hijos.flat(Infinity)) if (h != null && h !== false) n.append(h);
     return n;
   };
 
@@ -198,15 +198,19 @@
     const laborables = estado.periodo === 'dia' ? 1 : diasEntre(...rangoPeriodo()).filter((f) => !esFinde(f)).length;
     const cap = J().horas * laborables;
     const cuando = { dia: 'hoy', semana: 'esta semana', mes: 'este mes' }[estado.periodo];
+    // Con una tarea o un tramo seleccionado, se marcan los recursos que cumplen sus requisitos
+    const tSel = estado.sel ? (estado.sel.tipo === 'tarea' ? tarea(estado.sel.id) : tarea(tramo(estado.sel.id)?.tarea_id)) : null;
+    const cumple = (r) => !!tSel && (tSel.requisitos.some((q) => q.id === r.id)
+      || (tSel.requisitos_tipo || []).some((q) => (r.tipos || []).includes(q.id)));
 
     for (const tipo of ['operario', 'maquina', 'subcontrata']) {
       $(`#rec-${tipo}`).replaceChildren(...estado.datos.recursos.filter((r) => r.tipo === tipo && r.activo !== false).map((r) => {
         const h = +(uso.get(r.id) || 0).toFixed(1);
         return el('li', {
-          class: `rec ${tipo}${h ? ' ocupado' : ''}${h > cap ? ' sobrecarga' : ''}`,
+          class: `rec ${tipo}${h ? ' ocupado' : ''}${h > cap ? ' sobrecarga' : ''}${cumple(r) ? ' cumple' : ''}`,
           draggable: puedeEditar() ? 'true' : 'false',
-          'data-buscar': r.nombre.toLowerCase(),
-          title: `${r.categoria ? r.categoria + ' · ' : ''}${h ? `${durTxt(h)} asignadas ${cuando} (capacidad ${durTxt(cap)})` : `Libre ${cuando}`}`,
+          'data-buscar': `${r.nombre} ${r.tipos_txt || ''}`.toLowerCase(),
+          title: `${cumple(r) ? '✓ Cumple lo que pide la tarea seleccionada\n' : ''}${r.tipos_txt ? r.tipos_txt + ' · ' : ''}${h ? `${durTxt(h)} asignadas ${cuando} (capacidad ${durTxt(cap)})` : `Libre ${cuando}`}`,
           ondragstart: (ev) => {
             estado.arrastre = { tipo: 'recurso', id: r.id };
             ev.dataTransfer.setData(MIME_REC, String(r.id));
@@ -983,6 +987,7 @@
         el('h3', {}, `${t0.orden_codigo} / ${t0.orden_titulo}`),
         (t0.proyecto || t0.fecha_entrega) ? el('div', { class: 'meta' },
           [t0.proyecto && `${t0.proyecto}${t0.proyecto_nombre ? ' · ' + t0.proyecto_nombre : ''}`,
+           t0.partida && `${t0.partida_codigo ? t0.partida_codigo + ' ' : ''}${t0.partida}`,
            t0.fecha_entrega && `entrega ${t0.fecha_entrega.split('-').reverse().join('/')}`].filter(Boolean).join(' · ')) : null,
         tareas.map(tarjetaTarea),
       )));
@@ -991,7 +996,8 @@
   function tarjetaTarea(t) {
     const pend = pendientes(t);
     const completa = pend === 0;
-    const req = t.requisitos.map((r) => r.nombre).join(', ');
+    const req = [...(t.requisitos_tipo || []).map((q) => `${q.cantidad > 1 ? q.cantidad + '× ' : ''}${q.nombre}`),
+      ...t.requisitos.map((r) => r.nombre)].join(', ');
     const hoy = t.tramos.filter((x) => x.fecha === estado.fecha);
     const sel = estado.sel?.tipo === 'tarea' && estado.sel.id === t.id;
     const arrastrable = puedeEditar() && !completa;
@@ -1006,7 +1012,7 @@
       class: `tarea-card${completa ? ' planificada' : ''}${t.horas_planificadas && !completa ? ' parcial' : ''}${sel ? ' sel' : ''}`,
       draggable: arrastrable ? 'true' : 'false', tabindex: '0', role: 'button',
       'data-tarea': t.id,
-      'data-buscar': `${t.orden_codigo} ${t.orden_titulo} ${t.nombre} ${req}`.toLowerCase(),
+      'data-buscar': `${t.orden_codigo} ${t.orden_titulo} ${t.nombre} ${req} ${t.partida_codigo || ''} ${t.partida || ''}`.toLowerCase(),
       title: completa ? 'Planificada entera. Pulsa para ver sus tramos.'
         : t.horas_planificadas ? `${durTxt(t.horas_planificadas)} planificadas de ${durTxt(t.duracion_h)}. Arrastra para planificar el resto.`
           : 'Arrastra al calendario para planificarla',
@@ -1080,9 +1086,12 @@
       el('dt', {}, 'Orden'), el('dd', {}, `${t.orden_codigo} · ${t.orden_titulo}`),
       el('dt', {}, 'Tarea'), el('dd', {}, `${t.nombre} · ${durTxt(t.duracion_h)}`),
       el('dt', {}, 'Proyecto'), el('dd', {}, [t.proyecto, t.proyecto_nombre].filter(Boolean).join(' · ') || '—'),
+      el('dt', {}, 'Partida'), el('dd', {}, t.partida ? `${t.partida_codigo ? t.partida_codigo + ' · ' : ''}${t.partida}` : '—'),
       el('dt', {}, 'Obra'), el('dd', {}, [t.cliente, t.obra].filter(Boolean).join(' / ') || '—'),
       el('dt', {}, 'Requiere'), el('dd', {},
-        [t.operarios_req ? `${t.operarios_req} op` : null, ...t.requisitos.map((r) => r.nombre)].filter(Boolean).join(' + ') || '—'),
+        [t.operarios_req ? `${t.operarios_req} op` : null,
+          ...(t.requisitos_tipo || []).map((q) => `${q.cantidad > 1 ? q.cantidad + ' × ' : ''}${q.nombre}`),
+          ...t.requisitos.map((r) => r.nombre)].filter(Boolean).join(' + ') || '—'),
       el('dt', {}, 'Planificado'), el('dd', {},
         el('div', {}, `${durTxt(t.horas_planificadas)} de ${durTxt(t.duracion_h)}`,
           pend ? el('b', { class: 'pend' }, ` · quedan ${durTxt(pend)}`)
@@ -1212,6 +1221,7 @@
 
   function seleccionar(sel) {
     estado.sel = sel;
+    pintarRecursos();
     pintarCalendario();
     pintarOrdenes();
     pintarDetalle();
