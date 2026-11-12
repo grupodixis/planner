@@ -40,7 +40,7 @@ button:focus-visible, input:focus-visible, [tabindex]:focus-visible { outline: 2
 
 /* ---------- Layout ---------- */
 .tablero {
-  display: grid; grid-template-columns: 230px minmax(0, 1fr) 310px; gap: 16px;
+  display: grid; grid-template-columns: 250px minmax(0, 1fr) 310px; gap: 16px;
   padding: 0 20px 20px; height: calc(100% - 64px); min-height: 560px;
 }
 .panel { border: 1.5px solid #cfcfcf55; border-radius: var(--radio-panel); padding: 14px 16px; background: var(--panel); overflow: auto; }
@@ -725,3 +725,38 @@ button.primario.mini { background: var(--azul-bg); border-color: var(--azul); }
 .det-cab { cursor: move; user-select: none; touch-action: none; }
 .det-cab button { cursor: pointer; }
 .ot-l1 .flecha { margin-left: auto; color: var(--suave); font-size: 11px; }
+
+/* ---------- Panel de recursos: acordeones por clase y categoría ---------- */
+.rec-filtros { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 2px 0 8px; font-size: 12px; color: var(--suave); }
+.rec-filtros label { display: inline-flex; align-items: center; gap: 4px; }
+.rec-grupos { display: flex; flex-direction: column; gap: 6px; }
+.rec-clase { border-top: 1px solid color-mix(in srgb, var(--verde) 25%, transparent); padding-top: 4px; }
+.rec-clase:first-child { border-top: 0; }
+.rec-clase-cab, .rec-cat-cab {
+  display: flex; align-items: center; gap: 6px; width: 100%; background: none; border: 0; border-radius: 6px; text-align: left; padding: 4px 4px;
+}
+.rec-clase-cab:hover, .rec-cat-cab:hover { background: #ffffff0d; }
+.rec-clase-cab { font-size: 14px; font-weight: 600; }
+.rec-clase-cab .flecha, .rec-cat-cab .flecha { width: 10px; color: var(--suave); font-size: 11px; flex: none; }
+.rc-cuenta { margin-left: auto; font-size: 11px; font-weight: 400; color: var(--suave); white-space: nowrap; }
+.rc-cumple { font-size: 11px; color: var(--azul); border: 1px solid var(--azul); border-radius: 99px; padding: 0 6px; font-weight: 600; }
+.rec-clase-cuerpo { display: flex; flex-direction: column; gap: 2px; padding-left: 6px; }
+.rec-cat-cab { font-size: 11px; text-transform: uppercase; letter-spacing: .4px; color: var(--suave); padding: 3px 4px; }
+.rk-nom { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.rk-cuenta { margin-left: auto; font-family: var(--mono); font-size: 10.5px; }
+.rec-cat .lista-rec { gap: 3px; margin: 1px 0 6px 14px; }
+.rec-grupos .rec {
+  position: relative; overflow: hidden; gap: 6px; padding: 4px 8px; font-size: 13px; border-radius: 6px; min-height: 28px;
+}
+.rec-grupos .rec::before { display: none; }
+.rec-grupos .rec::after { content: ""; position: absolute; left: 0; bottom: 0; height: 2px; width: var(--uso, 0%); background: currentColor; opacity: .55; }
+.rec-grupos .rec.cumple::after { content: ""; }
+.rec-grupos .rec.cumple .rec-nom::after { content: " ✓"; color: var(--azul); font-weight: 700; }
+.rec-grupos .rec.sobrecarga::after { background: var(--rojo); opacity: 1; }
+.rec-grupos .rec .rec-nom { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; flex: 1; }
+.rec-grupos .rec .uso { margin-left: 0; white-space: nowrap; font-family: var(--mono); font-size: 10.5px; }
+.rec-grupos .rec .sub-tag { margin-left: 0; flex: none; }
+.rec-grupos .rec.operario { background: color-mix(in srgb, var(--verde) 12%, transparent); border-color: color-mix(in srgb, var(--verde) 45%, transparent); }
+.rec-grupos .rec.maquina { background: #ffffff08; border-color: #ffffff22; }
+.rec-grupos .rec.subcontrata { background: color-mix(in srgb, var(--rojo) 8%, transparent); border-color: color-mix(in srgb, var(--rojo) 35%, transparent); }
+.rec-grupos .rec.cumple { outline: 2px solid var(--azul); outline-offset: -1px; }

@@ -190,6 +190,9 @@
   }
 
   /* ---------- recursos (izquierda) ---------- */
+  // Grupos plegados de los paneles laterales (se recuerda por navegador)
+  const plegados = new Set((() => { try { return JSON.parse(leerPref('plegados', '[]')); } catch { return []; } })());
+
   function pintarRecursos() {
     const uso = new Map();   // horas asignadas en el periodo por recurso
     for (const tr of estado.datos.tramos) {
@@ -205,24 +208,75 @@
     const cumple = (r) => !!tSel && (tSel.requisitos.some((q) => q.id === r.id)
       || (tSel.requisitos_tipo || []).some((q) => (r.tipos || []).includes(q.id)));
 
-    for (const tipo of ['operario', 'maquina', 'subcontrata']) {
-      $(`#rec-${tipo}`).replaceChildren(...estado.datos.recursos.filter((r) => r.tipo === tipo && r.activo !== false).map((r) => {
-        const h = +(uso.get(r.id) || 0).toFixed(1);
-        return el('li', {
-          class: `rec ${tipo}${h ? ' ocupado' : ''}${h > cap ? ' sobrecarga' : ''}${cumple(r) ? ' cumple' : ''}`,
-          draggable: puedeEditar() ? 'true' : 'false',
-          'data-buscar': `${r.nombre} ${r.tipos_txt || ''}`.toLowerCase(),
-          title: `${cumple(r) ? '✓ Cumple lo que pide la tarea seleccionada\n' : ''}${r.vinculo === 'subcontratado' ? `Subcontratado${r.empresa ? ' (' + r.empresa + ')' : ''} · ` : ''}${r.tipos_txt ? r.tipos_txt + ' · ' : ''}${h ? `${durTxt(h)} asignadas ${cuando} (capacidad ${durTxt(cap)})` : `Libre ${cuando}`}`,
-          ondragstart: (ev) => {
-            estado.arrastre = { tipo: 'recurso', id: r.id };
-            ev.dataTransfer.setData(MIME_REC, String(r.id));
-            ev.dataTransfer.effectAllowed = 'copy';
-          },
-          ondragend: finArrastre,
-        }, r.nombre, r.vinculo === 'subcontratado' ? el('span', { class: 'sub-tag', 'aria-label': 'subcontratado' }, 'sub') : null,
-        el('span', { class: 'uso' }, h ? `${durTxt(h)}/${durTxt(cap)}` : 'libre'));
-      }));
-    }
+    // Acordeones: clase (Operarios / Maquinaria / Subcontratas) › categoría (oficio, tipo de máquina…)
+    const soloLibres = leerPref('rec_libres', '0') === '1';
+    $('#rec-libres').checked = soloLibres;
+    const CLASES = [['operario', 'Operarios', 'Sin oficio'], ['maquina', 'Maquinaria propia', 'Sin tipo'], ['subcontrata', 'Subcontratas / alquiler', 'Sin tipo']];
+    const fila = (r) => {
+      const h = +(uso.get(r.id) || 0).toFixed(1);
+      return el('li', {
+        class: `rec ${r.tipo}${h ? ' ocupado' : ''}${h > cap ? ' sobrecarga' : ''}${cumple(r) ? ' cumple' : ''}`,
+        style: `--uso:${Math.min(100, (h / cap) * 100)}%`,
+        draggable: puedeEditar() ? 'true' : 'false',
+        'data-buscar': `${r.nombre} ${r.tipos_txt || ''} ${r.empresa || ''}`.toLowerCase(),
+        title: `${r.nombre}${cumple(r) ? '\n✓ Cumple lo que pide la tarea seleccionada' : ''}${r.vinculo === 'subcontratado' ? `\nSubcontratado${r.empresa ? ' (' + r.empresa + ')' : ''}` : ''}${r.tipos_txt ? '\n' + r.tipos_txt : ''}\n${h ? `${durTxt(h)} asignadas ${cuando} de ${durTxt(cap)}` : `Libre ${cuando}`}`,
+        ondragstart: (ev) => {
+          estado.arrastre = { tipo: 'recurso', id: r.id };
+          ev.dataTransfer.setData(MIME_REC, String(r.id));
+          ev.dataTransfer.effectAllowed = 'copy';
+        },
+        ondragend: finArrastre,
+      },
+      el('span', { class: 'rec-nom' }, r.nombre),
+      r.vinculo === 'subcontratado' ? el('span', { class: 'sub-tag', 'aria-label': 'subcontratado' }, 'sub') : null,
+      el('span', { class: 'uso' }, h ? `${durTxt(h)}/${durTxt(cap)}` : 'libre'));
+    };
+
+    $('#rec-plegar').textContent = CLASES.every(([c]) => plegados.has(`rc:${c}`)) ? 'Desplegar todo' : 'Plegar todo';
+    $('#rec-grupos').replaceChildren(...CLASES.map(([clase, titulo, sinCat]) => {
+      const todos = estado.datos.recursos.filter((r) => r.tipo === clase && r.activo !== false);
+      const lista = soloLibres ? todos.filter((r) => !uso.get(r.id) || cumple(r)) : todos;
+      const libres = todos.filter((r) => !uso.get(r.id)).length;
+      const nCumple = todos.filter(cumple).length;
+      const claveC = `rc:${clase}`;
+      const abierta = !plegados.has(claveC) || nCumple > 0;
+      // categoría = su primer oficio / tipo (en subcontratas, si no tiene tipo, Subcontrata o Alquiler)
+      const cats = new Map();
+      for (const r of lista) {
+        const cat = (r.tipos_txt || '').split(', ')[0] || (clase === 'subcontrata' && r.categoria) || sinCat;
+        if (!cats.has(cat)) cats.set(cat, []);
+        cats.get(cat).push(r);
+      }
+      const orden = [...cats].sort(([a], [b]) => (a === sinCat) - (b === sinCat) || a.localeCompare(b, 'es'));
+      const variasCats = orden.length > 1;
+      return el('section', { class: `rec-clase ${clase}${abierta ? '' : ' plegada'}` },
+        el('button', { type: 'button', class: 'rec-clase-cab', 'aria-expanded': abierta ? 'true' : 'false', onclick: () => plegarRec(claveC) },
+          el('span', { class: 'flecha', 'aria-hidden': 'true' }, abierta ? '▾' : '▸'),
+          el('span', { class: `t-${clase}` }, titulo),
+          nCumple ? el('span', { class: 'rc-cumple', title: 'Cumplen lo que pide la tarea seleccionada' }, `✓ ${nCumple}`) : null,
+          el('span', { class: 'rc-cuenta', title: `${libres} libres ${cuando} de ${todos.length}` }, `${libres}/${todos.length} libres`)),
+        abierta ? el('div', { class: 'rec-clase-cuerpo' },
+          !lista.length ? el('p', { class: 'ayuda' }, soloLibres ? 'Nadie libre.' : 'Ninguno dado de alta.') : null,
+          orden.map(([cat, rs]) => {
+            const claveK = `rk:${clase}:${cat}`;
+            const algunoCumple = rs.some(cumple);
+            const catAbierta = !variasCats || !plegados.has(claveK) || algunoCumple;
+            rs.sort((a, b) => (cumple(b) - cumple(a)) || ((uso.get(a.id) || 0) - (uso.get(b.id) || 0)) || a.nombre.localeCompare(b.nombre, 'es'));
+            return el('div', { class: `rec-cat${catAbierta ? '' : ' plegada'}` },
+              variasCats ? el('button', { type: 'button', class: 'rec-cat-cab', 'aria-expanded': catAbierta ? 'true' : 'false', onclick: () => plegarRec(claveK) },
+                el('span', { class: 'flecha', 'aria-hidden': 'true' }, catAbierta ? '▾' : '▸'),
+                el('span', { class: 'rk-nom' }, cat),
+                el('span', { class: 'rk-cuenta' }, `${rs.filter((r) => !uso.get(r.id)).length}/${rs.length}`)) : null,
+              catAbierta ? el('ul', { class: 'lista-rec' }, rs.map(fila)) : null);
+          })) : null);
+    }));
+  }
+
+  function plegarRec(clave) {
+    if (plegados.has(clave)) plegados.delete(clave); else plegados.add(clave);
+    guardarPref('plegados', JSON.stringify([...plegados].slice(-300)));
+    pintarRecursos();
+    aplicarFiltro();
   }
 
   /* ---------- calendario (centro) ---------- */
@@ -976,7 +1030,6 @@
 
   /* ---------- OTs y tareas (derecha) ---------- */
   // Panel derecho: Proyecto › Partida › OT › tareas. Proyectos y OTs se pliegan (se recuerda por navegador).
-  const plegados = new Set((() => { try { return JSON.parse(leerPref('plegados', '[]')); } catch { return []; } })());
   function plegar(clave) {
     if (plegados.has(clave)) plegados.delete(clave); else plegados.add(clave);
     guardarPref('plegados', JSON.stringify([...plegados].slice(-300)));
@@ -1610,6 +1663,15 @@
     $('#hoy').onclick = () => irA(hoyISO());
     $('#fecha-input').onchange = (ev) => ev.target.value && irA(ev.target.value);
     $('#buscar').oninput = (ev) => { estado.filtro = ev.target.value; aplicarFiltro(); };
+    $('#rec-libres').onchange = (ev) => { guardarPref('rec_libres', ev.target.checked ? '1' : '0'); pintarRecursos(); aplicarFiltro(); };
+    $('#rec-plegar').onclick = () => {
+      const claves = [...document.querySelectorAll('.rec-clase-cab, .rec-cat-cab')].length ? ['operario', 'maquina', 'subcontrata'].map((c) => `rc:${c}`) : [];
+      const todoPlegado = claves.every((k) => plegados.has(k));
+      for (const k of claves) { if (todoPlegado) plegados.delete(k); else plegados.add(k); }
+      if (todoPlegado) for (const k of [...plegados]) if (k.startsWith('rk:')) plegados.delete(k);
+      guardarPref('plegados', JSON.stringify([...plegados].slice(-300)));
+      pintarRecursos(); aplicarFiltro();
+    };
     $('#solo-pend').onchange = (ev) => { guardarPref('solo_pend', ev.target.checked ? '1' : '0'); pintarOrdenes(); aplicarFiltro(); };
     $('#det-cerrar').onclick = () => { estado.solucion = null; seleccionar(null); };
     moverDetalle();

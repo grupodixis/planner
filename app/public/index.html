@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>s360 · Tablero de planificación</title>
-  <link rel="stylesheet" href="styles.css?v=202611121726">
+  <link rel="stylesheet" href="styles.css?v=202611121750">
 </head>
 <body>
   <header class="top">
@@ -34,9 +34,11 @@
     <aside class="panel recursos" aria-label="Recursos disponibles">
       <h2>Recursos disponibles <a class="gestionar" href="/recursos.html" title="Alta, baja y modificación de recursos">gestionar</a></h2>
       <p class="ayuda">Arrastra un recurso sobre una tarea del calendario.</p>
-      <section><h3 class="t-operario">Operarios</h3><ul id="rec-operario" class="lista-rec"></ul></section>
-      <section><h3 class="t-maquina">Maquinaria propia</h3><ul id="rec-maquina" class="lista-rec"></ul></section>
-      <section><h3 class="t-subcontrata">Subcontratas / alquiler</h3><ul id="rec-subcontrata" class="lista-rec"></ul></section>
+      <div class="rec-filtros">
+        <label title="Oculta los recursos que ya tienen algo asignado en el periodo"><input type="checkbox" id="rec-libres"> Solo libres</label>
+        <button type="button" class="ghost mini" id="rec-plegar" title="Plegar o desplegar todas las categorías">Plegar todo</button>
+      </div>
+      <div id="rec-grupos" class="rec-grupos"></div>
     </aside>
 
     <!-- Centro: calendario -->
@@ -119,6 +121,6 @@
   </dialog>
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
-  <script src="app.js?v=202611121726"></script>
+  <script src="app.js?v=202611121750"></script>
 </body>
 </html>

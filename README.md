@@ -66,8 +66,13 @@ semana o un mes. La URL y el navegador recuerdan el periodo (`?fecha=…&periodo
 
 ## Tablero operativo diario (fase 1, incluido)
 
-- **Izquierda – recursos:** operarios, maquinaria y subcontratas, con horas ocupadas en el día.
-  Arrastra un recurso encima de una tarea del calendario para asignarlo.
+- **Izquierda – recursos:** acordeones Operarios / Maquinaria propia / Subcontratas, cada uno
+  con «libres/total» del periodo, y dentro por **categoría** (oficio, tipo de máquina, tipo de
+  subcontrata; «Sin oficio» al final), plegables y recordadas en el navegador. Cada recurso en una
+  línea con sus horas asignadas (barra fina abajo; roja si se pasa de la capacidad) y «SUB» si es
+  subcontratado. Con una tarea seleccionada se despliegan y marcan (✓) los que cumplen lo que pide.
+  «Solo libres» oculta los que ya tienen algo asignado. Arrastra un recurso encima de una tarea del
+  calendario para asignarlo.
 - **Centro – calendario del día:** una fila por **área de trabajo** (una obra, una zona del
   taller, la oficina técnica, la cabina de pintura…), 07:00–17:00, encaje cada 30 min. Arrastra tareas para moverlas; si se solapan
   en la misma fila se apilan.
