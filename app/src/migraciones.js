@@ -234,6 +234,12 @@ const MIGRACIONES = [
     WHERE l.tipo = 'obra' AND l.proyecto_id IS NULL
       AND (lower(l.nombre) IN (lower(p.nombre), lower(p.codigo))
            OR (p.obra IS NOT NULL AND (lower(l.ubicacion) = lower(p.obra) OR lower(l.nombre) = lower('Obra · ' || p.obra))))`,
+  // …y las que solo usan tareas de un mismo proyecto
+  `UPDATE lineas l SET proyecto_id = x.pid
+     FROM (SELECT t.linea_id, min(o.proyecto_id) AS pid, count(DISTINCT o.proyecto_id) AS n
+             FROM tareas t JOIN ordenes o ON o.id = t.orden_id
+            WHERE o.proyecto_id IS NOT NULL AND t.linea_id IS NOT NULL GROUP BY t.linea_id) x
+    WHERE l.id = x.linea_id AND x.n = 1 AND l.tipo = 'obra' AND l.proyecto_id IS NULL`,
 ];
 
 async function migrar() {
