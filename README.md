@@ -29,49 +29,40 @@ arrancar, sin perder datos: para actualizar basta con `docker compose up -d --bu
 
 ## Publicar en un servidor (VPS con Plesk)
 
-Para probarlo online en `https://administrador.hamenorca.com`:
+Producción de pruebas: **https://administrador.hamenorca.com** (VPS con Plesk).
 
-**1 · En el servidor, por SSH como root** (instala Docker si falta, descarga el código de
-GitHub, crea contraseñas nuevas y arranca; escucha solo en `127.0.0.1:8380`):
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/grupodixis/planner/main/desplegar-vps.sh | bash
-```
-
-Al terminar muestra el usuario y la contraseña de administrador (quedan en `/opt/s360/.env`).
-Para **actualizar** más adelante, el mismo comando (hace copia de la base de datos antes).
-Para **llevarse los datos del PC**, copia al servidor un `pg_dump` (p. ej. `backups\antes-de-actualizar.sql`)
-y ejecuta:
+**Instalación (una vez, por SSH como root):**
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/grupodixis/planner/main/desplegar-vps.sh | bash -s -- --restaurar /root/antes-de-actualizar.sql
+curl -fsSL https://raw.githubusercontent.com/grupodixis/planner/main/desplegar-vps.sh \
+  | bash -s -- --dominio administrador.hamenorca.com --auto
 ```
 
-**2 · En Plesk:**
+- Instala Docker si falta, descarga el código de GitHub en `/opt/s360`, crea contraseñas
+  aleatorias (`/opt/s360/.env`) y arranca escuchando solo en `127.0.0.1:8380`.
+- `--dominio`: en Plesk crea el subdominio, pone el proxy nginx hacia la aplicación, emite el
+  certificado Let's Encrypt y redirige HTTP → HTTPS (el DNS del subdominio debe apuntar al VPS).
+- `--auto`: **actualización automática**. Cada 5 minutos mira GitHub; si hay cambios hace copia
+  de la base de datos (`/opt/s360/backups`, las 20 últimas), reconstruye y comprueba que
+  responde; si la nueva versión no arranca, vuelve sola a la anterior.
+  Registro: `journalctl -u s360-actualizar --since today`.
+- Versión publicada: `https://administrador.hamenorca.com/health` (commit de GitHub).
+- `--restaurar /root/copia.sql`: carga una copia de la base de datos (p. ej. la del PC).
 
-1. *Sitios web y dominios* → **Añadir subdominio** `administrador` de `hamenorca.com`
-   (si el DNS de hamenorca.com no lo lleva Plesk, crea un registro A `administrador` → IP del VPS).
-2. En el subdominio → **SSL/TLS** → *Let's Encrypt* → emitir certificado y activar
-   «Redirigir de HTTP a HTTPS».
-3. En el subdominio → **Configuración de Apache y nginx** → *Directivas adicionales de nginx*:
+Si algo de Plesk no se puede automatizar, el script lo dice; a mano son estas directivas en
+*Configuración de Apache y nginx → Directivas adicionales de nginx* del subdominio:
 
-   ```nginx
-   location ~ ^/ {
-       proxy_pass http://127.0.0.1:8380;
-       proxy_http_version 1.1;
-       proxy_set_header Host $host;
-       proxy_set_header X-Real-IP $remote_addr;
-       proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-       proxy_set_header X-Forwarded-Proto $scheme;
-       client_max_body_size 5m;
-   }
-   ```
-
-   (Si tienes la extensión *Docker* de Plesk, vale también *Reglas de proxy de Docker* →
-   URL `/` → contenedor `s360-web-1`, puerto 3000.)
-
-En el servidor la cookie de sesión va con `Secure` (solo HTTPS) y la base de datos no se
-publica fuera del servidor.
+```nginx
+location ~ ^/ {
+    proxy_pass http://127.0.0.1:8380;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    client_max_body_size 5m;
+}
+```
 
 ## Estructura
 

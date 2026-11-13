@@ -14,7 +14,9 @@ app.use(express.json({ limit: '100kb' }));
 
 const asyncH = (fn) => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
 
-app.get('/health', (req, res) => res.json({ ok: true }));
+// Versión desplegada (la escribe desplegar-vps.sh con el commit de GitHub); «dev» en el PC
+const VERSION = (() => { try { return require('fs').readFileSync(path.join(__dirname, '..', 'public', 'version.txt'), 'utf8').trim(); } catch { return 'dev'; } })();
+app.get('/health', (req, res) => res.json({ ok: true, version: VERSION }));
 
 /* ---------- Autenticación ---------- */
 
