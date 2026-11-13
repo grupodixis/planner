@@ -261,11 +261,15 @@ Correo (opcional), en `.env`: `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`
 
 - **Falta rápida desde el tablero:** clic en un operario del panel de recursos (o en su nombre
   en la vista por operarios) → día, «Todo el día / Se fue a las… / Llegó a las…» y un botón:
-  **Faltó sin avisar**, Baja, Permiso, Vacaciones… Con una máquina: Avería, Mantenimiento, ITV.
+  **Falta**, Baja, Permiso, Vacaciones… Con una máquina: Avería, Mantenimiento, ITV.
   Lo puede hacer quien planifica. Si ya hay algo apuntado ese día, sale con «Quitar».
+- **Justificante de las faltas:** toda falta nace «pendiente de justificante». Se marca
+  justificada / sin justificar desde el mismo diálogo del tablero, desde la ficha del operario o
+  desde la lista «Faltas pendientes de justificante» (Recursos › Vacaciones y festivos). Las
+  faltas no restan vacaciones y se cuentan en su columna (total, sin justificar, pendientes).
 - **Ausencias** en la ficha de cada recurso (Recursos › Operarios / Maquinaria): desde–hasta, o
   solo unas horas de un día (un médico de 9:00 a 11:00), con notas.
-  - Operarios: vacaciones, baja, permiso, formación, falta sin avisar, otro.
+  - Operarios: vacaciones, baja, permiso, formación, falta (con justificante), otro.
   - Máquinas, vehículos y alquileres: avería, mantenimiento, ITV / revisión, otro.
   - Si tenía trabajo asignado en esas fechas, al apuntarla se avisa con la lista de tramos.
 - **En el tablero:**

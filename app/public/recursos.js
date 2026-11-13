@@ -362,7 +362,7 @@
       el('td', {}, a.desde === a.hasta ? fechaCorta(a.desde) : `${fechaCorta(a.desde)} – ${fechaCorta(a.hasta)}`,
         a.hora_desde != null ? ` · ${deHora(a.hora_desde)}–${deHora(a.hora_hasta)}` : ''),
       el('td', { class: 'num' }, a.dias_laborables ? diasTxt(a.dias_laborables) : '—'),
-      el('td', { class: 'notas' }, a.notas || ''),
+      el('td', { class: 'notas' }, a.tipo === 'falta' ? selectorJustificante(a, editar, () => pintarAusencias(r)) : null, a.notas || ''),
       el('td', {}, editar ? el('button', {
         type: 'button', class: 'ghost borrar', 'aria-label': 'Quitar esta ausencia',
         onclick: async () => {
@@ -383,6 +383,18 @@
       pasadas.length > 15 ? el('p', { class: 'ayuda' }, `y ${pasadas.length - 15} anteriores`) : null].filter(Boolean));
   }
 
+  // Justificante de una falta: pendiente / justificada / sin justificar
+  const JUSTIF = { pendiente: 'Pendiente de justificante', si: 'Justificada', no: 'Sin justificar' };
+  function selectorJustificante(a, editar, despues) {
+    const s = el('select', { class: `justif j-${a.justificante || 'pendiente'}`, disabled: !editar, 'aria-label': 'Justificante' },
+      Object.entries(JUSTIF).map(([k, t]) => el('option', { value: k, selected: (a.justificante || 'pendiente') === k }, t)));
+    s.onchange = async () => {
+      try { await api('PATCH', `/api/ausencias/${a.id}`, { justificante: s.value }); toast('Guardado'); await despues(); }
+      catch (e) { toast(e.message, true); }
+    };
+    return s;
+  }
+
   // Tras apuntar una ausencia: tenía trabajo asignado en esas fechas
   function avisoAfectados(r, afectados) {
     const dlg = $('#dlg-afectados');
@@ -395,13 +407,37 @@
   /* ---------- pestaña «Vacaciones y festivos» ---------- */
   let anioCal = anioActual();
   async function pintarCalendarioLaboral() {
-    const editar = puedeEditar();
+    const editar = puedeEditar() || window.s360.tiene('planificar');
     const d = await api('GET', `/api/vacaciones?anio=${anioCal}`);
     const hoy = hoyISO();
     $('#cal-anio').textContent = String(anioCal);
     $('#cal-resumen').textContent = `${d.laborables_anio} días laborables en ${anioCal} · ${d.festivos.length} festivos · vacaciones de convenio: ${d.dias_convenio} días`;
 
-    const OTRAS = { falta: 'faltas', baja: 'baja', permiso: 'permiso', formacion: 'formación', otro: 'otro' };
+    const num = (n) => String(n).replace('.', ',');
+    const faltasTxt = (f) => {
+      const total = f.pendiente + f.si + f.no;
+      if (!total) return '—';
+      return el('span', { title: `Justificadas: ${num(f.si)} · sin justificar: ${num(f.no)} · pendientes: ${num(f.pendiente)}` },
+        num(total), f.no ? el('span', { class: 'neg' }, ` · ${num(f.no)} sin just.`) : null,
+        f.pendiente ? el('span', { class: 'aus-ahora' }, ` · ${num(f.pendiente)} pend.`) : null);
+    };
+    // Faltas que esperan justificante (todas, de cualquier año)
+    const pend = await api('GET', '/api/ausencias?justificante=pendiente');
+    $('#faltas-pend').hidden = !pend.length;
+    $('#faltas-pend-lista').replaceChildren(...pend.map((a) => el('li', {},
+      el('span', { class: 'fp-fecha' }, a.desde === a.hasta ? fechaCorta(a.desde) : `${fechaCorta(a.desde)} – ${fechaCorta(a.hasta)}`),
+      el('a', { href: `/recursos.html?tipo=operario&id=${a.recurso_id}` }, a.recurso),
+      a.hora_desde != null ? el('span', { class: 'ayuda' }, `${deHora(a.hora_desde)}–${deHora(a.hora_hasta)}`) : null,
+      a.notas ? el('span', { class: 'ayuda' }, a.notas) : null,
+      editar ? el('span', { class: 'fp-acc' },
+        ...[['si', 'Justificada'], ['no', 'Sin justificar']].map(([v, t]) => el('button', {
+          type: 'button', class: 'ghost mini',
+          onclick: async () => {
+            try { await api('PATCH', `/api/ausencias/${a.id}`, { justificante: v }); toast(`${a.recurso}: ${t.toLowerCase()}`); pintarCalendarioLaboral(); }
+            catch (e) { toast(e.message, true); }
+          },
+        }, t))) : null)));
+    const OTRAS = { baja: 'baja', permiso: 'permiso', formacion: 'formación', otro: 'otro' };
     const actual = (p) => p.ausencias.find((a) => a.desde <= hoy && a.hasta >= hoy);
     const proxima = (p) => p.ausencias.filter((a) => a.desde > hoy).sort((a, b) => a.desde.localeCompare(b.desde))[0];
     $('#tabla-vac tbody').replaceChildren(...d.personas.map((p) => {
@@ -413,16 +449,18 @@
         el('td', { class: 'num' }, p.usados ? String(p.usados).replace('.', ',') : '—'),
         el('td', { class: 'num' }, p.disfrutados ? String(p.disfrutados).replace('.', ',') : '—'),
         el('td', { class: `num ${sub ? '' : p.pendientes < 0 ? 'neg' : 'quedan'}` }, sub ? '—' : String(p.pendientes).replace('.', ',')),
+        el('td', { class: 'num' }, faltasTxt(p.faltas)),
         el('td', {}, Object.entries(p.otras).map(([k, n]) => `${OTRAS[k] || k} ${String(n).replace('.', ',')}`).join(' · ') || ''),
         el('td', {}, ya ? el('span', { class: 'aus-ahora' }, `ahora: ${ya.texto}`) : luego ? `${tiposAusencia?.[luego.tipo]?.nombre || luego.tipo} ${fechaCorta(luego.desde).slice(0, 5)}${luego.hasta !== luego.desde ? `–${fechaCorta(luego.hasta).slice(0, 5)}` : ''}` : ''));
     }));
 
-    $('#form-festivo').hidden = !editar;
+    const editarFest = puedeEditar();   // festivos: solo quien gestiona recursos
+    $('#form-festivo').hidden = !editarFest;
     $('#lista-festivos').replaceChildren(...(d.festivos.length ? d.festivos.map((f) => el('li', { class: f.fecha < hoy ? 'pasado' : '' },
       el('span', { class: 'fest-fecha' }, new Date(`${f.fecha}T12:00:00`).toLocaleDateString('es-ES', { weekday: 'short', day: '2-digit', month: 'short' })),
       el('span', { class: 'fest-nombre' }, f.nombre),
       el('span', { class: `fest-amb amb-${f.ambito}` }, { general: 'Baleares', local: 'Sant Lluís', empresa: 'empresa' }[f.ambito] || f.ambito),
-      editar ? el('button', {
+      editarFest ? el('button', {
         type: 'button', class: 'ghost borrar', 'aria-label': `Quitar ${f.nombre}`,
         onclick: async () => {
           if (!confirm(`¿Quitar el festivo «${f.nombre}»?`)) return;

@@ -976,3 +976,18 @@ dialog.dlg-ausencia { width: min(440px, calc(100vw - 32px)); }
 .aus-botones button { padding: 8px; }
 .aus-ya-fila { display: flex; justify-content: space-between; align-items: center; gap: 8px; color: var(--naranja); font-size: 13px; margin-bottom: 8px; }
 .aus-falta { color: var(--rojo); border-color: var(--rojo); }
+
+/* Faltas y justificante */
+.aus-justif { display: inline-flex; align-items: center; gap: 4px; color: var(--suave); font-size: 12px; }
+.aus-justif button.activo { border-color: var(--azul); color: var(--azul); }
+.aus-ya-fila { flex-wrap: wrap; }
+select.justif { background: #1f1f1f; border: 1px solid var(--borde); border-radius: 6px; padding: 1px 4px; font-size: 12px; margin-right: 6px; }
+select.justif.j-pendiente { color: var(--naranja); border-color: var(--naranja); }
+select.justif.j-no { color: var(--rojo); border-color: var(--rojo); }
+select.justif.j-si { color: var(--verde); border-color: var(--verde); }
+.faltas-pend { grid-column: 1 / -1; border-color: var(--naranja); }
+.lista-faltas { list-style: none; margin: 8px 0 0; padding: 0; }
+.lista-faltas li { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 5px 0; border-top: 1px solid var(--linea); font-size: 13px; }
+.lista-faltas a { color: var(--texto); font-weight: 600; }
+.fp-fecha { font-family: var(--mono); font-size: 12px; }
+.fp-acc { margin-left: auto; display: flex; gap: 6px; }

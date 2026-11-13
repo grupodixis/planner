@@ -12,7 +12,7 @@ const TIPOS = {
   baja: { nombre: 'Baja', estado: 'de baja', clases: ['operario'] },
   permiso: { nombre: 'Permiso', estado: 'de permiso', clases: ['operario'] },
   formacion: { nombre: 'Formación', estado: 'en formación', clases: ['operario'] },
-  falta: { nombre: 'Falta sin avisar', estado: 'falta sin avisar', clases: ['operario'] },
+  falta: { nombre: 'Falta', estado: 'falta', clases: ['operario'] },
   averia: { nombre: 'Avería', estado: 'averiado', clases: ['maquina', 'subcontrata'] },
   mantenimiento: { nombre: 'Mantenimiento', estado: 'en mantenimiento', clases: ['maquina', 'subcontrata'] },
   itv: { nombre: 'ITV / revisión', estado: 'en ITV / revisión', clases: ['maquina', 'subcontrata'] },
@@ -44,8 +44,10 @@ function laborables(a, festivos, limite = null) {
 }
 
 // Texto corto: «de vacaciones hasta el 24/11», «de permiso 09:00–11:00»
+const JUSTIF = { pendiente: 'pendiente de justificante', si: 'justificada', no: 'sin justificar' };
 function textoAusencia(a, fecha) {
-  const t = TIPOS[a.tipo]?.estado || 'no disponible';
+  let t = TIPOS[a.tipo]?.estado || 'no disponible';
+  if (a.tipo === 'falta' && a.justificante) t += ` (${JUSTIF[a.justificante]})`;
   if (a.hora_desde != null) return `${t} ${hhmm(a.hora_desde)}–${hhmm(a.hora_hasta)}`;
   if (a.desde === a.hasta) return t;
   return fecha && a.hasta > fecha ? `${t} hasta el ${ddmm(a.hasta)}` : `${t} (${ddmm(a.desde)}–${ddmm(a.hasta)})`;
@@ -53,7 +55,7 @@ function textoAusencia(a, fecha) {
 
 const SQL_AUSENCIAS = `
   SELECT a.id, a.recurso_id, a.tipo, a.desde, a.hasta, a.hora_desde::float AS hora_desde, a.hora_hasta::float AS hora_hasta,
-         a.notas, r.nombre AS recurso, r.tipo AS clase
+         a.notas, a.justificante, r.nombre AS recurso, r.tipo AS clase
     FROM ausencias a JOIN recursos r ON r.id = a.recurso_id`;
 
 async function ausenciasEnRango(c, desde, hasta) {
@@ -101,6 +103,10 @@ function leerAusencia(b, parcial) {
     }
   }
   if ('notas' in b) out.notas = String(b.notas || '').trim().slice(0, 500) || null;
+  if ('justificante' in b) {
+    if (b.justificante != null && !JUSTIF[b.justificante]) throw fallo(400, 'Justificante: pendiente, si o no');
+    out.justificante = b.justificante ?? null;
+  }
   return out;
 }
 
@@ -123,6 +129,7 @@ function montar(app, asyncH) {
   app.get('/api/ausencias', asyncH(async (req, res) => {
     const cond = [], params = [];
     if (req.query.recurso_id) { params.push(Number(req.query.recurso_id)); cond.push(`a.recurso_id = $${params.length}`); }
+    if (req.query.justificante) { params.push(String(req.query.justificante)); cond.push(`a.justificante = $${params.length}`); }
     let desde = req.query.desde, hasta = req.query.hasta;
     if (req.query.anio) { desde = `${Number(req.query.anio)}-01-01`; hasta = `${Number(req.query.anio)}-12-31`; }
     if (desde && FECHA_RE.test(desde)) { params.push(desde); cond.push(`a.hasta >= $${params.length}`); }
@@ -145,10 +152,12 @@ function montar(app, asyncH) {
     if (!r.length) throw fallo(404, 'Recurso no encontrado');
     if (!TIPOS[d.tipo].clases.includes(r[0].tipo)) throw fallo(400, `«${TIPOS[d.tipo].nombre}» no se aplica a este recurso`);
     if (d.hasta < d.desde) throw fallo(400, 'La fecha de fin es anterior a la de inicio');
+    // una falta nace pendiente de justificante; el resto no lo lleva
+    const justificante = d.tipo === 'falta' ? (d.justificante || 'pendiente') : null;
     const { rows } = await query(
-      `INSERT INTO ausencias (recurso_id, tipo, desde, hasta, hora_desde, hora_hasta, notas, creado_por)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id`,
-      [r[0].id, d.tipo, d.desde, d.hasta, d.hora_desde ?? null, d.hora_hasta ?? null, d.notas ?? null, req.usuario.id]);
+      `INSERT INTO ausencias (recurso_id, tipo, desde, hasta, hora_desde, hora_hasta, notas, justificante, creado_por)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING id`,
+      [r[0].id, d.tipo, d.desde, d.hasta, d.hora_desde ?? null, d.hora_hasta ?? null, d.notas ?? null, justificante, req.usuario.id]);
     res.status(201).json({ id: rows[0].id, afectados: await afectados(r[0].id, d) });
   }));
 
@@ -157,6 +166,8 @@ function montar(app, asyncH) {
     const { rows: ant } = await query(`${SQL_AUSENCIAS} WHERE a.id = $1`, [id]);
     if (!ant.length) throw fallo(404, 'Ausencia no encontrada');
     const d = leerAusencia(req.body || {}, true);
+    if ('tipo' in d) d.justificante = d.tipo === 'falta' ? (d.justificante || ant[0].justificante || 'pendiente') : null;
+    else if ('justificante' in d && ant[0].tipo !== 'falta') delete d.justificante;
     const nueva = { ...ant[0], ...d };
     if (nueva.hasta < nueva.desde) throw fallo(400, 'La fecha de fin es anterior a la de inicio');
     if (nueva.hora_desde != null && nueva.desde !== nueva.hasta) throw fallo(400, 'Una ausencia de unas horas es de un solo día');
@@ -217,10 +228,15 @@ function montar(app, asyncH) {
       const disfrutados = vac.reduce((s, a) => s + (a.desde < hoy ? laborables(a, festSet, [rango[0], iso(aUTC(hoy) - 864e5) < rango[1] ? iso(aUTC(hoy) - 864e5) : rango[1]]) : 0), 0);
       const dias = p.dias_vacaciones ?? vacacionesDias;
       const otras = {};
-      for (const a of suyas.filter((x) => x.tipo !== 'vacaciones')) otras[a.tipo] = r2((otras[a.tipo] || 0) + laborables(a, festSet, rango));
+      const faltas = { pendiente: 0, si: 0, no: 0 };
+      for (const a of suyas.filter((x) => x.tipo !== 'vacaciones')) {
+        const n = laborables(a, festSet, rango);
+        if (a.tipo === 'falta') faltas[a.justificante || 'pendiente'] = r2(faltas[a.justificante || 'pendiente'] + n);
+        else otras[a.tipo] = r2((otras[a.tipo] || 0) + n);
+      }
       return {
         ...p, dias, propios: p.dias_vacaciones != null, usados: r2(usados), disfrutados: r2(disfrutados),
-        pendientes: r2(dias - usados), otras,
+        pendientes: r2(dias - usados), otras, faltas,
         ausencias: suyas.map((a) => ({ ...a, dias_laborables: r2(laborables(a, festSet, rango)), texto: textoAusencia(a) })),
       };
     });
@@ -228,4 +244,4 @@ function montar(app, asyncH) {
   }));
 }
 
-module.exports = { montar, TIPOS, ausenciasEnRango, festivosEnRango, ausenciasPorDia, textoAusencia };
+module.exports = { montar, TIPOS, JUSTIF, ausenciasEnRango, festivosEnRango, ausenciasPorDia, textoAusencia };

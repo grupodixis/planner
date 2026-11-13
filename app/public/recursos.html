@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>s360 · Recursos</title>
-  <link rel="stylesheet" href="styles.css?v=202611132302">
+  <link rel="stylesheet" href="styles.css?v=202611132341">
 </head>
 <body>
   <header class="top">
@@ -65,6 +65,10 @@
   </main>
 
   <main class="calendario-laboral" id="panel-calendario" role="tabpanel" aria-labelledby="tab-calendario" hidden>
+    <section class="panel faltas-pend" id="faltas-pend" hidden>
+      <div class="cab-panel"><h2>Faltas pendientes de justificante</h2></div>
+      <ul class="lista-faltas" id="faltas-pend-lista"></ul>
+    </section>
     <section class="panel">
       <div class="cab-panel">
         <h2>Vacaciones <span class="anio-nav"><button type="button" id="cal-ant" class="ghost" aria-label="Año anterior">‹</button> <span id="cal-anio"></span> <button type="button" id="cal-sig" class="ghost" aria-label="Año siguiente">›</button></span></h2>
@@ -72,7 +76,7 @@
       <p class="ayuda" id="cal-resumen"></p>
       <div class="tabla-scroll">
         <table class="tabla-vac" id="tabla-vac">
-          <thead><tr><th>Operario</th><th class="num" title="Días laborables de vacaciones al año (* = propios, no los de convenio)">Días/año</th><th class="num">Apuntados</th><th class="num">Disfrutados</th><th class="num">Quedan</th><th>Otras ausencias (días)</th><th>Ahora / próxima</th></tr></thead>
+          <thead><tr><th>Operario</th><th class="num" title="Días laborables de vacaciones al año (* = propios, no los de convenio)">Días/año</th><th class="num">Apuntados</th><th class="num">Disfrutados</th><th class="num">Quedan</th><th class="num" title="Días de falta en el año (justificadas, sin justificar, pendientes)">Faltas</th><th>Otras ausencias (días)</th><th>Ahora / próxima</th></tr></thead>
           <tbody></tbody>
         </table>
       </div>
@@ -100,8 +104,8 @@
   </dialog>
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
-  <script src="comun.js?v=202611132302"></script>
-  <script src="recursos.js?v=202611132302"></script>
+  <script src="comun.js?v=202611132341"></script>
+  <script src="recursos.js?v=202611132341"></script>
   <dialog id="dlg-semillero" class="dlg-importar" aria-labelledby="dlg-sem-tit">
     <div class="dlg-cab">
       <h2 id="dlg-sem-tit">Cargar semillero de recursos</h2>

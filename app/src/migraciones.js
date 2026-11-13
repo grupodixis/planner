@@ -318,6 +318,9 @@ const MIGRACIONES = [
    )`,
   `CREATE INDEX IF NOT EXISTS ausencias_recurso_idx ON ausencias (recurso_id, desde, hasta)`,
   // tipo «falta sin avisar» (se rehace la comprobación con la lista completa)
+  // Faltas: justificante pendiente / presentado (si) / no presentado (no)
+  `ALTER TABLE ausencias ADD COLUMN IF NOT EXISTS justificante TEXT CHECK (justificante IN ('pendiente', 'si', 'no'))`,
+  `UPDATE ausencias SET justificante = 'pendiente' WHERE tipo = 'falta' AND justificante IS NULL`,
   `ALTER TABLE ausencias DROP CONSTRAINT IF EXISTS ausencias_tipo_check`,
   `ALTER TABLE ausencias ADD CONSTRAINT ausencias_tipo_check
      CHECK (tipo IN ('vacaciones', 'baja', 'permiso', 'formacion', 'falta', 'averia', 'mantenimiento', 'itv', 'otro'))`,

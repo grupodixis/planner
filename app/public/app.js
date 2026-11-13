@@ -1737,7 +1737,7 @@
     return hoy >= a && hoy <= b ? hoy : a;
   }
   const TIPOS_AUS = {
-    operario: [['falta', 'Faltó sin avisar'], ['baja', 'Baja'], ['permiso', 'Permiso'], ['vacaciones', 'Vacaciones'], ['formacion', 'Formación'], ['otro', 'Otro']],
+    operario: [['falta', 'Falta'], ['baja', 'Baja'], ['permiso', 'Permiso'], ['vacaciones', 'Vacaciones'], ['formacion', 'Formación'], ['otro', 'Otro']],
     maquina: [['averia', 'Avería'], ['mantenimiento', 'Mantenimiento'], ['itv', 'ITV / revisión'], ['otro', 'Otro']],
   };
   TIPOS_AUS.subcontrata = TIPOS_AUS.maquina;
@@ -1761,8 +1761,14 @@
 
     const pintarYa = () => {
       const lista = ausenciasDe(r.id, dia.value);
+      const justificar = (a, v, txt) => el('button', {
+        type: 'button', class: `ghost mini${a.justificante === v ? ' activo' : ''}`, 'aria-pressed': a.justificante === v ? 'true' : 'false',
+        onclick: () => accion(async () => { await api('PATCH', `/api/ausencias/${a.id}`, { justificante: v }); d.close(); return `Falta ${txt}`; }),
+      }, txt);
       ya.replaceChildren(...lista.map((a) => el('div', { class: 'aus-ya-fila' },
         el('span', {}, `Ya apuntado: ${a.texto}${a.notas ? ` · ${a.notas}` : ''}`),
+        a.tipo === 'falta' ? el('span', { class: 'aus-justif' }, 'Justificante:',
+          justificar(a, 'si', 'justificada'), justificar(a, 'no', 'sin justificar'), justificar(a, 'pendiente', 'pendiente')) : null,
         el('button', {
           type: 'button', class: 'ghost mini borrar',
           onclick: () => accion(async () => { await api('DELETE', `/api/ausencias/${a.id}`); d.close(); return 'Ausencia quitada'; }),
@@ -1776,7 +1782,7 @@
       if (cuando.value === 'hasta') { cuerpo.hora_desde = J().inicio; cuerpo.hora_hasta = hHora(hora.value); }
       const x = await api('POST', '/api/ausencias', cuerpo);
       d.close();
-      return `${r.nombre}: ${nombre.toLowerCase()} el ${fechaCorta(dia.value)}`
+      return `${r.nombre}: ${nombre.toLowerCase()} el ${fechaCorta(dia.value)}${tipo === 'falta' ? ' (pendiente de justificante)' : ''}`
         + (x.afectados.length ? ` · tenía ${x.afectados.length} tramo(s): reasígnalo desde «Solucionar» en los avisos` : '');
     });
 
@@ -1790,7 +1796,7 @@
         el('button', { type: 'button', class: i === 0 ? 'primario' : '', onclick: () => guardar(k, nombre) }, nombre))),
       notas,
       el('p', { class: 'ayuda' }, r.tipo === 'operario'
-        ? 'Si tenía trabajo asignado, sale un aviso con «Solucionar» para pasárselo a otro. Las vacaciones largas se apuntan mejor en su ficha (Recursos).'
+        ? 'Una falta queda pendiente de justificante: cuando lo traiga (o no), vuelve aquí o a Recursos › Vacaciones y festivos. Si tenía trabajo asignado, sale un aviso con «Solucionar» para pasárselo a otro.'
         : 'Si estaba asignada, sale un aviso con «Solucionar» para cambiarla por otra del mismo tipo.'));
     pintarYa();
     d.showModal();
