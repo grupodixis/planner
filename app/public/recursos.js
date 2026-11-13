@@ -52,7 +52,8 @@
         { k: 'telefono', e: 'Teléfono', ancho: 'c1', max: 40, tipo: 'tel' },
         { k: 'email', e: 'Email', ancho: 'c2', max: 120, tipo: 'email' },
         { k: 'coste_hora', e: 'Coste €/h', ancho: 'c1', tipo: 'number' },
-        { k: 'linea_id', e: 'Área habitual', ancho: 'c2', areas: true },
+        { k: 'departamento_id', e: 'Departamento', ancho: 'c2', departamentos: true },
+        { k: 'linea_id', e: 'Puesto / área habitual', ancho: 'c2', areas: true, ayuda: 'Al planificar en ese puesto se le propone primero' },
         { k: 'notas', e: 'Notas', ancho: 'c4', max: 2000, filas: 2 },
       ],
     },
@@ -62,6 +63,7 @@
         { k: 'nombre', e: 'Nombre', ancho: 'c2', obligatorio: true, max: 80 },
         { k: 'codigo', e: 'Nº / matrícula', ancho: 'c1', max: 30 },
         { k: 'tipos', e: 'Tipo de máquina', ancho: 'c4', tipos: true, ayuda: 'Las tareas pueden pedir el tipo («una Soldadora MIG») y vale cualquier máquina de ese tipo' },
+        { k: 'departamento_id', e: 'Departamento', ancho: 'c2', departamentos: true },
         { k: 'linea_id', e: 'Ubicación habitual', ancho: 'c2', areas: true },
         { k: 'coste_hora', e: 'Coste €/h', ancho: 'c1', tipo: 'number' },
         { k: 'notas', e: 'Notas (mantenimiento, capacidades…)', ancho: 'c4', max: 2000, filas: 3 },
@@ -138,8 +140,9 @@
     if (def.tipos) return selectorTipos(def, r, guardar);
     const id = `c-${def.k}`;
     let input;
-    if (def.opciones || def.areas) {
-      const ops = def.areas ? { '': '—', ...Object.fromEntries(estado.areas.map((a) => [a.id, a.nombre])) } : def.opciones;
+    if (def.opciones || def.areas || def.departamentos) {
+      const ops = def.areas ? { '': '—', ...Object.fromEntries(estado.areas.map((a) => [a.id, a.departamento ? `${a.nombre} · ${a.departamento.replace(/^Departamento (de |)/, '')}` : a.nombre])) }
+        : def.departamentos ? { '': '—', ...Object.fromEntries(estado.departamentos.map((d) => [d.id, d.nombre])) } : def.opciones;
       input = el('select', { id }, Object.entries(ops).map(([v, t]) => el('option', { value: v, selected: String(v) === String(valor ?? '') }, t)));
     } else if (def.filas) {
       input = el('textarea', { id, rows: def.filas, maxlength: def.max });
@@ -337,6 +340,87 @@
     );
   }
 
+  /* ---------- semillero (solo administrador) ---------- */
+  const sem = { datos: null, nombre: '' };
+  const SECCIONES = [['departamentos', 'Departamentos'], ['areas', 'Áreas fijas'], ['tipos', 'Tipos de recurso'], ['recursos', 'Recursos'], ['tareas', 'Tareas afectadas']];
+  const ACC_TXT = { crear: 'nuevos', renombrar: 'se renombran', actualizar: 'se actualizan', fusionar: 'se fusionan', borrar: 'se borran',
+    desactivar: 'se desactivan (tienen historial)', reactivar: 'se reactivan', 'sin control': 'dejan de pedirse', 'pasa a área': 'pasan a ser un área',
+    'área': 'van a un área', 'sin área': 'quedan sin área', tramos: 'tramos reubicados' };
+
+  async function simularSemillero() {
+    $('#sem-confirmar').disabled = true;
+    $('#sem-estado').textContent = 'Comprobando…';
+    try { pintarSemillero(await api('POST', '/api/semillero?simular=1', sem.datos)); }
+    catch (e) { $('#sem-estado').textContent = ''; toast(e.message, true); }
+  }
+
+  function pintarSemillero(r) {
+    const caja = $('#sem-informe');
+    $('#sem-confirmar').disabled = !r.ok;
+    if (!r.ok) {
+      $('#sem-estado').textContent = '';
+      caja.replaceChildren(el('div', { class: 'imp-error' }, el('h3', {}, `${sem.nombre}: no se puede cargar`),
+        el('ul', {}, (r.errores || []).map((e) => el('li', {}, e)))));
+      return;
+    }
+    $('#sem-soltar').hidden = true;
+    $('#sem-estado').textContent = r.simulado ? 'Vista previa: aún no se ha cambiado nada' : '';
+    caja.replaceChildren(
+      el('div', { class: 'imp-proy' },
+        el('span', { class: 'imp-accion' }, 'Después de cargar'),
+        el('h3', {}, `${r.totales.areas} áreas fijas · ${r.totales.recursos} recursos activos · ${r.totales.tipos} tipos`),
+        el('dl', { class: 'imp-resumen' }, SECCIONES.flatMap(([k, t]) => {
+          const res = Object.entries(r.resumen[k] || {});
+          return res.length ? [el('dt', {}, t), el('dd', {}, res.map(([a, n]) => `${n} ${ACC_TXT[a] || a}`).join(' · '))] : [];
+        }))),
+      ...(r.avisos.length ? [el('details', { class: 'imp-avisos', open: true }, el('summary', {}, `${r.avisos.length} aviso(s)`),
+        el('ul', {}, r.avisos.map((a) => el('li', {}, a))))] : []),
+      ...SECCIONES.filter(([k]) => r[k].length).map(([k, t]) => el('details', { class: 'imp-cambios', open: ['areas', 'tareas'].includes(k) },
+        el('summary', {}, `${t} (${r[k].length})`),
+        el('ul', {}, r[k].map((x) => el('li', { class: `c-${['crear'].includes(x.accion) ? 'crear' : ['borrar', 'desactivar', 'sin control'].includes(x.accion) ? 'borrar' : 'actualizar'}` },
+          el('b', { class: 'c-signo' }, x.accion === 'crear' ? '+' : ['borrar', 'desactivar', 'sin control'].includes(x.accion) ? '−' : '~'),
+          ` ${x.accion} · `, el('span', {}, x.nombre), x.detalle ? el('span', { class: 'ayuda' }, ` · ${x.detalle}`) : null))))));
+  }
+
+  async function leerSemillero(f) {
+    if (!f) return;
+    try { sem.datos = JSON.parse(await f.text()); sem.nombre = f.name; }
+    catch (e) { return pintarSemillero({ ok: false, errores: [`No es un JSON válido: ${e.message}`] }); }
+    await simularSemillero();
+  }
+
+  function prepararSemillero() {
+    const esAdmin = estado.usuario?.rol === 'admin';
+    $('#btn-semillero').hidden = !esAdmin;
+    if (!esAdmin) return;
+    const dlg = $('#dlg-semillero');
+    $('#btn-semillero').onclick = () => {
+      sem.datos = null;
+      $('#sem-informe').replaceChildren(); $('#sem-estado').textContent = ''; $('#sem-soltar').hidden = false;
+      $('#sem-confirmar').disabled = true; $('#sem-archivo').value = '';
+      dlg.showModal();
+    };
+    $('#sem-cerrar').onclick = () => dlg.close();
+    $('#sem-cancelar').onclick = () => dlg.close();
+    $('#sem-archivo').onchange = (ev) => leerSemillero(ev.target.files[0]);
+    const zona = $('#sem-soltar');
+    zona.addEventListener('keydown', (ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); $('#sem-archivo').click(); } });
+    zona.addEventListener('dragover', (ev) => { ev.preventDefault(); zona.classList.add('encima'); });
+    zona.addEventListener('dragleave', () => zona.classList.remove('encima'));
+    zona.addEventListener('drop', (ev) => { ev.preventDefault(); zona.classList.remove('encima'); leerSemillero(ev.dataTransfer.files[0]); });
+    $('#sem-confirmar').onclick = async () => {
+      $('#sem-confirmar').disabled = true;
+      $('#sem-estado').textContent = 'Cargando…';
+      try {
+        const r = await api('POST', '/api/semillero', sem.datos);
+        if (!r.ok) return pintarSemillero(r);
+        dlg.close();
+        toast(`Semillero cargado: ${r.totales.areas} áreas, ${r.totales.recursos} recursos`);
+        location.reload();
+      } catch (e) { toast(e.message, true); $('#sem-estado').textContent = ''; $('#sem-confirmar').disabled = false; }
+    };
+  }
+
   /* ---------- arranque ---------- */
   function cambiarTipo(tipo) {
     if (tipo === estado.tipo) return;
@@ -349,6 +433,7 @@
   async function init() {
     try { estado.usuario = await api('GET', '/api/me'); } catch { return; }
     $('#usuario-nombre').textContent = `${estado.usuario.nombre}${estado.usuario.rol === 'consulta' ? ' (consulta)' : ''}`;
+    prepararSemillero();
     $('#salir').onclick = async () => { await api('POST', '/api/logout'); location.href = '/login.html'; };
 
     const tabs = [...document.querySelectorAll('[role=tab]')];
@@ -377,7 +462,9 @@
       } catch (e) { toast(e.message, true); }
     });
 
-    estado.areas = (await api('GET', '/api/catalogo')).areas;
+    const cat = await api('GET', '/api/catalogo');
+    estado.areas = cat.areas;
+    estado.departamentos = cat.departamentos || [];
     await cargar();
   }
 

@@ -794,3 +794,33 @@ tr.arrastrando td { background: var(--azul-bg); }
 .obras-lista li > button { grid-area: b; }
 .obras-proy .cond-alta { flex-wrap: wrap; }
 .obras-proy .cond-alta input { flex: 1 1 140px; }
+
+/* ---------- Tablero: grupos de áreas por departamento ---------- */
+.grupo-areas {
+  display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; padding: 6px 8px; margin-top: 10px;
+  background: #ffffff08; border: 0; border-top: 1px solid var(--borde); border-radius: 0; font-size: 12px;
+  text-transform: uppercase; letter-spacing: .5px; color: var(--suave); position: sticky; left: 0;
+}
+.grupo-areas:first-child { margin-top: 0; }
+.grupo-areas:hover { background: #ffffff12; color: var(--texto); }
+.grupo-areas .flecha { width: 10px; font-size: 11px; }
+.grupo-areas .ga-nom { font-weight: 600; color: var(--texto); }
+.grupo-areas .ga-info { text-transform: none; letter-spacing: 0; }
+.grupo-areas .ga-conf { color: var(--rojo); text-transform: none; letter-spacing: 0; }
+.grupo-areas .ga-conf.leve { color: var(--naranja); }
+.grupo-areas .ga-nota { margin-left: auto; text-transform: none; letter-spacing: 0; font-size: 11px; }
+.grupo-areas.obras .ga-nom { color: var(--naranja); }
+/* el rótulo «Obras» ya lo pone el grupo */
+.fila.primera-obra, .fila-sem.primera-obra { margin-top: 0; }
+.fila.primera-obra::before, .fila-sem.primera-obra::before { content: none; }
+.cal-semana .grupo-areas { grid-column: 1 / -1; }
+
+/* Áreas de trabajo: más columnas */
+#dlg-areas { width: min(1080px, calc(100vw - 32px)); }
+.tabla-areas td.centro { text-align: center; }
+.form-area .chk { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; color: var(--suave); white-space: nowrap; }
+
+/* Recursos: botón semillero */
+.btn-semillero { margin-left: auto; align-self: center; }
+.btn-confirmar { background: var(--azul-bg); border-color: var(--azul); }
+.btn-confirmar:disabled { opacity: .45; cursor: default; }

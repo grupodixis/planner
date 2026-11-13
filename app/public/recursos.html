@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>s360 · Recursos</title>
-  <link rel="stylesheet" href="styles.css?v=202611122315">
+  <link rel="stylesheet" href="styles.css?v=202611132009">
 </head>
 <body>
   <header class="top">
@@ -22,6 +22,7 @@
     <button role="tab" data-tipo="maquina" id="tab-maquina" aria-controls="panel-recursos">Maquinaria</button>
     <button role="tab" data-tipo="subcontrata" id="tab-subcontrata" aria-controls="panel-recursos">Subcontratas y alquileres</button>
     <button role="tab" data-tipo="tipos" id="tab-tipos" aria-controls="panel-recursos">Tipos de recurso</button>
+    <button type="button" id="btn-semillero" class="ghost btn-semillero" hidden title="Cargar el archivo semillero de recursos de la empresa (semillero.json)">Cargar semillero…</button>
   </div>
 
   <main class="gestion recursos-pant" id="panel-recursos" role="tabpanel">
@@ -61,6 +62,25 @@
   </main>
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
-  <script src="recursos.js?v=202611122315"></script>
+  <script src="recursos.js?v=202611132009"></script>
+  <dialog id="dlg-semillero" class="dlg-importar" aria-labelledby="dlg-sem-tit">
+    <div class="dlg-cab">
+      <h2 id="dlg-sem-tit">Cargar semillero de recursos</h2>
+      <button class="ghost" id="sem-cerrar" aria-label="Cerrar">✕</button>
+    </div>
+    <label id="sem-soltar" class="soltar" tabindex="0">
+      <input type="file" id="sem-archivo" accept=".json,application/json" hidden>
+      <span class="soltar-tit">Arrastra aquí <b>semillero.json</b></span>
+      <span class="ayuda">o pulsa para elegirlo · está en GitHub, carpeta <code>semillero/</code></span>
+    </label>
+    <p class="ayuda">Deja áreas fijas, tipos y recursos como dice el archivo: renombra lo que ya existe, fusiona tipos repetidos y quita lo que sobra
+      (lo que ya se usó en el calendario se desactiva, no se borra). Las obras de los proyectos no se tocan. Primero verás qué va a cambiar.</p>
+    <div id="sem-informe" class="imp-informe" aria-live="polite"></div>
+    <div class="dlg-pie">
+      <span id="sem-estado" class="ayuda"></span>
+      <button type="button" class="ghost" id="sem-cancelar">Cancelar</button>
+      <button type="button" id="sem-confirmar" class="btn-confirmar" disabled>Aplicar</button>
+    </div>
+  </dialog>
 </body>
 </html>

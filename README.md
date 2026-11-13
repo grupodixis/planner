@@ -182,6 +182,21 @@ asignación e historial. **Baja:** si el recurso se ha usado alguna vez se **da 
 (deja de salir en el panel del tablero para asignar, pero conserva su historial y sigue
 viéndose los días en que ya tenía trabajo); si nunca se usó, se borra. «Reactivar» lo devuelve.
 
+## Semillero de recursos de la empresa
+
+[`semillero/semillero.json`](semillero/README.md) describe departamentos, áreas de trabajo
+(puestos, máquinas fijas, mesas…), oficios, tipos de máquina, máquinas, vehículos, personas y
+subcontratas. El planificador lo carga desde **Recursos → «Cargar semillero…»** (vista previa y
+luego aplicar; renombra en vez de duplicar, fusiona tipos repetidos y desactiva lo que sobra si
+tiene historial). El compositor usa los mismos nombres, y sus nombres antiguos están como alias.
+
+- **Departamentos:** las áreas se agrupan en el tablero en bloques plegables por departamento
+  (y las obras al final).
+- **Áreas de «un trabajo a la vez»** (puestos de oficina, máquinas fijas): si coinciden dos
+  tramos, aviso leve con «Solucionar» (empezar cuando quede libre o pasar a otro puesto libre).
+- **Puesto habitual:** cada persona tiene su puesto; al planificar en él, «Solucionar» la propone
+  primero.
+
 ## Importación de proyectos
 
 El compositor de proyectos exporta un archivo `.s360.json` (formato `s360-import/1`) con el

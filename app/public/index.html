@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>s360 · Tablero de planificación</title>
-  <link rel="stylesheet" href="styles.css?v=202611122315">
+  <link rel="stylesheet" href="styles.css?v=202611132009">
 </head>
 <body>
   <header class="top">
@@ -101,12 +101,14 @@
       <b>Las obras no van aquí</b>: se crean en la ficha de su proyecto y salen solas del tablero cuando el proyecto se cierra.</p>
     <form id="form-area" class="form-area">
       <input name="nombre" placeholder="Nombre (p. ej. Cabina de pintura)" required maxlength="80">
+      <select name="departamento_id" aria-label="Departamento"></select>
       <select name="tipo" aria-label="Tipo"></select>
-      <input name="ubicacion" placeholder="Ubicación / dirección (opcional)" maxlength="200">
+      <label class="chk" title="Un solo trabajo a la vez (puesto, máquina fija)"><input type="checkbox" name="exclusiva"> 1 a la vez</label>
+      <input name="ubicacion" placeholder="Ubicación (opcional)" maxlength="200">
       <button type="submit">Añadir área</button>
     </form>
     <table class="tabla-areas">
-      <thead><tr><th>Orden</th><th>Nombre</th><th>Tipo</th><th>Ubicación</th><th>Activa</th><th></th></tr></thead>
+      <thead><tr><th>Orden</th><th>Nombre</th><th>Departamento</th><th>Tipo</th><th>Ubicación</th><th title="Un solo trabajo a la vez: avisa si coinciden dos">1 a la vez</th><th>Activa</th><th></th></tr></thead>
       <tbody id="areas-tbody"></tbody>
     </table>
     <details id="obras-sueltas" class="obras-sueltas" hidden>
@@ -127,7 +129,7 @@
   </dialog>
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
-  <script src="ordenar.js?v=202611122315"></script>
-  <script src="app.js?v=202611122315"></script>
+  <script src="ordenar.js?v=202611132009"></script>
+  <script src="app.js?v=202611132009"></script>
 </body>
 </html>

@@ -9,7 +9,7 @@
 
   const PASO = 0.5;                       // rejilla de encaje (30 min)
   const TIPO_TXT = {
-    taller: 'Taller', obra: 'Obra', oficina: 'Oficina técnica', pintura: 'Pintura',
+    taller: 'Taller', obra: 'Obra', oficina: 'Oficina', pintura: 'Pintura',
     transporte: 'Transporte', otro: 'Otro',
   };
   const ESTADO_TXT = { pendiente: 'Pendiente', en_curso: 'En curso', hecha: 'Hecha' };
@@ -289,6 +289,47 @@
     l.es_obra ? (l.proyecto_codigo ? `Obra · ${l.proyecto_codigo}` : 'Obra sin proyecto') : TIPO_TXT[l.tipo] || l.tipo,
     l.obra_cerrada && l.proyecto_codigo ? ' · proyecto cerrado' : !l.activo ? ' · inactiva' : '');
 
+  // Filas del calendario agrupadas por departamento (y las obras al final), en bloques plegables
+  function conGrupos(pintarFila) {
+    const grupos = [];
+    for (const l of estado.datos.lineas) {
+      const key = l.es_obra ? 'obras' : l.departamento_id ? `d${l.departamento_id}` : 'otras';
+      if (!grupos.length || grupos[grupos.length - 1].key !== key) {
+        grupos.push({ key, nombre: l.es_obra ? 'Obras' : l.departamento || 'Otras áreas', lineas: [] });
+      }
+      grupos[grupos.length - 1].lineas.push(l);
+    }
+    if (grupos.length < 2) return estado.datos.lineas.map(pintarFila);
+    const out = [];
+    for (const g of grupos) {
+      const clave = `ga:${g.key}`;
+      const abierto = !plegados.has(clave);
+      const ids = new Set(g.lineas.map((l) => l.id));
+      const trs = estado.datos.tramos.filter((tr) => ids.has(tr.linea_id));
+      const h = trs.reduce((s, tr) => s + tr.duracion_h, 0);
+      const trIds = new Set(trs.map((tr) => tr.id));
+      const avisos = estado.datos.conflictos.filter((c) => c.ids.some((id) => trIds.has(id)));
+      out.push(el('button', {
+        type: 'button', class: `grupo-areas${abierto ? '' : ' plegado'}${g.key === 'obras' ? ' obras' : ''}`,
+        'aria-expanded': abierto ? 'true' : 'false',
+        onclick: () => {
+          if (plegados.has(clave)) plegados.delete(clave); else plegados.add(clave);
+          guardarPref('plegados', JSON.stringify([...plegados].slice(-300)));
+          pintarCalendario();
+        },
+      },
+        el('span', { class: 'flecha', 'aria-hidden': 'true' }, abierto ? '▾' : '▸'),
+        el('span', { class: 'ga-nom' }, g.nombre),
+        el('span', { class: 'ga-info' }, `${g.lineas.length} área${g.lineas.length > 1 ? 's' : ''}${trs.length ? ` · ${durTxt(+h.toFixed(1))} planificadas` : ''}`),
+        avisos.length ? el('span', { class: `ga-conf${avisos.every((c) => c.leve) ? ' leve' : ''}`, title: `${avisos.length} aviso(s) en este grupo` }, `⚠ ${avisos.length}`) : null,
+        g.key === 'obras' ? el('span', { class: 'ga-nota' }, 'salen solas al cerrar el proyecto') : null));
+      if (abierto) out.push(...g.lineas.map(pintarFila));
+    }
+    return out;
+  }
+  const tituloArea = (l) => [l.descripcion, l.exclusiva ? 'Un trabajo a la vez (avisa si coinciden dos)' : null,
+    l.proyecto_nombre, l.ubicacion].filter(Boolean).join(' · ');
+
   /* ---------- calendario (centro) ---------- */
   // Dos vistas del mismo día: «Áreas» (filas = áreas, bloques = tramos con una barra por
   // operario) y «Operarios» (filas = operarios, barras = su franja en cada tramo).
@@ -357,7 +398,7 @@
     cabeceraHoras();
     if (estado.vista === 'operarios') return pintarVistaOperarios();
 
-    const filas = estado.datos.lineas.map((linea) => {
+    const filas = conGrupos((linea) => {
       const pista = pistaVacia({ 'data-linea': linea.id });
       const items = estado.datos.tramos.filter((tr) => tr.linea_id === linea.id).map((tr) => {
         const nodo = bloque(tr);
@@ -365,7 +406,7 @@
       });
       const alto = apilar(items, pista, BLOQUE_H + 2 * GAP);
       const fila = el('div', { class: `fila${linea.activo && !linea.obra_cerrada ? '' : ' inactiva'}${claseObra(linea)}` },
-        el('div', { class: 'fila-nombre', title: [linea.proyecto_nombre, linea.ubicacion].filter(Boolean).join(' · ') },
+        el('div', { class: 'fila-nombre', title: tituloArea(linea) },
           linea.nombre,
           etiquetaArea(linea),
           linea.ubicacion ? el('span', { class: 'ubic' }, linea.ubicacion) : null),
@@ -375,7 +416,7 @@
       return fila;
     });
 
-    if (!filas.length) {
+    if (!estado.datos.lineas.length) {
       $('#cal-body').replaceChildren(el('p', { class: 'cal-vacio' },
         'No hay áreas de trabajo activas. Crea una con el botón «Áreas de trabajo».'));
       return;
@@ -978,7 +1019,7 @@
       }
       if (!operarios.length) filas = [el('p', { class: 'cal-vacio' }, 'No hay operarios dados de alta.')];
     } else {
-      filas = estado.datos.lineas.map((linea) => {
+      filas = conGrupos((linea) => {
         let total = 0;
         const celdas = dias.map((f) => {
           const lista = tramosDe(f, (tr) => tr.linea_id === linea.id);
@@ -991,7 +1032,7 @@
         return filaSemana([linea.nombre, etiquetaArea(linea)],
           total ? `${durTxt(+total.toFixed(1))} en la semana` : '', `${linea.activo && !linea.obra_cerrada ? '' : 'inactiva'}${claseObra(linea)}`, celdas);
       });
-      if (!filas.length) filas = [el('p', { class: 'cal-vacio' }, 'No hay áreas de trabajo activas. Crea una con el botón «Áreas de trabajo».')];
+      if (!estado.datos.lineas.length) filas = [el('p', { class: 'cal-vacio' }, 'No hay áreas de trabajo activas. Crea una con el botón «Áreas de trabajo».')];
     }
     $('#cal-body').replaceChildren(...filas);
   }
@@ -1322,11 +1363,12 @@
   const claveAviso = (c) => `${c.tipo}|${c.ids.join(',')}|${c.mensaje}`;
   // El tramo sobre el que se actúa: en un solape, el que empieza más tarde
   function tramoDeAviso(c) {
+    if (c.tipo === 'puesto') return c.ids[1];
     if (c.tipo !== 'solape') return c.ids[0];
     const [a, b] = c.ids.map(tramo);
     return a && b && b.hora_inicio < a.hora_inicio ? a.id : c.ids[1];
   }
-  const tieneSolucion = (c) => ['operarios', 'requisito', 'requisito_tipo', 'solape', 'jornada', 'exceso', 'dependencia'].includes(c.tipo);
+  const tieneSolucion = (c) => ['operarios', 'requisito', 'requisito_tipo', 'solape', 'jornada', 'exceso', 'dependencia', 'puesto'].includes(c.tipo);
   const recurso = (id) => estado.datos.recursos.find((r) => r.id === id);
   const activos = (tipo) => estado.datos.recursos.filter((r) => r.activo !== false && (!tipo || r.tipo === tipo));
   // Dónde está ocupado un recurso ese día (sin contar el tramo indicado)
@@ -1349,7 +1391,7 @@
       el('ul', { class: 'cands' },
         libres.slice(0, 8).map(({ r, pref }) => el('li', {},
           el('span', { class: 'cand-nom' }, r.nombre, r.vinculo === 'subcontratado' ? el('span', { class: 'sub-tag' }, 'sub') : null),
-          el('span', { class: 'cand-info' }, pref && motivo ? `✓ ${motivo}` : (r.tipos_txt || 'libre')),
+          el('span', { class: 'cand-info' }, pref && motivo ? `✓ ${typeof motivo === 'function' ? motivo(r) : motivo}` : (r.tipos_txt || 'libre')),
           el('button', { type: 'button', class: 'primario mini', onclick: () => asignar(r) }, boton))),
         ocupados.slice(0, 4).map(({ r, choca }) => el('li', { class: 'ocupado' },
           el('span', { class: 'cand-nom' }, r.nombre),
@@ -1374,9 +1416,14 @@
     switch (c.tipo) {
       case 'operarios': {
         const oficios = (t.requisitos_tipo || []).filter((q) => q.clase === 'operario');
-        return caja(el('p', { class: 'ayuda' }, `Faltan ${c.falta} operario(s)${oficios.length ? ` · se proponen primero los de ${oficios.map((q) => q.nombre).join(', ')}` : ''}:`),
+        const suPuesto = (r) => r.linea_id && r.linea_id === tr.linea_id;
+        const tieneOficio = (r) => oficios.some((q) => (r.tipos || []).includes(q.id));
+        const ocupante = activos('operario').some((r) => suPuesto(r) && !yaEn.has(r.id));
+        return caja(el('p', { class: 'ayuda' }, `Faltan ${c.falta} operario(s)${ocupante ? ' · primero quien tiene aquí su puesto' : ''}${oficios.length ? ` · luego los de ${oficios.map((q) => q.nombre).join(', ')}` : ''}:`),
           candidatos(activos('operario').filter((r) => !yaEn.has(r.id)), tr, {
-            asignar, motivo: 'tiene el oficio', prefiere: (r) => oficios.some((q) => (r.tipos || []).includes(q.id)),
+            asignar,
+            motivo: (r) => [suPuesto(r) ? 'su puesto' : null, tieneOficio(r) ? 'tiene el oficio' : null].filter(Boolean).join(' · '),
+            prefiere: (r) => (suPuesto(r) ? 2 : 0) + (tieneOficio(r) ? 1 : 0),
           }));
       }
       case 'requisito_tipo': {
@@ -1451,6 +1498,26 @@
           }),
         }, `Mover a ${fechaCorta(dest.fecha)} · ${hhmm(dest.hora)}`),
         el('span', { class: 'ayuda' }, ` cuando ya ha terminado «${previa?.nombre || 'la previa'}»`));
+      }
+      case 'puesto': {
+        // dos trabajos a la vez en un puesto: retrasar este hasta que quede libre, o pasarlo a otro puesto libre
+        const otro = tramo(c.ids.find((id) => id !== tr.id));
+        const area = estado.datos.lineas.find((l) => l.id === tr.linea_id);
+        const libreA = otro ? otro.hora_inicio + otro.duracion_h : c.libre;
+        const dest = siguienteHueco(tr.fecha, libreA);
+        const libres = estado.datos.lineas.filter((l) => l.exclusiva && l.id !== tr.linea_id && l.activo
+          && (l.departamento_id === area?.departamento_id)
+          && !estado.datos.tramos.some((x) => x.linea_id === l.id && x.fecha === tr.fecha && x.hora_inicio < fin && ini < x.hora_inicio + x.duracion_h));
+        const mover = (cambios, txt) => accion(async () => {
+          await api('PATCH', `/api/tramos/${tr.id}`, cambios);
+          if (cambios.fecha && estado.periodo === 'dia') estado.fecha = cambios.fecha;
+          return txt;
+        });
+        return caja(
+          el('button', { type: 'button', class: 'primario mini', onclick: () => mover({ fecha: dest.fecha, hora_inicio: dest.hora }, `Movido a las ${hhmm(dest.hora)}`) },
+            `Empezar ${dest.fecha === tr.fecha ? '' : fechaCorta(dest.fecha) + ' '}a las ${hhmm(dest.hora)} (cuando queda libre)`),
+          libres.length ? el('div', { class: 'sol-acc' }, el('span', { class: 'ayuda' }, 'O pasarlo a un puesto libre a esa hora:'),
+            ...libres.slice(0, 6).map((l) => el('button', { type: 'button', class: 'ghost mini', onclick: () => mover({ linea_id: l.id }, `Pasado a ${l.nombre}`) }, l.nombre))) : null);
       }
       default: return caja();
     }
@@ -1595,14 +1662,17 @@
   }
 
   async function pintarAreas() {
-    const { tipos, areas, obras_sin_proyecto: sueltas = [] } = await api('GET', '/api/areas');
+    const { tipos, areas, departamentos = [], obras_sin_proyecto: sueltas = [] } = await api('GET', '/api/areas');
     const editar = puedeEditar();
     const opciones = (sel) => tipos.map((t) => el('option', { value: t, selected: t === sel }, TIPO_TXT[t] || t));
+    const opcDep = (sel) => [el('option', { value: '' }, '—'), ...departamentos.map((d) => el('option', { value: d.id, selected: d.id === sel }, d.nombre.replace(/^Departamento (de |)/, '')))];
     $('#form-area select[name=tipo]').replaceChildren(...opciones('taller'));
+    $('#form-area select[name=departamento_id]').replaceChildren(...opcDep(null));
 
     const activas = areas.filter((a) => a.activo).map((a) => a.id);
     const guardar = (a, campo) => async (ev) => {
-      const valor = ev.target.type === 'checkbox' ? ev.target.checked : ev.target.value;
+      let valor = ev.target.type === 'checkbox' ? ev.target.checked : ev.target.value;
+      if (campo === 'departamento_id') valor = valor ? Number(valor) : null;
       if (valor === (a[campo] ?? '')) return;
       try {
         await api('PATCH', `/api/areas/${a.id}`, { [campo]: valor });
@@ -1616,9 +1686,11 @@
     $('#areas-tbody').replaceChildren(...areas.map((a) => el('tr', { class: a.activo ? '' : 'inactiva', ...(editar && a.activo ? { 'data-id': a.id } : {}) },
       el('td', { class: 'ord' }, editar && a.activo ? asaOrden(a.nombre) : ''),
       el('td', {}, el('input', { value: a.nombre, 'aria-label': 'Nombre', maxlength: 80, disabled: !editar, onchange: guardar(a, 'nombre') })),
+      el('td', {}, el('select', { 'aria-label': 'Departamento', disabled: !editar, onchange: guardar(a, 'departamento_id') }, opcDep(a.departamento_id))),
       el('td', {}, el('select', { 'aria-label': 'Tipo', disabled: !editar, onchange: guardar(a, 'tipo') }, opciones(a.tipo))),
       el('td', {}, el('input', { value: a.ubicacion || '', 'aria-label': 'Ubicación', maxlength: 200, disabled: !editar, placeholder: '—', onchange: guardar(a, 'ubicacion') })),
-      el('td', {}, el('input', { type: 'checkbox', checked: a.activo, 'aria-label': 'Activa', disabled: !editar, onchange: guardar(a, 'activo') })),
+      el('td', { class: 'centro' }, el('input', { type: 'checkbox', checked: a.exclusiva, 'aria-label': 'Un trabajo a la vez', title: 'Un solo trabajo a la vez (puesto de oficina, máquina fija): avisa si coinciden dos', disabled: !editar, onchange: guardar(a, 'exclusiva') })),
+      el('td', { class: 'centro' }, el('input', { type: 'checkbox', checked: a.activo, 'aria-label': 'Activa', disabled: !editar, onchange: guardar(a, 'activo') })),
       el('td', {}, editar ? el('button', {
         type: 'button', class: 'ghost borrar',
         title: a.tareas_abiertas ? `Tiene ${a.tareas_abiertas} tarea(s) abiertas: se desactivará` : 'Borrar área',

@@ -12,7 +12,7 @@ const fechaHora = (ms) => {
   return `${String(d.getUTCDate()).padStart(2, '0')}/${String(d.getUTCMonth() + 1).padStart(2, '0')} ${hhmm(d.getUTCHours() + d.getUTCMinutes() / 60)}`;
 };
 
-function calcularConflictos(tramos, jornada, tiposDisponibles = new Set()) {
+function calcularConflictos(tramos, jornada, tiposDisponibles = new Set(), exclusivas = new Map()) {
   const out = [];
 
   for (const t of tramos) {
@@ -92,6 +92,25 @@ function calcularConflictos(tramos, jornada, tiposDisponibles = new Set()) {
           out.push({ tipo: 'solape', ids: [a.t.id, b.t.id], recurso_id: r.id,
             mensaje: `${r.nombre} solapado: ${etiqueta(a.t)} y ${etiqueta(b.t)} (${hhmm(b.desde)}–${hhmm(Math.min(a.hasta, b.hasta))})` });
         }
+      }
+    }
+  }
+  // Puestos de un solo trabajo a la vez: dos tramos que coinciden en el mismo puesto
+  const porArea = new Map();
+  for (const t of tramos) {
+    if (!exclusivas.has(t.linea_id)) continue;
+    if (!porArea.has(t.linea_id)) porArea.set(t.linea_id, []);
+    porArea.get(t.linea_id).push(t);
+  }
+  for (const [area, lista] of porArea) {
+    lista.sort((a, b) => a.hora_inicio - b.hora_inicio);
+    for (let i = 0; i < lista.length; i++) {
+      for (let j = i + 1; j < lista.length; j++) {
+        const a = lista[i], b = lista[j];
+        if (b.hora_inicio >= a.hora_inicio + a.duracion_h) break;
+        out.push({ tipo: 'puesto', ids: [a.id, b.id], linea_id: area, leve: true,
+          libre: a.hora_inicio + a.duracion_h,
+          mensaje: `${exclusivas.get(area)}: ${etiqueta(a)} y ${etiqueta(b)} a la vez (${hhmm(b.hora_inicio)}–${hhmm(Math.min(a.hora_inicio + a.duracion_h, b.hora_inicio + b.duracion_h))})` });
       }
     }
   }

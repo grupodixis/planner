@@ -9,6 +9,7 @@ const app = express();
 app.disable('x-powered-by');
 // La importación de proyectos admite archivos grandes; el resto, 100 kB
 app.use('/api/importar', express.json({ limit: '2mb' }));
+app.use('/api/semillero', express.json({ limit: '1mb' }));
 app.use(express.json({ limit: '100kb' }));
 
 const asyncH = (fn) => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
@@ -58,6 +59,9 @@ function leerArea(b, parcial) {
     out.tipo = tipo;
   }
   if ('ubicacion' in b) out.ubicacion = String(b.ubicacion || '').trim().slice(0, 200) || null;
+  if ('descripcion' in b) out.descripcion = String(b.descripcion || '').trim().slice(0, 200) || null;
+  if ('departamento_id' in b) out.departamento_id = b.departamento_id ? Number(b.departamento_id) : null;
+  if ('exclusiva' in b) out.exclusiva = !!b.exclusiva;
   if ('activo' in b) out.activo = !!b.activo;
   if ('orden' in b) out.orden = Number(b.orden) || 0;
   return out;
@@ -67,14 +71,17 @@ function leerArea(b, parcial) {
 // aquí solo se listan aparte las que se han quedado sin proyecto.
 app.get('/api/areas', asyncH(async (req, res) => {
   const { rows } = await query(
-    `SELECT l.id, l.nombre, l.tipo, l.ubicacion, l.orden, l.activo, l.proyecto_id,
+    `SELECT l.id, l.nombre, l.tipo, l.ubicacion, l.orden, l.activo, l.proyecto_id, l.departamento_id, l.exclusiva, l.descripcion,
             (SELECT count(*)::int FROM tareas t WHERE t.linea_id = l.id AND t.estado <> 'hecha')
           + (SELECT count(*)::int FROM tramos x WHERE x.linea_id = l.id AND x.fecha >= CURRENT_DATE) AS tareas_abiertas,
             (SELECT count(*)::int FROM tareas t WHERE t.linea_id = l.id)
           + (SELECT count(*)::int FROM tramos x WHERE x.linea_id = l.id) AS usos
-       FROM lineas l WHERE l.tipo <> 'obra' OR l.proyecto_id IS NULL
-      ORDER BY l.activo DESC, l.orden, l.nombre`);
+       FROM lineas l LEFT JOIN departamentos d ON d.id = l.departamento_id
+      WHERE l.tipo <> 'obra' OR l.proyecto_id IS NULL
+      ORDER BY l.activo DESC, d.orden NULLS LAST, l.orden, l.nombre`);
+  const { rows: departamentos } = await query('SELECT id, clave, nombre FROM departamentos ORDER BY orden, nombre');
   res.json({
+    departamentos,
     tipos: TIPOS_AREA.filter((t) => t !== 'obra'),
     areas: rows.filter((a) => a.tipo !== 'obra'),
     obras_sin_proyecto: rows.filter((a) => a.tipo === 'obra'),
@@ -87,9 +94,9 @@ app.post('/api/areas', auth.puedeEditar, asyncH(async (req, res) => {
   const a = leerArea(req.body || {}, false);
   if (a.tipo === 'obra') return res.status(400).json({ error: OBRA_DESDE_PROYECTO });
   const { rows } = await query(
-    `INSERT INTO lineas (nombre, tipo, ubicacion, orden)
-     VALUES ($1, $2, $3, COALESCE((SELECT max(orden) FROM lineas), 0) + 1) RETURNING *`,
-    [a.nombre, a.tipo, a.ubicacion ?? null]);
+    `INSERT INTO lineas (nombre, tipo, ubicacion, orden, departamento_id, exclusiva)
+     VALUES ($1, $2, $3, COALESCE((SELECT max(orden) FROM lineas), 0) + 1, $4, $5) RETURNING *`,
+    [a.nombre, a.tipo, a.ubicacion ?? null, a.departamento_id ?? null, !!a.exclusiva]);
   res.status(201).json(rows[0]);
 }));
 
@@ -207,6 +214,7 @@ app.patch('/api/tareas/:id', auth.puedeEditar, asyncH(async (req, res) => {
 require('./gestion')(app, asyncH);
 require('./recursos')(app, asyncH);
 require('./importar')(app, asyncH);
+require('./semillero')(app, asyncH);
 
 /* ---------- Historial ---------- */
 

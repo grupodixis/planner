@@ -1,0 +1,202 @@
+{
+  "formato": "s360-semillero/1",
+  "empresa": "HAM Menorca",
+  "actualizado": "2026-11-13",
+  "nota": "Recursos de la empresa para el planificador s360 y para el compositor de proyectos. Ver semillero/README.md.",
+
+  "departamentos": [
+    { "clave": "tecnico", "nombre": "Departamento técnico" },
+    { "clave": "administracion", "nombre": "Departamento administrativo" },
+    { "clave": "aluminio", "nombre": "Departamento de aluminio" },
+    { "clave": "herreria", "nombre": "Departamento de herrería" },
+    { "clave": "logistica", "nombre": "Logística y transporte" }
+  ],
+
+  "tipos": {
+    "operario": [
+      { "nombre": "Administrativo" },
+      { "nombre": "Director Administrativo" },
+      { "nombre": "Director comercial" },
+      { "nombre": "Diseñadora", "alias": ["Diseñador", "Diseño"] },
+      { "nombre": "Encargado", "alias": ["Encargado de taller", "Jefe de taller"] },
+      { "nombre": "Ingeniero / Delineante", "alias": ["Ingeniero", "Delineante", "Oficina técnica"] },
+      { "nombre": "Jefe de proyectos" },
+      { "nombre": "Oficial 1ª Soldador", "alias": ["Soldador", "Oficial 1ª", "Oficial 1º Soldador"] },
+      { "nombre": "Oficial 2º", "alias": ["Oficial 2ª", "Oficial 2ª Corte y Plegado"] },
+      { "nombre": "Oficial 3º", "alias": ["Oficial 3ª", "Ayudante"] },
+      { "nombre": "Oficial de aluminio", "alias": ["Aluminiero", "Oficial aluminio", "Oficial de carpintería de aluminio"] },
+      { "nombre": "Oficial Montaje Obra", "alias": ["Montador", "Oficial de montaje", "Montaje en obra"] },
+      { "nombre": "Pintor", "alias": ["Pintor Cabina", "Pintor de cabina"] },
+      { "nombre": "Resp. Administrativa" },
+      { "nombre": "Resp. Logística" },
+      { "nombre": "Resp. RRHH" },
+      { "nombre": "Responsable Técnico" }
+    ],
+    "maquina": [
+      { "nombre": "Soldadora MIG/MAG", "alias": ["Equipo de Soldadura Semiautomática MIG/MAG", "Soldadura MIG", "Soldadora MIG", "Soldadura MIG/MAG"] },
+      { "nombre": "Soldadora MMA (electrodo)", "alias": ["Soldadora MMA", "Soldadura MMA", "Equipo de Soldadura por Electrodo", "Soldadura por electrodo"] },
+      { "nombre": "Soldadora TIG", "alias": ["Soldadura TIG", "Equipo de Soldadura TIG"] },
+      { "nombre": "Soldadora láser", "alias": ["Soldadura Láser", "Soldadura laser", "Soldadora laser"] },
+      { "nombre": "Equipo portátil para obra", "descripcion": "Marca las máquinas que pueden salir a obra. Una tarea en obra puede pedirlo junto al tipo (p. ej. Soldadora MIG/MAG + Equipo portátil para obra)." },
+      { "nombre": "Cortadora de disco (aluminio)", "alias": ["Tronzadora de aluminio", "Ingletadora de aluminio"] },
+      { "nombre": "Punzonadora de lamas y troqueles", "alias": ["Punzonadora de aluminio", "Troqueladora"] },
+      { "nombre": "Fresadora de cerraduras", "alias": ["Fresadora copiadora", "Fresadora de cerraduras y accesorios"] },
+      { "nombre": "Impresora 3D", "alias": ["Impresión 3D"] },
+      { "nombre": "Kit de medición", "alias": ["Kit de medición y ensayo", "Medicion", "Medición", "Maletín de medición"] },
+      { "nombre": "Equipo de pintura (airless / pistola)", "alias": ["Cabina de Pintura y Equipo Airless / Pistola (Secado al Aire)", "Cabina de Pintura y Equipo Airless / Pistola (Secado al Aire", "Equipo Airless", "Pistola de pintura"] },
+      { "nombre": "Taladro magnético", "alias": ["Taladro de Columna / Taladro Magnético", "Taladro Magnético", "Taladro magnetico"] },
+      { "nombre": "Llave de impacto", "alias": ["Llave de impacto neumática"] },
+      { "nombre": "Remachadora", "alias": ["Remachadora de remaches"] },
+      { "nombre": "Remachadora de tuercas", "alias": ["Remachadora de tuercas remachables"] },
+      { "nombre": "Andamio", "alias": ["Andamio tubular", "Andamio de 6 m"] },
+      { "nombre": "Carretilla elevadora (toro)", "alias": ["Toro", "Carretilla elevadora"] },
+      { "nombre": "Camión", "alias": ["Camión 3500 kg", "Camión abierto"] },
+      { "nombre": "Furgón / furgoneta", "alias": ["Furgón Taller con Grupo Electrógeno Portátil y Herramienta Eléctrica", "Furgón", "Furgoneta", "Furgón taller"] }
+    ],
+    "subcontrata": [
+      { "nombre": "Grúa", "alias": ["Grúa móvil", "Camión grúa"] },
+      { "nombre": "Plataforma elevadora", "alias": ["Plataforma", "PEMP"] },
+      { "nombre": "Lacado / taller externo", "alias": ["Lacado", "Galvanizado", "Taller externo", "Lacado externo"] },
+      { "nombre": "Transporte externo", "alias": ["Transporte"] },
+      { "nombre": "Cristalería / Vidrio Aislante Acústico", "alias": ["Cristalería", "Vidrio"] },
+      { "nombre": "Fábrica Cortizo Sistemas de Carpintería", "alias": ["Cortizo"] }
+    ]
+  },
+
+  "requisitos_sin_control": {
+    "descripcion": "Herramientas que siempre hay (radiales, taladros, cajas de herramientas…). Si el compositor las pide en «requiere», el planificador no las convierte en requisito.",
+    "nombres": [
+      "Amoladora Angular / Esmeriladora Acero Carbono", "Amoladora", "Amoladora angular", "Radial",
+      "Lijadora Orbital / Equipo Limpieza y Desengrase", "Lijadora orbital",
+      "Rotomartillo / Taladro Percutor SDS", "Rotomartillo", "Taladro percutor", "Taladro", "Taladro Dewalt",
+      "Atornillador de impacto", "Caja de herramientas", "Herramienta manual",
+      "Kit de ventosas y acuñado"
+    ]
+  },
+
+  "areas": [
+    { "ref": "tec-puesto-1", "nombre": "Puesto técnico 1", "departamento": "tecnico", "tipo": "oficina", "exclusiva": true },
+    { "ref": "tec-puesto-2", "nombre": "Puesto técnico 2", "departamento": "tecnico", "tipo": "oficina", "exclusiva": true },
+    { "ref": "tec-puesto-3", "nombre": "Puesto técnico 3", "departamento": "tecnico", "tipo": "oficina", "exclusiva": true },
+    { "ref": "tec-puesto-4", "nombre": "Puesto técnico 4", "departamento": "tecnico", "tipo": "oficina", "exclusiva": true },
+    { "ref": "tec-puesto-5", "nombre": "Puesto técnico 5", "departamento": "tecnico", "tipo": "oficina", "exclusiva": true },
+    { "ref": "tec-puesto-6", "nombre": "Puesto técnico 6", "departamento": "tecnico", "tipo": "oficina", "exclusiva": true },
+
+    { "ref": "adm-puesto-1", "nombre": "Puesto administrativo 1", "departamento": "administracion", "tipo": "oficina", "exclusiva": true },
+    { "ref": "adm-puesto-2", "nombre": "Puesto administrativo 2", "departamento": "administracion", "tipo": "oficina", "exclusiva": true },
+    { "ref": "adm-puesto-3", "nombre": "Puesto administrativo 3", "departamento": "administracion", "tipo": "oficina", "exclusiva": true, "descripcion": "Disponible" },
+    { "ref": "adm-puesto-4", "nombre": "Puesto administrativo 4", "departamento": "administracion", "tipo": "oficina", "exclusiva": true },
+    { "ref": "adm-sala-reuniones", "nombre": "Sala de reuniones", "departamento": "administracion", "tipo": "oficina", "exclusiva": true },
+
+    { "ref": "alu-tablero", "nombre": "Tablero de aluminio", "departamento": "aluminio", "tipo": "taller", "descripcion": "Corte, mecanizado y preparación de perfiles de aluminio" },
+    { "ref": "alu-mesa-montaje", "nombre": "Mesa de montaje de aluminio", "departamento": "aluminio", "tipo": "taller", "antes": ["Mesa Montaje aluminio"], "descripcion": "Montaje de carpintería de aluminio" },
+
+    { "ref": "her-cizalla-chapas", "nombre": "Cizalla de chapas", "departamento": "herreria", "tipo": "taller", "exclusiva": true, "descripcion": "Cortar chapas", "alias_requisito": ["Cizalla", "Cizalla de chapa", "Guillotina"] },
+    { "ref": "her-plegadora", "nombre": "Plegadora de chapas", "departamento": "herreria", "tipo": "taller", "exclusiva": true, "antes": ["Plegadora y cizalla"], "descripcion": "Plegar chapas", "alias_requisito": ["Plegadora", "Plegadora de chapa"] },
+    { "ref": "her-mesa-1", "nombre": "Mesa de pequeña estructura 1", "departamento": "herreria", "tipo": "taller", "antes": ["Mesa 1"], "descripcion": "Armado de estructuras" },
+    { "ref": "her-mesa-2", "nombre": "Mesa de pequeña estructura 2", "departamento": "herreria", "tipo": "taller", "antes": ["Mesa 2"], "descripcion": "Armado de estructuras" },
+    { "ref": "her-potro", "nombre": "Potro de grandes estructuras", "departamento": "herreria", "tipo": "taller", "antes": ["Potro"], "descripcion": "Armado de estructuras grandes" },
+    { "ref": "her-tablero-prensa", "nombre": "Tablero con prensa", "departamento": "herreria", "tipo": "taller", "exclusiva": true, "descripcion": "Mecanizado pequeño" },
+    { "ref": "her-sierra-1", "nombre": "Sierra semiautomática 1", "departamento": "herreria", "tipo": "taller", "exclusiva": true, "antes": ["Corte Sierra semi automatica"], "antes_recursos": ["Sierra 1"], "descripcion": "Corte de perfiles largos", "alias_requisito": ["Sierra de Cinta / Tronzadora de Perfiles", "Sierra", "Sierra de cinta", "Tronzadora de perfiles", "Sierra semiautomática"] },
+    { "ref": "her-cizalla-universal", "nombre": "Cizalla universal", "departamento": "herreria", "tipo": "taller", "exclusiva": true, "antes": ["Punzonado"], "descripcion": "Punzonado, sacabocados, corte de placas y ángulos", "alias_requisito": ["Punzonadora", "Punzonado", "Sacabocados", "Cizalla universal"] },
+    { "ref": "her-fresadora", "nombre": "Fresadora", "departamento": "herreria", "tipo": "taller", "exclusiva": true, "antes_recursos": ["fresadora"], "descripcion": "Perforación (como taladro de columna)", "alias_requisito": ["Taladro de columna", "Fresadora"] },
+    { "ref": "her-torno", "nombre": "Torno", "departamento": "herreria", "tipo": "taller", "exclusiva": true, "descripcion": "Tornear piezas", "alias_requisito": ["Torno"] },
+    { "ref": "her-cabina-pintura", "nombre": "Cabina de pintura portátil", "departamento": "herreria", "tipo": "pintura", "exclusiva": true, "antes": ["Cabina de pintura"], "alias": ["Cabina Pintura", "Cabina de pintura"] },
+    { "ref": "her-curvadora", "nombre": "Curvadora de perfiles", "departamento": "herreria", "tipo": "taller", "exclusiva": true, "descripcion": "Curvado de perfiles largos", "alias_requisito": ["Curvadora", "Curvadora de perfiles"] },
+
+    { "ref": "log-transporte", "nombre": "Transporte", "departamento": "logistica", "tipo": "transporte", "antes": ["Transporte"], "descripcion": "Cargas, entregas y traslados a obra" }
+  ],
+
+  "recursos": [
+    { "ref": "op-pablo-sanchez", "clase": "operario", "nombre": "Pablo S. Sánchez", "departamento": "tecnico", "area_habitual": "tec-puesto-1", "oficios": ["Director comercial"] },
+    { "ref": "op-alfonzo-perez", "clase": "operario", "nombre": "Alfonzo Perez", "departamento": "tecnico", "area_habitual": "tec-puesto-2", "vinculo": "subcontratado", "oficios": ["Oficial de aluminio"] },
+    { "ref": "op-sofia-klasberg", "clase": "operario", "nombre": "Sofia Klasberg", "departamento": "tecnico", "area_habitual": "tec-puesto-3", "vinculo": "subcontratado", "oficios": ["Diseñadora", "Ingeniero / Delineante"] },
+    { "ref": "op-adrian-carbo", "clase": "operario", "nombre": "Adrian Carbo", "departamento": "tecnico", "area_habitual": "tec-puesto-4", "codigo": "25", "oficios": ["Jefe de proyectos", "Responsable Técnico"] },
+    { "ref": "op-fernando-lopez", "clase": "operario", "nombre": "Fernando Lopez", "departamento": "tecnico", "area_habitual": "tec-puesto-5", "oficios": ["Jefe de proyectos"] },
+    { "ref": "op-martin-sanchez", "clase": "operario", "nombre": "Martin Sánchez", "departamento": "tecnico", "area_habitual": "tec-puesto-6", "oficios": ["Director Administrativo"] },
+
+    { "ref": "op-adriana-montoya", "clase": "operario", "nombre": "Adriana Montoya", "departamento": "administracion", "area_habitual": "adm-puesto-1", "oficios": ["Administrativo"] },
+    { "ref": "op-carolina-valverdi", "clase": "operario", "nombre": "Carolina Valverdi", "departamento": "administracion", "area_habitual": "adm-puesto-2", "oficios": ["Resp. RRHH"] },
+    { "ref": "op-mariana-montenegro", "clase": "operario", "nombre": "Mariana Montenegro", "departamento": "administracion", "area_habitual": "adm-puesto-4", "oficios": ["Administrativo", "Resp. Administrativa"] },
+
+    { "ref": "op-jose-gomez", "clase": "operario", "nombre": "Jose Gomez", "departamento": "herreria", "codigo": "35", "oficios": ["Encargado"] },
+    { "ref": "op-jose-sanchez", "clase": "operario", "nombre": "Jose Sanchez", "departamento": "herreria", "codigo": "24", "oficios": ["Encargado"] },
+    { "ref": "op-estiven-rojas", "clase": "operario", "nombre": "Estiven Rojas", "departamento": "herreria", "codigo": "58", "oficios": ["Oficial 1ª Soldador", "Oficial 2º"] },
+    { "ref": "op-carlos-vargas", "clase": "operario", "nombre": "Carlos Julio Vargas Gomez", "departamento": "herreria", "codigo": "86", "oficios": ["Oficial 3º"] },
+    { "ref": "op-juan-robles", "clase": "operario", "nombre": "Juan Robles", "departamento": "herreria", "codigo": "55", "oficios": ["Oficial 3º"] },
+    { "ref": "op-eduardo", "clase": "operario", "nombre": "Eduardo", "departamento": "herreria", "area_habitual": "her-cabina-pintura", "vinculo": "subcontratado", "oficios": ["Pintor", "Oficial 2º"] },
+    { "ref": "op-javier-lopez", "clase": "operario", "nombre": "Javier Lopez", "departamento": "herreria", "vinculo": "subcontratado", "oficios": [] },
+
+    { "ref": "op-sergio-vidaurre", "clase": "operario", "nombre": "Sergio Vidaurre", "departamento": "logistica", "codigo": "34", "oficios": ["Resp. Logística"] },
+
+    { "ref": "maq-impresora-3d", "clase": "maquina", "nombre": "Impresora 3D", "departamento": "tecnico", "tipos": ["Impresora 3D"] },
+    { "ref": "maq-maletin-medicion", "clase": "maquina", "nombre": "Maletín de medición", "departamento": "tecnico", "antes": ["Maletin de Medicion"], "tipos": ["Kit de medición", "Equipo portátil para obra"] },
+
+    { "ref": "maq-cortadora-disco", "clase": "maquina", "nombre": "Cortadora de disco", "departamento": "aluminio", "area_habitual": "alu-tablero", "antes": ["Cortadora de disco de aluminio"], "tipos": ["Cortadora de disco (aluminio)"], "descripcion": "Cortadora de disco para perfiles de aluminio" },
+    { "ref": "maq-punzonadora-lamas", "clase": "maquina", "nombre": "Punzonadora de lamas", "departamento": "aluminio", "area_habitual": "alu-tablero", "tipos": ["Punzonadora de lamas y troqueles"], "descripcion": "Punzonadora de lamas y troqueles" },
+    { "ref": "maq-fresadora-cerraduras", "clase": "maquina", "nombre": "Fresadora de cerraduras", "departamento": "aluminio", "area_habitual": "alu-tablero", "tipos": ["Fresadora de cerraduras"], "descripcion": "Fresadora de cerraduras y accesorios" },
+
+    { "ref": "maq-mig-500", "clase": "maquina", "nombre": "MIG-500", "departamento": "herreria", "antes": ["MIG 1"], "tipos": ["Soldadora MIG/MAG"], "descripcion": "Soldadora MIG 500 A trifásica · gran estructura" },
+    { "ref": "maq-mig-300", "clase": "maquina", "nombre": "MIG-300", "departamento": "herreria", "tipos": ["Soldadora MIG/MAG"], "descripcion": "Soldadora MIG 300 A trifásica · mediana estructura" },
+    { "ref": "maq-mig-200p", "clase": "maquina", "nombre": "MIG-200 portátil", "departamento": "herreria", "tipos": ["Soldadora MIG/MAG", "Equipo portátil para obra"], "descripcion": "Soldadora MIG 200 A monofásica portátil · inox y obra" },
+    { "ref": "maq-mma-1", "clase": "maquina", "nombre": "MMA-1", "departamento": "herreria", "tipos": ["Soldadora MMA (electrodo)", "Equipo portátil para obra"], "descripcion": "Soldadora MMA 200 A · sobre todo obra, inox y acero laminado" },
+    { "ref": "maq-mma-2", "clase": "maquina", "nombre": "MMA-2", "departamento": "herreria", "tipos": ["Soldadora MMA (electrodo)", "Equipo portátil para obra"], "descripcion": "Soldadora MMA 200 A · sobre todo obra, inox y acero laminado" },
+    { "ref": "maq-tig-200", "clase": "maquina", "nombre": "TIG-200", "departamento": "herreria", "tipos": ["Soldadora TIG"], "descripcion": "Soldadora TIG 200 A monofásica · tubería de calderería" },
+    { "ref": "maq-laser-1500", "clase": "maquina", "nombre": "Láser-1500", "departamento": "herreria", "antes": ["Soldadura Láser"], "tipos": ["Soldadora láser"], "descripcion": "Soldadora láser 1500 W monofásica · cerrajería y estructura fina, sobre todo inox, acabado excelente" },
+    { "ref": "maq-pistola-sagola", "clase": "maquina", "nombre": "Pistola Sagola", "departamento": "herreria", "area_habitual": "her-cabina-pintura", "tipos": ["Equipo de pintura (airless / pistola)"] },
+    { "ref": "maq-taladro-magnetico-1", "clase": "maquina", "nombre": "Taladro magnético 1", "departamento": "herreria", "antes": ["Taladro Magnetico"], "tipos": ["Taladro magnético", "Equipo portátil para obra"] },
+    { "ref": "maq-taladro-magnetico-2", "clase": "maquina", "nombre": "Taladro magnético 2", "departamento": "herreria", "tipos": ["Taladro magnético", "Equipo portátil para obra"] },
+    { "ref": "maq-llave-impacto-1", "clase": "maquina", "nombre": "Llave de impacto 1", "departamento": "herreria", "tipos": ["Llave de impacto", "Equipo portátil para obra"] },
+    { "ref": "maq-llave-impacto-2", "clase": "maquina", "nombre": "Llave de impacto 2", "departamento": "herreria", "tipos": ["Llave de impacto", "Equipo portátil para obra"] },
+    { "ref": "maq-remachadora-fuerte", "clase": "maquina", "nombre": "Remachadora fuerte", "departamento": "herreria", "tipos": ["Remachadora", "Equipo portátil para obra"] },
+    { "ref": "maq-remachadora-bateria", "clase": "maquina", "nombre": "Remachadora a batería", "departamento": "herreria", "tipos": ["Remachadora", "Equipo portátil para obra"] },
+    { "ref": "maq-remachadora-tuercas", "clase": "maquina", "nombre": "Remachadora de tuercas", "departamento": "herreria", "tipos": ["Remachadora de tuercas", "Equipo portátil para obra"] },
+
+    { "ref": "maq-andamio-6m", "clase": "maquina", "nombre": "Andamio 6 m", "departamento": "logistica", "tipos": ["Andamio", "Equipo portátil para obra"], "descripcion": "Andamio de 6 m" },
+    { "ref": "maq-toro-diesel", "clase": "maquina", "nombre": "Toro diésel", "departamento": "logistica", "tipos": ["Carretilla elevadora (toro)"] },
+    { "ref": "maq-toro-bateria", "clase": "maquina", "nombre": "Toro a batería", "departamento": "logistica", "tipos": ["Carretilla elevadora (toro)"] },
+    { "ref": "veh-camion-iveco", "clase": "maquina", "nombre": "Camión Iveco 3,5 t", "departamento": "logistica", "tipos": ["Camión"], "descripcion": "Camión Iveco 3500 kg abierto" },
+    { "ref": "veh-furgon-nissan", "clase": "maquina", "nombre": "Furgón Nissan", "departamento": "logistica", "tipos": ["Furgón / furgoneta"], "descripcion": "Furgón Nissan pequeño" },
+    { "ref": "veh-furgoneta-1", "clase": "maquina", "nombre": "Furgoneta 1", "departamento": "logistica", "tipos": ["Furgón / furgoneta"], "descripcion": "Tipo Caddy / Kangoo" },
+    { "ref": "veh-furgoneta-2", "clase": "maquina", "nombre": "Furgoneta 2", "departamento": "logistica", "tipos": ["Furgón / furgoneta"], "descripcion": "Tipo Caddy / Kangoo" },
+    { "ref": "veh-furgoneta-3", "clase": "maquina", "nombre": "Furgoneta 3", "departamento": "logistica", "tipos": ["Furgón / furgoneta"], "descripcion": "Tipo Caddy / Kangoo" },
+    { "ref": "veh-furgoneta-4", "clase": "maquina", "nombre": "Furgoneta 4", "departamento": "logistica", "tipos": ["Furgón / furgoneta"], "descripcion": "Tipo Caddy / Kangoo" },
+    { "ref": "veh-furgoneta-5", "clase": "maquina", "nombre": "Furgoneta 5", "departamento": "logistica", "tipos": ["Furgón / furgoneta"], "descripcion": "Tipo Caddy / Kangoo" },
+
+    { "ref": "sub-grua", "clase": "subcontrata", "nombre": "Grúa 1", "categoria": "Alquiler", "tipos": ["Grúa"] },
+    { "ref": "sub-plataforma", "clase": "subcontrata", "nombre": "Plataforma", "categoria": "Alquiler", "tipos": ["Plataforma elevadora"] },
+    { "ref": "sub-taller-externo", "clase": "subcontrata", "nombre": "Taller externo", "categoria": "Subcontrata", "tipos": ["Lacado / taller externo"] },
+    { "ref": "sub-transporte", "clase": "subcontrata", "nombre": "Transporte", "categoria": "Subcontrata", "tipos": ["Transporte externo"] }
+  ],
+
+  "ubicaciones": {
+    "descripcion": "Almacenes y salas que no se planifican. El planificador no los carga; quedan aquí para un futuro módulo de material.",
+    "lista": [
+      { "ref": "alm-1", "nombre": "Almacén 1 · Perfiles largos", "departamento": "herreria", "zonas": [
+        { "ref": "alm-1a", "nombre": "1A · Perfiles comerciales y tubulares largos, laminados y galvanizados" },
+        { "ref": "alm-1b", "nombre": "1B · Perfiles tubulares y comerciales largos de acero inoxidable" },
+        { "ref": "alm-1c", "nombre": "1C · Chapas nuevas" },
+        { "ref": "alm-1d", "nombre": "1D · Recortes de acero laminado y galvanizado" },
+        { "ref": "alm-1e", "nombre": "1E · Recortes de acero inoxidable" },
+        { "ref": "alm-1f", "nombre": "1F · Vigas estructurales" }
+      ] },
+      { "ref": "alm-2", "nombre": "Almacén 2 · Tornillería y accesorios de herrería y aluminio" },
+      { "ref": "alm-3", "nombre": "Almacén 3 · Fontanería" },
+      { "ref": "alm-4", "nombre": "Almacén 4 · Electricidad" },
+      { "ref": "alm-5", "nombre": "Almacén 5 · Perfiles de aluminio", "departamento": "aluminio" },
+      { "ref": "alm-6", "nombre": "Almacén 6 · Pinturas y acabados" },
+      { "ref": "alm-7", "nombre": "Almacén 7 · Trabajos terminados" },
+      { "ref": "sala-servidores", "nombre": "Sala de servidores", "departamento": "administracion" }
+    ]
+  },
+
+  "inventario_sin_planificar": {
+    "descripcion": "Herramienta de la que hay suficiente para no planificarla. Solo informativo.",
+    "lista": [
+      { "nombre": "Radial", "cantidad": 10 },
+      { "nombre": "Caja de herramientas manuales", "cantidad": 5 },
+      { "nombre": "Taladro Dewalt", "cantidad": 5 },
+      { "nombre": "Atornillador de impacto", "cantidad": 5 }
+    ]
+  }
+}

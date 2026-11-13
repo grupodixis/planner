@@ -166,16 +166,18 @@ module.exports = function montar(app, asyncH) {
     const [lineas, recursos, tareas, tramos] = await Promise.all([
       // Áreas fijas activas + obras de proyectos activos (al final, por proyecto)
       // + cualquier área que tenga tramos en el rango (para no perder lo planificado)
-      query(`SELECT l.id, l.nombre, l.tipo, l.ubicacion, l.activo, l.proyecto_id,
+      query(`SELECT l.id, l.nombre, l.tipo, l.ubicacion, l.activo, l.proyecto_id, l.exclusiva, l.descripcion,
+                    l.departamento_id, d.nombre AS departamento, d.orden AS departamento_orden,
                     p.codigo AS proyecto_codigo, p.nombre AS proyecto_nombre,
                     (l.tipo = 'obra') AS es_obra,
                     (l.tipo = 'obra' AND p.estado IS DISTINCT FROM 'activo') AS obra_cerrada
                FROM lineas l LEFT JOIN proyectos p ON p.id = l.proyecto_id
+                    LEFT JOIN departamentos d ON d.id = l.departamento_id
               WHERE (l.activo AND (l.tipo <> 'obra' OR p.estado = 'activo'))
                  OR EXISTS (SELECT 1 FROM tramos x WHERE x.linea_id = l.id AND x.fecha BETWEEN $1 AND $2)
-              ORDER BY (l.tipo = 'obra'), CASE WHEN l.tipo = 'obra' THEN p.codigo END, l.orden, l.nombre`, [desde, hasta]),
+              ORDER BY (l.tipo = 'obra'), CASE WHEN l.tipo = 'obra' THEN p.codigo END, d.orden NULLS LAST, l.orden, l.nombre`, [desde, hasta]),
       // Recursos activos + los dados de baja que aún tienen algo asignado en el rango
-      query(`SELECT id, tipo, nombre, categoria, activo, vinculo, empresa,
+      query(`SELECT id, tipo, nombre, categoria, activo, vinculo, empresa, linea_id, departamento_id,
                     COALESCE((SELECT json_agg(rt.tipo_recurso_id) FROM recurso_tipos rt WHERE rt.recurso_id = r.id), '[]') AS tipos,
                     (SELECT string_agg(ti.nombre, ', ' ORDER BY lower(ti.nombre)) FROM recurso_tipos rt
                        JOIN tipos_recurso ti ON ti.id = rt.tipo_recurso_id WHERE rt.recurso_id = r.id) AS tipos_txt
@@ -203,6 +205,8 @@ module.exports = function montar(app, asyncH) {
     // Tipos de recurso de los que hay al menos un recurso activo (para distinguir «sin asignar»
     // de «no hay ninguno dado de alta»)
     const tiposDisponibles = new Set(recursos.rows.filter((r) => r.activo).flatMap((r) => r.tipos));
+    // Puestos de un solo trabajo a la vez (oficina, máquinas fijas): id → nombre
+    const exclusivas = new Map(lineas.rows.filter((l) => l.exclusiva).map((l) => [l.id, l.nombre]));
     // Los conflictos se calculan día a día (un solape solo existe dentro del mismo día)
     const porDia = new Map();
     for (const tr of tramos.rows) {
@@ -211,7 +215,7 @@ module.exports = function montar(app, asyncH) {
       porDia.get(tr.fecha).push({ ...t, ...tr, duracion_h_tarea: t?.duracion_h });
     }
     const conflictos = [...porDia].flatMap(([f, lista]) =>
-      calcularConflictos(lista, jornada, tiposDisponibles).map((c) => ({ ...c, fecha: f })));
+      calcularConflictos(lista, jornada, tiposDisponibles, exclusivas).map((c) => ({ ...c, fecha: f })));
 
     res.json({ fecha: desde, desde, hasta, jornada, lineas: lineas.rows, recursos: recursos.rows,
       tareas: tareas.rows, tramos: tramos.rows, conflictos });

@@ -240,6 +240,22 @@ const MIGRACIONES = [
              FROM tareas t JOIN ordenes o ON o.id = t.orden_id
             WHERE o.proyecto_id IS NOT NULL AND t.linea_id IS NOT NULL GROUP BY t.linea_id) x
     WHERE l.id = x.linea_id AND x.n = 1 AND l.tipo = 'obra' AND l.proyecto_id IS NULL`,
+
+  // 2026-11 · Semillero: departamentos, puestos de un solo trabajo a la vez y referencias estables
+  `CREATE TABLE IF NOT EXISTS departamentos (
+     id     SERIAL PRIMARY KEY,
+     clave  TEXT NOT NULL UNIQUE,
+     nombre TEXT NOT NULL,
+     orden  INT NOT NULL DEFAULT 0
+   )`,
+  `ALTER TABLE lineas   ADD COLUMN IF NOT EXISTS departamento_id INT REFERENCES departamentos(id) ON DELETE SET NULL`,
+  `ALTER TABLE lineas   ADD COLUMN IF NOT EXISTS exclusiva BOOLEAN NOT NULL DEFAULT FALSE`,
+  `ALTER TABLE lineas   ADD COLUMN IF NOT EXISTS descripcion TEXT`,
+  `ALTER TABLE lineas   ADD COLUMN IF NOT EXISTS ref_semilla TEXT`,
+  `ALTER TABLE recursos ADD COLUMN IF NOT EXISTS departamento_id INT REFERENCES departamentos(id) ON DELETE SET NULL`,
+  `ALTER TABLE recursos ADD COLUMN IF NOT EXISTS ref_semilla TEXT`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS lineas_semilla_idx   ON lineas (ref_semilla) WHERE ref_semilla IS NOT NULL`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS recursos_semilla_idx ON recursos (ref_semilla) WHERE ref_semilla IS NOT NULL`,
 ];
 
 async function migrar() {

@@ -43,17 +43,19 @@ async function siguienteCodigo(prefijo) {
 module.exports = function montar(app, asyncH) {
   /* ---------- Catálogo para formularios ---------- */
   app.get('/api/catalogo', asyncH(async (req, res) => {
-    const [areas, recursos, tipos] = await Promise.all([
-      query(`SELECT l.id, l.nombre, l.tipo, l.proyecto_id FROM lineas l LEFT JOIN proyectos p ON p.id = l.proyecto_id
+    const [areas, recursos, tipos, departamentos] = await Promise.all([
+      query(`SELECT l.id, l.nombre, l.tipo, l.proyecto_id, l.departamento_id, d.nombre AS departamento
+               FROM lineas l LEFT JOIN proyectos p ON p.id = l.proyecto_id LEFT JOIN departamentos d ON d.id = l.departamento_id
               WHERE l.activo AND (l.tipo <> 'obra' OR p.estado = 'activo')
-              ORDER BY (l.tipo = 'obra'), l.orden, l.nombre`),
+              ORDER BY (l.tipo = 'obra'), d.orden NULLS LAST, l.orden, l.nombre`),
       query('SELECT id, tipo, nombre FROM recursos WHERE activo ORDER BY tipo, nombre'),
       query(`SELECT t.id, t.clase, t.nombre,
                     (SELECT count(*)::int FROM recurso_tipos rt JOIN recursos r ON r.id = rt.recurso_id AND r.activo
                       WHERE rt.tipo_recurso_id = t.id) AS recursos
                FROM tipos_recurso t ORDER BY t.clase, lower(t.nombre)`),
+      query('SELECT id, clave, nombre FROM departamentos ORDER BY orden, nombre'),
     ]);
-    res.json({ areas: areas.rows, recursos: recursos.rows, tipos: tipos.rows, colores: COLORES });
+    res.json({ areas: areas.rows, recursos: recursos.rows, tipos: tipos.rows, departamentos: departamentos.rows, colores: COLORES });
   }));
 
   /* ---------- Proyectos ---------- */
@@ -131,6 +133,9 @@ module.exports = function montar(app, asyncH) {
         [ya[0].id, proyectoId, ubicacion || null]);
       return rows[0];
     }
+    const { rows: [pr] } = await query('SELECT codigo FROM proyectos WHERE id = $1', [proyectoId]);
+    const { rows: ocupado } = await query('SELECT 1 FROM lineas WHERE lower(nombre) = lower($1)', [nombre]);
+    if (ocupado.length) nombre = `${nombre} (${pr?.codigo || proyectoId})`.slice(0, 80);
     const { rows } = await query(
       `INSERT INTO lineas (nombre, tipo, ubicacion, orden, proyecto_id)
        VALUES ($1, 'obra', $2, COALESCE((SELECT max(orden) FROM lineas), 0) + 1, $3) RETURNING *`,

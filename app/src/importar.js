@@ -229,6 +229,11 @@ async function importar(c, archivo, resoluciones, usuario, simular) {
   const areasActivas = areas.filter((a) => a.activo && (a.tipo !== 'obra' || !a.proyecto_id || a.proyecto_id === proy?.id));
   const recursosActivos = recursos.filter((r) => r.activo);
   const aliasDe = (clase, nombre) => alias.find((a) => a.clase === clase && a.nombre === norm(nombre))?.destino_id;
+  // Del semillero: requisitos que en realidad son un área (la sierra, el torno…) y herramientas sin control
+  const areaPorRequisito = (nombre) => { const id = aliasDe('area_por_tipo', nombre); return areas.some((a) => a.id === id && a.activo) ? id : null; };
+  const sinControl = (nombre) => alias.some((a) => a.clase === 'tipo_ignorado' && a.nombre === norm(nombre));
+  const areaReq = new Map();   // ref de tarea → área que sale de sus requisitos
+  let reqAArea = 0, reqSinControl = 0;
 
   const resolver = new Map(); // clave → entrada
   const pedir = (clave, base) => {
@@ -256,6 +261,8 @@ async function importar(c, archivo, resoluciones, usuario, simular) {
     if (t.oficio && ops >= 1) pedir(`tipo:operario:${norm(t.oficio)}`, { clase: 'tipo', subclase: 'operario', nombre: t.oficio.trim() });
     for (const r of (t.requiere || []).map(leerRequisito)) {
       if (r.recurso) pedir(`recurso:${norm(r.recurso)}`, { clase: 'recurso', nombre: r.recurso.trim() });
+      else if (r.clase !== 'operario' && areaPorRequisito(r.tipo)) { if (!areaReq.has(t.ref_externa)) areaReq.set(t.ref_externa, areaPorRequisito(r.tipo)); reqAArea++; }
+      else if (r.clase !== 'operario' && sinControl(r.tipo)) reqSinControl++;
       else pedir(`tipo:${r.clase}:${norm(r.tipo)}`, { clase: 'tipo', subclase: r.clase, nombre: r.tipo.trim() });
     }
   }
@@ -359,6 +366,8 @@ async function importar(c, archivo, resoluciones, usuario, simular) {
         e.reactivada = true;
       } else {
         const tipo = TIPOS_AREA.includes(e.crear_tipo) ? e.crear_tipo : 'otro';
+        // el nombre de un área es único: si ya lo usa otra (p. ej. la obra de otro proyecto en el mismo sitio), se le añade el código
+        if (areas.some((a) => norm(a.nombre) === norm(e.nombre))) e.nombre = `${e.nombre} (${P.codigo || P.ref_externa})`.slice(0, 120);
         const { rows } = await c.query(
           `INSERT INTO lineas (nombre, tipo, ubicacion, orden, proyecto_id)
            VALUES ($1, $2, $3, COALESCE((SELECT max(orden) FROM lineas), 0) + 1, $4) RETURNING id`,
@@ -526,7 +535,9 @@ async function importar(c, archivo, resoluciones, usuario, simular) {
     const t = x.d;
     const ops = t.operarios ?? 1;
     const areaClave = claveArea(t);
-    const lineaId = areaClave ? idDe(areaClave) : null;
+    // un área concreta y existente manda; si no, la que sale de los requisitos (p. ej. «Sierra de cinta» → Sierra semiautomática 1)
+    const areaExacta = areaClave?.startsWith('area:') && resolver.get(areaClave)?.accion === 'usar';
+    const lineaId = (!areaExacta && areaReq.get(t.ref_externa)) || (areaClave ? idDe(areaClave) : null);
     // requisitos: oficio → "operarios × oficio"; requiere → tipos (con cantidad) y recursos concretos
     const reqTipo = new Map(), reqRec = new Set();
     if (t.oficio && ops >= 1) {
@@ -537,7 +548,7 @@ async function importar(c, archivo, resoluciones, usuario, simular) {
       if (r.recurso) {
         const id = idDe(`recurso:${norm(r.recurso)}`);
         if (id) reqRec.add(id);
-      } else {
+      } else if (resolver.has(`tipo:${r.clase}:${norm(r.tipo)}`)) {
         const id = idDe(`tipo:${r.clase}:${norm(r.tipo)}`);
         if (id) reqTipo.set(id, Math.max(reqTipo.get(id) || 0, r.cantidad));
       }
@@ -653,7 +664,7 @@ async function importar(c, archivo, resoluciones, usuario, simular) {
   const hp = plano.tareas.reduce((s, x) => s + x.d.horas * (x.d.operarios ?? 1), 0);
   const informe = {
     proyecto: { accion: accionProyecto, id: simular ? undefined : proy.id, codigo: proy.codigo, nombre: P.nombre, ref_externa: P.ref_externa },
-    resumen: { ...resumen, horas, horas_persona: hp },
+    resumen: { ...resumen, horas, horas_persona: hp, requisitos_a_area: reqAArea, requisitos_sin_control: reqSinControl },
     cambios,
     resolver: [...resolver.values()].filter((e) => e.accion !== 'usar').map(({ final, crear_tipo, ...e }) => e),
     usados: [...resolver.values()].filter((e) => e.accion === 'usar').map((e) => ({ clave: e.clave, clase: e.clase, subclase: e.subclase, nombre: e.nombre, id: e.id })),
