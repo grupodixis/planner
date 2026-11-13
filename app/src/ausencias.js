@@ -12,6 +12,7 @@ const TIPOS = {
   baja: { nombre: 'Baja', estado: 'de baja', clases: ['operario'] },
   permiso: { nombre: 'Permiso', estado: 'de permiso', clases: ['operario'] },
   formacion: { nombre: 'Formación', estado: 'en formación', clases: ['operario'] },
+  falta: { nombre: 'Falta sin avisar', estado: 'falta sin avisar', clases: ['operario'] },
   averia: { nombre: 'Avería', estado: 'averiado', clases: ['maquina', 'subcontrata'] },
   mantenimiento: { nombre: 'Mantenimiento', estado: 'en mantenimiento', clases: ['maquina', 'subcontrata'] },
   itv: { nombre: 'ITV / revisión', estado: 'en ITV / revisión', clases: ['maquina', 'subcontrata'] },
@@ -135,7 +136,8 @@ function montar(app, asyncH) {
     res.json(rows.map((a) => ({ ...a, dias_laborables: Math.round(laborables(a, fest) * 100) / 100, texto: textoAusencia(a) })));
   }));
 
-  app.post('/api/ausencias', auth.permiso('recursos'), asyncH(async (req, res) => {
+  // Las apunta quien gestiona recursos y también quien planifica (una falta se registra desde el tablero)
+  app.post('/api/ausencias', auth.permiso('recursos', 'planificar'), asyncH(async (req, res) => {
     const b = req.body || {};
     const d = leerAusencia(b, false);
     if (d.hora_desde != null && d.desde !== d.hasta) throw fallo(400, 'Una ausencia de unas horas es de un solo día');
@@ -150,7 +152,7 @@ function montar(app, asyncH) {
     res.status(201).json({ id: rows[0].id, afectados: await afectados(r[0].id, d) });
   }));
 
-  app.patch('/api/ausencias/:id', auth.permiso('recursos'), asyncH(async (req, res) => {
+  app.patch('/api/ausencias/:id', auth.permiso('recursos', 'planificar'), asyncH(async (req, res) => {
     const id = Number(req.params.id);
     const { rows: ant } = await query(`${SQL_AUSENCIAS} WHERE a.id = $1`, [id]);
     if (!ant.length) throw fallo(404, 'Ausencia no encontrada');
@@ -167,7 +169,7 @@ function montar(app, asyncH) {
     res.json({ ok: true, afectados: await afectados(ant[0].recurso_id, nueva) });
   }));
 
-  app.delete('/api/ausencias/:id', auth.permiso('recursos'), asyncH(async (req, res) => {
+  app.delete('/api/ausencias/:id', auth.permiso('recursos', 'planificar'), asyncH(async (req, res) => {
     await query('DELETE FROM ausencias WHERE id = $1', [Number(req.params.id)]);
     res.json({ ok: true });
   }));

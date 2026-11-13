@@ -121,6 +121,7 @@
   // Permisos del rol: «planificar» para el tablero, «recursos» para las áreas de trabajo
   const puedeEditar = () => window.s360.tiene('planificar');
   const puedeAreas = () => window.s360.tiene('recursos');
+  const puedeAusencias = () => window.s360.tiene('planificar') || window.s360.tiene('recursos');
 
   // Rango visible del día (viene del servidor: jornada + horas extra)
   const J = () => estado.datos.jornada;
@@ -169,7 +170,7 @@
   const pendientes = (t) => Math.max(0, +(t.duracion_h - t.horas_planificadas).toFixed(1));
   const conflictosDe = (tramoId) => estado.datos.conflictos.filter((c) => c.ids.includes(tramoId));
   // Ausencias (vacaciones, bajas, averías…) y festivos del rango cargado
-  const AUS_TXT = { vacaciones: 'vacaciones', baja: 'baja', permiso: 'permiso', formacion: 'formación', averia: 'avería', mantenimiento: 'mantenimiento', itv: 'ITV', otro: 'no disponible' };
+  const AUS_TXT = { vacaciones: 'vacaciones', baja: 'baja', permiso: 'permiso', formacion: 'formación', falta: 'falta', averia: 'avería', mantenimiento: 'mantenimiento', itv: 'ITV', otro: 'no disponible' };
   const ausenciasDe = (recursoId, fecha) => (estado.datos.ausencias || []).filter((a) => a.recurso_id === recursoId && a.desde <= fecha && a.hasta >= fecha);
   const ausenteTodoElDia = (recursoId, fecha) => ausenciasDe(recursoId, fecha).find((a) => a.hora_desde == null);
   const festivoDe = (fecha) => (estado.datos?.festivos || []).find((f) => f.fecha === fecha);
@@ -240,13 +241,16 @@
         style: `--uso:${capR ? Math.min(100, (h / capR) * 100) : 0}%`,
         draggable: puedeEditar() && !fuera ? 'true' : 'false',
         'data-buscar': `${r.nombre} ${r.tipos_txt || ''} ${r.empresa || ''}`.toLowerCase(),
-        title: `${r.nombre}${cumple(r) ? '\n✓ Cumple lo que pide la tarea seleccionada' : ''}${r.vinculo === 'subcontratado' ? `\nSubcontratado${r.empresa ? ' (' + r.empresa + ')' : ''}` : ''}${r.tipos_txt ? '\n' + r.tipos_txt : ''}\n${h ? `${durTxt(h)} asignadas ${cuando} de ${durTxt(capR)}` : fuera ? 'No disponible' : `Libre ${cuando}`}${ausTit}`,
+        title: `${r.nombre}${cumple(r) ? '\n✓ Cumple lo que pide la tarea seleccionada' : ''}${r.vinculo === 'subcontratado' ? `\nSubcontratado${r.empresa ? ' (' + r.empresa + ')' : ''}` : ''}${r.tipos_txt ? '\n' + r.tipos_txt : ''}\n${h ? `${durTxt(h)} asignadas ${cuando} de ${durTxt(capR)}` : fuera ? 'No disponible' : `Libre ${cuando}`}${ausTit}${puedeAusencias() ? `\nClic: apuntar ${r.tipo === 'operario' ? 'falta o ausencia' : 'avería o no disponible'}` : ''}`,
         ondragstart: (ev) => {
           estado.arrastre = { tipo: 'recurso', id: r.id };
           ev.dataTransfer.setData(MIME_REC, String(r.id));
           ev.dataTransfer.effectAllowed = 'copy';
         },
         ondragend: finArrastre,
+        tabindex: puedeAusencias() ? '0' : null,
+        onclick: () => puedeAusencias() && abrirAusencia(r),
+        onkeydown: (ev) => { if (ev.key === 'Enter' && puedeAusencias()) { ev.preventDefault(); abrirAusencia(r); } },
       },
       el('span', { class: 'rec-nom' }, r.nombre),
       r.vinculo === 'subcontratado' ? el('span', { class: 'sub-tag', 'aria-label': 'subcontratado' }, 'sub') : null,
@@ -730,7 +734,7 @@
         z.style.width = `${((fin - ini) / SPAN()) * 100}%`;
         pista.prepend(z);
       }
-      const f = el('div', { class: `fila ${clase}` }, el('div', { class: 'fila-nombre' }, titulo, sub ? el('span', { class: 'ubic' }, sub) : null), pista);
+      const f = el('div', { class: `fila ${clase}` }, el('div', { class: 'fila-nombre' }, recurso ? nombreOperario(recurso) : titulo, sub ? el('span', { class: 'ubic' }, sub) : null), pista);
       f.style.minHeight = `${alto}px`;
       prepararDropPista(pista, { recurso });
       return f;
@@ -1050,7 +1054,7 @@
             h ? { txt: `${durTxt(+h.toFixed(1))}/${J().horas}h`, clase: h > J().horas ? 'sobrecarga' : '' } : null,
             { modo: 'operario', recurso: o, ausencia: ausenciasDe(o.id, f)[0] });
         });
-        return filaSemana([o.nombre], total ? `${durTxt(+total.toFixed(1))} en la semana` : 'libre', '', celdas);
+        return filaSemana([nombreOperario(o)], total ? `${durTxt(+total.toFixed(1))} en la semana` : 'libre', '', celdas);
       });
       const sinOp = estado.datos.tramos.filter((tr) => !operariosDe(tr).length);
       if (sinOp.length) {
@@ -1717,6 +1721,80 @@
     estado.arrastre = null;
     document.querySelectorAll('.drop, .recibe').forEach((n) => n.classList.remove('drop', 'recibe'));
     document.querySelectorAll('.marca-drop').forEach((n) => n.remove());
+  }
+
+  /* ---------- falta / ausencia rápida desde el tablero ---------- */
+  // Nombre de operario que abre el apunte de ausencia (vistas por operarios)
+  function nombreOperario(r) {
+    if (!puedeAusencias()) return r.nombre;
+    return el('button', { type: 'button', class: 'nom-op', title: 'Apuntar falta o ausencia', onclick: () => abrirAusencia(r) }, r.nombre);
+  }
+  // Día al que se refiere el apunte: el de la vista día; en semana / mes, hoy si cae dentro
+  function fechaRef() {
+    if (estado.periodo === 'dia') return estado.fecha;
+    const [a, b] = rangoPeriodo();
+    const hoy = hoyISO();
+    return hoy >= a && hoy <= b ? hoy : a;
+  }
+  const TIPOS_AUS = {
+    operario: [['falta', 'Faltó sin avisar'], ['baja', 'Baja'], ['permiso', 'Permiso'], ['vacaciones', 'Vacaciones'], ['formacion', 'Formación'], ['otro', 'Otro']],
+    maquina: [['averia', 'Avería'], ['mantenimiento', 'Mantenimiento'], ['itv', 'ITV / revisión'], ['otro', 'Otro']],
+  };
+  TIPOS_AUS.subcontrata = TIPOS_AUS.maquina;
+
+  function abrirAusencia(r, fecha = fechaRef()) {
+    let d = $('#dlg-ausencia');
+    if (!d) {
+      d = el('dialog', { id: 'dlg-ausencia', class: 'dlg-ausencia', 'aria-labelledby': 'aus-tit' });
+      document.body.append(d);
+    }
+    const hHora = (v) => { const [h, m] = v.split(':').map(Number); return h + (m || 0) / 60; };
+    const cuando = el('select', { 'aria-label': 'Cuánto' },
+      el('option', { value: 'dia' }, 'Todo el día'),
+      el('option', { value: 'desde' }, 'Se fue a las…'),
+      el('option', { value: 'hasta' }, 'Llegó a las…'));
+    const hora = el('input', { type: 'time', step: 900, value: '10:00', hidden: true, 'aria-label': 'Hora' });
+    cuando.onchange = () => { hora.hidden = cuando.value === 'dia'; };
+    const dia = el('input', { type: 'date', value: fecha, 'aria-label': 'Día' });
+    const notas = el('input', { placeholder: 'Notas (opcional)', maxlength: 500, 'aria-label': 'Notas' });
+    const ya = el('div', { class: 'aus-ya' });
+
+    const pintarYa = () => {
+      const lista = ausenciasDe(r.id, dia.value);
+      ya.replaceChildren(...lista.map((a) => el('div', { class: 'aus-ya-fila' },
+        el('span', {}, `Ya apuntado: ${a.texto}${a.notas ? ` · ${a.notas}` : ''}`),
+        el('button', {
+          type: 'button', class: 'ghost mini borrar',
+          onclick: () => accion(async () => { await api('DELETE', `/api/ausencias/${a.id}`); d.close(); return 'Ausencia quitada'; }),
+        }, 'Quitar'))));
+    };
+    dia.onchange = pintarYa;
+
+    const guardar = (tipo, nombre) => accion(async () => {
+      const cuerpo = { recurso_id: r.id, tipo, desde: dia.value, hasta: dia.value, notas: notas.value };
+      if (cuando.value === 'desde') { cuerpo.hora_desde = hHora(hora.value); cuerpo.hora_hasta = Math.max(J().fin, cuerpo.hora_desde + 0.5); }
+      if (cuando.value === 'hasta') { cuerpo.hora_desde = J().inicio; cuerpo.hora_hasta = hHora(hora.value); }
+      const x = await api('POST', '/api/ausencias', cuerpo);
+      d.close();
+      return `${r.nombre}: ${nombre.toLowerCase()} el ${fechaCorta(dia.value)}`
+        + (x.afectados.length ? ` · tenía ${x.afectados.length} tramo(s): reasígnalo desde «Solucionar» en los avisos` : '');
+    });
+
+    d.replaceChildren(
+      el('div', { class: 'dlg-cab' },
+        el('h2', { id: 'aus-tit' }, r.nombre),
+        el('button', { type: 'button', class: 'ghost', 'aria-label': 'Cerrar', onclick: () => d.close() }, '✕')),
+      el('div', { class: 'aus-fila' }, dia, cuando, hora),
+      ya,
+      el('div', { class: 'aus-botones' }, (TIPOS_AUS[r.tipo] || TIPOS_AUS.maquina).map(([k, nombre], i) =>
+        el('button', { type: 'button', class: i === 0 ? 'primario' : '', onclick: () => guardar(k, nombre) }, nombre))),
+      notas,
+      el('p', { class: 'ayuda' }, r.tipo === 'operario'
+        ? 'Si tenía trabajo asignado, sale un aviso con «Solucionar» para pasárselo a otro. Las vacaciones largas se apuntan mejor en su ficha (Recursos).'
+        : 'Si estaba asignada, sale un aviso con «Solucionar» para cambiarla por otra del mismo tipo.'));
+    pintarYa();
+    d.showModal();
+    d.querySelector('.aus-botones button')?.focus();
   }
 
   /* ---------- áreas de trabajo ---------- */

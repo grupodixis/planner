@@ -962,3 +962,17 @@ dialog.dlg-enlace { width: min(560px, calc(100vw - 32px)); }
 #dlg-afectados .acciones { display: flex; justify-content: flex-end; }
 @media (max-width: 900px) { .calendario-laboral { grid-template-columns: 1fr; } }
 .tabla-vac .sub-tag { margin-left: 6px; }
+
+/* Falta / ausencia rápida desde el tablero */
+.rec[tabindex] { cursor: pointer; }
+.rec.ausente[tabindex] { cursor: pointer; }
+.nom-op { border: 0; background: none; padding: 0; text-align: left; font: inherit; color: inherit; cursor: pointer; }
+.nom-op:hover { text-decoration: underline; color: var(--azul); }
+dialog.dlg-ausencia { width: min(440px, calc(100vw - 32px)); }
+.dlg-ausencia .aus-fila { display: flex; gap: 6px; margin: 10px 0; flex-wrap: wrap; }
+.dlg-ausencia input, .dlg-ausencia select { background: #1f1f1f; border: 1px solid var(--borde); border-radius: 8px; padding: 5px 8px; }
+.dlg-ausencia > input { width: 100%; margin-top: 8px; }
+.aus-botones { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.aus-botones button { padding: 8px; }
+.aus-ya-fila { display: flex; justify-content: space-between; align-items: center; gap: 8px; color: var(--naranja); font-size: 13px; margin-bottom: 8px; }
+.aus-falta { color: var(--rojo); border-color: var(--rojo); }

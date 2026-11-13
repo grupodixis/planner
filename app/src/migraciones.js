@@ -317,6 +317,10 @@ const MIGRACIONES = [
      CHECK (hora_desde IS NULL OR (desde = hasta AND hora_hasta > hora_desde))
    )`,
   `CREATE INDEX IF NOT EXISTS ausencias_recurso_idx ON ausencias (recurso_id, desde, hasta)`,
+  // tipo «falta sin avisar» (se rehace la comprobación con la lista completa)
+  `ALTER TABLE ausencias DROP CONSTRAINT IF EXISTS ausencias_tipo_check`,
+  `ALTER TABLE ausencias ADD CONSTRAINT ausencias_tipo_check
+     CHECK (tipo IN ('vacaciones', 'baja', 'permiso', 'formacion', 'falta', 'averia', 'mantenimiento', 'itv', 'otro'))`,
   `CREATE INDEX IF NOT EXISTS ausencias_fechas_idx ON ausencias (desde, hasta)`,
   // días de vacaciones al año de cada persona (vacío = los de convenio, VACACIONES_DIAS)
   `ALTER TABLE recursos ADD COLUMN IF NOT EXISTS dias_vacaciones NUMERIC(4,1)`,

@@ -322,7 +322,7 @@
       r.tipo === 'operario' && r.vinculo !== 'subcontratado' ? api('GET', `/api/vacaciones?anio=${anioActual()}`) : null,
     ]);
     if (estado.sel !== r.id) return;   // se cambió de ficha mientras cargaba
-    const editar = puedeEditar();
+    const editar = window.s360.tiene('recursos') || window.s360.tiene('planificar');
     const yo = saldo?.personas.find((p) => p.id === r.id);
     const hoy = hoyISO();
     const tipos = Object.entries(tiposAusencia).filter(([, t]) => t.clases.includes(r.tipo));
@@ -401,7 +401,7 @@
     $('#cal-anio').textContent = String(anioCal);
     $('#cal-resumen').textContent = `${d.laborables_anio} días laborables en ${anioCal} · ${d.festivos.length} festivos · vacaciones de convenio: ${d.dias_convenio} días`;
 
-    const OTRAS = { baja: 'baja', permiso: 'permiso', formacion: 'formación', otro: 'otro' };
+    const OTRAS = { falta: 'faltas', baja: 'baja', permiso: 'permiso', formacion: 'formación', otro: 'otro' };
     const actual = (p) => p.ausencias.find((a) => a.desde <= hoy && a.hasta >= hoy);
     const proxima = (p) => p.ausencias.filter((a) => a.desde > hoy).sort((a, b) => a.desde.localeCompare(b.desde))[0];
     $('#tabla-vac tbody').replaceChildren(...d.personas.map((p) => {
