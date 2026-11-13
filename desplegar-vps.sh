@@ -41,6 +41,14 @@ while [ $# -gt 0 ]; do
   esac
 done
 
+# Configuración del servidor guardada en el repositorio (dominio, correo de Let's Encrypt)
+if [ -f "$DIR/servidor.conf" ]; then
+  # shellcheck disable=SC1091
+  . "$DIR/servidor.conf"
+  DOMINIO="${DOMINIO:-${S360_DOMINIO:-}}"
+  EMAIL="${EMAIL:-${S360_EMAIL:-}}"
+fi
+
 paso() { printf '\n\033[1;36m▶ %s\033[0m\n' "$*"; }
 aviso() { printf '\033[1;33m! %s\033[0m\n' "$*"; }
 [ "$(id -u)" = 0 ] || { echo "Ejecútalo como root"; exit 1; }
@@ -53,11 +61,23 @@ flock -n 9 || { echo "Ya hay una actualización en marcha"; exit 0; }
 if [ "$SOLO_CAMBIOS" = 1 ]; then
   [ -d "$DIR/.git" ] || exit 0
   git -C "$DIR" fetch -q origin main
-  [ "$(git -C "$DIR" rev-parse HEAD)" != "$(git -C "$DIR" rev-parse origin/main)" ] || exit 0
-  echo "$(date '+%F %T') Hay cambios en GitHub: actualizando"
+  if [ "$(git -C "$DIR" rev-parse HEAD)" = "$(git -C "$DIR" rev-parse origin/main)" ]; then
+    # sin cambios: solo se comprueba que la publicación en Plesk está hecha
+    if [ -n "$DOMINIO" ] && command -v plesk >/dev/null 2>&1 \
+       && ! grep -qs "s360 planificador" "/var/www/vhosts/system/${DOMINIO}/conf/vhost_nginx.conf"; then
+      SOLO_PLESK=1
+      echo "$(date '+%F %T') Sin cambios de código; falta publicar en Plesk"
+    else
+      exit 0
+    fi
+  else
+    echo "$(date '+%F %T') Hay cambios en GitHub: actualizando"
+  fi
 fi
+SOLO_PLESK="${SOLO_PLESK:-0}"
+if [ "$SOLO_PLESK" = 1 ]; then cd "$DIR"; PUERTO="$(grep -E '^WEB_PORT=' .env | cut -d= -f2)"; fi
 
-if [ "$SOLO_CAMBIOS" = 0 ]; then
+if [ "$SOLO_PLESK" = 0 ] && [ "$SOLO_CAMBIOS" = 0 ]; then
   paso "Comprobando Docker"
   if ! command -v docker >/dev/null 2>&1; then
     echo "Docker no está instalado: instalándolo…"
@@ -72,6 +92,7 @@ if [ "$SOLO_CAMBIOS" = 0 ]; then
   command -v git >/dev/null 2>&1 || (apt-get install -y -qq git || dnf install -y git)
 fi
 
+if [ "$SOLO_PLESK" = 0 ]; then
 paso "Código en $DIR"
 ANTERIOR=""
 if [ -d "$DIR/.git" ]; then
@@ -146,6 +167,7 @@ else
   fi
   exit 1
 fi
+fi  # fin de instalación / actualización
 
 # Publicar en Plesk: subdominio, proxy nginx y certificado
 if [ -n "$DOMINIO" ]; then
@@ -164,10 +186,11 @@ if [ -n "$DOMINIO" ]; then
     else
       echo "El subdominio ya existe."
     fi
-    if plesk bin site --info "$DOMINIO" >/dev/null 2>&1; then
-      NGX="$(mktemp)"
-      cat > "$NGX" <<EOF
-# s360 planificador → contenedor Docker (lo escribe desplegar-vps.sh)
+    CONF="/var/www/vhosts/system/${DOMINIO}/conf"
+    if [ -d "$CONF" ]; then
+      NUEVA="$(mktemp)"
+      cat > "$NUEVA" <<NGINX
+# s360 planificador → contenedor Docker (lo escribe desplegar-vps.sh; no editar a mano)
 location ~ ^/ {
     proxy_pass http://127.0.0.1:${PUERTO};
     proxy_http_version 1.1;
@@ -178,20 +201,49 @@ location ~ ^/ {
     proxy_read_timeout 120s;
     client_max_body_size 5m;
 }
-EOF
-      plesk bin site --update-web-server-settings "$DOMINIO" -additional-nginx-settings-file "$NGX" \
-        && echo "Proxy nginx configurado." || aviso "No pude poner las directivas de nginx: pégalas en Plesk (README)."
-      rm -f "$NGX"
-      if ! plesk bin certificate --list -domain "$DOMINIO" 2>/dev/null | grep -qi "lets\|let's"; then
-        if plesk bin extension --exec letsencrypt cli.php -d "$DOMINIO" ${EMAIL:+-m "$EMAIL"}; then
-          echo "Certificado Let's Encrypt emitido."
+NGINX
+      if ! cmp -s "$NUEVA" "$CONF/vhost_nginx.conf"; then
+        [ -f "$CONF/vhost_nginx.conf" ] && cp "$CONF/vhost_nginx.conf" "$CONF/vhost_nginx.conf.antes-s360"
+        cp "$NUEVA" "$CONF/vhost_nginx.conf"
+        chmod 644 "$CONF/vhost_nginx.conf"
+        if plesk sbin httpdmng --reconfigure-domain "$DOMINIO" >/dev/null 2>&1 && nginx -t >/dev/null 2>&1; then
+          systemctl reload nginx 2>/dev/null || true
+          echo "Proxy nginx configurado."
         else
-          aviso "No pude emitir el certificado (¿el DNS de ${DOMINIO} apunta ya a este servidor?). Vuelve a ejecutar cuando apunte."
+          aviso "nginx no acepta la configuración: la quito."
+          if [ -f "$CONF/vhost_nginx.conf.antes-s360" ]; then
+            mv "$CONF/vhost_nginx.conf.antes-s360" "$CONF/vhost_nginx.conf"
+          else
+            rm -f "$CONF/vhost_nginx.conf"
+          fi
+          plesk sbin httpdmng --reconfigure-domain "$DOMINIO" >/dev/null 2>&1 || true
+        fi
+      else
+        echo "Proxy nginx ya configurado."
+      fi
+      rm -f "$NUEVA"
+      # Certificado: si HTTPS falla por el certificado, se pide a Let's Encrypt
+      set +e
+      curl -sS -o /dev/null --max-time 15 "https://${DOMINIO}/health" 2>/dev/null
+      CODIGO=$?
+      set -e
+      if [ "$CODIGO" = 60 ] || [ "$CODIGO" = 35 ] || [ "$CODIGO" = 51 ] || [ "$CODIGO" = 7 ]; then
+        echo "Pidiendo certificado Let's Encrypt…"
+        if plesk bin extension --exec letsencrypt cli.php -d "$DOMINIO" ${EMAIL:+-m "$EMAIL"}; then
+          echo "Certificado emitido."
+        else
+          aviso "No pude emitir el certificado: emítelo en Plesk → SSL/TLS."
         fi
       fi
-      plesk bin site --update "$DOMINIO" -ssl-redirect true >/dev/null 2>&1 || true
-      curl -fsS "https://${DOMINIO}/health" 2>/dev/null && echo " ← responde por HTTPS" \
-        || aviso "Aún no responde por https://${DOMINIO} (DNS o certificado pendientes)."
+      plesk bin site --update "$DOMINIO" -ssl-redirect true >/dev/null 2>&1 \
+        || plesk bin subscription --update "$DOMINIO" -ssl-redirect true >/dev/null 2>&1 || true
+      if curl -fsS --max-time 15 "https://${DOMINIO}/health" 2>/dev/null; then
+        echo " ← responde por HTTPS"
+      else
+        aviso "Aún no responde por https://${DOMINIO}."
+      fi
+    else
+      aviso "No encuentro la configuración de ${DOMINIO} en Plesk (${CONF})."
     fi
   fi
 fi
