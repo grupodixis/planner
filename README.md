@@ -27,6 +27,52 @@ Los scripts de `db/init/` solo se ejecutan la primera vez, con el volumen de dat
 Los cambios posteriores del esquema van en `app/src/migraciones.js` y se aplican solos al
 arrancar, sin perder datos: para actualizar basta con `docker compose up -d --build`.
 
+## Publicar en un servidor (VPS con Plesk)
+
+Para probarlo online en `https://administrador.hamenorca.com`:
+
+**1 · En el servidor, por SSH como root** (instala Docker si falta, descarga el código de
+GitHub, crea contraseñas nuevas y arranca; escucha solo en `127.0.0.1:8380`):
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/grupodixis/planner/main/desplegar-vps.sh | bash
+```
+
+Al terminar muestra el usuario y la contraseña de administrador (quedan en `/opt/s360/.env`).
+Para **actualizar** más adelante, el mismo comando (hace copia de la base de datos antes).
+Para **llevarse los datos del PC**, copia al servidor un `pg_dump` (p. ej. `backups\antes-de-actualizar.sql`)
+y ejecuta:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/grupodixis/planner/main/desplegar-vps.sh | bash -s -- --restaurar /root/antes-de-actualizar.sql
+```
+
+**2 · En Plesk:**
+
+1. *Sitios web y dominios* → **Añadir subdominio** `administrador` de `hamenorca.com`
+   (si el DNS de hamenorca.com no lo lleva Plesk, crea un registro A `administrador` → IP del VPS).
+2. En el subdominio → **SSL/TLS** → *Let's Encrypt* → emitir certificado y activar
+   «Redirigir de HTTP a HTTPS».
+3. En el subdominio → **Configuración de Apache y nginx** → *Directivas adicionales de nginx*:
+
+   ```nginx
+   location ~ ^/ {
+       proxy_pass http://127.0.0.1:8380;
+       proxy_http_version 1.1;
+       proxy_set_header Host $host;
+       proxy_set_header X-Real-IP $remote_addr;
+       proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+       proxy_set_header X-Forwarded-Proto $scheme;
+       client_max_body_size 5m;
+   }
+   ```
+
+   (Si tienes la extensión *Docker* de Plesk, vale también *Reglas de proxy de Docker* →
+   URL `/` → contenedor `s360-web-1`, puerto 3000.)
+
+En el servidor la cookie de sesión va con `Secure` (solo HTTPS) y la base de datos no se
+publica fuera del servidor.
+
 ## Estructura
 
 ```

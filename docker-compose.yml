@@ -36,7 +36,8 @@ services:
       JORNADA_FIN: ${JORNADA_FIN:-15}
       TZ: Europe/Madrid
     ports:
-      - "${WEB_PORT:-8080}:3000"
+      # En el PC: todas las interfaces. En el servidor: WEB_BIND=127.0.0.1 (lo publica nginx/Plesk)
+      - "${WEB_BIND:-0.0.0.0}:${WEB_PORT:-8080}:3000"
 
 volumes:
   db_data:
