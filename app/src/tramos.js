@@ -224,7 +224,7 @@ module.exports = function montar(app, asyncH) {
   /* ---------- Crear tramo (soltar una tarea en el calendario) ---------- */
   // Sin duracion_h: ocupa lo pendiente hasta el fin de jornada; el resto queda pendiente.
   // Con recurso_id (soltada en la fila de un operario): se asigna ese recurso y no se heredan otros.
-  app.post('/api/tareas/:id/tramos', auth.puedeEditar, asyncH(async (req, res) => {
+  app.post('/api/tareas/:id/tramos', auth.permiso('planificar'), asyncH(async (req, res) => {
     const tareaId = Number(req.params.id);
     const b = req.body || {};
     const fecha = leerFecha(b.fecha);
@@ -265,7 +265,7 @@ module.exports = function montar(app, asyncH) {
 
   /* ---------- Mover / cambiar horas de un tramo ---------- */
   // Las horas pueden superar la estimación de la tarea: queda registrado como exceso.
-  app.patch('/api/tramos/:id', auth.puedeEditar, asyncH(async (req, res) => {
+  app.patch('/api/tramos/:id', auth.permiso('planificar'), asyncH(async (req, res) => {
     const id = Number(req.params.id);
     const b = req.body || {};
     const cambios = {};
@@ -300,7 +300,7 @@ module.exports = function montar(app, asyncH) {
   }));
 
   /* ---------- Quitar un tramo (sus horas vuelven a pendientes) ---------- */
-  app.delete('/api/tramos/:id', auth.puedeEditar, asyncH(async (req, res) => {
+  app.delete('/api/tramos/:id', auth.permiso('planificar'), asyncH(async (req, res) => {
     const id = Number(req.params.id);
     await tx(async (c) => {
       const { rows } = await c.query('DELETE FROM tramos WHERE id = $1 RETURNING tarea_id, fecha, duracion_h', [id]);
@@ -311,7 +311,7 @@ module.exports = function montar(app, asyncH) {
   }));
 
   /* ---------- Empujar lo siguiente (vista previa y aplicar) ---------- */
-  app.post('/api/tramos/:id/empujar', auth.puedeEditar, asyncH(async (req, res) => {
+  app.post('/api/tramos/:id/empujar', auth.permiso('planificar'), asyncH(async (req, res) => {
     const id = Number(req.params.id);
     const aplicar = !!req.body?.aplicar;
 
@@ -345,7 +345,7 @@ module.exports = function montar(app, asyncH) {
 
   /* ---------- Repartir lo pendiente en los días laborables siguientes ---------- */
   // Mismo área y mismos recursos que el tramo de referencia, una jornada por día (o horas_dia).
-  app.post('/api/tramos/:id/repartir', auth.puedeEditar, asyncH(async (req, res) => {
+  app.post('/api/tramos/:id/repartir', auth.permiso('planificar'), asyncH(async (req, res) => {
     const id = Number(req.params.id);
     const horasDia = req.body?.horas_dia != null ? leerDuracion(req.body.horas_dia) : jornada.horas;
     if (horasDia > jornada.vistaFin - jornada.inicio) throw fallo(400, 'Más horas por día de las que caben en el tablero');
@@ -403,7 +403,7 @@ module.exports = function montar(app, asyncH) {
     return { tarea_id: t.tarea_id, desde, hasta };
   }
 
-  app.post('/api/tramos/:id/asignaciones', auth.puedeEditar, asyncH(async (req, res) => {
+  app.post('/api/tramos/:id/asignaciones', auth.permiso('planificar'), asyncH(async (req, res) => {
     const id = Number(req.params.id);
     const recursoId = Number(req.body?.recurso_id);
     await tx(async (c) => {
@@ -417,7 +417,7 @@ module.exports = function montar(app, asyncH) {
   }));
 
   // Cambiar la franja de un recurso ({desde, hasta}) o pasarla a otro recurso ({recurso_id})
-  app.patch('/api/tramos/:id/asignaciones/:recursoId', auth.puedeEditar, asyncH(async (req, res) => {
+  app.patch('/api/tramos/:id/asignaciones/:recursoId', auth.permiso('planificar'), asyncH(async (req, res) => {
     const id = Number(req.params.id);
     const recursoId = Number(req.params.recursoId);
     const b = req.body || {};
@@ -441,7 +441,7 @@ module.exports = function montar(app, asyncH) {
     res.json({ ok: true });
   }));
 
-  app.delete('/api/tramos/:id/asignaciones/:recursoId', auth.puedeEditar, asyncH(async (req, res) => {
+  app.delete('/api/tramos/:id/asignaciones/:recursoId', auth.permiso('planificar'), asyncH(async (req, res) => {
     const id = Number(req.params.id);
     const recursoId = Number(req.params.recursoId);
     await tx(async (c) => {

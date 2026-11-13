@@ -310,8 +310,7 @@ async function cargar(c, S) {
 }
 
 module.exports = function montar(app, asyncH) {
-  app.post('/api/semillero', auth.puedeEditar, asyncH(async (req, res) => {
-    if (req.usuario.rol !== 'admin') throw fallo(403, 'Solo un administrador puede cargar el semillero');
+  app.post('/api/semillero', auth.permiso('recursos'), asyncH(async (req, res) => {
     const S = req.body || {};
     const simular = ['1', 'true', 'si'].includes(String(req.query.simular || '').toLowerCase());
     if (!validar(S)) {

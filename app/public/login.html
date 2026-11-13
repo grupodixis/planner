@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>s360 · Entrar</title>
-  <link rel="stylesheet" href="styles.css?v=202611132009">
+  <link rel="stylesheet" href="styles.css?v=202611132159">
 </head>
 <body class="login">
   <form id="f">
@@ -13,8 +13,14 @@
     <label>Contraseña <input name="password" type="password" autocomplete="current-password" required></label>
     <p class="error" id="err" role="alert"></p>
     <button type="submit">Entrar</button>
+    <p class="pie"><a href="/recuperar.html" id="olvido">¿Has olvidado tu contraseña?</a></p>
   </form>
   <script>
+    // lleva el email escrito a la pantalla de recuperar
+    document.getElementById('olvido').addEventListener('click', (ev) => {
+      const e = document.querySelector('[name=email]').value.trim();
+      if (e) { ev.preventDefault(); location.href = '/recuperar.html?email=' + encodeURIComponent(e); }
+    });
     document.getElementById('f').addEventListener('submit', async (ev) => {
       ev.preventDefault();
       const fd = new FormData(ev.target);

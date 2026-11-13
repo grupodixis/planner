@@ -118,7 +118,9 @@
 
   const hhmm = (h) => `${String(Math.floor(h)).padStart(2, '0')}:${String(Math.round((h % 1) * 60)).padStart(2, '0')}`;
   const durTxt = (h) => `${String(h).replace('.', ',')}h`;
-  const puedeEditar = () => estado.usuario && estado.usuario.rol !== 'consulta';
+  // Permisos del rol: «planificar» para el tablero, «recursos» para las áreas de trabajo
+  const puedeEditar = () => window.s360.tiene('planificar');
+  const puedeAreas = () => window.s360.tiene('recursos');
 
   // Rango visible del día (viene del servidor: jornada + horas extra)
   const J = () => estado.datos.jornada;
@@ -1656,14 +1658,14 @@
   /* ---------- áreas de trabajo ---------- */
   async function abrirAreas() {
     const dlg = $('#dlg-areas');
-    $('#form-area').hidden = !puedeEditar();
+    $('#form-area').hidden = !puedeAreas();
     await pintarAreas();
     if (!dlg.open) dlg.showModal();
   }
 
   async function pintarAreas() {
     const { tipos, areas, departamentos = [], obras_sin_proyecto: sueltas = [] } = await api('GET', '/api/areas');
-    const editar = puedeEditar();
+    const editar = puedeAreas();
     const opciones = (sel) => tipos.map((t) => el('option', { value: t, selected: t === sel }, TIPO_TXT[t] || t));
     const opcDep = (sel) => [el('option', { value: '' }, '—'), ...departamentos.map((d) => el('option', { value: d.id, selected: d.id === sel }, d.nombre.replace(/^Departamento (de |)/, '')))];
     $('#form-area select[name=tipo]').replaceChildren(...opciones('taller'));
@@ -1743,7 +1745,7 @@
 
   async function init() {
     try { estado.usuario = await api('GET', '/api/me'); } catch { return; }
-    $('#usuario-nombre').textContent = `${estado.usuario.nombre}${estado.usuario.rol === 'consulta' ? ' (consulta)' : ''}`;
+    window.s360.iniciar(estado.usuario);
 
     const paso = (n) => (estado.periodo === 'mes' ? sumarMeses(estado.fecha, n)
       : sumarDias(estado.fecha, estado.periodo === 'semana' ? 7 * n : n));

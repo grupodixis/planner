@@ -95,7 +95,7 @@ module.exports = function montar(app, asyncH) {
     res.json(rows);
   }));
 
-  app.post('/api/proyectos', auth.puedeEditar, asyncH(async (req, res) => {
+  app.post('/api/proyectos', auth.permiso('proyectos'), asyncH(async (req, res) => {
     const p = leerProyecto(req.body || {}, false);
     p.codigo = p.codigo || await siguienteCodigo('PR');
     const { rows } = await query(
@@ -105,7 +105,7 @@ module.exports = function montar(app, asyncH) {
     res.status(201).json(rows[0]);
   }));
 
-  app.patch('/api/proyectos/:id', auth.puedeEditar, asyncH(async (req, res) => {
+  app.patch('/api/proyectos/:id', auth.permiso('proyectos'), asyncH(async (req, res) => {
     const p = leerProyecto(req.body || {}, true);
     if ('codigo' in p && !p.codigo) throw fallo(400, 'El código no puede quedar vacío');
     const s = sets(p);
@@ -144,7 +144,7 @@ module.exports = function montar(app, asyncH) {
   }
 
   // Añadir otra obra al proyecto (si trabaja en dos sitios)
-  app.post('/api/proyectos/:id/obras', auth.puedeEditar, asyncH(async (req, res) => {
+  app.post('/api/proyectos/:id/obras', auth.permiso('proyectos'), asyncH(async (req, res) => {
     const id = Number(req.params.id);
     const { rows: p } = await query('SELECT * FROM proyectos WHERE id = $1', [id]);
     if (!p.length) throw fallo(404, 'Proyecto no encontrado');
@@ -153,7 +153,7 @@ module.exports = function montar(app, asyncH) {
     res.status(201).json(await crearObra(id, nombre, ubic || (p[0].obra && !req.body?.nombre ? p[0].obra : null)));
   }));
 
-  app.delete('/api/proyectos/:id', auth.puedeEditar, asyncH(async (req, res) => {
+  app.delete('/api/proyectos/:id', auth.permiso('proyectos'), asyncH(async (req, res) => {
     const id = Number(req.params.id);
     const { rows } = await query('SELECT count(*)::int AS n FROM ordenes WHERE proyecto_id = $1', [id]);
     if (rows[0].n) throw fallo(409, 'El proyecto tiene OTs: ciérralo en lugar de borrarlo');
@@ -166,7 +166,7 @@ module.exports = function montar(app, asyncH) {
   }));
 
   /* ---------- Condiciones previas del proyecto (pago, RAL, pilares…) ---------- */
-  app.post('/api/proyectos/:id/condiciones', auth.puedeEditar, asyncH(async (req, res) => {
+  app.post('/api/proyectos/:id/condiciones', auth.permiso('proyectos'), asyncH(async (req, res) => {
     const textoC = texto(req.body?.texto, 200, true, 'El texto');
     const { rows } = await query(
       `INSERT INTO proyecto_condiciones (proyecto_id, texto, orden)
@@ -175,7 +175,7 @@ module.exports = function montar(app, asyncH) {
     res.status(201).json(rows[0]);
   }));
 
-  app.patch('/api/condiciones/:id', auth.puedeEditar, asyncH(async (req, res) => {
+  app.patch('/api/condiciones/:id', auth.permiso('proyectos'), asyncH(async (req, res) => {
     const b = req.body || {};
     const id = Number(req.params.id);
     if ('texto' in b) await query('UPDATE proyecto_condiciones SET texto = $2 WHERE id = $1', [id, texto(b.texto, 200, true, 'El texto')]);
@@ -188,7 +188,7 @@ module.exports = function montar(app, asyncH) {
     res.json(rows[0]);
   }));
 
-  app.delete('/api/condiciones/:id', auth.puedeEditar, asyncH(async (req, res) => {
+  app.delete('/api/condiciones/:id', auth.permiso('proyectos'), asyncH(async (req, res) => {
     await query('DELETE FROM proyecto_condiciones WHERE id = $1', [Number(req.params.id)]);
     res.json({ ok: true });
   }));
@@ -215,7 +215,7 @@ module.exports = function montar(app, asyncH) {
     return p;
   }
 
-  app.post('/api/partidas', auth.puedeEditar, asyncH(async (req, res) => {
+  app.post('/api/partidas', auth.permiso('proyectos'), asyncH(async (req, res) => {
     const b = req.body || {};
     const proyecto = Number(b.proyecto_id);
     if (!proyecto) throw fallo(400, 'Falta el proyecto');
@@ -227,7 +227,7 @@ module.exports = function montar(app, asyncH) {
     res.status(201).json(rows[0]);
   }));
 
-  app.patch('/api/partidas/:id', auth.puedeEditar, asyncH(async (req, res) => {
+  app.patch('/api/partidas/:id', auth.permiso('proyectos'), asyncH(async (req, res) => {
     const p = leerPartida(req.body || {}, true);
     const s = sets(p);
     if (!s.n) throw fallo(400, 'Nada que cambiar');
@@ -237,7 +237,7 @@ module.exports = function montar(app, asyncH) {
   }));
 
   // Solo se borra una partida vacía (sin OTs)
-  app.delete('/api/partidas/:id', auth.puedeEditar, asyncH(async (req, res) => {
+  app.delete('/api/partidas/:id', auth.permiso('proyectos'), asyncH(async (req, res) => {
     const id = Number(req.params.id);
     const { rows } = await query('SELECT count(*)::int AS n FROM ordenes WHERE partida_id = $1', [id]);
     if (rows[0].n) throw fallo(409, `La partida tiene ${rows[0].n} OT(s): muévelas a otra partida antes de borrarla`);
@@ -245,7 +245,7 @@ module.exports = function montar(app, asyncH) {
     res.json({ ok: true });
   }));
 
-  app.put('/api/proyectos/:id/partidas/orden', auth.puedeEditar, asyncH(async (req, res) => {
+  app.put('/api/proyectos/:id/partidas/orden', auth.permiso('proyectos'), asyncH(async (req, res) => {
     const ids = Array.isArray(req.body?.ids) ? req.body.ids.map(Number) : [];
     await tx(async (c) => {
       for (let i = 0; i < ids.length; i++) {
@@ -344,7 +344,7 @@ module.exports = function montar(app, asyncH) {
     if (rows[0].proyecto_id !== proyectoId) throw fallo(400, 'La partida es de otro proyecto');
   }
 
-  app.post('/api/ordenes', auth.puedeEditar, asyncH(async (req, res) => {
+  app.post('/api/ordenes', auth.permiso('proyectos'), asyncH(async (req, res) => {
     const o = leerOT(req.body || {}, false);
     await comprobarPartida(o.partida_id, o.proyecto_id);
     o.codigo = o.codigo || await siguienteCodigo('OT');
@@ -359,7 +359,7 @@ module.exports = function montar(app, asyncH) {
     res.status(201).json(rows[0]);
   }));
 
-  app.patch('/api/ordenes/:id', auth.puedeEditar, asyncH(async (req, res) => {
+  app.patch('/api/ordenes/:id', auth.permiso('proyectos'), asyncH(async (req, res) => {
     const o = leerOT(req.body || {}, true);
     if ('codigo' in o && !o.codigo) throw fallo(400, 'El código no puede quedar vacío');
     if ('partida_id' in o || 'proyecto_id' in o) {
@@ -378,7 +378,7 @@ module.exports = function montar(app, asyncH) {
   }));
 
   // Solo se borra una OT sin tareas planificadas ni hechas; si no, se cierra
-  app.delete('/api/ordenes/:id', auth.puedeEditar, asyncH(async (req, res) => {
+  app.delete('/api/ordenes/:id', auth.permiso('proyectos'), asyncH(async (req, res) => {
     const id = Number(req.params.id);
     const { rows } = await query(
       `SELECT count(*)::int AS n FROM tareas t WHERE t.orden_id = $1
@@ -389,7 +389,7 @@ module.exports = function montar(app, asyncH) {
   }));
 
   /* ---------- Tareas de una OT ---------- */
-  app.post('/api/ordenes/:id/tareas', auth.puedeEditar, asyncH(async (req, res) => {
+  app.post('/api/ordenes/:id/tareas', auth.permiso('proyectos'), asyncH(async (req, res) => {
     const ordenId = Number(req.params.id);
     const b = req.body || {};
     const nombre = texto(b.nombre, 120, true, 'El nombre de la tarea');
@@ -417,7 +417,7 @@ module.exports = function montar(app, asyncH) {
     res.status(201).json(tarea);
   }));
 
-  app.delete('/api/tareas/:id', auth.puedeEditar, asyncH(async (req, res) => {
+  app.delete('/api/tareas/:id', auth.permiso('proyectos'), asyncH(async (req, res) => {
     const id = Number(req.params.id);
     const { rows } = await query('SELECT estado FROM tareas WHERE id = $1', [id]);
     if (!rows.length) throw fallo(404, 'Tarea no encontrada');
@@ -427,7 +427,7 @@ module.exports = function montar(app, asyncH) {
   }));
 
   // Reordenar tareas dentro de la OT
-  app.put('/api/ordenes/:id/tareas/orden', auth.puedeEditar, asyncH(async (req, res) => {
+  app.put('/api/ordenes/:id/tareas/orden', auth.permiso('proyectos'), asyncH(async (req, res) => {
     const ids = Array.isArray(req.body?.ids) ? req.body.ids.map(Number) : [];
     await tx(async (c) => {
       for (let i = 0; i < ids.length; i++) {

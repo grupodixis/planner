@@ -75,11 +75,13 @@ app/src/tramos.js         tablero del día y tramos (planificar, mover, repartir
 app/src/config.js         jornada laboral (JORNADA_INICIO / JORNADA_FIN)
 app/src/gestion.js        API de proyectos, OTs y sus tareas
 app/src/recursos.js       API de operarios, maquinaria y subcontratas
-app/src/auth.js           login, sesiones en BD, roles
+app/src/auth.js           sesiones en BD, permisos, bloqueo tras intentos fallidos
+app/src/usuarios.js       entrar, recuperar contraseña, Mi cuenta, usuarios y roles
+app/src/correo.js         envío de correo opcional (SMTP)
 app/src/conflictos.js     reglas de conflicto del día
 app/src/importar.js       importación de proyectos del compositor (s360-import/1)
 app/src/migraciones.js    cambios de esquema que se aplican solos al arrancar
-app/public/               frontend sin compilación: index (tablero), proyectos, recursos
+app/public/               frontend sin compilación: index (tablero), proyectos, recursos, usuarios
 ```
 
 ## Vistas Día, Semana y Mes
@@ -219,6 +221,41 @@ asignación e historial. **Baja:** si el recurso se ha usado alguna vez se **da 
 (deja de salir en el panel del tablero para asignar, pero conserva su historial y sigue
 viéndose los días en que ya tenía trabajo); si nunca se usó, se borra. «Reactivar» lo devuelve.
 
+## Usuarios y roles
+
+Menú **Usuarios** (solo quien tiene el permiso «usuarios»).
+
+- **Alta:** nombre, email, rol y, si es un operario, a quién corresponde. No se escribe
+  contraseña: se genera un **enlace de activación** (7 días, un solo uso) con el que la persona
+  elige la suya. Si hay correo configurado se le envía; si no, aparece en pantalla para copiarlo
+  o abrirlo en tu correo.
+- **Roles** configurables con cuatro permisos. Ver lo puede todo el mundo; los permisos dicen qué
+  se puede **cambiar**:
+
+  | Permiso | Qué deja cambiar |
+  |---|---|
+  | planificar | tablero: tramos, asignaciones, estado de las tareas |
+  | proyectos | proyectos, partidas, OTs, tareas, importación |
+  | recursos | recursos, áreas de trabajo, tipos, semillero |
+  | usuarios | usuarios y roles |
+
+  De serie: **Administrador** (todo; no se puede modificar ni borrar), **Planificador**
+  (planificar + proyectos) y **Consulta** (nada). Se pueden crear otros (p. ej. «Jefe de taller»
+  solo con planificar). Un rol con usuarios no se borra.
+- **¿Has olvidado tu contraseña?** en la pantalla de entrada. Con correo configurado llega un
+  enlace (24 h). Sin correo, la petición aparece arriba en Usuarios para que un administrador
+  genere el enlace y se lo pase.
+- **Mi cuenta:** pulsando en tu nombre (arriba a la derecha) cambias nombre y contraseña.
+- **Seguridad:** contraseñas de 8+ caracteres mezclando letras con números o símbolos, guardadas
+  con scrypt; los enlaces se guardan como hash y caducan; 5 intentos fallidos bloquean ese email
+  15 minutos; al cambiar la contraseña se cierran las demás sesiones. Desactivar a un usuario lo
+  saca al momento. Tiene que quedar siempre al menos un usuario activo que gestione usuarios.
+- **Borrar** solo quita a quien nunca ha hecho nada en el sistema; si ya planificó o importó, se
+  desactiva y se conserva su historial.
+
+Correo (opcional), en `.env`: `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM` y
+`APP_URL` (la dirección pública para los enlaces; en el VPS la pone el script de despliegue).
+
 ## Semillero de recursos de la empresa
 
 [`semillero/semillero.json`](semillero/README.md) describe departamentos, áreas de trabajo
@@ -262,8 +299,15 @@ vez. Al confirmar se importa todo de una vez (o nada).
 
 | Método | Ruta | Uso |
 |---|---|---|
-| POST | `/api/login` · `/api/logout` | Sesión |
-| GET | `/api/me` | Usuario actual |
+| POST | `/api/login` · `/api/logout` | Sesión (429 tras 5 fallos) |
+| POST | `/api/recuperar` | `{email}` pedir enlace para cambiar la contraseña (respuesta siempre igual) |
+| GET · POST | `/api/restablecer/:token` · `/api/restablecer` | ver a quién es el enlace · `{token, password}` guardar y entrar |
+| GET · PATCH | `/api/me` | usuario actual con `permisos` · `{nombre}` |
+| POST | `/api/me/password` | `{actual, nueva}` (cierra las demás sesiones) |
+| GET · POST | `/api/usuarios` | usuarios, roles, personas y peticiones · alta `{nombre, email, rol, recurso_id}` (devuelve el enlace) |
+| PATCH · DELETE | `/api/usuarios/:id` | `{nombre, email, rol, recurso_id, activo}` · borrar (o desactivar si tiene historial) |
+| POST | `/api/usuarios/:id/enlace` · `/api/usuarios/:id/cerrar-sesiones` | enlace nuevo de activación/recuperación · sacarlo de todas partes |
+| POST · PATCH · DELETE | `/api/roles` · `/api/roles/:clave` | `{nombre, descripcion, permisos[]}` |
 | GET | `/api/tablero?fecha=YYYY-MM-DD` · `?desde=…&hasta=…` | jornada, áreas, recursos, tareas abiertas, tramos del día o del rango (máx. 62 días) y avisos (cada uno con su `fecha`) |
 | PATCH | `/api/tareas/:id` | `{estado, nombre, duracion_h, operarios_req, linea_id, requisitos, requisitos_tipo, notas, baja_presupuesto}` |
 | POST | `/api/tareas/:id/tramos` | `{fecha, hora_inicio, linea_id?, recurso_id?, duracion_h?}` planificar (sin horas: hasta fin de jornada) |
@@ -303,7 +347,8 @@ vez. Al confirmar se importa todo de una vez (o nada).
 **Fase 1 – Tablero operativo diario (hecho).** Vista día, drag & drop, conflictos, login y roles.
 
 **Fase 2 – Mantenimiento de datos.** Hecho: áreas de trabajo, proyectos, OTs y sus tareas.
-Hecho también: recursos (operarios, maquinaria, subcontratas). Pendiente: pantalla de usuarios (admin).
+Hecho también: recursos (operarios, maquinaria, subcontratas) y usuarios con roles configurables,
+activación por enlace y recuperación de contraseña.
 
 **Fase 3 – Registro real.** Hecho en parte: franjas por operario, horas-persona, exceso sobre lo
 estimado y empujar. Pendiente: cierre de cada tramo (hecho / faltan X h / no se hizo), estado en curso/hecha desde el móvil (vista simple para taller y obra).

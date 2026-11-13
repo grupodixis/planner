@@ -7,6 +7,8 @@ const { migrar } = require('./migraciones');
 
 const app = express();
 app.disable('x-powered-by');
+// Detrás de nginx/Docker la IP real llega en X-Forwarded-For (para el bloqueo de intentos)
+app.set('trust proxy', 'loopback, uniquelocal');
 // La importación de proyectos admite archivos grandes; el resto, 100 kB
 app.use('/api/importar', express.json({ limit: '2mb' }));
 app.use('/api/semillero', express.json({ limit: '1mb' }));
@@ -20,25 +22,7 @@ app.get('/health', (req, res) => res.json({ ok: true, version: VERSION }));
 
 /* ---------- Autenticación ---------- */
 
-app.post('/api/login', asyncH(async (req, res) => {
-  const email = String(req.body?.email || '').trim().toLowerCase();
-  const password = String(req.body?.password || '');
-  const { rows } = await query('SELECT id, password_hash FROM usuarios WHERE email = $1 AND activo', [email]);
-  if (!rows.length || !auth.verificarPassword(password, rows[0].password_hash)) {
-    return res.status(401).json({ error: 'Email o contraseña incorrectos' });
-  }
-  await auth.crearSesion(res, rows[0].id);
-  res.json({ ok: true });
-}));
-
-app.post('/api/logout', asyncH(async (req, res) => {
-  await auth.cerrarSesion(req, res);
-  res.json({ ok: true });
-}));
-
-app.use('/api', auth.requiereSesion);
-
-app.get('/api/me', (req, res) => res.json(req.usuario));
+require('./usuarios')(app, asyncH);   // entrar, recuperar contraseña, Mi cuenta, usuarios y roles
 
 /* ---------- Tablero y tramos ---------- */
 
@@ -92,7 +76,7 @@ app.get('/api/areas', asyncH(async (req, res) => {
 
 const OBRA_DESDE_PROYECTO = 'Las obras se crean desde la ficha del proyecto (Proyectos y OTs)';
 
-app.post('/api/areas', auth.puedeEditar, asyncH(async (req, res) => {
+app.post('/api/areas', auth.permiso('recursos'), asyncH(async (req, res) => {
   const a = leerArea(req.body || {}, false);
   if (a.tipo === 'obra') return res.status(400).json({ error: OBRA_DESDE_PROYECTO });
   const { rows } = await query(
@@ -102,7 +86,7 @@ app.post('/api/areas', auth.puedeEditar, asyncH(async (req, res) => {
   res.status(201).json(rows[0]);
 }));
 
-app.patch('/api/areas/:id', auth.puedeEditar, asyncH(async (req, res) => {
+app.patch('/api/areas/:id', auth.permiso('recursos'), asyncH(async (req, res) => {
   const a = leerArea(req.body || {}, true);
   if ('tipo' in a) {
     const { rows: act } = await query('SELECT tipo, proyecto_id FROM lineas WHERE id = $1', [Number(req.params.id)]);
@@ -120,7 +104,7 @@ app.patch('/api/areas/:id', auth.puedeEditar, asyncH(async (req, res) => {
 }));
 
 // Reordenar: recibe la lista de ids en el orden deseado
-app.put('/api/areas/orden', auth.puedeEditar, asyncH(async (req, res) => {
+app.put('/api/areas/orden', auth.permiso('recursos'), asyncH(async (req, res) => {
   const ids = Array.isArray(req.body?.ids) ? req.body.ids.map(Number) : [];
   await tx(async (c) => {
     for (let i = 0; i < ids.length; i++) await c.query('UPDATE lineas SET orden = $2 WHERE id = $1', [ids[i], i + 1]);
@@ -129,7 +113,7 @@ app.put('/api/areas/orden', auth.puedeEditar, asyncH(async (req, res) => {
 }));
 
 // Borrar solo si nunca se ha usado; si tiene tareas, se desactiva
-app.delete('/api/areas/:id', auth.puedeEditar, asyncH(async (req, res) => {
+app.delete('/api/areas/:id', auth.permiso('recursos'), asyncH(async (req, res) => {
   const id = Number(req.params.id);
   const { rows } = await query(
     `SELECT (SELECT count(*) FROM tareas WHERE linea_id = $1) + (SELECT count(*) FROM tramos WHERE linea_id = $1) AS n`, [id]);
@@ -143,7 +127,7 @@ app.delete('/api/areas/:id', auth.puedeEditar, asyncH(async (req, res) => {
 
 /* ---------- Editar tarea (datos y estado; la planificación va por tramos) ---------- */
 
-app.patch('/api/tareas/:id', auth.puedeEditar, asyncH(async (req, res) => {
+app.patch('/api/tareas/:id', auth.permiso('planificar', 'proyectos'), asyncH(async (req, res) => {
   const id = Number(req.params.id);
   const b = req.body || {};
   const cambios = {};

@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>s360 · Usuarios</title>
+  <link rel="stylesheet" href="styles.css?v=202611132159">
+</head>
+<body>
+  <header class="top">
+    <h1>s360_planificacion <span>· usuarios</span></h1>
+    <nav class="menu" aria-label="Pantallas">
+      <a href="/">Tablero</a>
+      <a href="/proyectos.html">Proyectos y OTs</a>
+      <a href="/recursos.html">Recursos</a>
+    </nav>
+    <div class="usuario"><span id="usuario-nombre"></span> <button id="salir" class="ghost">Salir</button></div>
+  </header>
+
+  <main class="usuarios-pant">
+    <section class="panel" aria-labelledby="tit-usuarios">
+      <div class="cab-panel"><h2 id="tit-usuarios">Usuarios</h2>
+        <label class="ver-inactivos"><input type="checkbox" id="ver-inactivos"> ver desactivados</label></div>
+      <div id="peticiones"></div>
+      <form id="form-usuario" class="alta-usuario">
+        <input name="nombre" placeholder="Nombre" required maxlength="80" aria-label="Nombre">
+        <input name="email" type="email" placeholder="Email" required maxlength="120" aria-label="Email">
+        <select name="rol" aria-label="Rol"></select>
+        <select name="recurso_id" aria-label="Es el operario…"></select>
+        <button type="submit" class="primario">Dar de alta</button>
+      </form>
+      <p class="ayuda" id="ayuda-alta"></p>
+      <div class="tabla-scroll">
+        <table class="tabla-usuarios">
+          <thead><tr><th>Nombre</th><th>Email</th><th>Rol</th><th>Es el operario…</th><th>Estado</th><th></th></tr></thead>
+          <tbody id="lista-usuarios"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="panel" aria-labelledby="tit-roles">
+      <div class="cab-panel"><h2 id="tit-roles">Roles y permisos</h2></div>
+      <p class="ayuda">Todos pueden ver el tablero, los proyectos y los recursos. Los permisos dicen qué puede <em>cambiar</em> cada rol. El Administrador lo puede todo y no se modifica.</p>
+      <div class="tabla-scroll">
+        <table class="tabla-roles">
+          <thead id="cab-roles"></thead>
+          <tbody id="lista-roles"></tbody>
+        </table>
+      </div>
+      <form id="form-rol" class="alta-rol">
+        <input name="nombre" placeholder="Nombre del rol nuevo (p. ej. Jefe de taller)" required maxlength="40" aria-label="Nombre del rol nuevo">
+        <button type="submit">Crear rol</button>
+      </form>
+    </section>
+  </main>
+
+  <dialog id="dlg-enlace" aria-labelledby="dlg-enlace-tit" class="dlg-enlace">
+    <div class="dlg-cab"><h2 id="dlg-enlace-tit">Enlace de acceso</h2>
+      <button type="button" class="ghost" aria-label="Cerrar" data-cerrar>✕</button></div>
+    <p id="enl-texto"></p>
+    <div class="enl-url"><input id="enl-url" readonly aria-label="Enlace"><button type="button" id="enl-copiar" class="primario">Copiar</button></div>
+    <p class="ayuda" id="enl-ayuda"></p>
+    <div class="acciones"><a id="enl-mail" class="boton" href="#">Abrir en mi correo</a> <button type="button" data-cerrar>Hecho</button></div>
+  </dialog>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <script src="comun.js?v=202611132159"></script>
+  <script src="usuarios.js?v=202611132159"></script>
+</body>
+</html>

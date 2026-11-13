@@ -127,6 +127,10 @@ EOF
   chmod 600 .env
 fi
 PUERTO="$(grep -E '^WEB_PORT=' .env | cut -d= -f2)"
+# Dirección pública (para los enlaces de activación y recuperación de contraseña)
+if [ -n "$DOMINIO" ] && ! grep -q '^APP_URL=' .env; then
+  printf '\n# Dirección pública de la web (enlaces de los correos)\nAPP_URL=https://%s\n' "$DOMINIO" >> .env
+fi
 
 if [ "$NUEVO" = 0 ] && docker compose ps --status running db 2>/dev/null | grep -q db; then
   paso "Copia de seguridad de la base de datos"

@@ -714,7 +714,7 @@ function diferencias(fila, nuevo, mostrar = {}) {
 }
 
 module.exports = function montar(app, asyncH) {
-  app.post('/api/importar', auth.puedeEditar, asyncH(async (req, res) => {
+  app.post('/api/importar', auth.permiso('proyectos'), asyncH(async (req, res) => {
     const b = req.body || {};
     const archivo = b.formato || !b.archivo ? b : b.archivo;
     const resoluciones = (b.archivo && b.resoluciones && typeof b.resoluciones === 'object') ? b.resoluciones : {};

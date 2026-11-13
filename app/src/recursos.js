@@ -69,7 +69,7 @@ module.exports = function montar(app, asyncH) {
     res.json(rows);
   }));
 
-  app.post('/api/tipos-recurso', auth.puedeEditar, asyncH(async (req, res) => {
+  app.post('/api/tipos-recurso', auth.permiso('recursos'), asyncH(async (req, res) => {
     const b = req.body || {};
     if (!TIPOS.includes(b.clase)) throw fallo(400, 'Clase no válida');
     const nombre = String(b.nombre || '').trim().replace(/\s+/g, ' ');
@@ -78,7 +78,7 @@ module.exports = function montar(app, asyncH) {
     res.status(201).json(rows[0]);
   }));
 
-  app.patch('/api/tipos-recurso/:id', auth.puedeEditar, asyncH(async (req, res) => {
+  app.patch('/api/tipos-recurso/:id', auth.permiso('recursos'), asyncH(async (req, res) => {
     const nombre = String(req.body?.nombre || '').trim().replace(/\s+/g, ' ');
     if (!nombre || nombre.length > 60) throw fallo(400, 'El nombre es obligatorio (máx. 60)');
     const { rows } = await query('UPDATE tipos_recurso SET nombre = $2 WHERE id = $1 RETURNING *', [Number(req.params.id), nombre]);
@@ -87,7 +87,7 @@ module.exports = function montar(app, asyncH) {
   }));
 
   // Un tipo que piden tareas no se borra (se perdería el requisito); si solo lo tienen recursos, sí
-  app.delete('/api/tipos-recurso/:id', auth.puedeEditar, asyncH(async (req, res) => {
+  app.delete('/api/tipos-recurso/:id', auth.permiso('recursos'), asyncH(async (req, res) => {
     const id = Number(req.params.id);
     const { rows } = await query('SELECT count(*)::int AS n FROM tarea_requisitos_tipo WHERE tipo_recurso_id = $1', [id]);
     if (rows[0].n) throw fallo(409, `Lo piden ${rows[0].n} tarea(s): quítalo de sus requisitos antes de borrarlo`);
@@ -124,7 +124,7 @@ module.exports = function montar(app, asyncH) {
     res.json(rows);
   }));
 
-  app.post('/api/recursos', auth.puedeEditar, asyncH(async (req, res) => {
+  app.post('/api/recursos', auth.permiso('recursos'), asyncH(async (req, res) => {
     const b = req.body || {};
     if (!TIPOS.includes(b.tipo)) throw fallo(400, 'Tipo no válido');
     const r = leer(b, false);
@@ -139,7 +139,7 @@ module.exports = function montar(app, asyncH) {
     res.status(201).json(out);
   }));
 
-  app.patch('/api/recursos/:id', auth.puedeEditar, asyncH(async (req, res) => {
+  app.patch('/api/recursos/:id', auth.permiso('recursos'), asyncH(async (req, res) => {
     const b = req.body || {};
     const r = leer(b, true);
     const cols = Object.keys(r);
@@ -173,7 +173,7 @@ module.exports = function montar(app, asyncH) {
 
   // Baja: si se ha usado alguna vez (tramos o requisitos) se da de baja (inactivo) para no
   // perder el histórico; si nunca se ha usado, se borra.
-  app.delete('/api/recursos/:id', auth.puedeEditar, asyncH(async (req, res) => {
+  app.delete('/api/recursos/:id', auth.permiso('recursos'), asyncH(async (req, res) => {
     const id = Number(req.params.id);
     const { rows } = await query(
       `SELECT (SELECT count(*) FROM tramo_asignaciones WHERE recurso_id = $1)

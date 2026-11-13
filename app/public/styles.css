@@ -824,3 +824,64 @@ tr.arrastrando td { background: var(--azul-bg); }
 .btn-semillero { margin-left: auto; align-self: center; }
 .btn-confirmar { background: var(--azul-bg); border-color: var(--azul); }
 .btn-confirmar:disabled { opacity: .45; cursor: default; }
+
+/* ---------- Usuarios, roles y Mi cuenta ---------- */
+.login .pie { margin: 4px 0 0; font-size: 13px; text-align: center; }
+.login .pie a { color: var(--azul); }
+.login .ok { color: var(--verde); margin: 0; }
+.login .ayuda { margin: 0; }
+.enlace-cuenta { border: 0; padding: 2px 6px; color: var(--suave); }
+.enlace-cuenta:hover { color: var(--texto); text-decoration: underline; }
+.enlace-cuenta .rol-txt { color: var(--suave); }
+dialog.dlg-cuenta { width: min(420px, calc(100vw - 32px)); }
+.form-cuenta { display: grid; gap: 10px; }
+.form-cuenta label { display: grid; gap: 4px; color: var(--suave); font-size: 13px; }
+.form-cuenta input, .usuarios-pant input, .usuarios-pant select, .enl-url input {
+  background: #1f1f1f; border: 1px solid var(--borde); border-radius: 8px; padding: 6px 8px; min-width: 0;
+}
+.form-cuenta fieldset { border: 1px solid var(--linea); border-radius: 8px; display: grid; gap: 8px; padding: 10px 12px; }
+.form-cuenta legend { color: var(--suave); font-size: 12px; padding: 0 4px; }
+.form-cuenta .error { color: var(--rojo); margin: 0; min-height: 1.2em; }
+.form-cuenta .acciones, .dlg-enlace .acciones { display: flex; justify-content: flex-end; gap: 8px; }
+.usuarios-pant { display: grid; gap: 16px; padding: 16px; max-width: 1300px; }
+.usuarios-pant .panel h2 { margin: 0; font-size: 17px; }
+.usuarios-pant .cab-panel { margin-bottom: 10px; }
+.ver-inactivos { color: var(--suave); font-size: 13px; }
+.alta-usuario { display: grid; grid-template-columns: 2fr 2fr 1fr 1.5fr auto; gap: 8px; margin-bottom: 4px; }
+.alta-rol { display: flex; gap: 8px; margin-top: 10px; }
+.alta-rol input { flex: 1; max-width: 420px; }
+.tabla-scroll { overflow-x: auto; }
+.tabla-usuarios, .tabla-roles { width: 100%; border-collapse: collapse; font-size: 13px; }
+.tabla-usuarios th, .tabla-roles th { text-align: left; font-weight: 500; color: var(--suave); font-size: 12px; padding: 4px; }
+.tabla-usuarios td, .tabla-roles td { padding: 4px; border-top: 1px solid var(--linea); vertical-align: middle; }
+.tabla-usuarios td input, .tabla-usuarios td select, .tabla-roles td input:not([type=checkbox]) { width: 100%; }
+.tabla-usuarios tr.inactiva input, .tabla-usuarios tr.inactiva select { opacity: .5; }
+.tabla-usuarios td.acc { white-space: nowrap; text-align: right; }
+.tabla-usuarios td.acc button { margin-left: 4px; }
+.tabla-usuarios .tu { font-size: 11px; color: var(--azul); margin-left: 4px; }
+.tabla-usuarios td:first-child { display: flex; align-items: center; }
+.borrar { color: var(--rojo); }
+.est { font-size: 12px; white-space: nowrap; }
+.est-ok { color: var(--verde); } .est-pend { color: var(--naranja); } .est-off { color: var(--suave); }
+.tabla-roles .perm, .tabla-roles .num { text-align: center; width: 1%; white-space: nowrap; }
+.tabla-roles .perm input { width: 18px; height: 18px; }
+.peticion { display: flex; align-items: center; gap: 10px; justify-content: space-between; padding: 8px 12px; margin-bottom: 10px;
+  border: 1px solid var(--naranja); background: var(--naranja-bg); border-radius: 8px; }
+dialog.dlg-enlace { width: min(560px, calc(100vw - 32px)); }
+.enl-url { display: flex; gap: 8px; }
+.enl-url input { flex: 1; font: 12px var(--mono); }
+@media (max-width: 900px) {
+  .alta-usuario { grid-template-columns: 1fr 1fr; }
+  .tabla-usuarios thead { display: none; }
+  .tabla-usuarios tr { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 8px 0; border-top: 1px solid var(--linea); }
+  .tabla-usuarios td { border: 0; }
+  .tabla-usuarios td.acc { grid-column: 1 / -1; text-align: left; white-space: normal; }
+}
+.tabla-usuarios td select { min-width: 130px; }
+.dlg-enlace .ayuda { margin-top: 8px; }
+/* la cabecera del tablero va justa: el subtítulo se oculta en pantallas medianas */
+@media (max-width: 1600px) {
+  .top h1 span { display: none; }
+  .menu a { padding: 5px 8px; }
+  .buscar input { width: 200px; }
+}

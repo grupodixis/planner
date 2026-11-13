@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>s360 · Recuperar contraseña</title>
+  <link rel="stylesheet" href="styles.css?v=202611132159">
+</head>
+<body class="login">
+  <form id="f">
+    <h1>Recuperar contraseña</h1>
+    <p class="ayuda">Escribe el email de tu cuenta y te enviaremos un enlace para elegir una contraseña nueva.</p>
+    <label>Email <input name="email" type="email" autocomplete="username" required></label>
+    <p class="error" id="err" role="alert"></p>
+    <p class="ok" id="ok" role="status" hidden></p>
+    <button type="submit" id="enviar">Enviar enlace</button>
+    <p class="pie"><a href="/login.html">Volver a entrar</a></p>
+  </form>
+  <script>
+    const f = document.getElementById('f');
+    const email = new URLSearchParams(location.search).get('email');
+    if (email) f.email.value = email;
+    f.addEventListener('submit', async (ev) => {
+      ev.preventDefault();
+      const err = document.getElementById('err');
+      const ok = document.getElementById('ok');
+      err.textContent = '';
+      try {
+        const r = await fetch('/api/recuperar', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: f.email.value }),
+        });
+        const d = await r.json().catch(() => ({}));
+        if (!r.ok) throw new Error(d.error || 'No se pudo enviar');
+        ok.textContent = d.mensaje;
+        ok.hidden = false;
+        document.getElementById('enviar').hidden = true;
+      } catch (e) { err.textContent = e.message; }
+    });
+  </script>
+</body>
+</html>

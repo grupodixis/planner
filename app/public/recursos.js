@@ -98,7 +98,7 @@
     areas: [],
     tipos: [],          // catálogo completo de tipos de recurso
   };
-  const puedeEditar = () => estado.usuario && estado.usuario.rol !== 'consulta';
+  const puedeEditar = () => window.s360.tiene('recursos');
   const guardarURL = () => history.replaceState(null, '',
     `${location.pathname}?tipo=${estado.tipo}${estado.sel ? `&id=${estado.sel}` : ''}`);
 
@@ -390,7 +390,7 @@
   }
 
   function prepararSemillero() {
-    const esAdmin = estado.usuario?.rol === 'admin';
+    const esAdmin = window.s360.tiene('recursos');
     $('#btn-semillero').hidden = !esAdmin;
     if (!esAdmin) return;
     const dlg = $('#dlg-semillero');
@@ -432,7 +432,7 @@
 
   async function init() {
     try { estado.usuario = await api('GET', '/api/me'); } catch { return; }
-    $('#usuario-nombre').textContent = `${estado.usuario.nombre}${estado.usuario.rol === 'consulta' ? ' (consulta)' : ''}`;
+    window.s360.iniciar(estado.usuario);
     prepararSemillero();
     $('#salir').onclick = async () => { await api('POST', '/api/logout'); location.href = '/login.html'; };
 

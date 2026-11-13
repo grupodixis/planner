@@ -256,6 +256,45 @@ const MIGRACIONES = [
   `ALTER TABLE recursos ADD COLUMN IF NOT EXISTS ref_semilla TEXT`,
   `CREATE UNIQUE INDEX IF NOT EXISTS lineas_semilla_idx   ON lineas (ref_semilla) WHERE ref_semilla IS NOT NULL`,
   `CREATE UNIQUE INDEX IF NOT EXISTS recursos_semilla_idx ON recursos (ref_semilla) WHERE ref_semilla IS NOT NULL`,
+  // 2026-11 · Usuarios: roles configurables con permisos, enlaces de activación / recuperación
+  `CREATE TABLE IF NOT EXISTS roles (
+     clave        TEXT PRIMARY KEY,
+     nombre       TEXT NOT NULL,
+     descripcion  TEXT,
+     permisos     TEXT[] NOT NULL DEFAULT '{}',
+     sistema      BOOLEAN NOT NULL DEFAULT FALSE,
+     orden        INT NOT NULL DEFAULT 0
+   )`,
+  `INSERT INTO roles (clave, nombre, descripcion, permisos, sistema, orden) VALUES
+     ('admin', 'Administrador', 'Todo, incluidos usuarios y roles', '{planificar,proyectos,recursos,usuarios}', TRUE, 1),
+     ('planificador', 'Planificador', 'Planifica en el tablero y gestiona proyectos y OTs', '{planificar,proyectos}', FALSE, 2),
+     ('consulta', 'Consulta', 'Solo ve, no cambia nada', '{}', FALSE, 3)
+   ON CONFLICT (clave) DO NOTHING`,
+  // el rol pasa de una lista fija a la tabla de roles
+  `ALTER TABLE usuarios DROP CONSTRAINT IF EXISTS usuarios_rol_check`,
+  `DO $$ BEGIN
+     IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'usuarios_rol_fk') THEN
+       ALTER TABLE usuarios ADD CONSTRAINT usuarios_rol_fk FOREIGN KEY (rol) REFERENCES roles(clave) ON UPDATE CASCADE;
+     END IF;
+   END $$`,
+  `ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS recurso_id INT REFERENCES recursos(id) ON DELETE SET NULL`,
+  `ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS ultimo_acceso TIMESTAMPTZ`,
+  `ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS password_cambiada TIMESTAMPTZ`,
+  `ALTER TABLE sesiones ADD COLUMN IF NOT EXISTS creada TIMESTAMPTZ NOT NULL DEFAULT now()`,
+  // Enlaces de un solo uso para activar la cuenta o restablecer la contraseña (se guarda el hash)
+  `CREATE TABLE IF NOT EXISTS enlaces_acceso (
+     id          SERIAL PRIMARY KEY,
+     usuario_id  INT NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+     token_hash  TEXT NOT NULL UNIQUE,
+     tipo        TEXT NOT NULL CHECK (tipo IN ('activar', 'recuperar')),
+     expira      TIMESTAMPTZ NOT NULL,
+     usado       TIMESTAMPTZ,
+     pedido_por_usuario BOOLEAN NOT NULL DEFAULT FALSE,   -- «¿Has olvidado tu contraseña?»
+     enviado     BOOLEAN NOT NULL DEFAULT FALSE,          -- se mandó por correo
+     creado      TIMESTAMPTZ NOT NULL DEFAULT now(),
+     creado_por  INT REFERENCES usuarios(id) ON DELETE SET NULL
+   )`,
+  `CREATE INDEX IF NOT EXISTS enlaces_acceso_usuario_idx ON enlaces_acceso (usuario_id)`,
 ];
 
 async function migrar() {

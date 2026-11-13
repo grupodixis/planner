@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <title>s360 · Elegir contraseña</title>
+  <link rel="stylesheet" href="styles.css?v=202611132159">
+</head>
+<body class="login">
+  <form id="f" hidden>
+    <h1 id="tit">Elegir contraseña</h1>
+    <p class="ayuda" id="quien"></p>
+    <input type="email" name="email" autocomplete="username" hidden>
+    <label>Contraseña nueva <input name="password" type="password" autocomplete="new-password" minlength="8" required></label>
+    <label>Repítela <input name="repetir" type="password" autocomplete="new-password" required></label>
+    <p class="ayuda">Mínimo 8 caracteres, mezclando letras con números o símbolos.</p>
+    <p class="error" id="err" role="alert"></p>
+    <button type="submit">Guardar y entrar</button>
+  </form>
+  <form id="malo" hidden>
+    <h1>Enlace no válido</h1>
+    <p class="error" id="err-malo"></p>
+    <p class="pie"><a href="/recuperar.html">Pedir otro enlace</a> · <a href="/login.html">Entrar</a></p>
+  </form>
+  <script>
+    const token = new URLSearchParams(location.search).get('t') || '';
+    // el token no se queda en el historial del navegador
+    history.replaceState(null, '', '/restablecer.html');
+    const f = document.getElementById('f');
+    const malo = (m) => { document.getElementById('err-malo').textContent = m; document.getElementById('malo').hidden = false; };
+    (async () => {
+      const r = await fetch('/api/restablecer/' + encodeURIComponent(token));
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) return malo(d.error || 'El enlace no es válido.');
+      if (d.tipo === 'activar') {
+        document.getElementById('tit').textContent = 'Bienvenido/a, ' + d.nombre;
+        document.title = 's360 · Activar cuenta';
+      }
+      document.getElementById('quien').textContent = (d.tipo === 'activar' ? 'Elige la contraseña de tu cuenta ' : 'Nueva contraseña para ') + d.email;
+      f.email.value = d.email;
+      f.hidden = false;
+      f.password.focus();
+    })();
+    f.addEventListener('submit', async (ev) => {
+      ev.preventDefault();
+      const err = document.getElementById('err');
+      if (f.password.value !== f.repetir.value) { err.textContent = 'Las dos contraseñas no coinciden'; return; }
+      const r = await fetch('/api/restablecer', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token, password: f.password.value }),
+      });
+      if (r.ok) location.href = '/';
+      else err.textContent = (await r.json().catch(() => ({}))).error || 'No se pudo guardar';
+    });
+  </script>
+</body>
+</html>

@@ -53,7 +53,7 @@
     otId: null,
     ot: null,
   };
-  const puedeEditar = () => estado.usuario && estado.usuario.rol !== 'consulta';
+  const puedeEditar = () => window.s360.tiene('proyectos');
 
   // Recuerda la selección en la URL para que recargar no la pierda
   function guardarURL() {
@@ -833,7 +833,7 @@
   /* ---------- arranque ---------- */
   async function init() {
     try { estado.usuario = await api('GET', '/api/me'); } catch { return; }
-    $('#usuario-nombre').textContent = `${estado.usuario.nombre}${estado.usuario.rol === 'consulta' ? ' (consulta)' : ''}`;
+    window.s360.iniciar(estado.usuario);
     $('#form-proyecto').hidden = !puedeEditar();
     prepararFormularios();
 
