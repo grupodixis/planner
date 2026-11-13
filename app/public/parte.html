@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>s360 · Parte del día</title>
+  <link rel="stylesheet" href="styles.css?v=202611140020">
+</head>
+<body>
+  <header class="top">
+    <h1>s360_planificacion <span>· parte del día</span></h1>
+    <nav class="menu" aria-label="Pantallas">
+      <a href="/">Tablero</a>
+      <a href="/proyectos.html">Proyectos</a>
+      <a href="/recursos.html">Recursos</a>
+    </nav>
+    <nav class="fecha-nav" aria-label="Cambiar día">
+      <button id="dia-ant" aria-label="Día anterior" title="Día anterior">‹</button>
+      <span id="fecha-txt" class="fecha-txt"></span>
+      <button id="dia-sig" aria-label="Día siguiente" title="Día siguiente">›</button>
+      <input type="date" id="fecha-input" aria-label="Elegir día">
+      <a id="ver-tablero" class="boton ghost" href="/">Ver en el tablero</a>
+    </nav>
+    <div class="usuario"><span id="usuario-nombre"></span> <button id="salir" class="ghost">Salir</button></div>
+  </header>
+
+  <div id="pendientes" class="parte-pendientes" hidden></div>
+
+  <main class="parte-pant">
+    <section class="panel" aria-labelledby="tit-tramos">
+      <div class="cab-panel">
+        <h2 id="tit-tramos">Lo planificado</h2>
+        <span id="estado-dia" class="estado-dia"></span>
+      </div>
+      <p class="ayuda">Cierra cada tramo: <b>✓ Como estaba</b> si se hizo tal cual, <b>✎ Corregir</b> si cambió la gente o las horas, <b>✗ No se hizo</b> si no se hizo (vuelve a «Por planificar»). Di también cómo va la tarea.</p>
+      <div id="tramos"></div>
+      <div id="no-hechos"></div>
+      <div class="cerrar-dia" id="cerrar-dia"></div>
+    </section>
+
+    <aside class="panel" aria-labelledby="tit-personas">
+      <h2 id="tit-personas">Por persona</h2>
+      <table class="tabla-personas">
+        <thead><tr><th>Persona</th><th class="num">Plan</th><th class="num">Real</th><th></th></tr></thead>
+        <tbody id="personas"></tbody>
+      </table>
+
+      <h2 class="sep">Horas fuera del plan</h2>
+      <p class="ayuda">Trabajo que no estaba planificado, o tiempo no productivo (desplazamientos, esperas, limpieza…).</p>
+      <form id="form-horas" class="form-horas">
+        <select name="recurso_id" aria-label="Quién" required></select>
+        <div class="fh-tipo">
+          <label><input type="radio" name="tipo" value="productivo" checked> En una tarea</label>
+          <label><input type="radio" name="tipo" value="no_productivo"> No productivo</label>
+        </div>
+        <select name="tarea_id" aria-label="Tarea"></select>
+        <select name="motivo" aria-label="Qué hizo" hidden></select>
+        <div class="fh-horas">
+          <input name="desde" type="time" step="900" value="07:00" aria-label="Desde" required> –
+          <input name="hasta" type="time" step="900" value="09:00" aria-label="Hasta" required>
+        </div>
+        <input name="notas" maxlength="500" placeholder="Notas (opcional)" aria-label="Notas">
+        <button type="submit" class="primario">Añadir</button>
+      </form>
+      <ul id="sueltos" class="sueltos"></ul>
+    </aside>
+  </main>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <script src="comun.js?v=202611140020"></script>
+  <script src="parte.js?v=202611140020"></script>
+</body>
+</html>

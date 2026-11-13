@@ -103,7 +103,8 @@ const SQL_TAREAS = `
 
 // Tramos de un día con sus recursos y la franja efectiva de cada uno
 const SQL_TRAMOS_DIA = `
-  SELECT tr.id, tr.tarea_id, tr.fecha, tr.hora_inicio, tr.duracion_h, tr.linea_id,
+  SELECT tr.id, tr.tarea_id, tr.fecha, tr.hora_inicio, tr.duracion_h, tr.linea_id, tr.cierre,
+         (SELECT COALESCE(sum(g.horas), 0)::float FROM registros g WHERE g.tramo_id = tr.id) AS real_h,
          COALESCE((SELECT json_agg(json_build_object(
                      'id', r.id, 'nombre', r.nombre, 'tipo', r.tipo,
                      'desde', COALESCE(a.desde, tr.hora_inicio),
@@ -164,7 +165,7 @@ module.exports = function montar(app, asyncH) {
     const dias = (Date.parse(hasta) - Date.parse(desde)) / 864e5;
     if (dias < 0 || dias > 62) throw fallo(400, 'Rango de fechas no válido (máx. 62 días)');
 
-    const [lineas, recursos, tareas, tramos, ausencias, festivos] = await Promise.all([
+    const [lineas, recursos, tareas, tramos, ausencias, festivos, cerrados] = await Promise.all([
       // Áreas fijas activas + obras de proyectos activos (al final, por proyecto)
       // + cualquier área que tenga tramos en el rango (para no perder lo planificado)
       query(`SELECT l.id, l.nombre, l.tipo, l.ubicacion, l.activo, l.proyecto_id, l.exclusiva, l.descripcion,
@@ -194,6 +195,7 @@ module.exports = function montar(app, asyncH) {
       query(`${SQL_TRAMOS_DIA} WHERE tr.fecha BETWEEN $1 AND $2 ORDER BY tr.fecha, tr.hora_inicio, tr.id`, [desde, hasta]),
       ausenciasEnRango({ query }, desde, hasta),
       festivosEnRango({ query }, desde, hasta),
+      query('SELECT fecha FROM dias_cerrados WHERE fecha BETWEEN $1 AND $2', [desde, hasta]),
     ]);
     for (const a of ausencias) a.texto = textoAusencia(a);
     const ausDia = ausenciasPorDia(ausencias, desde, hasta);
@@ -216,6 +218,8 @@ module.exports = function montar(app, asyncH) {
     // Los conflictos se calculan día a día (un solape solo existe dentro del mismo día)
     const porDia = new Map();
     for (const tr of tramos.rows) {
+      // lo ya cerrado en el parte (o de tareas hechas) no genera avisos
+      if (tr.cierre || porTarea.get(tr.tarea_id)?.estado === 'hecha') continue;
       if (!porDia.has(tr.fecha)) porDia.set(tr.fecha, []);
       const t = porTarea.get(tr.tarea_id);
       porDia.get(tr.fecha).push({ ...t, ...tr, duracion_h_tarea: t?.duracion_h });
@@ -225,7 +229,8 @@ module.exports = function montar(app, asyncH) {
         { ausencias: ausDia.get(f), festivo: festivoDe.get(f), fecha: f }).map((c) => ({ ...c, fecha: f })));
 
     res.json({ fecha: desde, desde, hasta, jornada, lineas: lineas.rows, recursos: recursos.rows,
-      tareas: tareas.rows, tramos: tramos.rows, conflictos, ausencias, festivos });
+      tareas: tareas.rows, tramos: tramos.rows, conflictos, ausencias, festivos,
+      dias_cerrados: cerrados.rows.map((r) => r.fecha) });
   }));
 
   /* ---------- Crear tramo (soltar una tarea en el calendario) ---------- */

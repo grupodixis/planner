@@ -6,10 +6,11 @@ const DURACION_MS = 1000 * 60 * 60 * 12; // 12 h
 
 // Permisos que puede tener un rol. Ver lo tiene cualquiera con cuenta.
 const PERMISOS = {
-  planificar: 'Planificar en el tablero (tramos, asignaciones, estado de las tareas)',
+  planificar: 'Planificar en el tablero y rellenar el parte del día (horas reales, faltas)',
   proyectos: 'Proyectos, partidas, OTs, tareas e importación',
   recursos: 'Recursos, áreas de trabajo, tipos y semillero',
   usuarios: 'Usuarios y roles',
+  informes: 'Ver informes de horas, costes y resultados',
 };
 
 function hashPassword(password) {

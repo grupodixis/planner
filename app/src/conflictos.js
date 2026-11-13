@@ -69,6 +69,7 @@ function calcularConflictos(tramos, jornada, tiposDisponibles = new Set(), exclu
     }
     // Dependencias: no empezar antes de que termine la tarea previa (+ espera de secado, curado…)
     for (const d of t.dependencias || []) {
+      if (d.estado === 'hecha') continue;   // la previa ya está terminada (de verdad)
       const previa = `${d.orden_codigo} ${String(d.nombre).toLowerCase()}`;
       const espera = d.espera_h ? ` + ${horas(d.espera_h)} de espera` : '';
       if (!d.fin) {

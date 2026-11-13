@@ -108,9 +108,11 @@
     usuario = u;
     pintarNombre();
     const menu = document.querySelector('nav.menu');
-    if (menu && tiene('usuarios') && !menu.querySelector('a[href="/usuarios.html"]')) {
-      const a = el('a', { href: '/usuarios.html' }, 'Usuarios');
-      if (location.pathname === '/usuarios.html') a.setAttribute('aria-current', 'page');
+    const enlaces = [['/parte.html', 'Parte', 'planificar'], ['/informes.html', 'Informes', 'informes'], ['/usuarios.html', 'Usuarios', 'usuarios']];
+    for (const [href, txt, permiso] of enlaces) {
+      if (!menu || !tiene(permiso) || menu.querySelector(`a[href="${href}"]`)) continue;
+      const a = el('a', { href }, txt);
+      if (location.pathname === href) a.setAttribute('aria-current', 'page');
       menu.append(a);
     }
     const salir = document.getElementById('salir');

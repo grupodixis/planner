@@ -350,6 +350,59 @@ const MIGRACIONES = [
      ('2027-12-08', 'Inmaculada Concepción', 'general'), ('2027-12-25', 'Navidad', 'general')
    ) AS v(fecha, nombre, ambito)
    WHERE NOT EXISTS (SELECT 1 FROM festivos WHERE fecha BETWEEN '2027-01-01' AND '2027-12-31')`,
+  // 2026-11 · Parte del día: lo real frente a lo planificado
+  `ALTER TABLE tramos ADD COLUMN IF NOT EXISTS cierre TEXT CHECK (cierre IN ('hecho', 'corregido'))`,
+  `ALTER TABLE tareas ADD COLUMN IF NOT EXISTS duracion_inicial_h NUMERIC(6,2)`,   // estimación antes de reestimar
+  `ALTER TABLE tareas ADD COLUMN IF NOT EXISTS hecha_en TIMESTAMPTZ`,
+  `ALTER TABLE tareas ADD COLUMN IF NOT EXISTS hecha_por INT REFERENCES usuarios(id) ON DELETE SET NULL`,
+  // horas reales de cada recurso (persona, máquina, subcontrata) con su coste/hora de ese momento
+  `CREATE TABLE IF NOT EXISTS registros (
+     id          SERIAL PRIMARY KEY,
+     fecha       DATE NOT NULL,
+     recurso_id  INT NOT NULL REFERENCES recursos(id),
+     tarea_id    INT REFERENCES tareas(id),
+     tramo_id    INT REFERENCES tramos(id) ON DELETE SET NULL,
+     desde       NUMERIC(4,2),
+     hasta       NUMERIC(4,2),
+     horas       NUMERIC(5,2) NOT NULL CHECK (horas > 0),
+     tipo        TEXT NOT NULL DEFAULT 'productivo' CHECK (tipo IN ('productivo', 'no_productivo')),
+     motivo      TEXT,
+     notas       TEXT,
+     coste_hora  NUMERIC(8,2),
+     creado      TIMESTAMPTZ NOT NULL DEFAULT now(),
+     creado_por  INT REFERENCES usuarios(id) ON DELETE SET NULL
+   )`,
+  `CREATE INDEX IF NOT EXISTS registros_fecha_idx ON registros (fecha)`,
+  `CREATE INDEX IF NOT EXISTS registros_tarea_idx ON registros (tarea_id)`,
+  `CREATE INDEX IF NOT EXISTS registros_recurso_idx ON registros (recurso_id, fecha)`,
+  `CREATE INDEX IF NOT EXISTS registros_tramo_idx ON registros (tramo_id)`,
+  // cada cierre de tramo, con lo que estaba planificado (para la fiabilidad y las desviaciones)
+  `CREATE TABLE IF NOT EXISTS tramo_cierres (
+     id          SERIAL PRIMARY KEY,
+     tramo_id    INT REFERENCES tramos(id) ON DELETE SET NULL,
+     tarea_id    INT NOT NULL REFERENCES tareas(id) ON DELETE CASCADE,
+     fecha       DATE NOT NULL,
+     hora_inicio NUMERIC(4,2) NOT NULL,
+     duracion_h  NUMERIC(5,2) NOT NULL,
+     linea_id    INT REFERENCES lineas(id) ON DELETE SET NULL,
+     cierre      TEXT NOT NULL CHECK (cierre IN ('hecho', 'corregido', 'no_hecho')),
+     motivo      TEXT,
+     notas       TEXT,
+     plan        JSONB,
+     plan_h      NUMERIC(6,2),     -- horas-persona planificadas
+     real_h      NUMERIC(6,2),     -- horas reales registradas (todas las clases de recurso)
+     cerrado_por INT REFERENCES usuarios(id) ON DELETE SET NULL,
+     cerrado_en  TIMESTAMPTZ NOT NULL DEFAULT now()
+   )`,
+  `CREATE INDEX IF NOT EXISTS tramo_cierres_fecha_idx ON tramo_cierres (fecha)`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS tramo_cierres_tramo_idx ON tramo_cierres (tramo_id) WHERE tramo_id IS NOT NULL`,
+  `CREATE TABLE IF NOT EXISTS dias_cerrados (
+     fecha       DATE PRIMARY KEY,
+     cerrado_por INT REFERENCES usuarios(id) ON DELETE SET NULL,
+     cerrado_en  TIMESTAMPTZ NOT NULL DEFAULT now()
+   )`,
+  // permiso nuevo: ver informes de horas y costes (el Administrador lo tiene)
+  `UPDATE roles SET permisos = array_append(permisos, 'informes') WHERE clave = 'admin' AND NOT ('informes' = ANY(permisos))`,
 ];
 
 async function migrar() {

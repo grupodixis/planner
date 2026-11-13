@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>s360 · Informes</title>
+  <link rel="stylesheet" href="styles.css?v=202611140020">
+</head>
+<body>
+  <header class="top">
+    <h1>s360_planificacion <span>· informes</span></h1>
+    <nav class="menu" aria-label="Pantallas">
+      <a href="/">Tablero</a>
+      <a href="/proyectos.html">Proyectos</a>
+      <a href="/recursos.html">Recursos</a>
+    </nav>
+    <div class="usuario"><span id="usuario-nombre"></span> <button id="salir" class="ghost">Salir</button></div>
+  </header>
+
+  <div class="pestanas" role="tablist" aria-label="Informe">
+    <button role="tab" data-inf="proyectos" id="tab-proyectos" aria-controls="panel-inf">Proyectos</button>
+    <button role="tab" data-inf="operarios" id="tab-operarios" aria-controls="panel-inf">Operarios</button>
+    <button role="tab" data-inf="maquinas" id="tab-maquinas" aria-controls="panel-inf">Máquinas y alquileres</button>
+    <button role="tab" data-inf="planificacion" id="tab-planificacion" aria-controls="panel-inf">Planificación y desvíos</button>
+    <span class="inf-rango" id="inf-rango">
+      <label>Desde <input type="date" id="desde"></label>
+      <label>Hasta <input type="date" id="hasta"></label>
+      <select id="atajo" aria-label="Periodo rápido">
+        <option value="">Periodo…</option>
+        <option value="mes">Este mes</option>
+        <option value="mes-1">Mes pasado</option>
+        <option value="trim">Este trimestre</option>
+        <option value="anio">Este año</option>
+      </select>
+    </span>
+  </div>
+
+  <main class="informes-pant" id="panel-inf" role="tabpanel"></main>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <script src="comun.js?v=202611140020"></script>
+  <script src="informes.js?v=202611140020"></script>
+</body>
+</html>

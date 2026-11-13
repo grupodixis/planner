@@ -154,7 +154,7 @@
   function pintarRoles() {
     const { roles, permisos } = estado.datos;
     const claves = Object.keys(permisos);
-    const NOMBRES = { planificar: 'Planificar', proyectos: 'Proyectos', recursos: 'Recursos', usuarios: 'Usuarios' };
+    const NOMBRES = { planificar: 'Planificar', proyectos: 'Proyectos', recursos: 'Recursos', usuarios: 'Usuarios', informes: 'Informes' };
     $('#cab-roles').replaceChildren(el('tr', {},
       el('th', {}, 'Rol'), el('th', {}, 'Descripción'),
       ...claves.map((k) => el('th', { class: 'perm', title: permisos[k] }, NOMBRES[k] || k)),

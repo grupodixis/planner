@@ -422,6 +422,8 @@ module.exports = function montar(app, asyncH) {
     const { rows } = await query('SELECT estado FROM tareas WHERE id = $1', [id]);
     if (!rows.length) throw fallo(404, 'Tarea no encontrada');
     if (['en_curso', 'hecha'].includes(rows[0].estado)) throw fallo(409, 'No se puede borrar una tarea en curso o hecha');
+    const { rows: reg } = await query('SELECT 1 FROM registros WHERE tarea_id = $1 LIMIT 1', [id]);
+    if (reg.length) throw fallo(409, 'Tiene horas reales registradas: no se puede borrar');
     await query('DELETE FROM tareas WHERE id = $1', [id]);
     res.json({ ok: true });
   }));

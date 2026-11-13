@@ -80,6 +80,8 @@ app/src/usuarios.js       entrar, recuperar contraseña, Mi cuenta, usuarios y r
 app/src/correo.js         envío de correo opcional (SMTP)
 app/src/conflictos.js     reglas de conflicto del día
 app/src/ausencias.js      ausencias (vacaciones, bajas, averías), festivos y saldo de vacaciones
+app/src/partes.js         parte del día: cierres de tramos, horas reales, cerrar el día
+app/src/informes.js       informes de horas y costes
 app/src/importar.js       importación de proyectos del compositor (s360-import/1)
 app/src/migraciones.js    cambios de esquema que se aplican solos al arrancar
 app/public/               frontend sin compilación: index (tablero), proyectos, recursos, usuarios
@@ -257,6 +259,49 @@ Menú **Usuarios** (solo quien tiene el permiso «usuarios»).
 Correo (opcional), en `.env`: `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM` y
 `APP_URL` (la dirección pública para los enlaces; en el VPS la pone el script de despliegue).
 
+## Parte del día (lo real)
+
+Menú **Parte** (permiso «planificar»: el encargado al final del día). Lo planificado no se
+toca: lo real se guarda aparte y se compara.
+
+- Cada tramo del día se cierra con:
+  - **✓ Como estaba**: se hizo tal cual. Las horas reales son las franjas planificadas (sin
+    quien estaba ausente todo el día).
+  - **✎ Corregir**: quién trabajó (personas y máquinas) y de qué hora a qué hora, con motivo
+    opcional del cambio.
+  - **✗ No se hizo**: con motivo. Se quita del tablero y sus horas vuelven a «Por planificar»
+    (queda registrado para los informes; «Deshacer» lo vuelve a poner).
+- Y cómo va la tarea: **sigue**, **faltan X h** (reestima: la tarea pasa a lo hecho + X; se
+  guarda la estimación inicial) o **terminada** (pasa a hecha, con fecha y quién).
+- **Horas fuera del plan**: trabajo en una tarea que no estaba planificado, o tiempo no
+  productivo (desplazamiento, espera, limpieza, mantenimiento del taller, formación).
+- **Cerrar el día** (valida como estaba lo que quede). Un día cerrado no se replanifica en el
+  tablero; se puede reabrir. Se avisa de los días pasados con trabajo sin cerrar.
+- Motivos de desvío: falta de material, avería, retrabajo / error, cliente, clima, ausencia,
+  mal estimado, otro.
+- En el tablero: ✓ / ≠ en los tramos cerrados (no se arrastran), 🔒 en los días cerrados y
+  aviso «parte sin cerrar» en los días pasados. Lo cerrado y las tareas hechas ya no dan avisos.
+- Cada hora real guarda el coste/hora del recurso de ese momento (si después cambia, el
+  histórico no cambia; si no tenía, se usa el actual).
+
+## Informes
+
+Menú **Informes** (permiso «informes»; de serie solo el Administrador). Exportables a Excel (CSV).
+
+- **Proyectos**: por proyecto y desplegando partida › OT › tarea, horas-persona
+  presupuestadas (estimación inicial × operarios), estimadas (con reestimaciones),
+  planificadas, reales, previsión al terminar, desvío (h y %), coste real (personas, máquinas,
+  subcontratas), importe de la partida (del compositor) e importe − coste (sin materiales).
+  Quién ha trabajado en el proyecto y cómo se cerró lo planificado (por motivo).
+- **Operarios** (periodo): horas productivas, no productivas, extra (por encima de la jornada
+  en un día), ocupación, coste, ausencias en días (faltas justificadas / sin justificar /
+  pendientes) y en qué proyectos.
+- **Máquinas y alquileres** (periodo): horas planificadas, reales, días y coste.
+- **Planificación y desvíos** (periodo): % de tramos que se cumplieron como estaban, por
+  semana; horas plan → real; días sin cerrar; motivos de desvío; tareas terminadas con más
+  desvío.
+- Para que salga el coste hay que poner el **coste €/h** en la ficha de cada recurso.
+
 ## Vacaciones, ausencias y festivos
 
 - **Falta rápida desde el tablero:** clic en un operario del panel de recursos (o en su nombre
@@ -346,6 +391,14 @@ vez. Al confirmar se importa todo de una vez (o nada).
 | GET | `/api/ausencias/tipos` | tipos de ausencia y a qué recursos se aplican |
 | GET · POST · DELETE | `/api/festivos?anio=` · `/api/festivos` · `/api/festivos/:fecha` | festivos del año · `{fecha, nombre, ambito}` · quitar |
 | GET | `/api/vacaciones?anio=` | saldo de vacaciones por operario |
+| GET | `/api/parte?fecha=` | parte del día: tramos con su cierre y horas reales, no hechos, horas sueltas, ausencias |
+| POST | `/api/tramos/:id/cierre` | `{accion: hecho\|corregido\|no_hecho, registros?, motivo?, notas?, progreso?: {terminada} \| {faltan_h}}` |
+| DELETE | `/api/cierres/:id` | deshacer un cierre (un «no se hizo» vuelve al plan) |
+| POST · DELETE | `/api/registros` · `/api/registros/:id` | horas fuera del plan `{fecha, recurso_id, tarea_id?, desde, hasta, tipo, motivo?, notas?}` |
+| POST · DELETE | `/api/parte/cerrar` · `/api/parte/cerrar?fecha=` | cerrar el día `{fecha, validar_resto}` · reabrir |
+| GET | `/api/parte/pendientes` | días pasados con trabajo sin cerrar |
+| GET | `/api/informes/proyectos` · `/api/informes/proyecto/:id` | resumen de proyectos · detalle partida › OT › tarea |
+| GET | `/api/informes/operarios` · `/maquinas` · `/planificacion` | `?desde=&hasta=` |
 | GET | `/api/tablero?fecha=YYYY-MM-DD` · `?desde=…&hasta=…` | jornada, áreas, recursos, tareas abiertas, tramos del día o del rango (máx. 62 días) y avisos (cada uno con su `fecha`) |
 | PATCH | `/api/tareas/:id` | `{estado, nombre, duracion_h, operarios_req, linea_id, requisitos, requisitos_tipo, notas, baja_presupuesto}` |
 | POST | `/api/tareas/:id/tramos` | `{fecha, hora_inicio, linea_id?, recurso_id?, duracion_h?}` planificar (sin horas: hasta fin de jornada) |
@@ -388,8 +441,10 @@ vez. Al confirmar se importa todo de una vez (o nada).
 Hecho también: recursos (operarios, maquinaria, subcontratas) y usuarios con roles configurables,
 activación por enlace y recuperación de contraseña.
 
-**Fase 3 – Registro real.** Hecho en parte: franjas por operario, horas-persona, exceso sobre lo
-estimado y empujar. Pendiente: cierre de cada tramo (hecho / faltan X h / no se hizo), estado en curso/hecha desde el móvil (vista simple para taller y obra).
+**Fase 3 – Registro real.** Hecho: parte del día del encargado (como estaba / corregir / no se
+hizo, faltan X h, terminada, horas fuera del plan, cerrar el día). Pendiente: que cada
+operario lo mande por WhatsApp desde el móvil y el encargado valide; conectar el reloj de
+fichaje (registro de jornada).
 
 **Fase 4 – Vista semana y capacidad.** Hecho: vistas semana (con nº de semana) y mes, carga por día y por periodo. Pendiente: carga vs. capacidad más detallada,
 arrastre entre días. Hecho: calendario laboral (festivos, vacaciones, ausencias) con saldo de vacaciones.
@@ -399,8 +454,9 @@ arrastre entre días. Hecho: calendario laboral (festivos, vacaciones, ausencias
 del proyecto. Pendiente: editar dependencias a mano, confirmación de subcontratas/alquileres con fecha, avisos de retrasos, actualización en tiempo
 real (WebSocket) en lugar de refresco periódico.
 
-**Fase 6 – Informes.** Horas por proyecto/partida/operario, ocupación de máquinas, coste de
-subcontratas, exportación a Excel/PDF.
+**Fase 6 – Informes.** Hecho: proyectos (presupuesto / estimado / real / coste / importe),
+operarios, máquinas, fiabilidad y desvíos, exportación a Excel (CSV). Pendiente: materiales,
+PDF, devolver las horas reales al compositor para presupuestar mejor.
 
 Pendientes técnicos: drag & drop táctil (tablets), migraciones versionadas en lugar de scripts
 de inicio, HTTPS con proxy inverso (Caddy/Traefik) para publicarlo fuera de la red local, tests.

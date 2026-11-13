@@ -175,6 +175,14 @@
   const ausenteTodoElDia = (recursoId, fecha) => ausenciasDe(recursoId, fecha).find((a) => a.hora_desde == null);
   const festivoDe = (fecha) => (estado.datos?.festivos || []).find((f) => f.fecha === fecha);
   const laborable = (f) => !esFinde(f) && !festivoDe(f);
+  // Parte del día: tramos cerrados y días cerrados no se replanifican
+  const diaCerrado = (f) => (estado.datos?.dias_cerrados || []).includes(f);
+  const bloqueado = (tr) => !!tr.cierre || diaCerrado(tr.fecha);
+  const CIERRE_TXT = { hecho: '✓', corregido: '≠' };
+  const marcaCierre = (tr) => (tr.cierre ? el('span', {
+    class: `marca-cierre c-${tr.cierre}`,
+    title: `${tr.cierre === 'hecho' ? 'Hecho como estaba' : 'Hecho con cambios'} (parte del día) · ${durTxt(+tr.real_h.toFixed(2))} reales`,
+  }, CIERRE_TXT[tr.cierre]) : null);
   const ausTexto = (a) => (a.hora_desde != null ? `${AUS_TXT[a.tipo]} ${hhmm(a.hora_desde)}–${hhmm(a.hora_hasta)}` : AUS_TXT[a.tipo]);
 
   function pintar() {
@@ -411,6 +419,12 @@
     pintarCalendarioSolo();
     const fest = estado.periodo === 'dia' && festivoDe(estado.fecha);
     if (fest) $('#cal-body').prepend(el('p', { class: 'festivo-aviso' }, `Festivo: ${fest.nombre}. Lo que se planifique hoy sale como aviso.`));
+    if (estado.periodo === 'dia' && estado.fecha < hoyISO() && estado.datos.tramos.length) {
+      const cerrado = diaCerrado(estado.fecha);
+      $('#cal-body').prepend(el('p', { class: `parte-aviso${cerrado ? ' cerrado' : ''}` },
+        cerrado ? 'Parte cerrado: este día ya no se replanifica. ' : 'El parte de este día está sin cerrar. ',
+        el('a', { href: `/parte.html?fecha=${estado.fecha}` }, cerrado ? 'Ver el parte' : 'Rellenar el parte →')));
+    }
   }
 
   function pintarCalendarioSolo() {
@@ -473,7 +487,7 @@
     const parte = varios ? ` · tramo ${tr.indice}${pendientes(t) ? '' : `/${t.tramos.length}`} de ${durTxt(t.duracion_h)}` : '';
     const sel = estado.sel?.tipo === 'tramo' && estado.sel.id === tr.id;
     const hermano = !sel && estado.sel && (estado.sel.tipo === 'tarea' ? estado.sel.id : tramo(estado.sel.id)?.tarea_id) === t.id;
-    const editar = puedeEditar();
+    const editar = puedeEditar() && !bloqueado(tr);
 
     const b = el('div', {
       class: `bloque${confs.length ? ' conflicto' : ''}${sel ? ' sel' : ''}${hermano ? ' hermano' : ''}${t.estado === 'hecha' ? ' hecha' : ''}`,
@@ -504,7 +518,7 @@
       },
       ondragend: finArrastre,
     },
-      el('div', { class: 'tit' }, `${t.orden_codigo} · ${t.orden_titulo}`),
+      el('div', { class: 'tit' }, marcaCierre(tr), `${t.orden_codigo} · ${t.orden_titulo}`),
       el('div', { class: 'sub' }, `${t.nombre} · ${durTxt(tr.duracion_h)}${parte}`),
     );
     b.style.setProperty('--c', t.orden_color);
@@ -758,7 +772,7 @@
     const fin = r ? r.hasta : tr.hora_inicio + tr.duracion_h;
     const area = estado.datos.lineas.find((l) => l.id === tr.linea_id)?.nombre || 'sin área';
     const sel = estado.sel?.tipo === 'tramo' && estado.sel.id === tr.id;
-    const editar = puedeEditar();
+    const editar = puedeEditar() && !bloqueado(tr);
     const b = el('div', {
       class: `bloque op${solapada ? ' conflicto' : ''}${sel ? ' sel' : ''}${r ? '' : ' sin-op'}`,
       draggable: editar ? 'true' : 'false', tabindex: '0', role: 'button',
@@ -906,7 +920,7 @@
     return el('button', {
       type: 'button', class: `dia-cab${hoyEs(f) ? ' hoy' : ''}${esFinde(f) ? ' finde' : ''}${festivoDe(f) ? ' festivo' : ''}`,
       title: `${festivoDe(f) ? `Festivo: ${festivoDe(f).nombre}\n` : ''}Abrir este día en la vista día`, onclick: () => irAPeriodo('dia', f), ...attrs,
-    }, fechaCorta(f), festivoDe(f) ? el('span', { class: 'fest-nom' }, festivoDe(f).nombre) : null);
+    }, diaCerrado(f) ? el('span', { class: 'dia-cerrado', title: 'Parte cerrado' }, '🔒 ') : null, fechaCorta(f), festivoDe(f) ? el('span', { class: 'fest-nom' }, festivoDe(f).nombre) : null);
   }
 
   function chipTramo(tr, r = null, { compacto = false } = {}) {
@@ -918,7 +932,7 @@
     const hermano = !sel && estado.sel && (estado.sel.tipo === 'tarea' ? estado.sel.id : tramo(estado.sel.id)?.tarea_id) === t.id;
     const area = estado.datos.lineas.find((l) => l.id === tr.linea_id)?.nombre || 'sin área';
     const gente = operariosDe(tr).map((x) => x.nombre).join(', ');
-    const editar = puedeEditar();
+    const editar = puedeEditar() && !bloqueado(tr);
     const c = el('div', {
       class: `chip-tr${confs.length ? ' conflicto' : ''}${sel ? ' sel' : ''}${hermano ? ' hermano' : ''}${t.estado === 'hecha' ? ' hecha' : ''}${r === undefined ? ' sin-op' : ''}`,
       draggable: editar ? 'true' : 'false', tabindex: '0', role: 'button', 'data-tramo': tr.id,
@@ -936,8 +950,8 @@
       ondragend: finArrastre,
     },
       compacto
-        ? el('span', { class: 'ct-tit' }, el('span', { class: 'ct-hora' }, hhmm(ini)), ` ${t.nombre}`)
-        : el('span', { class: 'ct-tit dos' }, el('span', { class: 'ct-ot' }, t.orden_codigo), ` ${t.nombre}`),
+        ? el('span', { class: 'ct-tit' }, marcaCierre(tr), el('span', { class: 'ct-hora' }, hhmm(ini)), ` ${t.nombre}`)
+        : el('span', { class: 'ct-tit dos' }, marcaCierre(tr), el('span', { class: 'ct-ot' }, t.orden_codigo), ` ${t.nombre}`),
       compacto ? null : el('span', { class: 'ct-sub' }, `${hhmm(ini)}–${hhmm(fin)} · ${durTxt(fin - ini)}`),
       compacto ? null : el('span', { class: 'ct-sub' }, estado.vista === 'operarios' && r !== null ? area : gente || 'sin operarios'),
     );
@@ -1346,7 +1360,15 @@
 
     const partes = [el('dl', {}, filas)];
 
-    if (tr) partes.push(seccionTramo(t, tr, pend, editar));
+    if (tr) {
+      if (bloqueado(tr)) {
+        partes.push(el('p', { class: 'aviso-cierre' }, tr.cierre
+          ? `Cerrado en el parte del día (${tr.cierre === 'hecho' ? 'como estaba' : 'con cambios'}) · ${durTxt(+tr.real_h.toFixed(2))} reales. `
+          : 'El parte de este día está cerrado. ',
+        el('a', { href: `/parte.html?fecha=${tr.fecha}` }, 'Ver el parte')));
+      }
+      partes.push(seccionTramo(t, tr, pend, editar && !bloqueado(tr)));
+    }
     else if (pend && editar) partes.push(el('p', { class: 'ayuda' }, 'Arrastra la tarea al calendario: ocupará hasta el fin de jornada y lo que no quepa seguirá pendiente.'));
 
     // lista de todos los tramos de la tarea

@@ -26,7 +26,9 @@ require('./usuarios')(app, asyncH);   // entrar, recuperar contraseña, Mi cuent
 
 /* ---------- Tablero y tramos ---------- */
 
+require('./partes').montar(app, asyncH);   // parte del día (va antes: protege lo ya cerrado)
 require('./tramos')(app, asyncH);
+require('./informes').montar(app, asyncH);   // informes de horas y costes
 require('./ausencias').montar(app, asyncH);   // vacaciones, bajas, averías y festivos
 
 /* ---------- Áreas de trabajo ---------- */
