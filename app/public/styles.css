@@ -885,3 +885,80 @@ dialog.dlg-enlace { width: min(560px, calc(100vw - 32px)); }
   .menu a { padding: 5px 8px; }
   .buscar input { width: 200px; }
 }
+
+/* ---------- Ausencias y festivos en el tablero ---------- */
+:root { --fest: #c98be8; --fest-bg: #2a1a33; --rayas: repeating-linear-gradient(135deg, #ffffff10 0 5px, transparent 5px 10px); }
+.rec.ausente { opacity: .5; border-style: dashed; cursor: not-allowed; background: var(--rayas); }
+.rec.ausente .uso { color: var(--naranja); }
+.rec.ausente-parcial .uso { color: var(--naranja); }
+.rec.ausente-parcial { box-shadow: inset 3px 0 0 var(--naranja); }
+.franja-ausente {
+  position: absolute; top: 0; bottom: 0; background: var(--rayas); border-left: 1px dashed var(--naranja);
+  border-right: 1px dashed var(--naranja); pointer-events: none; overflow: hidden;
+}
+.franja-ausente span { position: absolute; bottom: 3px; left: 6px; font-size: 11px; color: var(--naranja); white-space: nowrap; }
+.fila.ausente .fila-nombre { opacity: .6; }
+.fila.ausente .fila-nombre .ubic { color: var(--naranja); }
+.festivo-aviso {
+  margin: 0 0 8px; padding: 6px 10px; border-radius: 8px; border: 1px solid var(--fest);
+  background: var(--fest-bg); color: var(--fest); font-size: 13px;
+}
+.dia-cab.festivo { color: var(--fest); }
+.dia-cab .fest-nom, .mes-dia .fest-nom {
+  display: block; font: 400 10.5px var(--font); text-transform: none; color: var(--fest);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.celda.festivo { background: color-mix(in srgb, var(--fest-bg) 55%, transparent); }
+.celda.ausente { background: var(--rayas); }
+.aus-chip {
+  font-size: 11px; color: var(--naranja); border: 1px dashed var(--naranja); border-radius: 6px;
+  padding: 1px 6px; text-transform: capitalize;
+}
+.mes-aus { font-size: 10.5px; color: var(--naranja); border: 1px solid var(--naranja); border-radius: 99px; padding: 0 5px; }
+
+/* ---------- Ausencias (ficha de recurso) y pestaña Vacaciones y festivos ---------- */
+.saldo-vac { margin: 0 0 10px; }
+.saldo-vac .quedan, .tabla-vac .quedan { color: var(--verde); }
+.saldo-vac .neg, .tabla-vac .neg { color: var(--rojo); }
+.alta-ausencia { display: flex; flex-wrap: wrap; align-items: end; gap: 8px; margin-bottom: 10px; }
+.alta-ausencia label { display: grid; gap: 2px; color: var(--suave); font-size: 11.5px; }
+.alta-ausencia label.aus-chk { display: flex; align-items: center; gap: 4px; font-size: 12.5px; padding-bottom: 6px; }
+.alta-ausencia .aus-horas { display: flex; align-items: center; gap: 4px; }
+.alta-ausencia input, .alta-ausencia select, .alta-festivo input, .alta-festivo select {
+  background: #1f1f1f; border: 1px solid var(--borde); border-radius: 8px; padding: 5px 8px;
+}
+.alta-ausencia input[name=notas] { flex: 1; min-width: 160px; }
+.tabla-aus, .tabla-vac { width: 100%; border-collapse: collapse; font-size: 13px; }
+.tabla-aus th, .tabla-vac th { text-align: left; font-weight: 500; color: var(--suave); font-size: 11.5px; padding: 4px; }
+.tabla-aus td, .tabla-vac td { padding: 4px; border-top: 1px solid var(--linea); vertical-align: middle; }
+.tabla-aus .num, .tabla-vac .num { text-align: right; white-space: nowrap; }
+.tabla-aus .notas { color: var(--suave); }
+.tabla-aus tr.pasada { opacity: .55; }
+.tabla-aus tr.en-curso td:first-child { box-shadow: inset 3px 0 0 var(--naranja); }
+.aus-tipo { font-size: 12px; border-radius: 99px; padding: 1px 8px; border: 1px solid var(--borde); white-space: nowrap; }
+.aus-vacaciones { color: var(--verde); border-color: var(--verde); }
+.aus-baja, .aus-averia { color: var(--rojo); border-color: var(--rojo); }
+.aus-permiso, .aus-formacion, .aus-mantenimiento, .aus-itv { color: var(--naranja); border-color: var(--naranja); }
+.calendario-laboral { display: grid; grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr); gap: 16px; padding: 16px; align-items: start; }
+.calendario-laboral .panel h2 { margin: 0; font-size: 17px; }
+.anio-nav { font-family: var(--mono); font-weight: 500; margin-left: 8px; }
+.anio-nav button { padding: 0 8px; }
+.tabla-vac a { color: var(--texto); }
+.tabla-vac tr.sub td { color: var(--suave); }
+.aus-ahora { color: var(--naranja); }
+.alta-festivo { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
+.alta-festivo input[name=nombre] { flex: 1; min-width: 140px; }
+.lista-festivos { list-style: none; margin: 0; padding: 0; }
+.lista-festivos li { display: flex; align-items: center; gap: 8px; padding: 4px 0; border-top: 1px solid var(--linea); font-size: 13px; }
+.lista-festivos li.pasado { opacity: .5; }
+.fest-fecha { width: 92px; font-family: var(--mono); font-size: 12px; text-transform: capitalize; }
+.fest-nombre { flex: 1; }
+.fest-amb { font-size: 11px; color: var(--suave); }
+.fest-amb.amb-local { color: var(--fest); }
+.fest-amb.amb-empresa { color: var(--azul); }
+.afectados { margin: 0 0 12px; padding-left: 18px; }
+.afectados a { color: var(--azul); }
+#dlg-afectados { width: min(560px, calc(100vw - 32px)); }
+#dlg-afectados .acciones { display: flex; justify-content: flex-end; }
+@media (max-width: 900px) { .calendario-laboral { grid-template-columns: 1fr; } }
+.tabla-vac .sub-tag { margin-left: 6px; }

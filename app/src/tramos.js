@@ -7,6 +7,7 @@ const { query, tx } = require('./db');
 const auth = require('./auth');
 const { jornada } = require('./config');
 const { calcularConflictos } = require('./conflictos');
+const { ausenciasEnRango, festivosEnRango, ausenciasPorDia, textoAusencia } = require('./ausencias');
 
 const FECHA_RE = /^\d{4}-\d{2}-\d{2}$/;
 const fallo = (status, msg) => Object.assign(new Error(msg), { status });
@@ -163,7 +164,7 @@ module.exports = function montar(app, asyncH) {
     const dias = (Date.parse(hasta) - Date.parse(desde)) / 864e5;
     if (dias < 0 || dias > 62) throw fallo(400, 'Rango de fechas no válido (máx. 62 días)');
 
-    const [lineas, recursos, tareas, tramos] = await Promise.all([
+    const [lineas, recursos, tareas, tramos, ausencias, festivos] = await Promise.all([
       // Áreas fijas activas + obras de proyectos activos (al final, por proyecto)
       // + cualquier área que tenga tramos en el rango (para no perder lo planificado)
       query(`SELECT l.id, l.nombre, l.tipo, l.ubicacion, l.activo, l.proyecto_id, l.exclusiva, l.descripcion,
@@ -191,7 +192,12 @@ module.exports = function montar(app, asyncH) {
                  OR EXISTS (SELECT 1 FROM tramos x WHERE x.tarea_id = t.id AND x.fecha BETWEEN $1 AND $2)
               ORDER BY o.prioridad, o.fecha_entrega NULLS LAST, o.codigo, t.orden_en_of, t.id`, [desde, hasta]),
       query(`${SQL_TRAMOS_DIA} WHERE tr.fecha BETWEEN $1 AND $2 ORDER BY tr.fecha, tr.hora_inicio, tr.id`, [desde, hasta]),
+      ausenciasEnRango({ query }, desde, hasta),
+      festivosEnRango({ query }, desde, hasta),
     ]);
+    for (const a of ausencias) a.texto = textoAusencia(a);
+    const ausDia = ausenciasPorDia(ausencias, desde, hasta);
+    const festivoDe = new Map(festivos.map((f) => [f.fecha, f.nombre]));
 
     // Cada tramo lleva su número dentro de la tarea ("2 de 3") y su exceso sobre lo estimado
     const porTarea = new Map(tareas.rows.map((t) => [t.id, t]));
@@ -215,10 +221,11 @@ module.exports = function montar(app, asyncH) {
       porDia.get(tr.fecha).push({ ...t, ...tr, duracion_h_tarea: t?.duracion_h });
     }
     const conflictos = [...porDia].flatMap(([f, lista]) =>
-      calcularConflictos(lista, jornada, tiposDisponibles, exclusivas).map((c) => ({ ...c, fecha: f })));
+      calcularConflictos(lista, jornada, tiposDisponibles, exclusivas,
+        { ausencias: ausDia.get(f), festivo: festivoDe.get(f), fecha: f }).map((c) => ({ ...c, fecha: f })));
 
     res.json({ fecha: desde, desde, hasta, jornada, lineas: lineas.rows, recursos: recursos.rows,
-      tareas: tareas.rows, tramos: tramos.rows, conflictos });
+      tareas: tareas.rows, tramos: tramos.rows, conflictos, ausencias, festivos });
   }));
 
   /* ---------- Crear tramo (soltar una tarea en el calendario) ---------- */
@@ -362,25 +369,36 @@ module.exports = function montar(app, asyncH) {
       const [y, m, d] = base.fecha.split('-').map(Number);
       const dia = new Date(Date.UTC(y, m - 1, d));
       const creados = [];
+      // festivos y ausencias de los próximos meses: no se planifica en festivo y quien falta
+      // todo el día no se asigna ese día
+      const horizonte = new Date(dia.getTime() + 200 * 864e5).toISOString().slice(0, 10);
+      const festivos = new Set((await festivosEnRango(c, base.fecha, horizonte)).map((f) => f.fecha));
+      const ausDia = ausenciasPorDia(await ausenciasEnRango(c, base.fecha, horizonte), base.fecha, horizonte);
+      const saltados = [];
       while (pendientes > 0 && creados.length < 60) {
         dia.setUTCDate(dia.getUTCDate() + 1);
         const sem = dia.getUTCDay();
         if (sem === 0 || sem === 6) continue; // fin de semana
         const fecha = dia.toISOString().slice(0, 10);
+        if (festivos.has(fecha)) { saltados.push(fecha); continue; }
+        const faltan = ausDia.get(fecha) || new Map();
+        const presentes = recursos.filter((r) => !(faltan.get(r.recurso_id) || []).some((a) => a.hora_desde == null));
         const dur = Math.min(pendientes, horasDia);
         const { rows } = await c.query(
           `INSERT INTO tramos (tarea_id, fecha, hora_inicio, duracion_h, linea_id, actualizado_por)
            VALUES ($1,$2,$3,$4,$5,$6) RETURNING id, fecha`,
           [base.tarea_id, fecha, jornada.inicio, dur, base.linea_id, req.usuario.id]);
-        for (const r of recursos) {
+        for (const r of presentes) {
           await c.query('INSERT INTO tramo_asignaciones (tramo_id, recurso_id, asignado_por) VALUES ($1,$2,$3)',
             [rows[0].id, r.recurso_id, req.usuario.id]);
         }
+        if (presentes.length < recursos.length) rows[0].sin = recursos.length - presentes.length;
         creados.push(rows[0]);
         pendientes -= dur;
       }
       await registrar(c, req.usuario.id, base.tarea_id, 'repartir', { desde: base.fecha, tramos: creados.length, horas_dia: horasDia });
-      return { creados: creados.length, hasta: creados.at(-1)?.fecha, pendientes };
+      return { creados: creados.length, hasta: creados.at(-1)?.fecha, pendientes, festivos_saltados: saltados,
+        dias_con_ausencias: creados.filter((x) => x.sin).length };
     });
     res.status(201).json(out);
   }));

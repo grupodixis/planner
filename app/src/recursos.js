@@ -29,6 +29,14 @@ function leer(b, parcial) {
   if (!parcial || 'linea_id' in b) r.linea_id = b.linea_id ? Number(b.linea_id) : null;
   if ('departamento_id' in b) r.departamento_id = b.departamento_id ? Number(b.departamento_id) : null;
   if ('activo' in b) r.activo = !!b.activo;
+  if ('dias_vacaciones' in b) {
+    if (b.dias_vacaciones === '' || b.dias_vacaciones == null) r.dias_vacaciones = null;
+    else {
+      const d = Number(String(b.dias_vacaciones).replace(',', '.'));
+      if (!Number.isFinite(d) || d < 0 || d > 60 || (d * 2) % 1 !== 0) throw fallo(400, 'Días de vacaciones no válidos');
+      r.dias_vacaciones = d;
+    }
+  }
   if ('vinculo' in b) {
     if (!['plantilla', 'subcontratado'].includes(b.vinculo)) throw fallo(400, 'Vínculo no válido');
     r.vinculo = b.vinculo;
@@ -117,7 +125,10 @@ module.exports = function montar(app, asyncH) {
                 WHERE a.recurso_id = r.id AND t.fecha < CURRENT_DATE) AS ultimo,
               (SELECT COALESCE(sum(COALESCE(a.hasta, t.hora_inicio + t.duracion_h) - COALESCE(a.desde, t.hora_inicio)), 0)::float
                  FROM tramo_asignaciones a JOIN tramos t ON t.id = a.tramo_id
-                WHERE a.recurso_id = r.id AND t.fecha BETWEEN CURRENT_DATE AND CURRENT_DATE + 13) AS horas_14d
+                WHERE a.recurso_id = r.id AND t.fecha BETWEEN CURRENT_DATE AND CURRENT_DATE + 13) AS horas_14d,
+              (SELECT json_build_object('tipo', a.tipo, 'desde', a.desde, 'hasta', a.hasta)
+                 FROM ausencias a WHERE a.recurso_id = r.id AND a.hasta >= CURRENT_DATE
+                ORDER BY a.desde LIMIT 1) AS ausencia_proxima
          FROM recursos r LEFT JOIN lineas l ON l.id = r.linea_id
          ${where}
         ORDER BY r.activo DESC, r.nombre`, vals);

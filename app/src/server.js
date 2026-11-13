@@ -27,6 +27,7 @@ require('./usuarios')(app, asyncH);   // entrar, recuperar contraseña, Mi cuent
 /* ---------- Tablero y tramos ---------- */
 
 require('./tramos')(app, asyncH);
+require('./ausencias').montar(app, asyncH);   // vacaciones, bajas, averías y festivos
 
 /* ---------- Áreas de trabajo ---------- */
 

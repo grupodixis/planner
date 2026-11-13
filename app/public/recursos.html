@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>s360 · Recursos</title>
-  <link rel="stylesheet" href="styles.css?v=202611132159">
+  <link rel="stylesheet" href="styles.css?v=202611132234">
 </head>
 <body>
   <header class="top">
@@ -22,6 +22,7 @@
     <button role="tab" data-tipo="maquina" id="tab-maquina" aria-controls="panel-recursos">Maquinaria</button>
     <button role="tab" data-tipo="subcontrata" id="tab-subcontrata" aria-controls="panel-recursos">Subcontratas y alquileres</button>
     <button role="tab" data-tipo="tipos" id="tab-tipos" aria-controls="panel-recursos">Tipos de recurso</button>
+    <button role="tab" data-tipo="calendario" id="tab-calendario" aria-controls="panel-calendario">Vacaciones y festivos</button>
     <button type="button" id="btn-semillero" class="ghost btn-semillero" hidden title="Cargar el archivo semillero de recursos de la empresa (semillero.json)">Cargar semillero…</button>
   </div>
 
@@ -57,13 +58,50 @@
         <div class="ficha" id="campos"></div>
         <div class="cab-panel sep"><h2>Uso</h2></div>
         <dl class="uso-recurso" id="uso"></dl>
+        <div class="cab-panel sep"><h2 id="ausencias-titulo">Ausencias</h2></div>
+        <div id="ausencias"></div>
       </div>
     </section>
   </main>
 
+  <main class="calendario-laboral" id="panel-calendario" role="tabpanel" aria-labelledby="tab-calendario" hidden>
+    <section class="panel">
+      <div class="cab-panel">
+        <h2>Vacaciones <span class="anio-nav"><button type="button" id="cal-ant" class="ghost" aria-label="Año anterior">‹</button> <span id="cal-anio"></span> <button type="button" id="cal-sig" class="ghost" aria-label="Año siguiente">›</button></span></h2>
+      </div>
+      <p class="ayuda" id="cal-resumen"></p>
+      <div class="tabla-scroll">
+        <table class="tabla-vac" id="tabla-vac">
+          <thead><tr><th>Operario</th><th class="num" title="Días laborables de vacaciones al año (* = propios, no los de convenio)">Días/año</th><th class="num">Apuntados</th><th class="num">Disfrutados</th><th class="num">Quedan</th><th>Otras ausencias (días)</th><th>Ahora / próxima</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <p class="ayuda">Se cuentan días laborables: de lunes a viernes, sin festivos. Las ausencias se apuntan en la ficha de cada operario (pestaña Operarios).</p>
+    </section>
+    <section class="panel">
+      <div class="cab-panel"><h2>Festivos</h2></div>
+      <form id="form-festivo" class="alta-festivo">
+        <input name="fecha" type="date" required aria-label="Fecha">
+        <input name="nombre" required maxlength="80" placeholder="Nombre (p. ej. Cierre de Navidad)" aria-label="Nombre del festivo">
+        <select name="ambito" aria-label="Ámbito"><option value="empresa">Empresa</option><option value="local">Sant Lluís</option><option value="general">Baleares / nacional</option></select>
+        <button type="submit">Añadir</button>
+      </form>
+      <ul class="lista-festivos" id="lista-festivos"></ul>
+      <p class="ayuda">En festivo el tablero lo marca, «Repartir» lo salta y no cuenta como día de vacaciones. Los cierres de empresa también se añaden aquí.</p>
+    </section>
+  </main>
+
+  <dialog id="dlg-afectados" aria-labelledby="dlg-afectados-tit">
+    <div class="dlg-cab"><h2 id="dlg-afectados-tit">Tenía trabajo asignado</h2>
+      <button type="button" class="ghost" aria-label="Cerrar" data-cerrar>✕</button></div>
+    <p id="afectados-texto"></p>
+    <ul id="afectados-lista" class="afectados"></ul>
+    <div class="acciones"><button type="button" data-cerrar>Entendido</button></div>
+  </dialog>
+
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
-  <script src="comun.js?v=202611132159"></script>
-  <script src="recursos.js?v=202611132159"></script>
+  <script src="comun.js?v=202611132234"></script>
+  <script src="recursos.js?v=202611132234"></script>
   <dialog id="dlg-semillero" class="dlg-importar" aria-labelledby="dlg-sem-tit">
     <div class="dlg-cab">
       <h2 id="dlg-sem-tit">Cargar semillero de recursos</h2>

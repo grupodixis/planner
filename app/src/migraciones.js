@@ -295,6 +295,54 @@ const MIGRACIONES = [
      creado_por  INT REFERENCES usuarios(id) ON DELETE SET NULL
    )`,
   `CREATE INDEX IF NOT EXISTS enlaces_acceso_usuario_idx ON enlaces_acceso (usuario_id)`,
+  // 2026-11 · Ausencias (vacaciones, bajas, averías…) y festivos
+  `CREATE TABLE IF NOT EXISTS festivos (
+     fecha   DATE PRIMARY KEY,
+     nombre  TEXT NOT NULL,
+     ambito  TEXT NOT NULL DEFAULT 'general' CHECK (ambito IN ('general', 'local', 'empresa'))
+   )`,
+  `CREATE TABLE IF NOT EXISTS ausencias (
+     id          SERIAL PRIMARY KEY,
+     recurso_id  INT NOT NULL REFERENCES recursos(id) ON DELETE CASCADE,
+     tipo        TEXT NOT NULL CHECK (tipo IN ('vacaciones', 'baja', 'permiso', 'formacion', 'averia', 'mantenimiento', 'itv', 'otro')),
+     desde       DATE NOT NULL,
+     hasta       DATE NOT NULL,
+     hora_desde  NUMERIC(4,2),            -- solo en ausencias de unas horas (un único día)
+     hora_hasta  NUMERIC(4,2),
+     notas       TEXT,
+     creado      TIMESTAMPTZ NOT NULL DEFAULT now(),
+     creado_por  INT REFERENCES usuarios(id) ON DELETE SET NULL,
+     CHECK (hasta >= desde),
+     CHECK ((hora_desde IS NULL) = (hora_hasta IS NULL)),
+     CHECK (hora_desde IS NULL OR (desde = hasta AND hora_hasta > hora_desde))
+   )`,
+  `CREATE INDEX IF NOT EXISTS ausencias_recurso_idx ON ausencias (recurso_id, desde, hasta)`,
+  `CREATE INDEX IF NOT EXISTS ausencias_fechas_idx ON ausencias (desde, hasta)`,
+  // días de vacaciones al año de cada persona (vacío = los de convenio, VACACIONES_DIAS)
+  `ALTER TABLE recursos ADD COLUMN IF NOT EXISTS dias_vacaciones NUMERIC(4,1)`,
+  // Festivos de Illes Balears + locales de Sant Lluís (BOIB). Solo se cargan si ese año no tiene ninguno.
+  `INSERT INTO festivos (fecha, nombre, ambito)
+   SELECT v.fecha::date, v.nombre, v.ambito FROM (VALUES
+     ('2026-01-01', 'Año Nuevo', 'general'), ('2026-01-06', 'Epifanía del Señor', 'general'),
+     ('2026-01-17', 'Sant Antoni', 'local'), ('2026-03-02', 'Día siguiente al Día de les Illes Balears', 'general'),
+     ('2026-04-02', 'Jueves Santo', 'general'), ('2026-04-03', 'Viernes Santo', 'general'),
+     ('2026-04-06', 'Lunes de Pascua', 'general'), ('2026-05-01', 'Fiesta del Trabajo', 'general'),
+     ('2026-08-15', 'Asunción de la Virgen', 'general'), ('2026-09-08', 'Mare de Déu de Gràcia', 'local'),
+     ('2026-10-12', 'Fiesta Nacional', 'general'), ('2026-12-08', 'Inmaculada Concepción', 'general'),
+     ('2026-12-25', 'Navidad', 'general'), ('2026-12-26', 'Segunda fiesta de Navidad', 'general')
+   ) AS v(fecha, nombre, ambito)
+   WHERE NOT EXISTS (SELECT 1 FROM festivos WHERE fecha BETWEEN '2026-01-01' AND '2026-12-31')`,
+  `INSERT INTO festivos (fecha, nombre, ambito)
+   SELECT v.fecha::date, v.nombre, v.ambito FROM (VALUES
+     ('2027-01-01', 'Año Nuevo', 'general'), ('2027-01-06', 'Epifanía del Señor', 'general'),
+     ('2027-01-07', 'Fiesta local de Sant Lluís', 'local'), ('2027-03-01', 'Día de les Illes Balears', 'general'),
+     ('2027-03-25', 'Jueves Santo', 'general'), ('2027-03-26', 'Viernes Santo', 'general'),
+     ('2027-03-29', 'Lunes de Pascua', 'general'), ('2027-05-01', 'Fiesta del Trabajo', 'general'),
+     ('2027-09-08', 'Mare de Déu de Gràcia', 'local'), ('2027-10-12', 'Fiesta Nacional', 'general'),
+     ('2027-11-01', 'Todos los Santos', 'general'), ('2027-12-06', 'Día de la Constitución', 'general'),
+     ('2027-12-08', 'Inmaculada Concepción', 'general'), ('2027-12-25', 'Navidad', 'general')
+   ) AS v(fecha, nombre, ambito)
+   WHERE NOT EXISTS (SELECT 1 FROM festivos WHERE fecha BETWEEN '2027-01-01' AND '2027-12-31')`,
 ];
 
 async function migrar() {

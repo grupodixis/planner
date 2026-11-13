@@ -12,8 +12,25 @@ const fechaHora = (ms) => {
   return `${String(d.getUTCDate()).padStart(2, '0')}/${String(d.getUTCMonth() + 1).padStart(2, '0')} ${hhmm(d.getUTCHours() + d.getUTCMinutes() / 60)}`;
 };
 
-function calcularConflictos(tramos, jornada, tiposDisponibles = new Set(), exclusivas = new Map()) {
+// dia: { ausencias: Map(recurso_id → [ausencias]), festivo: nombre, fecha }
+function calcularConflictos(tramos, jornada, tiposDisponibles = new Set(), exclusivas = new Map(), dia = {}) {
   const out = [];
+  // Día festivo: un aviso (leve) con todos los tramos del día
+  if (dia.festivo && tramos.length) {
+    out.push({ tipo: 'festivo', ids: tramos.map((t) => t.id), leve: true,
+      mensaje: `Festivo (${dia.festivo}): ${tramos.length} tramo${tramos.length > 1 ? 's' : ''} planificado${tramos.length > 1 ? 's' : ''}` });
+  }
+  // Recurso asignado mientras está ausente (vacaciones, baja, avería…), en todo o parte de su franja
+  if (dia.ausencias?.size) {
+    for (const t of tramos) {
+      for (const r of t.asignados) {
+        const a = (dia.ausencias.get(r.id) || []).find((x) => x.hora_desde == null || (x.hora_desde < r.hasta && x.hora_hasta > r.desde));
+        if (!a) continue;
+        out.push({ tipo: 'ausencia', ids: [t.id], recurso_id: r.id, clase: r.tipo, ausencia_id: a.id,
+          mensaje: `${r.nombre} está ${a.texto || 'ausente'} y tiene asignado ${etiqueta(t)}` });
+      }
+    }
+  }
 
   for (const t of tramos) {
     const ops = t.asignados.filter((r) => r.tipo === 'operario').length;

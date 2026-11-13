@@ -168,6 +168,13 @@
   const tramo = (id) => estado.datos.tramos.find((t) => t.id === id);
   const pendientes = (t) => Math.max(0, +(t.duracion_h - t.horas_planificadas).toFixed(1));
   const conflictosDe = (tramoId) => estado.datos.conflictos.filter((c) => c.ids.includes(tramoId));
+  // Ausencias (vacaciones, bajas, averías…) y festivos del rango cargado
+  const AUS_TXT = { vacaciones: 'vacaciones', baja: 'baja', permiso: 'permiso', formacion: 'formación', averia: 'avería', mantenimiento: 'mantenimiento', itv: 'ITV', otro: 'no disponible' };
+  const ausenciasDe = (recursoId, fecha) => (estado.datos.ausencias || []).filter((a) => a.recurso_id === recursoId && a.desde <= fecha && a.hasta >= fecha);
+  const ausenteTodoElDia = (recursoId, fecha) => ausenciasDe(recursoId, fecha).find((a) => a.hora_desde == null);
+  const festivoDe = (fecha) => (estado.datos?.festivos || []).find((f) => f.fecha === fecha);
+  const laborable = (f) => !esFinde(f) && !festivoDe(f);
+  const ausTexto = (a) => (a.hora_desde != null ? `${AUS_TXT[a.tipo]} ${hhmm(a.hora_desde)}–${hhmm(a.hora_hasta)}` : AUS_TXT[a.tipo]);
 
   function pintar() {
     $('#fecha-txt').textContent = tituloPeriodo();
@@ -202,8 +209,13 @@
       for (const r of tr.asignados) uso.set(r.id, (uso.get(r.id) || 0) + (r.hasta - r.desde));
     }
     // capacidad: jornada × días laborables del periodo (en la vista día, la jornada)
-    const laborables = estado.periodo === 'dia' ? 1 : diasEntre(...rangoPeriodo()).filter((f) => !esFinde(f)).length;
-    const cap = J().horas * laborables;
+    const diasLab = estado.periodo === 'dia' ? [estado.fecha] : diasEntre(...rangoPeriodo()).filter(laborable);
+    const cap = J().horas * Math.max(1, diasLab.length);
+    // ausencias: en la vista día, si falta todo el día; en semana/mes, los días que falta
+    const ausHoy = (r) => (estado.periodo === 'dia' ? ausenteTodoElDia(r.id, estado.fecha) : null);
+    const diasFuera = (r) => diasLab.filter((f) => ausenteTodoElDia(r.id, f)).length;
+    const capDe = (r) => (estado.periodo === 'dia' ? cap : Math.max(0, cap - diasFuera(r) * J().horas));
+    const libre = (r) => !uso.get(r.id) && !ausHoy(r);
     const cuando = { dia: 'hoy', semana: 'esta semana', mes: 'este mes' }[estado.periodo];
     // Con una tarea o un tramo seleccionado, se marcan los recursos que cumplen sus requisitos
     const tSel = estado.sel ? (estado.sel.tipo === 'tarea' ? tarea(estado.sel.id) : tarea(tramo(estado.sel.id)?.tarea_id)) : null;
@@ -216,12 +228,19 @@
     const CLASES = [['operario', 'Operarios', 'Sin oficio'], ['maquina', 'Maquinaria propia', 'Sin tipo'], ['subcontrata', 'Subcontratas / alquiler', 'Sin tipo']];
     const fila = (r) => {
       const h = +(uso.get(r.id) || 0).toFixed(1);
+      const fuera = ausHoy(r);
+      const parcial = estado.periodo === 'dia' && !fuera ? ausenciasDe(r.id, estado.fecha)[0] : null;
+      const nFuera = estado.periodo === 'dia' ? 0 : diasFuera(r);
+      const capR = capDe(r);
+      const aus = fuera || parcial;
+      const ausTit = aus ? `\n⛔ Está ${aus.texto}${aus.notas ? ` · ${aus.notas}` : ''}`
+        : nFuera ? `\n⛔ Fuera ${nFuera} día${nFuera > 1 ? 's' : ''} ${cuando}` : '';
       return el('li', {
-        class: `rec ${r.tipo}${h ? ' ocupado' : ''}${h > cap ? ' sobrecarga' : ''}${cumple(r) ? ' cumple' : ''}`,
-        style: `--uso:${Math.min(100, (h / cap) * 100)}%`,
-        draggable: puedeEditar() ? 'true' : 'false',
+        class: `rec ${r.tipo}${h ? ' ocupado' : ''}${h > capR ? ' sobrecarga' : ''}${cumple(r) ? ' cumple' : ''}${fuera ? ' ausente' : ''}${parcial || nFuera ? ' ausente-parcial' : ''}`,
+        style: `--uso:${capR ? Math.min(100, (h / capR) * 100) : 0}%`,
+        draggable: puedeEditar() && !fuera ? 'true' : 'false',
         'data-buscar': `${r.nombre} ${r.tipos_txt || ''} ${r.empresa || ''}`.toLowerCase(),
-        title: `${r.nombre}${cumple(r) ? '\n✓ Cumple lo que pide la tarea seleccionada' : ''}${r.vinculo === 'subcontratado' ? `\nSubcontratado${r.empresa ? ' (' + r.empresa + ')' : ''}` : ''}${r.tipos_txt ? '\n' + r.tipos_txt : ''}\n${h ? `${durTxt(h)} asignadas ${cuando} de ${durTxt(cap)}` : `Libre ${cuando}`}`,
+        title: `${r.nombre}${cumple(r) ? '\n✓ Cumple lo que pide la tarea seleccionada' : ''}${r.vinculo === 'subcontratado' ? `\nSubcontratado${r.empresa ? ' (' + r.empresa + ')' : ''}` : ''}${r.tipos_txt ? '\n' + r.tipos_txt : ''}\n${h ? `${durTxt(h)} asignadas ${cuando} de ${durTxt(capR)}` : fuera ? 'No disponible' : `Libre ${cuando}`}${ausTit}`,
         ondragstart: (ev) => {
           estado.arrastre = { tipo: 'recurso', id: r.id };
           ev.dataTransfer.setData(MIME_REC, String(r.id));
@@ -231,14 +250,14 @@
       },
       el('span', { class: 'rec-nom' }, r.nombre),
       r.vinculo === 'subcontratado' ? el('span', { class: 'sub-tag', 'aria-label': 'subcontratado' }, 'sub') : null,
-      el('span', { class: 'uso' }, h ? `${durTxt(h)}/${durTxt(cap)}` : 'libre'));
+      el('span', { class: 'uso' }, fuera ? AUS_TXT[fuera.tipo] : h ? `${durTxt(h)}/${durTxt(capR)}` : parcial ? ausTexto(parcial) : nFuera ? `${nFuera}d fuera` : 'libre'));
     };
 
     $('#rec-plegar').textContent = CLASES.every(([c]) => plegados.has(`rc:${c}`)) ? 'Desplegar todo' : 'Plegar todo';
     $('#rec-grupos').replaceChildren(...CLASES.map(([clase, titulo, sinCat]) => {
       const todos = estado.datos.recursos.filter((r) => r.tipo === clase && r.activo !== false);
-      const lista = soloLibres ? todos.filter((r) => !uso.get(r.id) || cumple(r)) : todos;
-      const libres = todos.filter((r) => !uso.get(r.id)).length;
+      const lista = soloLibres ? todos.filter((r) => libre(r) || (cumple(r) && !ausHoy(r))) : todos;
+      const libres = todos.filter(libre).length;
       const nCumple = todos.filter(cumple).length;
       const claveC = `rc:${clase}`;
       const abierta = !plegados.has(claveC) || nCumple > 0;
@@ -263,12 +282,12 @@
             const claveK = `rk:${clase}:${cat}`;
             const algunoCumple = rs.some(cumple);
             const catAbierta = !variasCats || !plegados.has(claveK) || algunoCumple;
-            rs.sort((a, b) => (cumple(b) - cumple(a)) || ((uso.get(a.id) || 0) - (uso.get(b.id) || 0)) || a.nombre.localeCompare(b.nombre, 'es'));
+            rs.sort((a, b) => (!!ausHoy(a) - !!ausHoy(b)) || (cumple(b) - cumple(a)) || ((uso.get(a.id) || 0) - (uso.get(b.id) || 0)) || a.nombre.localeCompare(b.nombre, 'es'));
             return el('div', { class: `rec-cat${catAbierta ? '' : ' plegada'}` },
               variasCats ? el('button', { type: 'button', class: 'rec-cat-cab', 'aria-expanded': catAbierta ? 'true' : 'false', onclick: () => plegarRec(claveK) },
                 el('span', { class: 'flecha', 'aria-hidden': 'true' }, catAbierta ? '▾' : '▸'),
                 el('span', { class: 'rk-nom' }, cat),
-                el('span', { class: 'rk-cuenta' }, `${rs.filter((r) => !uso.get(r.id)).length}/${rs.length}`)) : null,
+                el('span', { class: 'rk-cuenta' }, `${rs.filter(libre).length}/${rs.length}`)) : null,
               catAbierta ? el('ul', { class: 'lista-rec' }, rs.map(fila)) : null);
           })) : null);
     }));
@@ -383,7 +402,14 @@
     return Math.max(y, altoMin);
   }
 
+  // Calendario central y, en la vista día, el aviso de festivo encima
   function pintarCalendario() {
+    pintarCalendarioSolo();
+    const fest = estado.periodo === 'dia' && festivoDe(estado.fecha);
+    if (fest) $('#cal-body').prepend(el('p', { class: 'festivo-aviso' }, `Festivo: ${fest.nombre}. Lo que se planifique hoy sale como aviso.`));
+  }
+
+  function pintarCalendarioSolo() {
     const marcar = (sel, attr, valor) => document.querySelectorAll(`${sel} button`).forEach((b) => {
       const activo = b.dataset[attr] === valor;
       b.classList.toggle('activo', activo);
@@ -695,6 +721,15 @@
         nodo: barraOperario(u.tr, u.r, solapados.has(`${u.r?.id}:${u.tr.id}`)),
       }));
       const alto = apilar(items, pista, 40 + 2 * GAP);
+      // ausencias de ese día: todo el día rayado, o solo sus horas
+      for (const a of recurso ? ausenciasDe(recurso.id, estado.fecha) : []) {
+        const ini = a.hora_desde ?? H_INI(), fin = a.hora_hasta ?? H_FIN();
+        const z = el('div', { class: 'franja-ausente', title: `${recurso.nombre} está ${a.texto}${a.notas ? ` · ${a.notas}` : ''}` },
+          el('span', {}, ausTexto(a)));
+        z.style.left = pct(ini);
+        z.style.width = `${((fin - ini) / SPAN()) * 100}%`;
+        pista.prepend(z);
+      }
       const f = el('div', { class: `fila ${clase}` }, el('div', { class: 'fila-nombre' }, titulo, sub ? el('span', { class: 'ubic' }, sub) : null), pista);
       f.style.minHeight = `${alto}px`;
       prepararDropPista(pista, { recurso });
@@ -703,7 +738,8 @@
 
     const filas = operarios.map((o) => {
       const h = usos.get(o.id).reduce((s, u) => s + (u.r.hasta - u.r.desde), 0);
-      return fila(o.nombre, h ? `${durTxt(h)} de ${J().horas}h` : 'libre', h > J().horas ? 'sobrecarga' : '',
+      const fuera = ausenteTodoElDia(o.id, estado.fecha);
+      return fila(o.nombre, fuera ? fuera.texto : h ? `${durTxt(h)} de ${J().horas}h` : 'libre', `${h > J().horas ? 'sobrecarga' : ''}${fuera ? ' ausente' : ''}`,
         { 'data-recurso': o.id }, usos.get(o.id), o);
     });
     if (sinOperario.length) {
@@ -864,9 +900,9 @@
 
   function cabeceraDia(f, attrs = {}) {
     return el('button', {
-      type: 'button', class: `dia-cab${hoyEs(f) ? ' hoy' : ''}${esFinde(f) ? ' finde' : ''}`,
-      title: 'Abrir este día en la vista día', onclick: () => irAPeriodo('dia', f), ...attrs,
-    }, fechaCorta(f));
+      type: 'button', class: `dia-cab${hoyEs(f) ? ' hoy' : ''}${esFinde(f) ? ' finde' : ''}${festivoDe(f) ? ' festivo' : ''}`,
+      title: `${festivoDe(f) ? `Festivo: ${festivoDe(f).nombre}\n` : ''}Abrir este día en la vista día`, onclick: () => irAPeriodo('dia', f), ...attrs,
+    }, fechaCorta(f), festivoDe(f) ? el('span', { class: 'fest-nom' }, festivoDe(f).nombre) : null);
   }
 
   function chipTramo(tr, r = null, { compacto = false } = {}) {
@@ -991,7 +1027,9 @@
     const filaSemana = (nombre, sub, clase, celdas) =>
       el('div', { class: `fila-sem ${clase}` }, el('div', { class: 'fila-nombre' }, ...nombre, sub ? el('span', { class: 'ubic' }, sub) : null), ...celdas);
     const celda = (f, hijos, pie, opts) => {
-      const c = el('div', { class: `celda${hoyEs(f) ? ' hoy' : ''}${esFinde(f) ? ' finde' : ''}` }, ...hijos,
+      const c = el('div', { class: `celda${hoyEs(f) ? ' hoy' : ''}${esFinde(f) ? ' finde' : ''}${festivoDe(f) ? ' festivo' : ''}${opts.ausencia ? ' ausente' : ''}` },
+        opts.ausencia ? el('div', { class: 'aus-chip', title: `${opts.recurso.nombre} está ${opts.ausencia.texto}${opts.ausencia.notas ? ` · ${opts.ausencia.notas}` : ''}` }, ausTexto(opts.ausencia)) : null,
+        ...hijos,
         pie ? el('div', { class: `celda-pie${pie.clase ? ` ${pie.clase}` : ''}` }, pie.txt) : null);
       prepararDropCelda(c, { fecha: f, ...opts });
       return c;
@@ -1010,7 +1048,7 @@
           total += h;
           return celda(f, usos.map((u) => chipTramo(u.tr, u.r)),
             h ? { txt: `${durTxt(+h.toFixed(1))}/${J().horas}h`, clase: h > J().horas ? 'sobrecarga' : '' } : null,
-            { modo: 'operario', recurso: o });
+            { modo: 'operario', recurso: o, ausencia: ausenciasDe(o.id, f)[0] });
         });
         return filaSemana([o.nombre], total ? `${durTxt(+total.toFixed(1))} en la semana` : 'libre', '', celdas);
       });
@@ -1055,19 +1093,24 @@
         const lista = estado.datos.tramos.filter((tr) => tr.fecha === f)
           .sort((a, b) => a.hora_inicio - b.hora_inicio || a.id - b.id);
         const horasOp = lista.reduce((s, tr) => s + operariosDe(tr).reduce((x, r) => x + (r.hasta - r.desde), 0), 0);
-        const carga = nOps ? horasOp / (nOps * J().horas) : 0;
+        const fuera = estado.datos.recursos.filter((r) => r.tipo === 'operario' && r.activo !== false && ausenteTodoElDia(r.id, f));
+        const nDisp = nOps - fuera.length;
+        const carga = nDisp > 0 ? horasOp / (nDisp * J().horas) : (horasOp ? 2 : 0);
+        const fest = festivoDe(f);
         const conf = estado.datos.conflictos.some((c) => c.fecha === f && !c.leve);
         const resto = lista.length - MAX_FICHAS;
-        const c = el('div', { class: `celda mes-dia${f.slice(0, 7) !== mes ? ' fuera' : ''}${hoyEs(f) ? ' hoy' : ''}${esFinde(f) ? ' finde' : ''}` },
+        const c = el('div', { class: `celda mes-dia${f.slice(0, 7) !== mes ? ' fuera' : ''}${hoyEs(f) ? ' hoy' : ''}${esFinde(f) ? ' finde' : ''}${fest ? ' festivo' : ''}` },
           el('div', { class: 'mes-cab' },
             el('button', { type: 'button', class: 'ghost num-dia', title: 'Abrir este día en la vista día', onclick: () => irAPeriodo('dia', f) },
               f.slice(8) === '01' ? `${+f.slice(8)} ${MES_CORTO(f)}` : String(+f.slice(8))),
             conf ? el('span', { class: 'aviso', title: 'Hay conflictos este día' }, '!') : null,
+            fuera.length && !esFinde(f) && !fest ? el('span', { class: 'mes-aus', title: `Fuera: ${fuera.map((r) => `${r.nombre} (${AUS_TXT[ausenteTodoElDia(r.id, f).tipo]})`).join(', ')}` }, `${fuera.length} fuera`) : null,
             lista.length ? el('span', { class: 'mes-horas', title: `${lista.length} tramo(s) · ${durTxt(+horasOp.toFixed(1))} de operarios` },
               durTxt(+lista.reduce((s, tr) => s + tr.duracion_h, 0).toFixed(1))) : null),
+          fest ? el('span', { class: 'fest-nom' }, fest.nombre) : null,
           lista.length && nOps ? el('span', {
             class: `carga${carga > 1 ? ' sobre' : carga > 0.85 ? ' alta' : ''}`, 'aria-hidden': 'true',
-            title: `Ocupación de operarios: ${Math.round(carga * 100)}%`,
+            title: `Ocupación de operarios: ${Math.round(carga * 100)}%${fuera.length ? ` (${nDisp} disponibles de ${nOps})` : ''}`,
           }, el('span', { style: `width:${Math.min(100, carga * 100)}%` })) : null,
           ...lista.slice(0, resto > 0 ? MAX_FICHAS - 1 : MAX_FICHAS).map((tr) => chipTramo(tr, null, { compacto: true })),
           resto > 0 ? el('button', { type: 'button', class: 'ghost mas', onclick: () => irAPeriodo('dia', f) }, `+${resto + 1} más`) : null);
@@ -1370,7 +1413,7 @@
     const [a, b] = c.ids.map(tramo);
     return a && b && b.hora_inicio < a.hora_inicio ? a.id : c.ids[1];
   }
-  const tieneSolucion = (c) => ['operarios', 'requisito', 'requisito_tipo', 'solape', 'jornada', 'exceso', 'dependencia', 'puesto'].includes(c.tipo);
+  const tieneSolucion = (c) => ['operarios', 'requisito', 'requisito_tipo', 'solape', 'jornada', 'exceso', 'dependencia', 'puesto', 'ausencia'].includes(c.tipo);
   const recurso = (id) => estado.datos.recursos.find((r) => r.id === id);
   const activos = (tipo) => estado.datos.recursos.filter((r) => r.activo !== false && (!tipo || r.tipo === tipo));
   // Dónde está ocupado un recurso ese día (sin contar el tramo indicado)
@@ -1383,10 +1426,11 @@
     const ini = tr.hora_inicio, fin = tr.hora_inicio + tr.duracion_h;
     const filas = lista.map((r) => {
       const choca = ocupaciones(r.id, tr.fecha, tr.id).filter((o) => o.desde < fin && ini < o.hasta);
-      return { r, choca, pref: prefiere(r) };
-    }).sort((a, b) => (a.choca.length - b.choca.length) || (b.pref - a.pref) || a.r.nombre.localeCompare(b.r.nombre, 'es'));
-    const libres = filas.filter((f) => !f.choca.length);
-    const ocupados = filas.filter((f) => f.choca.length);
+      const aus = ausenciasDe(r.id, tr.fecha).find((a) => a.hora_desde == null || (a.hora_desde < fin && a.hora_hasta > ini));
+      return { r, choca, aus, pref: prefiere(r) };
+    }).sort((a, b) => (!!a.aus - !!b.aus) || (a.choca.length - b.choca.length) || (b.pref - a.pref) || a.r.nombre.localeCompare(b.r.nombre, 'es'));
+    const libres = filas.filter((f) => !f.choca.length && !f.aus);
+    const ocupados = filas.filter((f) => f.choca.length && !f.aus);
     if (!filas.length) return el('p', { class: 'ayuda' }, 'No hay ningún recurso que encaje dado de alta.');
     return el('div', {},
       libres.length ? null : el('p', { class: 'ayuda' }, `Nadie libre de ${hhmm(ini)} a ${hhmm(fin)}.`),
@@ -1398,6 +1442,7 @@
         ocupados.slice(0, 4).map(({ r, choca }) => el('li', { class: 'ocupado' },
           el('span', { class: 'cand-nom' }, r.nombre),
           el('span', { class: 'cand-info' }, `ocupado ${choca.map((o) => `${hhmm(o.desde)}–${hhmm(o.hasta)} ${tarea(o.x.tarea_id)?.orden_codigo || ''}`).join(', ')}`)))),
+      filas.some((f) => f.aus) ? el('p', { class: 'ayuda' }, `Fuera ese día: ${filas.filter((f) => f.aus).map((f) => `${f.r.nombre} (${ausTexto(f.aus)})`).join(', ')}`) : null,
       libres.length > 8 ? el('p', { class: 'ayuda' }, `y ${libres.length - 8} más libres`) : null);
   }
 
@@ -1406,7 +1451,7 @@
     let f = fecha, h = Math.ceil(hora / PASO) * PASO;
     if (h >= J().fin) { f = sumarDias(f, 1); h = J().inicio; }
     if (h < J().inicio) h = J().inicio;
-    while (esFinde(f)) f = sumarDias(f, 1);
+    while (!laborable(f)) f = sumarDias(f, 1);
     return { fecha: f, hora: h };
   }
 
@@ -1440,6 +1485,23 @@
       case 'requisito': {
         const r = recurso(c.recurso_id);
         return caja(r ? candidatos([r], tr, { asignar, boton: r.tipo === 'subcontrata' ? 'Confirmar' : 'Asignar' }) : el('p', { class: 'ayuda' }, 'Ese recurso ya no existe.'));
+      }
+      case 'ausencia': {
+        // está de vacaciones / baja / averiado: pasar su parte a otro del mismo oficio o tipo, o quitarlo
+        const r = recurso(c.recurso_id) || tr.asignados.find((x) => x.id === c.recurso_id);
+        if (!r) return caja();
+        const mismos = activos(r.tipo).filter((x) => x.id !== r.id && !yaEn.has(x.id)
+          && (!(r.tipos || []).length || (x.tipos || []).some((id) => r.tipos.includes(id))));
+        return caja(
+          el('p', { class: 'ayuda' }, `Pasar lo de ${r.nombre} a otro${(r.tipos || []).length ? ' del mismo oficio / tipo' : ''}:`),
+          candidatos(mismos, tr, {
+            boton: 'Cambiar',
+            asignar: (x) => accion(() => api('PATCH', `/api/tramos/${tr.id}/asignaciones/${r.id}`, { recurso_id: x.id }), `${r.nombre} → ${x.nombre}`),
+          }),
+          el('div', { class: 'sol-acc' }, el('button', {
+            type: 'button', class: 'ghost mini',
+            onclick: () => accion(() => api('DELETE', `/api/tramos/${tr.id}/asignaciones/${r.id}`), `${r.nombre} quitado del tramo`),
+          }, `Quitar a ${r.nombre} del tramo`)));
       }
       case 'solape': {
         const r = recurso(c.recurso_id);
@@ -1591,10 +1653,12 @@
         }, 'Empujar lo siguiente…'),
         pend ? el('button', {
           type: 'button', class: 'primario',
-          title: `Crea tramos de ${J().horas}h a las ${hhmm(J().inicio)} en los días laborables siguientes, con la misma área y los mismos recursos`,
+          title: `Crea tramos de ${J().horas}h a las ${hhmm(J().inicio)} en los días laborables siguientes (sin festivos), con la misma área y los mismos recursos (salvo quien esté ausente ese día)`,
           onclick: () => accion(async () => {
             const r = await api('POST', `/api/tramos/${tr.id}/repartir`, {});
-            return `Repartidas ${durTxt(pend)} en ${r.creados} día(s), hasta el ${fechaCorta(r.hasta)}`;
+            const extra = [r.festivos_saltados?.length ? `${r.festivos_saltados.length} festivo(s) saltado(s)` : null,
+              r.dias_con_ausencias ? `${r.dias_con_ausencias} día(s) sin alguien que estaba ausente` : null].filter(Boolean).join(' · ');
+            return `Repartidas ${durTxt(pend)} en ${r.creados} día(s), hasta el ${fechaCorta(r.hasta)}${extra ? ` (${extra})` : ''}`;
           }),
         }, `Repartir ${durTxt(pend)} en días siguientes`) : null,
         el('label', { class: 'etq mover-dia' }, 'Mover a ',

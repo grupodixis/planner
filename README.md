@@ -79,6 +79,7 @@ app/src/auth.js           sesiones en BD, permisos, bloqueo tras intentos fallid
 app/src/usuarios.js       entrar, recuperar contraseña, Mi cuenta, usuarios y roles
 app/src/correo.js         envío de correo opcional (SMTP)
 app/src/conflictos.js     reglas de conflicto del día
+app/src/ausencias.js      ausencias (vacaciones, bajas, averías), festivos y saldo de vacaciones
 app/src/importar.js       importación de proyectos del compositor (s360-import/1)
 app/src/migraciones.js    cambios de esquema que se aplican solos al arrancar
 app/public/               frontend sin compilación: index (tablero), proyectos, recursos, usuarios
@@ -256,6 +257,30 @@ Menú **Usuarios** (solo quien tiene el permiso «usuarios»).
 Correo (opcional), en `.env`: `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM` y
 `APP_URL` (la dirección pública para los enlaces; en el VPS la pone el script de despliegue).
 
+## Vacaciones, ausencias y festivos
+
+- **Ausencias** en la ficha de cada recurso (Recursos › Operarios / Maquinaria): desde–hasta, o
+  solo unas horas de un día (un médico de 9:00 a 11:00), con notas.
+  - Operarios: vacaciones, baja, permiso, formación, otro.
+  - Máquinas, vehículos y alquileres: avería, mantenimiento, ITV / revisión, otro.
+  - Si tenía trabajo asignado en esas fechas, al apuntarla se avisa con la lista de tramos.
+- **En el tablero:**
+  - Quien falta todo el día sale atenuado en el panel de recursos con el motivo y no se puede
+    arrastrar; en semana / mes, «Xd fuera» y la capacidad descuenta esos días.
+  - Si está asignado a un tramo, aviso grave «está de vacaciones y tiene asignado…» con
+    «Solucionar»: pasar su parte a otro del mismo oficio que esté libre, o quitarlo.
+  - Vista por operarios: su fila rayada (o solo sus horas). Semana: «vacaciones» en su celda.
+    Mes: «N fuera» en el día y la ocupación se calcula con los disponibles.
+  - «Repartir» salta los festivos y no asigna a quien falta ese día.
+- **Festivos** (Recursos › Vacaciones y festivos): vienen cargados los de Illes Balears y los
+  locales de Sant Lluís de 2026 y 2027 (BOIB). Se añaden a mano los de años siguientes y los
+  cierres de empresa. En festivo el tablero lo marca y avisa si hay algo planificado.
+- **Saldo de vacaciones:** 22 días laborables al año por convenio (`VACACIONES_DIAS`); cada
+  persona puede tener los suyos en su ficha. Se cuentan días laborables (lunes a viernes sin
+  festivos) y medio día / unas horas en proporción. La pestaña Vacaciones y festivos muestra,
+  por año, apuntados, ya disfrutados, los que quedan, otras ausencias y la ausencia actual o
+  próxima. Los subcontratados no llevan saldo.
+
 ## Semillero de recursos de la empresa
 
 [`semillero/semillero.json`](semillero/README.md) describe departamentos, áreas de trabajo
@@ -308,6 +333,11 @@ vez. Al confirmar se importa todo de una vez (o nada).
 | PATCH · DELETE | `/api/usuarios/:id` | `{nombre, email, rol, recurso_id, activo}` · borrar (o desactivar si tiene historial) |
 | POST | `/api/usuarios/:id/enlace` · `/api/usuarios/:id/cerrar-sesiones` | enlace nuevo de activación/recuperación · sacarlo de todas partes |
 | POST · PATCH · DELETE | `/api/roles` · `/api/roles/:clave` | `{nombre, descripcion, permisos[]}` |
+| GET · POST | `/api/ausencias` | listar (`?recurso_id=`, `?desde=&hasta=`, `?anio=`) · `{recurso_id, tipo, desde, hasta, hora_desde?, hora_hasta?, notas}` (devuelve los tramos afectados) |
+| PATCH · DELETE | `/api/ausencias/:id` | editar · quitar |
+| GET | `/api/ausencias/tipos` | tipos de ausencia y a qué recursos se aplican |
+| GET · POST · DELETE | `/api/festivos?anio=` · `/api/festivos` · `/api/festivos/:fecha` | festivos del año · `{fecha, nombre, ambito}` · quitar |
+| GET | `/api/vacaciones?anio=` | saldo de vacaciones por operario |
 | GET | `/api/tablero?fecha=YYYY-MM-DD` · `?desde=…&hasta=…` | jornada, áreas, recursos, tareas abiertas, tramos del día o del rango (máx. 62 días) y avisos (cada uno con su `fecha`) |
 | PATCH | `/api/tareas/:id` | `{estado, nombre, duracion_h, operarios_req, linea_id, requisitos, requisitos_tipo, notas, baja_presupuesto}` |
 | POST | `/api/tareas/:id/tramos` | `{fecha, hora_inicio, linea_id?, recurso_id?, duracion_h?}` planificar (sin horas: hasta fin de jornada) |
@@ -354,7 +384,7 @@ activación por enlace y recuperación de contraseña.
 estimado y empujar. Pendiente: cierre de cada tramo (hecho / faltan X h / no se hizo), estado en curso/hecha desde el móvil (vista simple para taller y obra).
 
 **Fase 4 – Vista semana y capacidad.** Hecho: vistas semana (con nº de semana) y mes, carga por día y por periodo. Pendiente: carga vs. capacidad más detallada,
-calendario laboral (festivos, vacaciones, ausencias), arrastre entre días.
+arrastre entre días. Hecho: calendario laboral (festivos, vacaciones, ausencias) con saldo de vacaciones.
 
 **Fase 5 – Dependencias y avisos.** Hecho en parte: dependencias entre tareas con espera
 (se importan del compositor; aviso leve si se planifica antes de tiempo) y condiciones previas

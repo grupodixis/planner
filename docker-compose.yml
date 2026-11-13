@@ -41,6 +41,7 @@ services:
       SMTP_FROM: ${SMTP_FROM:-}
       JORNADA_INICIO: ${JORNADA_INICIO:-7}
       JORNADA_FIN: ${JORNADA_FIN:-15}
+      VACACIONES_DIAS: ${VACACIONES_DIAS:-22}
       TZ: Europe/Madrid
     ports:
       # En el PC: todas las interfaces. En el servidor: WEB_BIND=127.0.0.1 (lo publica nginx/Plesk)

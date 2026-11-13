@@ -54,6 +54,7 @@
         { k: 'coste_hora', e: 'Coste €/h', ancho: 'c1', tipo: 'number' },
         { k: 'departamento_id', e: 'Departamento', ancho: 'c2', departamentos: true },
         { k: 'linea_id', e: 'Puesto / área habitual', ancho: 'c2', areas: true, ayuda: 'Al planificar en ese puesto se le propone primero' },
+        { k: 'dias_vacaciones', e: 'Vacaciones (días/año)', ancho: 'c1', tipo: 'number', placeholder: 'convenio', si: (r) => r.vinculo !== 'subcontratado', ayuda: 'Vacío = los de convenio' },
         { k: 'notas', e: 'Notas', ancho: 'c4', max: 2000, filas: 2 },
       ],
     },
@@ -86,6 +87,7 @@
 
   // Pestaña de catálogo de tipos (no es una clase de recurso)
   TIPOS.tipos = { titulo: 'Tipos de recurso', singular: 'tipo', alta: 'Nombre del tipo (p. ej. Soldadora MIG)', catalogo: true };
+  TIPOS.calendario = { titulo: 'Vacaciones y festivos', calendario: true };
   const CLASE_TXT = { operario: 'Oficio de operario', maquina: 'Tipo de máquina', subcontrata: 'Tipo de subcontrata / alquiler' };
   const CLASE_PLURAL = { operario: 'Oficios', maquina: 'Tipos de máquina', subcontrata: 'Subcontratas / alquileres' };
 
@@ -151,6 +153,7 @@
       input = el('input', {
         id, type: def.tipo === 'number' ? 'text' : (def.tipo || 'text'), maxlength: def.max, value: valor ?? '',
         inputmode: def.tipo === 'number' ? 'decimal' : null, list: def.sugerencias ? `${id}-sug` : null,
+        placeholder: def.placeholder || null,
       });
     }
     input.disabled = !puedeEditar();
@@ -163,11 +166,24 @@
     });
     return el('div', { class: `campo ${def.ancho || 'c1'}` },
       el('label', { for: id }, def.e), input,
+      def.ayuda && !def.tipos ? el('span', { class: 'ayuda' }, def.ayuda) : null,
       def.sugerencias ? el('datalist', { id: `${id}-sug` }, def.sugerencias.map((s) => el('option', { value: s }))) : null);
   }
 
   /* ---------- lista ---------- */
   async function cargar() {
+    const cal = !!TIPOS[estado.tipo].calendario;
+    $('#panel-recursos').hidden = cal;
+    $('#panel-calendario').hidden = !cal;
+    if (cal) {
+      document.querySelectorAll('[role=tab]').forEach((b) => {
+        const activo = b.dataset.tipo === estado.tipo;
+        b.setAttribute('aria-selected', activo ? 'true' : 'false');
+        b.tabIndex = activo ? 0 : -1;
+      });
+      guardarURL();
+      return pintarCalendarioLaboral();
+    }
     estado.tipos = await api('GET', '/api/tipos-recurso');
     estado.lista = TIPOS[estado.tipo].catalogo ? estado.tipos : await api('GET', `/api/recursos?tipo=${estado.tipo}`);
     if (estado.sel && !estado.lista.some((r) => r.id === estado.sel)) estado.sel = null;
@@ -211,6 +227,7 @@
           r.tipo === 'subcontrata' ? r.categoria : null, r.vinculo === 'subcontratado' ? 'subcontratado' : null,
           r.tipos.map((t) => t.nombre).join(', ') || null, r.empresa,
           r.proximo ? `próximo ${fechaCorta(r.proximo).slice(0, 5)}` : null,
+          r.ausencia_proxima ? `${r.ausencia_proxima.desde <= hoyISO() ? 'ahora' : fechaCorta(r.ausencia_proxima.desde).slice(0, 5)}: ${tiposAusencia?.[r.ausencia_proxima.tipo]?.nombre.toLowerCase() || r.ausencia_proxima.tipo}` : null,
           r.activo ? null : 'dado de baja',
         ].filter(Boolean).join(' · ') || '—')),
     )) : [el('li', { class: 'ayuda' }, q ? 'Nada coincide con la búsqueda.' : `Todavía no hay ${TIPOS[estado.tipo].titulo.toLowerCase()}.`)]));
@@ -285,6 +302,133 @@
       el('dt', {}, 'Última asignación'), el('dd', {}, r.ultimo ? fechaCorta(r.ultimo) : '—'),
       el('dt', {}, 'Historial'), el('dd', {}, `${r.usos} tramo(s)${r.requerido ? ` · requerido en ${r.requerido} tarea(s)` : ''}`),
     );
+    pintarAusencias(r).catch((e) => toast(e.message, true));
+  }
+
+  /* ---------- ausencias de un recurso (vacaciones, bajas, averías…) ---------- */
+  const anioActual = () => new Date().getFullYear();
+  const hoyISO = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
+  const diasTxt = (n) => `${String(n).replace('.', ',')} día${n === 1 ? '' : 's'}`;
+  const aHora = (v) => { const [h, m] = String(v).split(':').map(Number); return h + (m || 0) / 60; };
+  const deHora = (h) => `${String(Math.floor(h)).padStart(2, '0')}:${String(Math.round((h % 1) * 60)).padStart(2, '0')}`;
+  let tiposAusencia = null;
+
+  async function pintarAusencias(r) {
+    const caja = $('#ausencias');
+    $('#ausencias-titulo').textContent = r.tipo === 'operario' ? 'Vacaciones y ausencias' : 'No disponible (averías, mantenimiento…)';
+    tiposAusencia = tiposAusencia || await api('GET', '/api/ausencias/tipos');
+    const [lista, saldo] = await Promise.all([
+      api('GET', `/api/ausencias?recurso_id=${r.id}`),
+      r.tipo === 'operario' && r.vinculo !== 'subcontratado' ? api('GET', `/api/vacaciones?anio=${anioActual()}`) : null,
+    ]);
+    if (estado.sel !== r.id) return;   // se cambió de ficha mientras cargaba
+    const editar = puedeEditar();
+    const yo = saldo?.personas.find((p) => p.id === r.id);
+    const hoy = hoyISO();
+    const tipos = Object.entries(tiposAusencia).filter(([, t]) => t.clases.includes(r.tipo));
+
+    const form = editar ? el('form', { class: 'alta-ausencia', onsubmit: async (ev) => {
+      ev.preventDefault();
+      const f = ev.target;
+      const cuerpo = { recurso_id: r.id, tipo: f.tipo.value, desde: f.desde.value, hasta: f.horas.checked ? f.desde.value : (f.hasta.value || f.desde.value), notas: f.notas.value };
+      if (f.horas.checked) { cuerpo.hora_desde = aHora(f.hora_desde.value); cuerpo.hora_hasta = aHora(f.hora_hasta.value); }
+      try {
+        const x = await api('POST', '/api/ausencias', cuerpo);
+        toast('Ausencia apuntada');
+        await pintarAusencias(r);
+        if (x.afectados.length) avisoAfectados(r, x.afectados);
+      } catch (e) { toast(e.message, true); }
+    } },
+      el('select', { name: 'tipo', 'aria-label': 'Tipo' }, tipos.map(([k, t]) => el('option', { value: k }, t.nombre))),
+      el('label', {}, 'Desde', el('input', { name: 'desde', type: 'date', required: true, value: hoy })),
+      el('label', { class: 'aus-hasta' }, 'Hasta', el('input', { name: 'hasta', type: 'date', value: hoy })),
+      el('label', { class: 'aus-chk' }, el('input', { name: 'horas', type: 'checkbox', onchange: (ev) => {
+        const f = ev.target.form;
+        f.querySelector('.aus-hasta').hidden = ev.target.checked;
+        f.querySelector('.aus-horas').hidden = !ev.target.checked;
+      } }), 'Solo unas horas'),
+      el('span', { class: 'aus-horas', hidden: true },
+        el('input', { name: 'hora_desde', type: 'time', step: 900, value: '09:00', 'aria-label': 'Desde la hora' }), '–',
+        el('input', { name: 'hora_hasta', type: 'time', step: 900, value: '11:00', 'aria-label': 'Hasta la hora' })),
+      el('input', { name: 'notas', placeholder: 'Notas (opcional)', maxlength: 500, 'aria-label': 'Notas' }),
+      el('button', { type: 'submit', class: 'primario' }, 'Apuntar')) : null;
+    // al cambiar «desde», si «hasta» quedaba antes, se iguala
+    form?.desde.addEventListener('change', () => { if (form.hasta.value < form.desde.value) form.hasta.value = form.desde.value; });
+
+    const proximas = lista.filter((a) => a.hasta >= hoy).sort((a, b) => a.desde.localeCompare(b.desde));
+    const pasadas = lista.filter((a) => a.hasta < hoy);
+    const fila = (a) => el('tr', { class: a.hasta < hoy ? 'pasada' : a.desde <= hoy ? 'en-curso' : '' },
+      el('td', {}, el('span', { class: `aus-tipo aus-${a.tipo}` }, tiposAusencia[a.tipo]?.nombre || a.tipo)),
+      el('td', {}, a.desde === a.hasta ? fechaCorta(a.desde) : `${fechaCorta(a.desde)} – ${fechaCorta(a.hasta)}`,
+        a.hora_desde != null ? ` · ${deHora(a.hora_desde)}–${deHora(a.hora_hasta)}` : ''),
+      el('td', { class: 'num' }, a.dias_laborables ? diasTxt(a.dias_laborables) : '—'),
+      el('td', { class: 'notas' }, a.notas || ''),
+      el('td', {}, editar ? el('button', {
+        type: 'button', class: 'ghost borrar', 'aria-label': 'Quitar esta ausencia',
+        onclick: async () => {
+          if (!confirm('¿Quitar esta ausencia?')) return;
+          try { await api('DELETE', `/api/ausencias/${a.id}`); toast('Ausencia quitada'); await pintarAusencias(r); } catch (e) { toast(e.message, true); }
+        },
+      }, '✕') : null));
+    caja.replaceChildren(...[
+      yo ? el('p', { class: 'saldo-vac' },
+        el('strong', {}, `Vacaciones ${saldo.anio}: `),
+        `${diasTxt(yo.usados)} apuntados de ${yo.dias}`,
+        el('span', { class: yo.pendientes < 0 ? 'neg' : 'quedan' }, ` · ${yo.pendientes < 0 ? `se pasa ${diasTxt(-yo.pendientes)}` : `quedan ${diasTxt(yo.pendientes)}`}`),
+        yo.disfrutados ? el('span', { class: 'ayuda' }, ` (${diasTxt(yo.disfrutados)} ya disfrutados)`) : null) : null,
+      form,
+      lista.length ? el('table', { class: 'tabla-aus' },
+        el('thead', {}, el('tr', {}, el('th', {}, 'Tipo'), el('th', {}, 'Fechas'), el('th', { class: 'num' }, 'Laborables'), el('th', {}, 'Notas'), el('th', {}))),
+        el('tbody', {}, proximas.map(fila), pasadas.slice(0, 15).map(fila))) : el('p', { class: 'ayuda' }, 'No hay ninguna apuntada.'),
+      pasadas.length > 15 ? el('p', { class: 'ayuda' }, `y ${pasadas.length - 15} anteriores`) : null].filter(Boolean));
+  }
+
+  // Tras apuntar una ausencia: tenía trabajo asignado en esas fechas
+  function avisoAfectados(r, afectados) {
+    const dlg = $('#dlg-afectados');
+    $('#afectados-texto').textContent = `${r.nombre} tenía trabajo asignado en esas fechas. En el tablero sale como aviso, con «Solucionar» para pasárselo a otro:`;
+    $('#afectados-lista').replaceChildren(...afectados.map((x) => el('li', {},
+      el('a', { href: `/?fecha=${x.fecha}&periodo=dia` }, fechaCorta(x.fecha)), ` · ${deHora(x.desde)}–${deHora(x.hasta)} · ${x.tarea}`)));
+    dlg.showModal();
+  }
+
+  /* ---------- pestaña «Vacaciones y festivos» ---------- */
+  let anioCal = anioActual();
+  async function pintarCalendarioLaboral() {
+    const editar = puedeEditar();
+    const d = await api('GET', `/api/vacaciones?anio=${anioCal}`);
+    const hoy = hoyISO();
+    $('#cal-anio').textContent = String(anioCal);
+    $('#cal-resumen').textContent = `${d.laborables_anio} días laborables en ${anioCal} · ${d.festivos.length} festivos · vacaciones de convenio: ${d.dias_convenio} días`;
+
+    const OTRAS = { baja: 'baja', permiso: 'permiso', formacion: 'formación', otro: 'otro' };
+    const actual = (p) => p.ausencias.find((a) => a.desde <= hoy && a.hasta >= hoy);
+    const proxima = (p) => p.ausencias.filter((a) => a.desde > hoy).sort((a, b) => a.desde.localeCompare(b.desde))[0];
+    $('#tabla-vac tbody').replaceChildren(...d.personas.map((p) => {
+      const sub = p.vinculo === 'subcontratado';
+      const ya = actual(p), luego = proxima(p);
+      return el('tr', { class: sub ? 'sub' : '' },
+        el('td', {}, el('a', { href: `/recursos.html?tipo=operario&id=${p.id}` }, p.nombre), sub ? el('span', { class: 'sub-tag' }, 'sub') : null),
+        el('td', { class: 'num' }, sub ? '—' : `${p.dias}${p.propios ? '*' : ''}`),
+        el('td', { class: 'num' }, p.usados ? String(p.usados).replace('.', ',') : '—'),
+        el('td', { class: 'num' }, p.disfrutados ? String(p.disfrutados).replace('.', ',') : '—'),
+        el('td', { class: `num ${sub ? '' : p.pendientes < 0 ? 'neg' : 'quedan'}` }, sub ? '—' : String(p.pendientes).replace('.', ',')),
+        el('td', {}, Object.entries(p.otras).map(([k, n]) => `${OTRAS[k] || k} ${String(n).replace('.', ',')}`).join(' · ') || ''),
+        el('td', {}, ya ? el('span', { class: 'aus-ahora' }, `ahora: ${ya.texto}`) : luego ? `${tiposAusencia?.[luego.tipo]?.nombre || luego.tipo} ${fechaCorta(luego.desde).slice(0, 5)}${luego.hasta !== luego.desde ? `–${fechaCorta(luego.hasta).slice(0, 5)}` : ''}` : ''));
+    }));
+
+    $('#form-festivo').hidden = !editar;
+    $('#lista-festivos').replaceChildren(...(d.festivos.length ? d.festivos.map((f) => el('li', { class: f.fecha < hoy ? 'pasado' : '' },
+      el('span', { class: 'fest-fecha' }, new Date(`${f.fecha}T12:00:00`).toLocaleDateString('es-ES', { weekday: 'short', day: '2-digit', month: 'short' })),
+      el('span', { class: 'fest-nombre' }, f.nombre),
+      el('span', { class: `fest-amb amb-${f.ambito}` }, { general: 'Baleares', local: 'Sant Lluís', empresa: 'empresa' }[f.ambito] || f.ambito),
+      editar ? el('button', {
+        type: 'button', class: 'ghost borrar', 'aria-label': `Quitar ${f.nombre}`,
+        onclick: async () => {
+          if (!confirm(`¿Quitar el festivo «${f.nombre}»?`)) return;
+          try { await api('DELETE', `/api/festivos/${f.fecha}`); toast('Festivo quitado'); pintarCalendarioLaboral(); } catch (e) { toast(e.message, true); }
+        },
+      }, '✕') : null)) : [el('li', { class: 'ayuda' }, `No hay festivos de ${anioCal}. Añádelos (BOIB: calendario laboral de Illes Balears y fiestas locales de Sant Lluís).`)]));
   }
 
   /* ---------- pestaña «Tipos de recurso» ---------- */
@@ -461,6 +605,22 @@
         document.querySelector('#campos input:not([id=c-nombre]), #campos select')?.focus();
       } catch (e) { toast(e.message, true); }
     });
+
+    $('#cal-ant').onclick = () => { anioCal--; pintarCalendarioLaboral().catch((e) => toast(e.message, true)); };
+    $('#cal-sig').onclick = () => { anioCal++; pintarCalendarioLaboral().catch((e) => toast(e.message, true)); };
+    $('#form-festivo').addEventListener('submit', async (ev) => {
+      ev.preventDefault();
+      const f = ev.target;
+      try {
+        await api('POST', '/api/festivos', { fecha: f.fecha.value, nombre: f.nombre.value, ambito: f.ambito.value });
+        toast('Festivo añadido');
+        anioCal = Number(f.fecha.value.slice(0, 4));
+        f.nombre.value = '';
+        pintarCalendarioLaboral();
+      } catch (e) { toast(e.message, true); }
+    });
+    document.querySelectorAll('#dlg-afectados [data-cerrar]').forEach((b) => (b.onclick = () => $('#dlg-afectados').close()));
+    tiposAusencia = await api('GET', '/api/ausencias/tipos').catch(() => null);
 
     const cat = await api('GET', '/api/catalogo');
     estado.areas = cat.areas;
