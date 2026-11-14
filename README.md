@@ -271,8 +271,20 @@ toca: lo real se guarda aparte y se compara.
     opcional del cambio.
   - **✗ No se hizo**: con motivo. Se quita del tablero y sus horas vuelven a «Por planificar»
     (queda registrado para los informes; «Deshacer» lo vuelve a poner).
-- Y cómo va la tarea: **sigue**, **faltan X h** (reestima: la tarea pasa a lo hecho + X; se
-  guarda la estimación inicial) o **terminada** (pasa a hecha, con fecha y quién).
+- Y cómo va la tarea:
+  - **sigue**: va según lo previsto; no cambia nada (pasa a «en curso»).
+  - **faltan X h de tarea** (horas de reloj; con 2 operarios son el doble de horas-persona, y se
+    muestra al escribirlo): la tarea pasa a *lo planificado hasta este tramo + X*. La primera
+    vez se guarda la estimación original. La diferencia con lo que ya hay planificado después
+    sale en «Por planificar» (o como exceso, si sobra).
+  - **terminada**: pasa a hecha (fecha y quién). Si quedan tramos planificados después,
+    **pregunta si se quitan** del tablero (Quitarlos / Dejarlos / Volver). Lo mismo al poner
+    una tarea en «hecha» desde el tablero.
+  - Si la tarea tiene **tramos anteriores sin cerrar**, la tarjeta avisa: «faltan» y
+    «terminada» los dan por hechos tal como estaban.
+- **Deshacer** un cierre devuelve también la tarea a como estaba (estado, estimación) y
+  repone los tramos que se quitaron al terminarla. Se deshace en orden: primero el cierre más
+  reciente de esa tarea.
 - **Horas fuera del plan**: trabajo en una tarea que no estaba planificado, o tiempo no
   productivo (desplazamiento, espera, limpieza, mantenimiento del taller, formación).
 - **Cerrar el día** (valida como estaba lo que quede). Un día cerrado no se replanifica en el

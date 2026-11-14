@@ -1387,7 +1387,19 @@
         el('label', { class: 'etq' }, 'Estado de la tarea ',
           el('select', {
             'aria-label': 'Estado de la tarea',
-            onchange: (ev) => accion(() => api('PATCH', `/api/tareas/${t.id}`, { estado: ev.target.value }), 'Estado actualizado'),
+            onchange: async (ev) => {
+              const estadoNuevo = ev.target.value;
+              let quitar = false;
+              if (estadoNuevo === 'hecha') {
+                const futuros = await api('GET', `/api/tareas/${t.id}/tramos-futuros`).catch(() => []);
+                quitar = await window.s360.preguntarTramosSobrantes(t.nombre, futuros);
+                if (quitar === null) { ev.target.value = t.estado; return; }
+              }
+              accion(async () => {
+                const r = await api('PATCH', `/api/tareas/${t.id}`, { estado: estadoNuevo, quitar_futuros: quitar });
+                return r?.tramos_quitados ? `Tarea hecha · ${r.tramos_quitados} tramo(s) quitados` : 'Estado actualizado';
+              });
+            },
           }, Object.entries(ESTADO_TXT).map(([v, n]) => el('option', { value: v, selected: v === t.estado }, n)))),
         el('a', { class: 'boton ghost', href: `/proyectos.html?ot=${t.orden_id}` }, 'Editar OT')));
     }

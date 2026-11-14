@@ -190,9 +190,22 @@ app.patch('/api/tareas/:id', auth.permiso('planificar', 'proyectos'), asyncH(asy
       }
       cambios.requisitos_tipo = requisitosTipo;
     }
+    // dada por hecha antes de tiempo: se quitan los tramos que quedaban (desde mañana) si así se pide
+    if (cambios.estado === 'hecha') {
+      await c.query('UPDATE tareas SET hecha_en = now(), hecha_por = $2 WHERE id = $1', [id, req.usuario.id]);
+      if (b.quitar_futuros) {
+        const hoy = new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Madrid' });
+        const { rowCount } = await c.query(
+          `DELETE FROM tramos x WHERE x.tarea_id = $1 AND x.fecha > $2 AND x.cierre IS NULL
+              AND NOT EXISTS (SELECT 1 FROM dias_cerrados d WHERE d.fecha = x.fecha)`, [id, hoy]);
+        cambios.tramos_quitados = rowCount;
+      }
+    } else if (cambios.estado) {
+      await c.query('UPDATE tareas SET hecha_en = NULL, hecha_por = NULL WHERE id = $1', [id]);
+    }
     await c.query('INSERT INTO historial (usuario_id, tarea_id, accion, detalle) VALUES ($1,$2,$3,$4)',
       [req.usuario.id, id, 'estado' in cambios ? 'estado' : 'editar', cambios]);
-    return rows[0];
+    return { ...rows[0], tramos_quitados: cambios.tramos_quitados || 0 };
   });
   if (!tarea) return res.status(404).json({ error: 'Tarea no encontrada' });
   res.json(tarea);

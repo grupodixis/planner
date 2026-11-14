@@ -68,6 +68,49 @@ async function tramoCompleto(c, id) {
   return rows[0];
 }
 
+// Cómo está la tarea ahora (para poder volver atrás al deshacer un cierre)
+async function copiaTarea(c, tareaId) {
+  const { rows } = await c.query(
+    `SELECT estado, duracion_h::float AS duracion_h, duracion_inicial_h::float AS duracion_inicial_h, hecha_en, hecha_por
+       FROM tareas WHERE id = $1`, [tareaId]);
+  return rows[0] || null;
+}
+
+// Tramos de la tarea posteriores a (fecha, hora) aún sin cerrar y en días abiertos
+async function tramosDespues(c, tareaId, fecha, hora, excluir = 0) {
+  const { rows } = await c.query(
+    `SELECT x.id, x.fecha, x.hora_inicio::float AS hora_inicio, x.duracion_h::float AS duracion_h, x.linea_id,
+            COALESCE((SELECT json_agg(json_build_object('id', a.recurso_id, 'desde', a.desde::float, 'hasta', a.hasta::float))
+                        FROM tramo_asignaciones a WHERE a.tramo_id = x.id), '[]') AS asignados
+       FROM tramos x
+      WHERE x.tarea_id = $1 AND x.id <> $4 AND x.cierre IS NULL AND (x.fecha, x.hora_inicio) > ($2::date, $3::numeric)
+        AND NOT EXISTS (SELECT 1 FROM dias_cerrados d WHERE d.fecha = x.fecha)
+      ORDER BY x.fecha, x.hora_inicio`, [tareaId, fecha, hora, excluir]);
+  return rows;
+}
+
+// Quita del plan los tramos indicados y devuelve una copia para poder reponerlos
+async function quitarTramos(c, lista) {
+  for (const x of lista) await c.query('DELETE FROM tramos WHERE id = $1', [x.id]);
+  return lista;
+}
+
+async function reponerTramos(c, tareaId, lista, usuarioId) {
+  let n = 0;
+  for (const x of lista || []) {
+    if (await diaCerrado(c, x.fecha)) continue;
+    const { rows } = await c.query(
+      `INSERT INTO tramos (tarea_id, fecha, hora_inicio, duracion_h, linea_id, actualizado_por) VALUES ($1,$2,$3,$4,$5,$6) RETURNING id`,
+      [tareaId, x.fecha, x.hora_inicio, x.duracion_h, x.linea_id, usuarioId]);
+    for (const a of x.asignados || []) {
+      await c.query(`INSERT INTO tramo_asignaciones (tramo_id, recurso_id, asignado_por, desde, hasta) VALUES ($1,$2,$3,$4,$5)
+                     ON CONFLICT DO NOTHING`, [rows[0].id, a.id, usuarioId, a.desde, a.hasta]);
+    }
+    n++;
+  }
+  return n;
+}
+
 async function historial(c, usuarioId, tareaId, accion, detalle) {
   await c.query('INSERT INTO historial (usuario_id, tarea_id, accion, detalle) VALUES ($1,$2,$3,$4)', [usuarioId, tareaId, accion, detalle]);
 }
@@ -81,8 +124,11 @@ async function avanzarTarea(c, usuarioId, tr, progreso) {
   if (progreso.terminada) {
     await c.query(`UPDATE tareas SET estado = 'hecha', hecha_en = now(), hecha_por = $2, actualizado = now(), actualizado_por = $2 WHERE id = $1`,
       [tr.tarea_id, usuarioId]);
-    await historial(c, usuarioId, tr.tarea_id, 'estado', { estado: 'hecha', por: 'parte', fecha: tr.fecha });
-    return;
+    // terminada antes de tiempo: los tramos que quedaban planificados se quitan si así se pide
+    let quitados = [];
+    if (progreso.quitar_futuros) quitados = await quitarTramos(c, await tramosDespues(c, tr.tarea_id, tr.fecha, tr.hora_inicio, tr.id));
+    await historial(c, usuarioId, tr.tarea_id, 'estado', { estado: 'hecha', por: 'parte', fecha: tr.fecha, tramos_quitados: quitados.length });
+    return quitados;
   }
   if (progreso.faltan_h != null) {
     const faltan = Number(progreso.faltan_h);
@@ -118,6 +164,12 @@ function montar(app, asyncH) {
     next();
   }));
 
+  // Tramos de una tarea que quedan por delante (desde mañana), para preguntar al darla por hecha
+  app.get('/api/tareas/:id/tramos-futuros', asyncH(async (req, res) => {
+    const hoy = new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Madrid' });
+    res.json(await tramosDespues({ query }, Number(req.params.id), hoy, 99));
+  }));
+
   app.get('/api/parte/listas', (req, res) => res.json({ motivos: MOTIVOS, no_productivo: NO_PRODUCTIVO }));
 
   /* ---------- Parte de un día ---------- */
@@ -130,6 +182,14 @@ function montar(app, asyncH) {
                     o.codigo AS orden_codigo, o.titulo AS orden_titulo, o.color, p.codigo AS proyecto,
                     (SELECT COALESCE(sum(y.duracion_h), 0)::float FROM tramos y WHERE y.tarea_id = t.id) AS tarea_planificadas,
                     (SELECT count(*)::int FROM tramos y WHERE y.tarea_id = t.id AND (y.fecha, y.hora_inicio) > (x.fecha, x.hora_inicio)) AS tramos_despues,
+                    COALESCE((SELECT json_agg(json_build_object('fecha', y.fecha, 'hora_inicio', y.hora_inicio::float, 'duracion_h', y.duracion_h::float)
+                                ORDER BY y.fecha, y.hora_inicio)
+                                FROM tramos y WHERE y.tarea_id = t.id AND y.cierre IS NULL AND (y.fecha, y.hora_inicio) > (x.fecha, x.hora_inicio)
+                                 AND NOT EXISTS (SELECT 1 FROM dias_cerrados d WHERE d.fecha = y.fecha)), '[]') AS despues,
+                    COALESCE((SELECT json_agg(json_build_object('fecha', y.fecha, 'hora_inicio', y.hora_inicio::float) ORDER BY y.fecha, y.hora_inicio)
+                                FROM tramos y WHERE y.tarea_id = t.id AND y.cierre IS NULL AND (y.fecha, y.hora_inicio, y.id) < (x.fecha, x.hora_inicio, x.id)), '[]') AS anteriores_abiertos,
+                    (SELECT COALESCE(sum(y.duracion_h), 0)::float FROM tramos y WHERE y.tarea_id = t.id
+                       AND (y.fecha, y.hora_inicio, y.id) <= (x.fecha, x.hora_inicio, x.id)) AS hecho_hasta,
                     COALESCE((SELECT json_agg(json_build_object('id', r.id, 'nombre', r.nombre, 'tipo', r.tipo,
                                'desde', COALESCE(a.desde, x.hora_inicio)::float, 'hasta', COALESCE(a.hasta, x.hora_inicio + x.duracion_h)::float)
                                ORDER BY r.tipo, r.nombre)
@@ -184,6 +244,7 @@ function montar(app, asyncH) {
       await exigirAbierto(c, tr.fecha);
       if (tr.cierre) throw fallo(409, 'Este tramo ya está cerrado: deshaz el cierre para cambiarlo');
       const plan = { hora_inicio: tr.hora_inicio, duracion_h: tr.duracion_h, asignados: tr.asignados };
+      const antes = await copiaTarea(c, tr.tarea_id);
 
       // horas reales
       let filas = [];
@@ -213,11 +274,11 @@ function montar(app, asyncH) {
       const realH = r2(filas.filter((f) => cost.get(f.recurso_id).tipo === 'operario').reduce((s, f) => s + (f.hasta - f.desde), 0));
       const planH = r2(tr.asignados.filter((a) => a.tipo === 'operario').reduce((s, a) => s + (a.hasta - a.desde), 0));
 
-      await c.query(
-        `INSERT INTO tramo_cierres (tramo_id, tarea_id, fecha, hora_inicio, duracion_h, linea_id, cierre, motivo, notas, plan, plan_h, real_h, cerrado_por)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`,
+      const { rows: ci } = await c.query(
+        `INSERT INTO tramo_cierres (tramo_id, tarea_id, fecha, hora_inicio, duracion_h, linea_id, cierre, motivo, notas, plan, plan_h, real_h, cerrado_por, tarea_antes)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14) RETURNING id`,
         [b.accion === 'no_hecho' ? null : id, tr.tarea_id, tr.fecha, tr.hora_inicio, tr.duracion_h, tr.linea_id, b.accion,
-          b.motivo || null, notas, JSON.stringify(plan), planH, realH, req.usuario.id]);
+          b.motivo || null, notas, JSON.stringify(plan), planH, realH, req.usuario.id, JSON.stringify(antes)]);
 
       if (b.accion === 'no_hecho') {
         // se quita del plan: sus horas vuelven a «Por planificar»
@@ -226,7 +287,9 @@ function montar(app, asyncH) {
       } else {
         await c.query('UPDATE tramos SET cierre = $2 WHERE id = $1', [id, b.accion]);
         await historial(c, req.usuario.id, tr.tarea_id, 'parte', { tramo_id: id, cierre: b.accion, real_h: realH, motivo: b.motivo || null });
-        await avanzarTarea(c, req.usuario.id, tr, b.progreso);
+        const quitados = await avanzarTarea(c, req.usuario.id, tr, b.progreso);
+        if (quitados?.length) await c.query('UPDATE tramo_cierres SET quitados = $2 WHERE id = $1', [ci[0].id, JSON.stringify(quitados)]);
+        return { ok: true, real_h: realH, tramos_quitados: quitados?.length || 0 };
       }
       return { ok: true, real_h: realH };
     });
@@ -241,6 +304,12 @@ function montar(app, asyncH) {
       if (!rows.length) throw fallo(404, 'Cierre no encontrado');
       const ci = rows[0];
       await exigirAbierto(c, ci.fecha);
+      // se deshace en orden: primero el cierre más reciente de esa tarea
+      const { rows: luego } = await c.query(
+        `SELECT fecha FROM tramo_cierres WHERE tarea_id = $1 AND id > $2 ORDER BY id DESC LIMIT 1`, [ci.tarea_id, id]);
+      if (luego.length) {
+        throw fallo(409, `Esta tarea tiene un cierre posterior (parte del ${luego[0].fecha.split('-').reverse().join('/')}): deshaz ese primero`);
+      }
       if (ci.cierre === 'no_hecho') {
         // vuelve a ponerse el tramo como estaba planificado
         const plan = ci.plan || {};
@@ -256,10 +325,20 @@ function montar(app, asyncH) {
         await c.query('DELETE FROM registros WHERE tramo_id = $1', [ci.tramo_id]);
         await c.query('UPDATE tramos SET cierre = NULL WHERE id = $1', [ci.tramo_id]);
       }
+      // la tarea vuelve a como estaba antes de este cierre (estado, estimación) y se reponen sus tramos quitados
+      const a = ci.tarea_antes;
+      if (a) {
+        await c.query(
+          `UPDATE tareas SET estado = $2, duracion_h = $3, duracion_inicial_h = $4, hecha_en = $5, hecha_por = $6,
+                  actualizado = now(), actualizado_por = $7 WHERE id = $1`,
+          [ci.tarea_id, a.estado, a.duracion_h, a.duracion_inicial_h, a.hecha_en, a.hecha_por, req.usuario.id]);
+      }
+      const repuestos = await reponerTramos(c, ci.tarea_id, ci.quitados, req.usuario.id);
       await c.query('DELETE FROM tramo_cierres WHERE id = $1', [id]);
-      await historial(c, req.usuario.id, ci.tarea_id, 'deshacer_parte', { fecha: ci.fecha, cierre: ci.cierre });
-    });
-    res.json({ ok: true });
+      await historial(c, req.usuario.id, ci.tarea_id, 'deshacer_parte', { fecha: ci.fecha, cierre: ci.cierre, tramos_repuestos: repuestos });
+      return repuestos;
+    }).then((repuestos) => res.json({ ok: true, tramos_repuestos: repuestos }));
+    return;
   }));
 
   /* ---------- Horas sin planificar y no productivas ---------- */
@@ -312,6 +391,7 @@ function montar(app, asyncH) {
       let validados = 0;
       for (const { id } of abiertos) {
         const tr = await tramoCompleto(c, id);
+        const antes = await copiaTarea(c, tr.tarea_id);
         const { rows: aus } = await c.query(`SELECT recurso_id FROM ausencias WHERE $1 BETWEEN desde AND hasta AND hora_desde IS NULL`, [fecha]);
         const fuera = new Set(aus.map((a) => a.recurso_id));
         const filas = tr.asignados.filter((a) => !fuera.has(a.id));
@@ -324,11 +404,11 @@ function montar(app, asyncH) {
         }
         const planH = r2(tr.asignados.filter((a) => a.tipo === 'operario').reduce((s, a) => s + (a.hasta - a.desde), 0));
         await c.query(
-          `INSERT INTO tramo_cierres (tramo_id, tarea_id, fecha, hora_inicio, duracion_h, linea_id, cierre, plan, plan_h, real_h, cerrado_por)
-           VALUES ($1,$2,$3,$4,$5,$6,'hecho',$7,$8,$9,$10)`,
+          `INSERT INTO tramo_cierres (tramo_id, tarea_id, fecha, hora_inicio, duracion_h, linea_id, cierre, plan, plan_h, real_h, cerrado_por, tarea_antes)
+           VALUES ($1,$2,$3,$4,$5,$6,'hecho',$7,$8,$9,$10,$11)`,
           [id, tr.tarea_id, fecha, tr.hora_inicio, tr.duracion_h, tr.linea_id,
             JSON.stringify({ hora_inicio: tr.hora_inicio, duracion_h: tr.duracion_h, asignados: tr.asignados }), planH,
-            r2(filas.filter((a) => a.tipo === 'operario').reduce((s, a) => s + (a.hasta - a.desde), 0)), req.usuario.id]);
+            r2(filas.filter((a) => a.tipo === 'operario').reduce((s, a) => s + (a.hasta - a.desde), 0)), req.usuario.id, JSON.stringify(antes)]);
         await c.query('UPDATE tramos SET cierre = $2 WHERE id = $1', [id, 'hecho']);
         await c.query(`UPDATE tareas SET estado = 'en_curso' WHERE id = $1 AND estado = 'pendiente'`, [tr.tarea_id]);
         validados++;

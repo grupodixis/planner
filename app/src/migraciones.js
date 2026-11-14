@@ -395,6 +395,9 @@ const MIGRACIONES = [
      cerrado_en  TIMESTAMPTZ NOT NULL DEFAULT now()
    )`,
   `CREATE INDEX IF NOT EXISTS tramo_cierres_fecha_idx ON tramo_cierres (fecha)`,
+  // para «Deshacer»: cómo estaba la tarea antes del cierre y los tramos que se quitaron al terminarla
+  `ALTER TABLE tramo_cierres ADD COLUMN IF NOT EXISTS tarea_antes JSONB`,
+  `ALTER TABLE tramo_cierres ADD COLUMN IF NOT EXISTS quitados JSONB`,
   `CREATE UNIQUE INDEX IF NOT EXISTS tramo_cierres_tramo_idx ON tramo_cierres (tramo_id) WHERE tramo_id IS NOT NULL`,
   `CREATE TABLE IF NOT EXISTS dias_cerrados (
      fecha       DATE PRIMARY KEY,

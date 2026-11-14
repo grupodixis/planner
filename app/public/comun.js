@@ -119,5 +119,35 @@
     if (salir && !salir.onclick) salir.onclick = async () => { await api('POST', '/api/logout'); location.href = '/login.html'; };
   }
 
-  window.s360 = { iniciar, tiene, api };
+  // preguntar('Título', 'Texto o nodo', [{ valor, texto, clase }]) → valor elegido (null si se cierra)
+  function preguntar(titulo, texto, botones) {
+    return new Promise((resolver) => {
+      const d = el('dialog', { class: 'dlg-pregunta', 'aria-labelledby': 'preg-tit' });
+      const fin = (v) => { d.close(); d.remove(); resolver(v); };
+      d.append(
+        el('h2', { id: 'preg-tit' }, titulo),
+        typeof texto === 'string' ? el('p', {}, texto) : texto,
+        el('div', { class: 'acciones' }, botones.map((b) => el('button', { type: 'button', class: b.clase || '', onclick: () => fin(b.valor) }, b.texto))));
+      d.addEventListener('cancel', (ev) => { ev.preventDefault(); fin(null); });
+      document.body.append(d);
+      d.showModal();
+      d.querySelector('.acciones button')?.focus();
+    });
+  }
+
+  // Al dar una tarea por terminada con tramos por delante: ¿se quitan? → true / false / null (no seguir)
+  async function preguntarTramosSobrantes(nombreTarea, tramos) {
+    if (!tramos.length) return false;
+    const dur = (h) => `${String(h).replace('.', ',')} h`;
+    const dia = (f) => new Date(`${f}T12:00:00`).toLocaleDateString('es-ES', { weekday: 'short', day: '2-digit', month: '2-digit' });
+    const total = tramos.reduce((s, x) => s + x.duracion_h, 0);
+    return preguntar('La tarea queda terminada',
+      el('div', {},
+        el('p', {}, `«${nombreTarea}» aún tiene ${tramos.length} tramo${tramos.length > 1 ? 's' : ''} planificado${tramos.length > 1 ? 's' : ''} después (${dur(total)}):`),
+        el('ul', { class: 'lista-sobrantes' }, tramos.map((x) => el('li', {}, `${dia(x.fecha)} · ${dur(x.duracion_h)}`))),
+        el('p', { class: 'ayuda' }, '¿Los quito del tablero? Así quedan libres esas personas, máquinas y puestos. Si después deshaces este cierre, vuelven a ponerse.')),
+      [{ valor: true, texto: 'Quitarlos', clase: 'primario' }, { valor: false, texto: 'Dejarlos' }, { valor: null, texto: 'Volver', clase: 'ghost' }]);
+  }
+
+  window.s360 = { iniciar, tiene, api, preguntar, preguntarTramosSobrantes };
 })();

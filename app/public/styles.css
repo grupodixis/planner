@@ -1110,3 +1110,12 @@ a.kpi-sub { color: var(--azul); }
 }
 @media (max-width: 1600px) { .top { gap: 14px; } }
 .tarjeta-parte > button { justify-self: start; }
+
+/* Avance de la tarea en el parte */
+.faltan-explica { flex-basis: 100%; color: var(--suave); font-size: 12px; margin-left: 62px; }
+.tp-aviso { margin: 0; padding: 4px 8px; border-radius: 6px; border: 1px solid var(--naranja); color: var(--naranja); font-size: 12.5px; }
+.tp-aviso a { color: inherit; font-weight: 600; }
+dialog.dlg-pregunta { width: min(460px, calc(100vw - 32px)); }
+.dlg-pregunta h2 { margin: 0 0 8px; font-size: 17px; }
+.dlg-pregunta .acciones { display: flex; justify-content: flex-end; gap: 8px; margin-top: 12px; }
+.lista-sobrantes { margin: 4px 0 8px; padding-left: 20px; font-family: var(--mono); font-size: 13px; }

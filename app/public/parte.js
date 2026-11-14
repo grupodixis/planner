@@ -121,22 +121,48 @@
           tr.registros.length ? `Real: ${tr.registros.map((g) => `${g.recurso} ${hhmm(g.desde)}–${hhmm(g.hasta)}`).join(' · ')}` : 'Real: nadie (0 h)',
           ci?.motivo ? ` · motivo: ${estado.datos.motivos[ci.motivo]}` : '', ci?.notas ? ` · ${ci.notas}` : '',
           tr.tarea_estado === 'hecha' ? el('b', {}, ' · tarea terminada') : ''),
-        editar && ci ? el('button', { type: 'button', class: 'ghost mini', onclick: () => accion(() => api('DELETE', `/api/cierres/${ci.id}`), 'Cierre deshecho') }, 'Deshacer') : null);
+        editar && ci ? el('button', {
+          type: 'button', class: 'ghost mini', title: 'Quita lo real de este tramo y devuelve la tarea a como estaba antes (estado, horas que faltaban y tramos quitados)',
+          onclick: () => accion(async () => {
+            const r = await api('DELETE', `/api/cierres/${ci.id}`);
+            return r.tramos_repuestos ? `Cierre deshecho · ${r.tramos_repuestos} tramo(s) repuestos` : 'Cierre deshecho';
+          }),
+        }, 'Deshacer') : null);
     }
 
     // avance de la tarea (por defecto «terminada» si es su último tramo y cubre todas sus horas)
     const ultimo = !tr.tramos_despues && tr.tarea_planificadas >= tr.tarea_h;
     const nombre = `prog-${tr.id}`;
-    const faltan = el('input', { type: 'number', min: 0, step: 0.5, class: 'faltan', 'aria-label': 'Horas que faltan', value: '' });
+    const ops = Math.max(1, tr.operarios_req || 1);
+    const faltan = el('input', { type: 'number', min: 0, step: 0.5, class: 'faltan', 'aria-label': 'Horas de tarea que faltan', value: '' });
+    // explica en qué se convierte «faltan X h»: horas de tarea (de reloj) y su equivalente en horas-persona
+    const explica = el('span', { class: 'faltan-explica' });
+    const pintarExplica = () => {
+      const x = Number(faltan.value);
+      if (faltan.value === '' || !(x >= 0)) {
+        explica.textContent = `(hasta aquí: ${hTxt(tr.hecho_hasta)} de ${hTxt(tr.tarea_h)} previstas)`;
+        return;
+      }
+      const nueva = tr.hecho_hasta + x;
+      explica.textContent = `→ la tarea pasa de ${hTxt(tr.tarea_h)} a ${hTxt(nueva)}${ops > 1 ? ` · ${hTxt(x)} × ${ops} op = ${hTxt(x * ops)}-persona` : ''}`;
+    };
+    pintarExplica();
+    faltan.addEventListener('input', pintarExplica);
     const progreso = el('div', { class: 'tp-prog' },
       el('span', { class: 'etq' }, 'La tarea:'),
       el('label', {}, el('input', { type: 'radio', name: nombre, value: 'sigue', checked: !ultimo }), ' sigue'),
-      el('label', {}, el('input', { type: 'radio', name: nombre, value: 'faltan' }), ' faltan ', faltan, ' h'),
-      el('label', {}, el('input', { type: 'radio', name: nombre, value: 'terminada', checked: ultimo }), ' terminada'));
+      el('label', {}, el('input', { type: 'radio', name: nombre, value: 'faltan' }), ' faltan ', faltan, ' h de tarea'),
+      el('label', {}, el('input', { type: 'radio', name: nombre, value: 'terminada', checked: ultimo }), ' terminada'),
+      explica);
     faltan.addEventListener('focus', () => { progreso.querySelector('[value=faltan]').checked = true; });
-    const leerProgreso = () => {
+    // devuelve el avance; undefined = el usuario ha decidido no seguir
+    const leerProgreso = async () => {
       const v = progreso.querySelector(`input[name=${nombre}]:checked`)?.value;
-      if (v === 'terminada') return { terminada: true };
+      if (v === 'terminada') {
+        const q = await window.s360.preguntarTramosSobrantes(tr.tarea, tr.despues);
+        if (q === null) return undefined;
+        return { terminada: true, quitar_futuros: q };
+      }
       if (v === 'faltan') {
         if (faltan.value === '') throw new Error('Pon cuántas horas faltan');
         return { faltan_h: Number(faltan.value) };
@@ -148,14 +174,24 @@
     const botones = editar ? el('div', { class: 'tp-botones' },
       el('button', {
         type: 'button', class: 'primario',
-        onclick: () => {
-          let p; try { p = leerProgreso(); } catch (e) { return toast(e.message, true); }
-          accion(() => api('POST', `/api/tramos/${tr.id}/cierre`, { accion: 'hecho', progreso: p }), 'Hecho como estaba');
+        onclick: async () => {
+          let p; try { p = await leerProgreso(); } catch (e) { return toast(e.message, true); }
+          if (p === undefined) return;
+          accion(async () => {
+            const r = await api('POST', `/api/tramos/${tr.id}/cierre`, { accion: 'hecho', progreso: p });
+            return r.tramos_quitados ? `Hecho como estaba · ${r.tramos_quitados} tramo(s) posteriores quitados` : 'Hecho como estaba';
+          });
         },
       }, '✓ Como estaba'),
       el('button', { type: 'button', onclick: () => abrirCorregir(tr, zona, leerProgreso) }, '✎ Corregir'),
       el('button', { type: 'button', class: 'ghost', onclick: () => abrirNoHecho(tr, zona) }, '✗ No se hizo')) : null;
-    return el('div', { class: 'tarjeta-parte', style: `--c:${tr.color}` }, cab, gente, editar ? progreso : null, botones, zona);
+    const ant = tr.anteriores_abiertos || [];
+    const avisoAnt = ant.length ? el('p', { class: 'tp-aviso' },
+      `Esta tarea tiene ${ant.length} tramo${ant.length > 1 ? 's' : ''} anterior${ant.length > 1 ? 'es' : ''} sin cerrar: `,
+      ...ant.slice(0, 4).flatMap((a, i) => [i ? ', ' : '', a.fecha === tr.fecha ? `hoy ${hhmm(a.hora_inicio)}`
+        : el('a', { href: `?fecha=${a.fecha}`, onclick: (ev) => { ev.preventDefault(); irA(a.fecha); } }, fechaCorta(a.fecha))]),
+      '. Ciérralos antes: «faltan X h» y «terminada» los dan por hechos tal como estaban planificados.') : null;
+    return el('div', { class: 'tarjeta-parte', style: `--c:${tr.color}` }, cab, gente, avisoAnt, editar ? progreso : null, botones, zona);
   }
 
   // Corregir: horas reales de cada persona / máquina
@@ -187,13 +223,17 @@
       el('div', { class: 'cor-pie' }, motivo, notas,
         el('button', {
           type: 'button', class: 'primario',
-          onclick: () => {
-            let p; try { p = leerProgreso(); } catch (e) { return toast(e.message, true); }
+          onclick: async () => {
+            let p; try { p = await leerProgreso(); } catch (e) { return toast(e.message, true); }
+            if (p === undefined) return;
             const registros = [...filas.querySelectorAll('.cor-fila')].map((f) => ({
               recurso_id: f.querySelector('.cor-rec').value,
               desde: aHora(f.querySelector('.cor-desde').value), hasta: aHora(f.querySelector('.cor-hasta').value),
             })).filter((g) => g.recurso_id);
-            accion(() => api('POST', `/api/tramos/${tr.id}/cierre`, { accion: 'corregido', registros, motivo: motivo.value || null, notas: notas.value, progreso: p }), 'Guardado con cambios');
+            accion(async () => {
+              const r = await api('POST', `/api/tramos/${tr.id}/cierre`, { accion: 'corregido', registros, motivo: motivo.value || null, notas: notas.value, progreso: p });
+              return r.tramos_quitados ? `Guardado con cambios · ${r.tramos_quitados} tramo(s) posteriores quitados` : 'Guardado con cambios';
+            });
           },
         }, 'Guardar lo real'),
         el('button', { type: 'button', class: 'ghost', onclick: () => zona.replaceChildren() }, 'Cancelar'))));
