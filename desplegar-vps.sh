@@ -3,7 +3,7 @@
 #
 # Primera vez (como root), todo en uno:
 #   curl -fsSL https://raw.githubusercontent.com/grupodixis/planner/main/desplegar-vps.sh \
-#     | bash -s -- --dominio planner.hamenorca.com --auto
+#     | bash -s -- --dominio administrador.hamenorca.com --auto
 #
 # Opciones:
 #   --dominio sub.dominio.com  publícalo en Plesk: crea el subdominio, certificado Let's Encrypt,
