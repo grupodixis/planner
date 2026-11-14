@@ -47,6 +47,10 @@ curl -fsSL https://raw.githubusercontent.com/grupodixis/planner/main/desplegar-v
   responde; si la nueva versión no arranca, vuelve sola a la anterior.
   Registro: `journalctl -u s360-actualizar --since today`.
 - Versión publicada: `https://planner.hamenorca.com/health` (commit de GitHub).
+- Semillero en el servidor: `S360_SEMILLERO` en `servidor.conf` (`si`, `sin-personas` o `no`). La
+  actualización automática lo carga (con copia de seguridad antes) cuando cambia
+  `semillero/semillero.json` o `servidor.conf`. A mano, dentro del servidor:
+  `docker compose exec -T web node src/cargar-semillero.js [--sin-personas] [--simular] < semillero/semillero.json`.
 - `--restaurar /root/copia.sql`: carga una copia de la base de datos (p. ej. la del PC).
 
 Si algo de Plesk no se puede automatizar, el script lo dice; a mano son estas directivas en

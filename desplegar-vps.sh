@@ -50,6 +50,15 @@ if [ -f "$DIR/servidor.conf" ]; then
   EMAIL="${EMAIL:-${S360_EMAIL:-}}"
 fi
 
+# Semillero (áreas, máquinas, herramientas…): se carga si servidor.conf lo pide (S360_SEMILLERO=si o
+# sin-personas) y semillero/semillero.json cambió desde la última carga (huella en .semillero-aplicado)
+semillero_pendiente() {
+  case "${S360_SEMILLERO:-no}" in si|sin-personas) ;; *) return 1 ;; esac
+  [ -f "$DIR/semillero/semillero.json" ] || return 1
+  local huella; huella="$(cat "$DIR/semillero/semillero.json" "$DIR/servidor.conf" | sha256sum | cut -c1-64)"
+  [ "$huella" != "$(cat "$DIR/.semillero-aplicado" 2>/dev/null)" ]
+}
+
 paso() { printf '\n\033[1;36m▶ %s\033[0m\n' "$*"; }
 aviso() { printf '\033[1;33m! %s\033[0m\n' "$*"; }
 [ "$(id -u)" = 0 ] || { echo "Ejecútalo como root"; exit 1; }
@@ -63,11 +72,14 @@ if [ "$SOLO_CAMBIOS" = 1 ]; then
   [ -d "$DIR/.git" ] || exit 0
   git -C "$DIR" fetch -q origin main
   if [ "$(git -C "$DIR" rev-parse HEAD)" = "$(git -C "$DIR" rev-parse origin/main)" ]; then
-    # sin cambios: solo se comprueba que la publicación en Plesk está hecha
+    # sin cambios: solo se comprueba que la publicación en Plesk está hecha y el semillero cargado
     if [ -n "$DOMINIO" ] && command -v plesk >/dev/null 2>&1 \
        && ! grep -qs "s360 planificador" "/var/www/vhosts/system/${DOMINIO}/conf/vhost_nginx.conf"; then
       SOLO_PLESK=1
       echo "$(date '+%F %T') Sin cambios de código; falta publicar en Plesk"
+    elif semillero_pendiente; then
+      SOLO_PLESK=1
+      echo "$(date '+%F %T') Sin cambios de código; falta cargar el semillero"
     else
       exit 0
     fi
@@ -271,6 +283,19 @@ NGINX
     else
       aviso "No encuentro la configuración de ${DOMINIO} en Plesk (${CONF})."
     fi
+  fi
+fi
+
+# Cargar el semillero si toca (copia de seguridad antes)
+if semillero_pendiente && docker compose ps --status running web 2>/dev/null | grep -q web; then
+  paso "Cargando el semillero (${S360_SEMILLERO})"
+  mkdir -p backups
+  docker compose exec -T db pg_dump -U s360 s360 > "backups/s360-antes-semillero-$(date +%Y%m%d-%H%M).sql"
+  OPC=""; [ "$S360_SEMILLERO" = sin-personas ] && OPC="--sin-personas"
+  if docker compose exec -T web node src/cargar-semillero.js $OPC < semillero/semillero.json; then
+    cat semillero/semillero.json servidor.conf | sha256sum | cut -c1-64 > .semillero-aplicado
+  else
+    aviso "No se pudo cargar el semillero (la base de datos no ha cambiado)."
   fi
 fi
 

@@ -17,3 +17,4 @@ Thumbs.db
 
 # Versión desplegada (la genera desplegar-vps.sh)
 app/public/version.txt
+.semillero-aplicado

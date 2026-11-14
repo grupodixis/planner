@@ -62,7 +62,9 @@ function revisar(S) {
   return err;
 }
 
-async function cargar(c, S) {
+// opciones.conservar: clases de recurso que no se tocan aunque no vengan en el semillero (p. ej. ['operario'])
+async function cargar(c, S, opciones = {}) {
+  const conservar = new Set(opciones.conservar || []);
   const inf = { departamentos: [], tipos: [], areas: [], recursos: [], tareas: [], avisos: [] };
   const anota = (sec, accion, nombre, detalle) => inf[sec].push({ accion, nombre, ...(detalle ? { detalle } : {}) });
   const alias = async (clase, nombre, destino) => c.query(
@@ -248,11 +250,12 @@ async function cargar(c, S) {
     }
   }
   // Los que no están en el semillero: se borran si nunca se usaron; si no, se desactivan
-  for (const x of recDb.filter((y) => !recUsados.has(y.id))) {
+  for (const x of recDb.filter((y) => !recUsados.has(y.id) && !conservar.has(y.tipo))) {
     const { rows: [u] } = await c.query(
       `SELECT (SELECT count(*) FROM tramo_asignaciones WHERE recurso_id = $1)::int AS asig,
-              (SELECT count(*) FROM tarea_requisitos WHERE recurso_id = $1)::int AS req`, [x.id]);
-    if (!u.asig && !u.req) {
+              (SELECT count(*) FROM tarea_requisitos WHERE recurso_id = $1)::int AS req,
+              (SELECT count(*) FROM registros WHERE recurso_id = $1)::int AS reg`, [x.id]);
+    if (!u.asig && !u.req && !u.reg) {
       await c.query('DELETE FROM recursos WHERE id = $1', [x.id]);
       anota('recursos', 'borrar', x.nombre, x.tipo);
     } else {
@@ -309,6 +312,26 @@ async function cargar(c, S) {
   return { ...inf, resumen, totales: tot };
 }
 
+// Validar y cargar en una transacción (lo usan la API y el script de servidor cargar-semillero.js)
+async function aplicarSemillero(S, { simular = false, conservar = [] } = {}) {
+  if (!validar(S)) return { ok: false, errores: validar.errors.slice(0, 30).map((e) => `${e.instancePath || '(raíz)'} ${e.message}`) };
+  const errores = revisar(S);
+  if (errores.length) return { ok: false, errores };
+  const c = await pool.connect();
+  try {
+    await c.query('BEGIN');
+    await c.query('SELECT pg_advisory_xact_lock(360360)');
+    const inf = await cargar(c, S, { conservar });
+    await c.query(simular ? 'ROLLBACK' : 'COMMIT');
+    return { ok: true, simulado: simular, ...inf };
+  } catch (e) {
+    await c.query('ROLLBACK').catch(() => {});
+    throw e;
+  } finally {
+    c.release();
+  }
+}
+
 module.exports = function montar(app, asyncH) {
   app.post('/api/semillero', auth.permiso('recursos'), asyncH(async (req, res) => {
     const S = req.body || {};
@@ -338,3 +361,5 @@ module.exports = function montar(app, asyncH) {
     res.json(rows);
   }));
 };
+
+module.exports.aplicarSemillero = aplicarSemillero;
