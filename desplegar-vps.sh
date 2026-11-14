@@ -292,6 +292,7 @@ if semillero_pendiente && docker compose ps --status running web 2>/dev/null | g
   mkdir -p backups
   docker compose exec -T db pg_dump -U s360 s360 > "backups/s360-antes-semillero-$(date +%Y%m%d-%H%M).sql"
   OPC=""; [ "$S360_SEMILLERO" = sin-personas ] && OPC="--sin-personas"
+  [ "${S360_LIMPIAR_DEMO:-no}" = si ] && OPC="$OPC --limpiar-demo"
   if docker compose exec -T web node src/cargar-semillero.js $OPC < semillero/semillero.json; then
     cat semillero/semillero.json servidor.conf | sha256sum | cut -c1-64 > .semillero-aplicado
   else

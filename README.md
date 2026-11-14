@@ -50,7 +50,8 @@ curl -fsSL https://raw.githubusercontent.com/grupodixis/planner/main/desplegar-v
 - Semillero en el servidor: `S360_SEMILLERO` en `servidor.conf` (`si`, `sin-personas` o `no`). La
   actualización automática lo carga (con copia de seguridad antes) cuando cambia
   `semillero/semillero.json` o `servidor.conf`. A mano, dentro del servidor:
-  `docker compose exec -T web node src/cargar-semillero.js [--sin-personas] [--simular] < semillero/semillero.json`.
+  `docker compose exec -T web node src/cargar-semillero.js [--sin-personas] [--limpiar-demo] [--simular] < semillero/semillero.json`.
+  Con `S360_LIMPIAR_DEMO=si` se borra antes el proyecto de ejemplo de la instalación (PR-001), si no tiene horas reales.
 - `--restaurar /root/copia.sql`: carga una copia de la base de datos (p. ej. la del PC).
 
 Si algo de Plesk no se puede automatizar, el script lo dice; a mano son estas directivas en
