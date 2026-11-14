@@ -351,6 +351,13 @@ Menú **Informes** (permiso «informes»; de serie solo el Administrador). Expor
   por año, apuntados, ya disfrutados, los que quedan, otras ausencias y la ausencia actual o
   próxima. Los subcontratados no llevan saldo.
 
+## Orden de los departamentos en el tablero
+
+Las cabeceras de departamento del tablero (vista día por áreas) se reordenan **arrastrándolas**
+(o con **Alt + ↑ / ↓** teniendo la cabecera enfocada). Hace falta el permiso «recursos». Obras y
+«Otras áreas» quedan siempre al final. El semillero ya no pisa este orden al recargarse; los
+departamentos nuevos se añaden al final.
+
 ## Semillero de recursos de la empresa
 
 [`semillero/semillero.json`](semillero/README.md) describe departamentos, áreas de trabajo

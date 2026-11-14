@@ -334,6 +334,21 @@
     }
     if (grupos.length < 2) return estado.datos.lineas.map(pintarFila);
     const out = [];
+    // los departamentos se reordenan arrastrando su cabecera (Obras y «Otras» quedan al final)
+    const movibles = grupos.filter((g) => g.key.startsWith('d'));
+    const puedeMover = puedeAreas() && movibles.length > 1;
+    const guardarOrden = (keys) => accion(async () => {
+      await api('PUT', '/api/departamentos/orden', { ids: keys.map((k) => Number(k.slice(1))) });
+      return 'Orden de departamentos guardado';
+    });
+    const mover = (key, paso) => {
+      const keys = movibles.map((g) => g.key);
+      const i = keys.indexOf(key), j = i + paso;
+      if (i < 0 || j < 0 || j >= keys.length) return;
+      [keys[i], keys[j]] = [keys[j], keys[i]];
+      grupoFoco = key;
+      guardarOrden(keys);
+    };
     for (const g of grupos) {
       const clave = `ga:${g.key}`;
       const abierto = !plegados.has(clave);
@@ -342,24 +357,76 @@
       const h = trs.reduce((s, tr) => s + tr.duracion_h, 0);
       const trIds = new Set(trs.map((tr) => tr.id));
       const avisos = estado.datos.conflictos.filter((c) => c.ids.some((id) => trIds.has(id)));
-      out.push(el('button', {
-        type: 'button', class: `grupo-areas${abierto ? '' : ' plegado'}${g.key === 'obras' ? ' obras' : ''}`,
+      const movible = puedeMover && g.key.startsWith('d');
+      // div con role=button (un <button> no se puede arrastrar en todos los navegadores)
+      const plegar = () => {
+        if (plegados.has(clave)) plegados.delete(clave); else plegados.add(clave);
+        guardarPref('plegados', JSON.stringify([...plegados].slice(-300)));
+        grupoFoco = g.key;
+        pintarCalendario();
+      };
+      const cab = el('div', {
+        role: 'button', tabindex: '0', class: `grupo-areas${abierto ? '' : ' plegado'}${g.key === 'obras' ? ' obras' : ''}${movible ? ' movible' : ''}`,
         'aria-expanded': abierto ? 'true' : 'false',
-        onclick: () => {
-          if (plegados.has(clave)) plegados.delete(clave); else plegados.add(clave);
-          guardarPref('plegados', JSON.stringify([...plegados].slice(-300)));
-          pintarCalendario();
+        'data-grupo': g.key,
+        draggable: movible ? 'true' : null,
+        title: movible ? 'Clic: plegar / desplegar · Arrastra para cambiar el orden (o Alt + ↑ / ↓)' : null,
+        onclick: plegar,
+        onkeydown: (ev) => {
+          if ((ev.key === 'Enter' || ev.key === ' ') && !ev.altKey) { ev.preventDefault(); plegar(); return; }
+          if (!movible || !ev.altKey || (ev.key !== 'ArrowUp' && ev.key !== 'ArrowDown')) return;
+          ev.preventDefault();
+          mover(g.key, ev.key === 'ArrowUp' ? -1 : 1);
         },
+        ondragstart: movible ? (ev) => {
+          grupoArrastrado = g.key;
+          ev.dataTransfer.effectAllowed = 'move';
+          ev.dataTransfer.setData('application/x-s360-grupo', g.key);
+          requestAnimationFrame(() => cab.classList.add('arrastrando'));
+        } : null,
+        ondragend: movible ? () => {
+          grupoArrastrado = null;
+          document.querySelectorAll('.grupo-areas.soltar-antes, .grupo-areas.soltar-despues, .grupo-areas.arrastrando')
+            .forEach((x) => x.classList.remove('soltar-antes', 'soltar-despues', 'arrastrando'));
+        } : null,
+        ondragover: movible ? (ev) => {
+          if (!grupoArrastrado || grupoArrastrado === g.key) return;
+          ev.preventDefault();
+          ev.dataTransfer.dropEffect = 'move';
+          const r = cab.getBoundingClientRect();
+          const antes = ev.clientY < r.top + r.height / 2;
+          cab.classList.toggle('soltar-antes', antes);
+          cab.classList.toggle('soltar-despues', !antes);
+        } : null,
+        ondragleave: movible ? () => cab.classList.remove('soltar-antes', 'soltar-despues') : null,
+        ondrop: movible ? (ev) => {
+          if (!grupoArrastrado || grupoArrastrado === g.key) return;
+          ev.preventDefault();
+          const antes = cab.classList.contains('soltar-antes');
+          const keys = movibles.map((x) => x.key).filter((k) => k !== grupoArrastrado);
+          keys.splice(keys.indexOf(g.key) + (antes ? 0 : 1), 0, grupoArrastrado);
+          grupoArrastrado = null;
+          guardarOrden(keys);
+        } : null,
       },
+        movible ? el('span', { class: 'asa-grupo', 'aria-hidden': 'true' }, '⠿') : null,
         el('span', { class: 'flecha', 'aria-hidden': 'true' }, abierto ? '▾' : '▸'),
         el('span', { class: 'ga-nom' }, g.nombre),
         el('span', { class: 'ga-info' }, `${g.lineas.length} área${g.lineas.length > 1 ? 's' : ''}${trs.length ? ` · ${durTxt(+h.toFixed(1))} planificadas` : ''}`),
         avisos.length ? el('span', { class: `ga-conf${avisos.every((c) => c.leve) ? ' leve' : ''}`, title: `${avisos.length} aviso(s) en este grupo` }, `⚠ ${avisos.length}`) : null,
-        g.key === 'obras' ? el('span', { class: 'ga-nota' }, 'salen solas al cerrar el proyecto') : null));
+        g.key === 'obras' ? el('span', { class: 'ga-nota' }, 'salen solas al cerrar el proyecto') : null);
+      out.push(cab);
       if (abierto) out.push(...g.lineas.map(pintarFila));
+    }
+    // tras mover con el teclado, el foco sigue en la misma cabecera
+    if (grupoFoco) {
+      const k = grupoFoco;
+      grupoFoco = null;
+      requestAnimationFrame(() => document.querySelector(`.grupo-areas[data-grupo="${k}"]`)?.focus());
     }
     return out;
   }
+  let grupoArrastrado = null, grupoFoco = null;
   const tituloArea = (l) => [l.descripcion, l.exclusiva ? 'Un trabajo a la vez (avisa si coinciden dos)' : null,
     l.proyecto_nombre, l.ubicacion].filter(Boolean).join(' · ');
 
@@ -557,6 +624,7 @@
 
     // soltar un recurso encima = asignarlo a este tramo
     b.addEventListener('dragover', (ev) => {
+      if (grupoArrastrado) return;   // se está reordenando un departamento
       if (estado.arrastre?.tipo !== 'recurso') return;
       ev.preventDefault(); ev.stopPropagation();
       ev.dataTransfer.dropEffect = 'copy';
@@ -856,6 +924,7 @@
     };
 
     pista.addEventListener('dragover', (ev) => {
+      if (grupoArrastrado) return;   // se está reordenando un departamento
       if (!valido()) return;
       ev.preventDefault();
       ev.dataTransfer.dropEffect = 'move';
@@ -980,6 +1049,7 @@
       return true;
     };
     celda.addEventListener('dragover', (ev) => {
+      if (grupoArrastrado) return;   // se está reordenando un departamento
       if (!valido()) return;
       ev.preventDefault();
       ev.dataTransfer.dropEffect = 'move';
@@ -1264,6 +1334,7 @@
   function prepararDropOrdenes() {
     const panel = $('.ordenes');
     panel.addEventListener('dragover', (ev) => {
+      if (grupoArrastrado) return;   // se está reordenando un departamento
       if (estado.arrastre?.tipo !== 'tramo') return;
       ev.preventDefault();
       panel.classList.add('drop');

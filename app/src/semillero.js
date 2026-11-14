@@ -76,11 +76,14 @@ async function cargar(c, S, opciones = {}) {
   for (const [i, d] of S.departamentos.entries()) {
     const { rows: [ya] } = await c.query('SELECT * FROM departamentos WHERE clave = $1', [d.clave]);
     if (ya) {
-      await c.query('UPDATE departamentos SET nombre = $2, orden = $3 WHERE id = $1', [ya.id, d.nombre, i + 1]);
+      // el orden lo decide cada empresa arrastrando en el tablero: el semillero no lo pisa
+      await c.query('UPDATE departamentos SET nombre = $2 WHERE id = $1', [ya.id, d.nombre]);
       if (ya.nombre !== d.nombre) anota('departamentos', 'renombrar', d.nombre, `antes «${ya.nombre}»`);
       depId.set(d.clave, ya.id);
     } else {
-      const { rows } = await c.query('INSERT INTO departamentos (clave, nombre, orden) VALUES ($1,$2,$3) RETURNING id', [d.clave, d.nombre, i + 1]);
+      const { rows } = await c.query(
+        `INSERT INTO departamentos (clave, nombre, orden)
+         VALUES ($1, $2, GREATEST($3, (SELECT COALESCE(max(orden), 0) + 1 FROM departamentos))) RETURNING id`, [d.clave, d.nombre, i + 1]);
       depId.set(d.clave, rows[0].id);
       anota('departamentos', 'crear', d.nombre);
     }
@@ -359,6 +362,24 @@ module.exports = function montar(app, asyncH) {
   app.get('/api/departamentos', asyncH(async (req, res) => {
     const { rows } = await pool.query('SELECT id, clave, nombre, orden FROM departamentos ORDER BY orden, nombre');
     res.json(rows);
+  }));
+
+  // Reordenar departamentos (grupos del tablero): lista de ids en el orden deseado
+  app.put('/api/departamentos/orden', auth.permiso('recursos'), asyncH(async (req, res) => {
+    const ids = Array.isArray(req.body?.ids) ? req.body.ids.map(Number).filter(Number.isInteger) : [];
+    if (!ids.length) throw fallo(400, 'Falta el orden');
+    const c = await pool.connect();
+    try {
+      await c.query('BEGIN');
+      for (let i = 0; i < ids.length; i++) await c.query('UPDATE departamentos SET orden = $2 WHERE id = $1', [ids[i], i + 1]);
+      await c.query('COMMIT');
+    } catch (e) {
+      await c.query('ROLLBACK').catch(() => {});
+      throw e;
+    } finally {
+      c.release();
+    }
+    res.json({ ok: true });
   }));
 };
 
