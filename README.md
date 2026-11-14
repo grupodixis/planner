@@ -29,13 +29,13 @@ arrancar, sin perder datos: para actualizar basta con `docker compose up -d --bu
 
 ## Publicar en un servidor (VPS con Plesk)
 
-Producción de pruebas: **https://administrador.hamenorca.com** (VPS con Plesk).
+Versión de demostración para colaboradores: **https://planner.hamenorca.com** (VPS con Plesk). El dominio sale de `servidor.conf`: si se cambia ahí, el servidor se republica solo.
 
 **Instalación (una vez, por SSH como root):**
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/grupodixis/planner/main/desplegar-vps.sh \
-  | bash -s -- --dominio administrador.hamenorca.com --auto
+  | bash -s -- --dominio planner.hamenorca.com --auto
 ```
 
 - Instala Docker si falta, descarga el código de GitHub en `/opt/s360`, crea contraseñas
@@ -46,7 +46,7 @@ curl -fsSL https://raw.githubusercontent.com/grupodixis/planner/main/desplegar-v
   de la base de datos (`/opt/s360/backups`, las 20 últimas), reconstruye y comprueba que
   responde; si la nueva versión no arranca, vuelve sola a la anterior.
   Registro: `journalctl -u s360-actualizar --since today`.
-- Versión publicada: `https://administrador.hamenorca.com/health` (commit de GitHub).
+- Versión publicada: `https://planner.hamenorca.com/health` (commit de GitHub).
 - `--restaurar /root/copia.sql`: carga una copia de la base de datos (p. ej. la del PC).
 
 Si algo de Plesk no se puede automatizar, el script lo dice; a mano son estas directivas en

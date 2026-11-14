@@ -3,7 +3,7 @@
 #
 # Primera vez (como root), todo en uno:
 #   curl -fsSL https://raw.githubusercontent.com/grupodixis/planner/main/desplegar-vps.sh \
-#     | bash -s -- --dominio administrador.hamenorca.com --auto
+#     | bash -s -- --dominio planner.hamenorca.com --auto
 #
 # Opciones:
 #   --dominio sub.dominio.com  publícalo en Plesk: crea el subdominio, certificado Let's Encrypt,
@@ -41,6 +41,7 @@ while [ $# -gt 0 ]; do
   esac
 done
 
+DOMINIO_ARG="$DOMINIO"   # si se pasó --dominio, manda sobre servidor.conf
 # Configuración del servidor guardada en el repositorio (dominio, correo de Let's Encrypt)
 if [ -f "$DIR/servidor.conf" ]; then
   # shellcheck disable=SC1091
@@ -75,7 +76,24 @@ if [ "$SOLO_CAMBIOS" = 1 ]; then
   fi
 fi
 SOLO_PLESK="${SOLO_PLESK:-0}"
-if [ "$SOLO_PLESK" = 1 ]; then cd "$DIR"; PUERTO="$(grep -E '^WEB_PORT=' .env | cut -d= -f2)"; fi
+
+# Dirección pública en .env (enlaces de activación y de recuperar contraseña). Devuelve 0 si cambió.
+poner_app_url() {
+  [ -n "$DOMINIO" ] && [ -f .env ] || return 1
+  if grep -q '^APP_URL=' .env; then
+    grep -qx "APP_URL=https://${DOMINIO}" .env && return 1
+    sed -i "s|^APP_URL=.*|APP_URL=https://${DOMINIO}|" .env
+  else
+    printf '\n# Dirección pública de la web (enlaces de los correos)\nAPP_URL=https://%s\n' "$DOMINIO" >> .env
+  fi
+  return 0
+}
+
+if [ "$SOLO_PLESK" = 1 ]; then
+  cd "$DIR"; PUERTO="$(grep -E '^WEB_PORT=' .env | cut -d= -f2)"
+  # cambió el dominio: la web se reinicia con la dirección nueva
+  if poner_app_url; then docker compose up -d web >/dev/null 2>&1 && echo "Dirección pública: https://${DOMINIO}"; fi
+fi
 
 if [ "$SOLO_PLESK" = 0 ] && [ "$SOLO_CAMBIOS" = 0 ]; then
   paso "Comprobando Docker"
@@ -104,6 +122,13 @@ fi
 cd "$DIR"
 git log --oneline -1
 git rev-parse --short HEAD > app/public/version.txt
+# el servidor.conf recién descargado manda (p. ej. si cambió el dominio)
+if [ -z "$DOMINIO_ARG" ] && [ -f servidor.conf ]; then
+  # shellcheck disable=SC1091
+  . ./servidor.conf
+  DOMINIO="${S360_DOMINIO:-$DOMINIO}"
+  EMAIL="${S360_EMAIL:-$EMAIL}"
+fi
 
 NUEVO=0
 ADMIN_PASS=""
@@ -127,10 +152,7 @@ EOF
   chmod 600 .env
 fi
 PUERTO="$(grep -E '^WEB_PORT=' .env | cut -d= -f2)"
-# Dirección pública (para los enlaces de activación y recuperación de contraseña)
-if [ -n "$DOMINIO" ] && ! grep -q '^APP_URL=' .env; then
-  printf '\n# Dirección pública de la web (enlaces de los correos)\nAPP_URL=https://%s\n' "$DOMINIO" >> .env
-fi
+poner_app_url || true
 
 if [ "$NUEVO" = 0 ] && docker compose ps --status running db 2>/dev/null | grep -q db; then
   paso "Copia de seguridad de la base de datos"
