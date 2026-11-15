@@ -40,9 +40,24 @@ button:focus-visible, input:focus-visible, [tabindex]:focus-visible { outline: 2
 
 /* ---------- Layout ---------- */
 .tablero {
-  display: grid; grid-template-columns: 250px minmax(0, 1fr) 310px; gap: 16px;
-  padding: 0 20px 20px; height: calc(100% - 64px); min-height: 560px;
+  display: grid; grid-template-columns: var(--ancho-rec, 250px) minmax(0, 1fr) var(--ancho-ord, 310px); gap: 16px;
+  padding: 0 20px 20px; height: calc(100% - 64px); min-height: 560px; position: relative;
 }
+/* Divisores para ajustar el ancho de los paneles laterales */
+.divisor {
+  position: absolute; top: 0; bottom: 20px; width: 14px; z-index: 5;
+  cursor: col-resize; touch-action: none; border-radius: 7px;
+}
+.divisor-rec { left: calc(20px + var(--ancho-rec, 250px) + 1px); }
+.divisor-ord { right: calc(20px + var(--ancho-ord, 310px) + 1px); }
+.divisor::after {
+  content: ''; position: absolute; left: 6px; top: 50%; width: 2px; height: 44px; margin-top: -22px;
+  border-radius: 1px; background: var(--suave); opacity: 0; transition: opacity .15s;
+}
+.divisor:hover::after, .divisor:focus-visible::after, .divisor.activo::after { opacity: .8; }
+.divisor:hover, .divisor.activo { background: color-mix(in srgb, var(--azul) 12%, transparent); }
+.divisor:focus-visible { outline: 2px solid var(--azul); outline-offset: -2px; }
+body.redimensionando { cursor: col-resize; user-select: none; }
 .panel { border: 1.5px solid #cfcfcf55; border-radius: var(--radio-panel); padding: 14px 16px; background: var(--panel); overflow: auto; }
 .panel h2 { font-size: 17px; margin: 0 0 4px; font-weight: 600; }
 .panel h3 { font-size: 14px; margin: 14px 0 6px; font-weight: 500; }
@@ -144,6 +159,7 @@ button:focus-visible, input:focus-visible, [tabindex]:focus-visible { outline: 2
 /* ---------- Responsive ---------- */
 @media (max-width: 1100px) {
   .tablero { grid-template-columns: 1fr; height: auto; }
+  .divisor { display: none; }
   .recursos .lista-rec { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
   .cal { --label: 90px; }
 }

@@ -1819,6 +1819,67 @@
   }
 
   // Ejecuta una acción, muestra el mensaje (fijo o devuelto por la acción) y recarga
+  // Anchos de los paneles laterales: se arrastran los divisores (o flechas con el foco; doble clic = por defecto)
+  function prepararDivisores() {
+    const tab = $('main.tablero');
+    if (!tab) return;
+    const PANELES = {
+      rec: { def: 250, titulo: 'Ancho de Recursos disponibles', signo: 1 },
+      ord: { def: 310, titulo: 'Ancho de Por planificar', signo: -1 },
+    };
+    const MIN = 180, CAL_MIN = 420;
+    const ancho = (k) => Number(leerPref(`ancho-${k}`, PANELES[k].def)) || PANELES[k].def;
+    const maximo = (k) => {
+      const otro = k === 'rec' ? 'ord' : 'rec';
+      return Math.max(MIN, tab.clientWidth - 40 - 32 - ancho(otro) - CAL_MIN);
+    };
+    const poner = (k, v, guardar) => {
+      v = Math.round(Math.min(Math.max(v, MIN), maximo(k)));
+      tab.style.setProperty(`--ancho-${k}`, `${v}px`);
+      divs[k].setAttribute('aria-valuenow', String(v));
+      divs[k].setAttribute('aria-valuemax', String(Math.round(maximo(k))));
+      if (guardar) guardarPref(`ancho-${k}`, String(v));
+      return v;
+    };
+    const divs = {};
+    for (const [k, p] of Object.entries(PANELES)) {
+      const d = el('div', {
+        class: `divisor divisor-${k}`, role: 'separator', tabindex: '0', 'aria-orientation': 'vertical',
+        'aria-label': p.titulo, 'aria-valuemin': String(MIN),
+        title: `${p.titulo}: arrastra para ajustar · doble clic para volver al ancho normal`,
+      });
+      d.addEventListener('pointerdown', (ev) => {
+        if (ev.button !== 0) return;
+        ev.preventDefault();
+        const x0 = ev.clientX, w0 = ancho(k);
+        d.setPointerCapture(ev.pointerId);
+        d.classList.add('activo'); document.body.classList.add('redimensionando');
+        const mover = (e) => poner(k, w0 + p.signo * (e.clientX - x0), false);
+        const soltar = (e) => {
+          poner(k, w0 + p.signo * (e.clientX - x0), true);
+          d.classList.remove('activo'); document.body.classList.remove('redimensionando');
+          d.removeEventListener('pointermove', mover); d.removeEventListener('pointerup', soltar); d.removeEventListener('pointercancel', soltar);
+        };
+        d.addEventListener('pointermove', mover); d.addEventListener('pointerup', soltar); d.addEventListener('pointercancel', soltar);
+      });
+      d.addEventListener('dblclick', () => poner(k, p.def, true));
+      d.addEventListener('keydown', (ev) => {
+        const paso = ev.shiftKey ? 64 : 16;
+        let dx = 0;
+        if (ev.key === 'ArrowRight') dx = paso; else if (ev.key === 'ArrowLeft') dx = -paso;
+        else if (ev.key === 'Home') { ev.preventDefault(); poner(k, p.def, true); return; }
+        if (!dx) return;
+        ev.preventDefault();
+        poner(k, ancho(k) + p.signo * dx, true);
+      });
+      divs[k] = d;
+      tab.append(d);
+    }
+    const aplicar = () => { for (const k of Object.keys(PANELES)) poner(k, ancho(k), false); };
+    aplicar();
+    window.addEventListener('resize', aplicar);
+  }
+
   async function accion(fn, okMsg) {
     try { const r = await fn(); toast(typeof r === 'string' ? r : okMsg); } catch (e) { toast(e.message, true); }
     await cargar();
@@ -2031,6 +2092,7 @@
     $('#salir').onclick = async () => { await api('POST', '/api/logout'); location.href = '/login.html'; };
     prepararDropOrdenes();
     prepararAreas();
+    prepararDivisores();
     document.querySelectorAll('#vista-sel button').forEach((b) => {
       b.onclick = () => { estado.vista = b.dataset.vista; guardarPref('vista', estado.vista); pintar(); };
     });
