@@ -834,6 +834,10 @@
   async function init() {
     try { estado.usuario = await api('GET', '/api/me'); } catch { return; }
     window.s360.iniciar(estado.usuario);
+    window.s360.alCambiar(async () => {
+      await Promise.all([cargarProyectos(), estado.proyectoId ? cargarOTs() : null, estado.otId ? cargarOT() : null]);
+      if (estado.proyectoId) pintarFichaProyecto();
+    });
     $('#form-proyecto').hidden = !puedeEditar();
     prepararFormularios();
 

@@ -13,6 +13,8 @@ app.set('trust proxy', 'loopback, uniquelocal');
 app.use('/api/importar', express.json({ limit: '2mb' }));
 app.use('/api/semillero', express.json({ limit: '1mb' }));
 app.use(express.json({ limit: '100kb' }));
+const eventos = require('./eventos');
+app.use(eventos.notificador);   // avisa en vivo a las demás pantallas abiertas
 
 const asyncH = (fn) => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
 
@@ -23,6 +25,7 @@ app.get('/health', (req, res) => res.json({ ok: true, version: VERSION }));
 /* ---------- Autenticación ---------- */
 
 require('./usuarios')(app, asyncH);   // entrar, recuperar contraseña, Mi cuenta, usuarios y roles
+eventos.montar(app);   // GET /api/eventos (con sesión)
 
 /* ---------- Tablero y tramos ---------- */
 

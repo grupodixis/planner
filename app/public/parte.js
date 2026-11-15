@@ -306,6 +306,7 @@
     let yo;
     try { yo = await api('GET', '/api/me'); } catch { return; }
     window.s360.iniciar(yo);
+    window.s360.alCambiar(() => cargar());
     $('#dia-ant').onclick = () => irA(sumarDias(estado.fecha, -1));
     $('#dia-sig').onclick = () => irA(sumarDias(estado.fecha, 1));
     $('#fecha-input').onchange = (ev) => ev.target.value && irA(ev.target.value);

@@ -2036,8 +2036,10 @@
     });
 
     await cargar();
-    // Multiusuario: refresco periódico de lo que cambian otros (no durante un arrastre)
-    setInterval(() => { if (!estado.arrastre && !document.hidden) cargar(); }, 20000);
+    // Multiusuario: lo que guardan otros llega al momento (no durante un arrastre)…
+    window.s360.alCambiar(() => cargar(), { esperar: () => !!estado.arrastre });
+    // …y por si se pierde algún aviso, un repaso cada minuto
+    setInterval(() => { if (!estado.arrastre && !document.hidden) cargar(); }, 60000);
   }
 
   init();

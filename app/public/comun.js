@@ -149,5 +149,60 @@
       [{ valor: true, texto: 'Quitarlos', clase: 'primario' }, { valor: false, texto: 'Dejarlos' }, { valor: null, texto: 'Volver', clase: 'ghost' }]);
   }
 
-  window.s360 = { iniciar, tiene, api, preguntar, preguntarTramosSobrantes };
+  /* ---------- Cambios en vivo de otros usuarios ---------- */
+  // Cada pestaña se identifica en sus cambios, para no recargarse por lo que ella misma guarda
+  const PESTANA = Math.random().toString(36).slice(2, 12);
+  const fetchOriginal = window.fetch.bind(window);
+  window.fetch = (url, opc = {}) => {
+    const metodo = (opc.method || 'GET').toUpperCase();
+    if (metodo !== 'GET' && metodo !== 'HEAD') opc = { ...opc, headers: { ...(opc.headers || {}), 'X-S360-Pestana': PESTANA } };
+    return fetchOriginal(url, opc);
+  };
+
+  // ¿El usuario está escribiendo o con un diálogo abierto? Entonces se espera para no pisarle nada
+  const ocupado = () => {
+    const a = document.activeElement;
+    if (document.querySelector('dialog[open]')) return true;
+    if (!a) return false;
+    if (a.tagName === 'TEXTAREA' || a.isContentEditable) return true;
+    if (a.tagName === 'SELECT') return true;
+    return a.tagName === 'INPUT' && !['checkbox', 'radio', 'button', 'submit'].includes(a.type);
+  };
+
+  // alCambiar(fn, { esperar }) → fn() cada vez que otro usuario guarda algo.
+  // esperar(): devuelve true mientras no conviene recargar (p. ej. arrastrando)
+  function alCambiar(fn, { esperar } = {}) {
+    if (!window.EventSource) return;
+    let pendiente = null, timer = null, enMarcha = false, quien = null;
+    const intentar = async () => {
+      timer = null;
+      if (!pendiente) return;
+      if (document.hidden || enMarcha || ocupado() || (esperar && esperar())) { timer = setTimeout(intentar, 1500); return; }
+      const datos = pendiente; pendiente = null; enMarcha = true;
+      try { await fn(datos); } catch (e) { console.warn('recarga en vivo', e); } finally { enMarcha = false; }
+      if (pendiente && !timer) timer = setTimeout(intentar, 300);
+    };
+    const programar = (d) => { pendiente = d; if (!timer) timer = setTimeout(intentar, 300); };
+    document.addEventListener('visibilitychange', () => { if (!document.hidden && pendiente && !timer) intentar(); });
+
+    let visto = null;
+    const es = new EventSource('/api/eventos');
+    es.addEventListener('hola', (ev) => {
+      // al reconectar (se cayó la conexión, el servidor se reinició…) se recarga por si nos perdimos algo
+      const { v } = JSON.parse(ev.data);
+      if (visto !== null && v !== visto) programar({ reconexion: true });
+      visto = v;
+    });
+    es.addEventListener('cambio', (ev) => {
+      const d = JSON.parse(ev.data);
+      visto = d.v;
+      if (d.pestana === PESTANA) return;
+      quien = d.quien;
+      programar(d);
+    });
+    window.addEventListener('pagehide', () => es.close());
+    return { get ultimo() { return quien; } };
+  }
+
+  window.s360 = { iniciar, tiene, api, preguntar, preguntarTramosSobrantes, alCambiar };
 })();

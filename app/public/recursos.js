@@ -615,6 +615,7 @@
   async function init() {
     try { estado.usuario = await api('GET', '/api/me'); } catch { return; }
     window.s360.iniciar(estado.usuario);
+    window.s360.alCambiar(() => cargar());
     prepararSemillero();
     $('#salir').onclick = async () => { await api('POST', '/api/logout'); location.href = '/login.html'; };
 

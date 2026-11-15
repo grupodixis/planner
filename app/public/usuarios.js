@@ -199,6 +199,7 @@
     let yo;
     try { yo = await api('GET', '/api/me'); } catch { return; }
     window.s360.iniciar(yo);
+    window.s360.alCambiar(() => cargar());
     if (!window.s360.tiene('usuarios')) {
       $('main').replaceChildren(el('section', { class: 'panel' }, el('p', {}, 'Tu usuario no tiene permiso para gestionar usuarios.')));
       return;

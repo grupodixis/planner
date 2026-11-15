@@ -265,6 +265,7 @@
       $('#panel-inf').replaceChildren(el('section', { class: 'panel' }, el('p', {}, 'Tu usuario no tiene permiso para ver informes.')));
       return;
     }
+    window.s360.alCambiar(() => pintar());
     document.querySelectorAll('[role=tab]').forEach((b) => (b.onclick = () => { estado.inf = b.dataset.inf; pintar(); }));
     $('#desde').onchange = (ev) => { if (ev.target.value) { estado.desde = ev.target.value; pintar(); } };
     $('#hasta').onchange = (ev) => { if (ev.target.value) { estado.hasta = ev.target.value; pintar(); } };
