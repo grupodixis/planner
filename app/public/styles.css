@@ -1269,3 +1269,4 @@ h3.sep { font-size: 14px; margin: 16px 0 8px; }
 .tp-decl-avisos { list-style: none; padding: 0 !important; margin-top: 4px !important; color: var(--naranja); }
 .sueltos.declarados li { align-items: center; }
 .sl-acc { display: inline-flex; gap: 4px; margin-left: auto; }
+.md-aviso.info { border-color: var(--azul); background: var(--azul-bg); }

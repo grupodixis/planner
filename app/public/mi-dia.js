@@ -62,7 +62,9 @@
     $('#md-nombre').textContent = d.recurso.nombre;
     const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
     $('#fecha-txt').textContent = d.fecha === d.hoy ? `Hoy, ${fechaLarga(d.fecha)}` : d.fecha === sumarDias(d.hoy, -1) ? `Ayer, ${fechaLarga(d.fecha)}` : cap(fechaLarga(d.fecha));
-    $('#dia-sig').disabled = d.fecha >= d.hoy;
+    // se puede mirar lo planificado hasta 30 días por delante (solo consulta)
+    $('#dia-sig').disabled = d.fecha >= sumarDias(d.hoy, 30);
+    const futuro = d.fecha > d.hoy;
 
     const plan = d.tramos.reduce((s, t) => s + (t.hasta - t.desde), 0);
     const apuntado = d.tramos.reduce((s, t) => {
@@ -71,14 +73,15 @@
       return s + (x.hasta - x.desde);
     }, 0) + d.extra.reduce((s, x) => s + (x.hasta - x.desde), 0);
     $('#resumen').textContent = d.tramos.length || d.extra.length
-      ? `Planificado ${durTxt(plan)} · Apuntado ${durTxt(apuntado)}` : '';
+      ? (futuro ? `Planificado ${durTxt(plan)}` : `Planificado ${durTxt(plan)} · Apuntado ${durTxt(apuntado)}`) : '';
 
     const aviso = !d.editable ? d.no_editable : d.ausente ? 'Hoy constas como ausente. Si has venido, díselo al encargado.' : null;
     $('#aviso').hidden = !aviso;
+    $('#aviso').classList.toggle('info', futuro);
     $('#aviso').textContent = aviso || '';
 
     $('#tramos').replaceChildren(...(d.tramos.length ? d.tramos.map(tarjeta)
-      : [el('p', { class: 'md-vacio' }, 'No tienes nada planificado este día.')]));
+      : [el('p', { class: 'md-vacio' }, futuro ? 'Todavía no tienes nada planificado este día.' : 'No tienes nada planificado este día.')]));
 
     // trabajo no planificado
     $('#extra').replaceChildren(...d.extra.map((x) => el('li', {},
@@ -90,6 +93,7 @@
     $('#extra-abrir').hidden = !puede();
     if (!puede()) $('#form-extra').hidden = true;
 
+    $('#extra').closest('section').hidden = futuro;
     $('#bloque-manana').hidden = !d.manana.length;
     if (d.manana.length) {
       $('#tit-manana').textContent = `Lo siguiente · ${fechaLarga(d.manana[0].fecha)}`;
@@ -100,6 +104,7 @@
     $('#enviar').hidden = !puede() || (!d.tramos.length && !d.extra.length);
     $('#enviar').disabled = faltan > 0;
     $('#enviar').textContent = d.enviado ? 'Volver a enviar' : 'Enviar mi día';
+    $('#enviar-txt').hidden = !puede();
     $('#enviar-txt').textContent = faltan ? `Te falta apuntar ${faltan} trabajo${faltan > 1 ? 's' : ''}.`
       : d.enviado ? `Enviado a las ${new Date(d.enviado).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}. El encargado lo revisará; hasta entonces puedes cambiarlo.`
         : 'Cuando lo tengas todo, envíalo al encargado.';
@@ -121,7 +126,7 @@
       },
     }, txt);
 
-    const card = el('article', { class: `md-tramo${cerrado ? ' cerrado' : ''}${est ? ` e-${est}` : ' pendiente'}`, style: `--c:${t.color || 'var(--azul)'}`, 'data-tramo': t.id },
+    const card = el('article', { class: `md-tramo${cerrado ? ' cerrado' : ''}${est ? ` e-${est}` : estado.d.fecha > estado.d.hoy ? '' : ' pendiente'}`, style: `--c:${t.color || 'var(--azul)'}`, 'data-tramo': t.id },
       el('div', { class: 'md-t-cab' },
         el('span', { class: 'md-t-hora' }, `${hhmm(t.desde)}–${hhmm(t.hasta)}`),
         el('span', { class: 'md-t-area' }, t.area || '')),
@@ -131,7 +136,7 @@
         t.equipos.length ? el('span', {}, `${t.companeros.length ? ' · ' : ''}${t.equipos.join(', ')}`) : null) : null,
       t.tarea_notas ? el('details', { class: 'md-t-notas' }, el('summary', {}, 'Notas de la tarea'), el('p', {}, t.tarea_notas)) : null,
       cerrado ? el('p', { class: 'md-ok' }, '✔ Confirmado por el encargado') : null,
-      el('div', { class: 'md-botones', role: 'group', 'aria-label': 'Cómo fue' },
+      estado.d.fecha > estado.d.hoy ? null : el('div', { class: 'md-botones', role: 'group', 'aria-label': 'Cómo fue' },
         boton('hecho', '✓ Hecho', 'ok'), boton('parcial', '◐ En parte', 'parcial'), boton('no', '✗ No', 'no')),
       el('div', { class: 'md-detalle' }));
     const det = card.querySelector('.md-detalle');

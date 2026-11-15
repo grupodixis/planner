@@ -22,6 +22,7 @@ function leerHora(v, campo) {
 // ¿Puede el operario tocar ese día?
 async function editable(c, fecha) {
   const hoy = hoyMadrid();
+  if (fecha > hoy) return { ok: false, motivo: 'Día por venir: es lo que tienes planificado (puede cambiar).' };
   if (fecha !== hoy && fecha !== sumarDias(hoy, -1)) return { ok: false, motivo: 'Solo puedes apuntar hoy y ayer' };
   const { rows } = await c.query('SELECT 1 FROM dias_cerrados WHERE fecha = $1', [fecha]);
   if (rows.length) return { ok: false, motivo: 'El encargado ya cerró el parte de este día' };
