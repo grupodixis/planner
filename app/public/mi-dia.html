@@ -5,22 +5,26 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#141414">
   <title>s360 · Mi día</title>
-  <link rel="stylesheet" href="styles.css?v=202611152259">
+  <link rel="stylesheet" href="styles.css?v=202611152328">
 </head>
 <body class="midia-pant">
   <header class="md-cab">
     <div class="md-quien">
       <b id="md-nombre"></b>
-      <nav class="md-fecha" aria-label="Cambiar día">
+      <span class="md-titulo-vista" id="titulo-vista" hidden></span>
+      <nav class="md-fecha" id="nav-fecha" aria-label="Cambiar día">
         <button type="button" id="dia-ant" aria-label="Día anterior">‹</button>
         <span id="fecha-txt"></span>
         <button type="button" id="dia-sig" aria-label="Día siguiente">›</button>
       </nav>
     </div>
-    <button type="button" class="ghost" id="salir">Salir</button>
+    <div class="md-cab-acc">
+      <button type="button" class="ghost" id="cambiar-pin" aria-label="Cambiar mi PIN" title="Cambiar mi PIN">🔑</button>
+      <button type="button" class="ghost" id="salir">Salir</button>
+    </div>
   </header>
 
-  <main class="md-main">
+  <main class="md-main" id="v-dia">
     <p class="md-resumen" id="resumen"></p>
     <p class="md-aviso" id="aviso" hidden></p>
     <div id="tramos"></div>
@@ -59,8 +63,93 @@
     </div>
   </main>
 
+  <!-- Mi mes -->
+  <main class="md-main" id="v-mes" hidden>
+    <nav class="md-mes-nav" aria-label="Cambiar mes">
+      <button type="button" id="mes-ant" aria-label="Mes anterior">‹</button>
+      <b id="mes-txt"></b>
+      <button type="button" id="mes-sig" aria-label="Mes siguiente">›</button>
+    </nav>
+    <p class="md-resumen" id="mes-total"></p>
+    <ul class="md-mes" id="mes-dias"></ul>
+  </main>
+
+  <!-- Vacaciones -->
+  <main class="md-main" id="v-vac" hidden>
+    <div class="md-saldo" id="vac-saldo"></div>
+    <section class="md-bloque">
+      <h2>Pedir vacaciones</h2>
+      <form id="form-vac" class="md-form">
+        <div class="md-horas">
+          <label>Desde <input type="date" name="desde" required></label>
+          <label>Hasta <input type="date" name="hasta" required></label>
+        </div>
+        <p class="md-previa" id="vac-previa" aria-live="polite"></p>
+        <input name="notas" maxlength="500" placeholder="Nota (opcional)" aria-label="Nota">
+        <button type="submit" class="primario md-grande">Pedir</button>
+        <p class="ayuda">Primero da el visto bueno Operaciones y después lo aprueba RRHH. Te saldrá aquí.</p>
+      </form>
+    </section>
+    <section class="md-bloque">
+      <h2>Mis peticiones</h2>
+      <ul class="md-lista" id="vac-lista"></ul>
+    </section>
+  </main>
+
+  <!-- Avisar -->
+  <main class="md-main" id="v-avisar" hidden>
+    <section class="md-bloque" id="bloque-justif" hidden>
+      <h2>Justificantes pendientes</h2>
+      <ul class="md-lista" id="justif-lista"></ul>
+    </section>
+    <section class="md-bloque">
+      <h2>No vengo o llego tarde</h2>
+      <form id="form-aus" class="md-form">
+        <div class="md-chips" id="aus-motivos" role="radiogroup" aria-label="Qué pasa"></div>
+        <div class="md-horas">
+          <label>Día <input type="date" name="desde" required></label>
+          <label>Hasta <input type="date" name="hasta" aria-label="Hasta (si son varios días)"></label>
+        </div>
+        <div class="md-tipo" role="radiogroup" aria-label="Cuánto">
+          <label><input type="radio" name="cuanto" value="dia" checked> Todo el día</label>
+          <label><input type="radio" name="cuanto" value="horas"> Unas horas</label>
+        </div>
+        <div class="md-horas" id="aus-horas" hidden>
+          <label>De <input type="time" name="hora_desde" step="900"></label>
+          <label>a <input type="time" name="hora_hasta" step="900"></label>
+        </div>
+        <input name="notas" maxlength="500" placeholder="Nota (opcional)" aria-label="Nota">
+        <div class="md-fotos" id="aus-fotos"></div>
+        <button type="submit" class="primario md-grande">Avisar al encargado</button>
+      </form>
+    </section>
+    <section class="md-bloque">
+      <h2>Incidencia</h2>
+      <form id="form-inc" class="md-form">
+        <div class="md-chips" id="inc-tipos" role="radiogroup" aria-label="Qué pasa"></div>
+        <select name="tramo_id" aria-label="En qué trabajo (opcional)"></select>
+        <select name="maquina_id" aria-label="Qué máquina" hidden></select>
+        <textarea name="texto" rows="3" maxlength="1000" placeholder="Cuenta brevemente qué pasa" aria-label="Qué pasa" required></textarea>
+        <div class="md-fotos" id="inc-fotos"></div>
+        <button type="submit" class="primario md-grande">Enviar incidencia</button>
+      </form>
+    </section>
+    <section class="md-bloque">
+      <h2>Mis avisos e incidencias</h2>
+      <ul class="md-lista" id="mis-avisos"></ul>
+    </section>
+  </main>
+
+  <nav class="md-tabs" aria-label="Secciones">
+    <button type="button" data-vista="dia" aria-current="page"><span aria-hidden="true">📋</span>Mi día</button>
+    <button type="button" data-vista="mes"><span aria-hidden="true">📅</span>Mi mes</button>
+    <button type="button" data-vista="vac"><span aria-hidden="true">🌴</span>Vacaciones</button>
+    <button type="button" data-vista="avisar"><span aria-hidden="true">⚠️</span>Avisar</button>
+  </nav>
+
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
-  <script src="comun.js?v=202611152259"></script>
-  <script src="mi-dia.js?v=202611152259"></script>
+  <script src="comun.js?v=202611152328"></script>
+  <script src="mi-dia-mas.js?v=202611152328"></script>
+  <script src="mi-dia.js?v=202611152328"></script>
 </body>
 </html>

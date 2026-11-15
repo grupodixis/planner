@@ -55,7 +55,7 @@ function textoAusencia(a, fecha) {
 
 const SQL_AUSENCIAS = `
   SELECT a.id, a.recurso_id, a.tipo, a.desde, a.hasta, a.hora_desde::float AS hora_desde, a.hora_hasta::float AS hora_hasta,
-         a.notas, a.justificante, r.nombre AS recurso, r.tipo AS clase
+         a.notas, a.justificante, a.avisado_en, a.aviso_motivo, r.nombre AS recurso, r.tipo AS clase
     FROM ausencias a JOIN recursos r ON r.id = a.recurso_id`;
 
 async function ausenciasEnRango(c, desde, hasta) {
@@ -140,7 +140,8 @@ function montar(app, asyncH) {
     const min = rows.reduce((m, a) => (a.desde < m ? a.desde : m), rows[0].desde);
     const max = rows.reduce((m, a) => (a.hasta > m ? a.hasta : m), rows[0].hasta);
     const fest = new Set((await festivosEnRango({ query }, min, max)).map((f) => f.fecha));
-    res.json(rows.map((a) => ({ ...a, dias_laborables: Math.round(laborables(a, fest) * 100) / 100, texto: textoAusencia(a) })));
+    const adj = await require('./archivos').de('ausencia', rows.map((a) => a.id));
+    res.json(rows.map((a) => ({ ...a, dias_laborables: Math.round(laborables(a, fest) * 100) / 100, texto: textoAusencia(a), archivos: adj.get(a.id) || [] })));
   }));
 
   // Las apunta quien gestiona recursos y también quien planifica (una falta se registra desde el tablero)
@@ -244,4 +245,5 @@ function montar(app, asyncH) {
   }));
 }
 
-module.exports = { montar, TIPOS, JUSTIF, ausenciasEnRango, festivosEnRango, ausenciasPorDia, textoAusencia };
+module.exports = { montar, TIPOS, JUSTIF, ausenciasEnRango, festivosEnRango, ausenciasPorDia, textoAusencia,
+  laborables, afectados, dias, esFinde };

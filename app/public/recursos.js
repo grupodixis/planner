@@ -421,6 +421,7 @@
         num(total), f.no ? el('span', { class: 'neg' }, ` · ${num(f.no)} sin just.`) : null,
         f.pendiente ? el('span', { class: 'aus-ahora' }, ` · ${num(f.pendiente)} pend.`) : null);
     };
+    pintarSolicitudes();
     // Faltas que esperan justificante (todas, de cualquier año)
     const pend = await api('GET', '/api/ausencias?justificante=pendiente');
     $('#faltas-pend').hidden = !pend.length;
@@ -429,6 +430,8 @@
       el('a', { href: `/recursos.html?tipo=operario&id=${a.recurso_id}` }, a.recurso),
       a.hora_desde != null ? el('span', { class: 'ayuda' }, `${deHora(a.hora_desde)}–${deHora(a.hora_hasta)}`) : null,
       a.notas ? el('span', { class: 'ayuda' }, a.notas) : null,
+      a.avisado_en ? el('span', { class: 'chip-aviso', title: 'Lo avisó el propio operario desde su móvil' }, 'avisó él') : null,
+      window.s360.adjuntos(a.archivos),
       editar ? el('span', { class: 'fp-acc' },
         ...[['si', 'Justificada'], ['no', 'Sin justificar']].map(([v, t]) => el('button', {
           type: 'button', class: 'ghost mini',
@@ -467,6 +470,46 @@
           try { await api('DELETE', `/api/festivos/${f.fecha}`); toast('Festivo quitado'); pintarCalendarioLaboral(); } catch (e) { toast(e.message, true); }
         },
       }, '✕') : null)) : [el('li', { class: 'ayuda' }, `No hay festivos de ${anioCal}. Añádelos (BOIB: calendario laboral de Illes Balears y fiestas locales de Sant Lluís).`)]));
+  }
+
+  // Peticiones de vacaciones: primero Operaciones y después RRHH
+  const EST_SOL = { pendiente_ops: 'espera a Operaciones', pendiente_rrhh: 'espera a RRHH', aprobada: 'aprobada', rechazada: 'rechazada' };
+  async function pintarSolicitudes() {
+    const puedo = { ops: window.s360.tiene('vacaciones_ops'), rrhh: window.s360.tiene('vacaciones_rrhh') };
+    $('#sol-vac').hidden = !puedo.ops && !puedo.rrhh;
+    if ($('#sol-vac').hidden) return;
+    let d;
+    try { d = await api('GET', '/api/solicitudes-vacaciones'); } catch (e) { return toast(e.message, true); }
+    const miPaso = (s) => (s.estado === 'pendiente_ops' && d.puedo.ops) || (s.estado === 'pendiente_rrhh' && d.puedo.rrhh);
+    const n = d.solicitudes.filter(miPaso).length;
+    $('#sol-vac-ayuda').textContent = n ? `${n} esperan tu respuesta` : 'Nada pendiente para ti';
+    const rango = (s) => (s.desde === s.hasta ? fechaCorta(s.desde) : `${fechaCorta(s.desde)} – ${fechaCorta(s.hasta)}`);
+    const decidir = async (s, decision) => {
+      let nota = null;
+      if (decision === 'rechazar') {
+        nota = prompt(`¿Por qué se rechaza la petición de ${s.recurso}? (lo verá el operario)`);
+        if (!nota) return;
+      }
+      try {
+        const r = await api('POST', `/api/solicitudes-vacaciones/${s.id}`, { decision, nota });
+        toast(r.estado === 'aprobada' ? `Vacaciones de ${s.recurso} aprobadas: ya están en el calendario`
+          : r.estado === 'pendiente_rrhh' ? 'Visto bueno dado: ahora la aprueba RRHH' : 'Petición rechazada');
+        pintarCalendarioLaboral();
+      } catch (e) { toast(e.message, true); }
+    };
+    $('#sol-vac-lista').replaceChildren(...(d.solicitudes.length ? d.solicitudes.map((s) => el('li', { class: `sol ${s.estado}${miPaso(s) ? ' mio' : ''}` },
+      el('div', { class: 'sol-l1' },
+        el('b', {}, s.recurso), el('span', {}, ` ${rango(s)} · ${String(s.dias).replace('.', ',')} día${s.dias === 1 ? '' : 's'}`),
+        el('span', { class: `sol-est e-${s.estado}` }, EST_SOL[s.estado] || s.estado)),
+      s.notas ? el('div', { class: 'ayuda' }, `«${s.notas}»`) : null,
+      s.estado.startsWith('pendiente') ? el('div', { class: 'ayuda' }, `Le quedarían ${String(s.quedan).replace('.', ',')} días`) : null,
+      (s.avisos || []).length ? el('ul', { class: 'sol-avisos' }, s.avisos.map((a) => el('li', {}, `⚠ ${a}`))) : null,
+      s.ops_en ? el('div', { class: 'ayuda' }, `Operaciones: ${s.estado === 'rechazada' && !s.rrhh_en ? 'rechazada' : 'visto bueno'} (${s.ops_por || '—'})${s.ops_nota ? ` · ${s.ops_nota}` : ''}`) : null,
+      s.rrhh_en ? el('div', { class: 'ayuda' }, `RRHH: ${s.estado === 'aprobada' ? 'aprobada' : 'rechazada'} (${s.rrhh_por || '—'})${s.rrhh_nota ? ` · ${s.rrhh_nota}` : ''}`) : null,
+      miPaso(s) ? el('div', { class: 'sol-acc' },
+        el('button', { type: 'button', class: 'primario mini', onclick: () => decidir(s, 'aprobar') }, s.estado === 'pendiente_ops' ? 'Dar el visto bueno' : 'Aprobar'),
+        el('button', { type: 'button', class: 'ghost mini', onclick: () => decidir(s, 'rechazar') }, 'Rechazar')) : null))
+      : [el('li', { class: 'ayuda' }, 'No hay peticiones de vacaciones.')]));
   }
 
   /* ---------- pestaña «Tipos de recurso» ---------- */

@@ -42,12 +42,16 @@
   /* ---------- carga ---------- */
   async function cargar() {
     const f = estado.fecha;
-    const [datos, tablero, pend] = await Promise.all([
+    const enc = window.s360.tiene('planificar');
+    const [datos, tablero, pend, avisos, inc] = await Promise.all([
       api('GET', `/api/parte?fecha=${f}`),
       api('GET', `/api/tablero?fecha=${f}`),
       api('GET', '/api/parte/pendientes'),
+      enc ? api('GET', `/api/avisos-ausencia?desde=${f}&hasta=${f}`) : [],
+      enc ? api('GET', '/api/incidencias') : { incidencias: [], tipos: {} },
     ]);
     if (f !== estado.fecha) return;
+    estado.avisos = avisos; estado.inc = inc;
     estado.datos = datos;
     estado.tareas = tablero.tareas;
     history.replaceState(null, '', `?fecha=${f}`);
@@ -96,11 +100,12 @@
             if (abiertos && !confirm(`Quedan ${abiertos} tramo(s) sin cerrar. ¿Darlos por hechos como estaban y cerrar el día?`)) return;
             accion(() => api('POST', '/api/parte/cerrar', { fecha: d.fecha, validar_resto: true }), abiertos ? `Día cerrado (${abiertos} validado(s) como estaban)` : 'Día cerrado');
           },
-        }, abiertos ? `Validar lo que queda (${abiertos}) y cerrar el día` : 'Cerrar el día') : null);
+        }, abiertos ? `Validar lo que queda (${abiertos}) y cerrar el día` : 'Cerrar el día') : '');
 
     pintarPersonas(d, ausDe);
     pintarFormHoras(d, editar);
     pintarEnvios(d, editar);
+    pintarAvisosIncidencias();
     pintarExtraDeclarado(d, editar);
   }
 
@@ -376,6 +381,36 @@
       el('span', { class: 'sl-quien' }, g.recurso),
       el('span', {}, `${hhmm(g.desde)}–${hhmm(g.hasta)} · ${g.tipo === 'productivo' ? `${g.orden_codigo} ${g.tarea}` : NP[g.motivo] || g.motivo}${g.notas ? ` · ${g.notas}` : ''}`),
       editar ? el('button', { type: 'button', class: 'ghost mini borrar', 'aria-label': 'Quitar', onclick: () => accion(() => api('DELETE', `/api/registros/${g.id}`), 'Quitado') }, '✕') : null)));
+  }
+
+  // Avisos de ausencia de los operarios (de este día) e incidencias abiertas
+  function pintarAvisosIncidencias() {
+    const av = estado.avisos || [], inc = estado.inc?.incidencias || [];
+    const T = estado.inc?.tipos || {};
+    const caja = $('#avisos-inc');
+    caja.replaceChildren(
+      av.length ? el('section', {}, el('h2', {}, 'Avisos de los operarios'),
+        el('ul', { class: 'lista-avisos' }, av.map((a) => el('li', {},
+          el('b', {}, a.recurso), ` · ${a.motivo_txt || 'ausencia'}`,
+          a.hora_desde != null ? ` ${hhmm(a.hora_desde)}–${hhmm(a.hora_hasta)}` : a.desde !== a.hasta ? ` (${fechaCorta(a.desde)} – ${fechaCorta(a.hasta)})` : ' (todo el día)',
+          a.notas ? el('span', { class: 'ayuda' }, ` «${a.notas}»`) : null,
+          ' ', window.s360.adjuntos(a.archivos),
+          el('span', { class: 'ayuda' }, a.archivos.length ? ' · justificante adjunto, revísalo en Recursos' : ' · sin justificante'))))) : '',
+      inc.length ? el('section', {}, el('h2', {}, `Incidencias abiertas (${inc.length})`),
+        el('ul', { class: 'lista-inc' }, inc.map((i) => el('li', { class: `inc t-${i.tipo}` },
+          el('div', {}, el('b', {}, T[i.tipo] || i.tipo), el('span', { class: 'ayuda' }, ` · ${i.recurso || '—'} · ${fechaCorta(i.fecha)}`)),
+          el('div', {}, i.texto),
+          i.maquina || i.tarea ? el('div', { class: 'ayuda' }, [i.maquina && `Máquina: ${i.maquina}`, i.tarea && `Tarea: ${i.orden_codigo} ${i.tarea}`].filter(Boolean).join(' · ')) : null,
+          window.s360.adjuntos(i.archivos),
+          el('div', { class: 'inc-acc' },
+            i.maquina_id && !i.maquina_parada ? el('button', { type: 'button', class: 'ghost mini', title: 'La máquina queda no disponible hoy en el tablero (amplíalo en Recursos si dura más)',
+              onclick: () => accion(async () => { const r = await api('POST', `/api/incidencias/${i.id}/maquina-parada`); return `${i.maquina} no disponible hoy${r.afectados ? ` · afecta a ${r.afectados} tramo(s)` : ''}`; }) }, 'Máquina parada hoy') : null,
+            i.maquina_parada ? el('span', { class: 'ayuda' }, 'máquina parada') : null,
+            el('button', { type: 'button', class: 'primario mini', onclick: () => {
+              const nota = prompt('¿Cómo se ha resuelto? (opcional, lo verá el operario)');
+              if (nota === null) return;
+              accion(() => api('POST', `/api/incidencias/${i.id}/resolver`, { resolucion: nota }), 'Incidencia resuelta');
+            } }, 'Resuelta')))))) : '');
   }
 
   // Horas fuera del plan que han apuntado los operarios: aceptar o descartar

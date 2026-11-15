@@ -90,6 +90,8 @@ app/src/informes.js       informes de horas y costes
 app/src/avance.js         avance y rendimiento (tarea › OT › partida › proyecto)
 app/src/pin.js            entrada con PIN para operarios y dispositivos autorizados
 app/src/midia.js          «Mi día» del operario y lo que declara para el parte
+app/src/operario.js       app del operario: vacaciones (dos pasos), avisos, incidencias, su mes, PIN
+app/src/archivos.js       fotos y PDF (en la base de datos)
 app/src/eventos.js        avisos en vivo entre pantallas (Server-Sent Events)
 app/src/importar.js       importación de proyectos del compositor (s360-import/1)
 app/src/migraciones.js    cambios de esquema que se aplican solos al arrancar
@@ -353,6 +355,39 @@ lo revisa y confirma siempre en el Parte.
   todo lo apuntado sin avisos» lo hace de una vez. No se puede cerrar el día con cosas
   apuntadas sin revisar. Deshacer un cierre vuelve a dejar lo apuntado pendiente.
 
+## App del operario: más gestiones
+
+En «Mi día» hay cuatro pestañas abajo: **Mi día**, **Mi mes**, **Vacaciones** y **Avisar** (y 🔑
+para cambiar su PIN).
+
+- **Vacaciones**: ve los días que le quedan (22 de convenio o los de su ficha, menos los
+  aprobados y los pedidos) y pide días (desde–hasta; cuenta solo laborables, sin festivos; a
+  partir de mañana; cada año por separado). Al pedir se ve cuántos días son, cuántos le
+  quedarían y avisos (trabajo planificado esos días, compañeros del mismo oficio fuera).
+  Puede anular mientras esté pendiente.
+  - Se aprueba en **dos pasos**: **Operaciones** da el visto bueno (permiso «vacaciones_ops»,
+    rol «Operaciones») y **RRHH** la aprueba (permiso «vacaciones_rrhh», rol «RRHH»). El
+    Administrador puede los dos. Se hace en Recursos › Vacaciones y festivos › «Peticiones
+    de vacaciones». Para rechazar hay que dar el motivo (lo ve el operario). Al aprobarse pasa
+    sola al calendario de ausencias.
+- **Avisar · No vengo o llego tarde**: enfermo, médico, llego tarde, asunto personal u otro;
+  un día (o varios, hasta 15) o unas horas; nota y foto del justificante. Queda como **falta
+  pendiente de justificante** en el tablero y en el parte (con la marca «avisó él»). Puede
+  quitar el aviso mientras no haya pasado el día.
+- **Justificantes pendientes**: sus faltas sin justificante; sube la foto. RRHH / el encargado
+  la ve en Recursos › «Faltas pendientes de justificante» y marca justificada o no.
+- **Incidencias**: falta material, avería (con qué máquina), calidad, seguridad u otro, con
+  texto y fotos; desde la pestaña o con «⚠ Avisar de una incidencia» en un trabajo de hoy. El
+  encargado las ve en el Parte («Incidencias abiertas»): **Máquina parada hoy** (la máquina
+  queda no disponible en el tablero; se amplía en Recursos) y **Resuelta** (con nota que ve
+  el operario).
+- **Mi mes**: día a día lo planificado, lo trabajado (confirmado), ausencias y festivos; al
+  pulsar un día se abre en Mi día.
+- **Fotos**: el móvil las reduce (máx. 1600 px) antes de subirlas; se guardan en la base de
+  datos (entran en las copias). Un operario solo ve las suyas.
+- En el menú salen **contadores**: en Recursos, peticiones de vacaciones que te esperan y
+  justificantes por revisar; en Parte, incidencias abiertas.
+
 ## Informes
 
 Menú **Informes** (permiso «informes»; de serie solo el Administrador). Exportables a Excel (CSV).
@@ -484,6 +519,19 @@ vez. Al confirmar se importa todo de una vez (o nada).
 | POST · DELETE | `/api/mi-dia/extra` · `/api/mi-dia/extra/:id` | `{fecha, tipo, tarea_id?, motivo?, desde, hasta, notas?}` |
 | POST | `/api/mi-dia/enviar` | `{fecha}` avisar al encargado |
 | POST | `/api/declaraciones/:id/aceptar` · `/descartar` | (encargado) horas fuera del plan apuntadas por un operario |
+| GET | `/api/mi-dia/gestiones` | (operario) saldo y peticiones de vacaciones, avisos, justificantes pendientes, incidencias |
+| GET · POST · DELETE | `/api/mi-dia/vacaciones/previa?desde=&hasta=` · `/api/mi-dia/vacaciones` · `/:id` | ver cuántos días y avisos · pedir `{desde, hasta, notas}` · anular |
+| POST · DELETE | `/api/mi-dia/ausencias` · `/api/mi-dia/ausencias/:id` | avisar `{motivo, desde, hasta?, hora_desde?, hora_hasta?, notas, archivos[]}` · quitar el aviso |
+| POST | `/api/mi-dia/ausencias/:id/justificante` | `{archivos: [ids]}` |
+| POST | `/api/mi-dia/incidencias` | `{tipo, texto, tramo_id?, maquina_id?, archivos[]}` |
+| GET | `/api/mi-dia/mes?mes=YYYY-MM` | su mes día a día |
+| POST | `/api/mi-dia/pin` | `{actual, nuevo}` |
+| POST · GET | `/api/archivos` · `/api/archivos/:id` | subir (cuerpo = la foto o el PDF, máx. 6 MB) → `{id}` · ver |
+| GET · POST | `/api/solicitudes-vacaciones` · `/api/solicitudes-vacaciones/:id` | peticiones · `{decision: aprobar\|rechazar, nota}` (el paso lo marca el estado) |
+| GET | `/api/incidencias?estado=todas` | incidencias (abiertas por defecto) |
+| POST | `/api/incidencias/:id/resolver` · `/api/incidencias/:id/maquina-parada` | `{resolucion}` · la máquina, no disponible hoy |
+| GET | `/api/avisos-ausencia?desde=&hasta=` | ausencias avisadas por los operarios |
+| GET | `/api/pendientes` | contadores del menú para el usuario |
 | GET | `/api/eventos` | avisos en vivo (Server-Sent Events) para que las pantallas se actualicen solas |
 | GET | `/api/informes/proyectos` · `/api/informes/proyecto/:id` | resumen de proyectos · detalle partida › OT › tarea |
 | GET | `/api/informes/operarios` · `/maquinas` · `/planificacion` | `?desde=&hasta=` |

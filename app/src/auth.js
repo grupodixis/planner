@@ -11,6 +11,8 @@ const PERMISOS = {
   recursos: 'Recursos, áreas de trabajo, tipos y semillero',
   usuarios: 'Usuarios y roles',
   informes: 'Ver informes de horas, costes y resultados',
+  vacaciones_ops: 'Vacaciones: primer visto bueno (Operaciones)',
+  vacaciones_rrhh: 'Vacaciones: aprobación final (RRHH)',
   mi_dia: 'Apuntar su propio día (Mi día). Solo, sin otros permisos: no ve nada más',
 };
 // Quien solo tiene «mi_dia» únicamente ve su pantalla Mi día (ni tablero, ni costes, ni lo de otros)

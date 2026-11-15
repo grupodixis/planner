@@ -461,6 +461,67 @@ const MIGRACIONES = [
    )`,
   `CREATE UNIQUE INDEX IF NOT EXISTS declaraciones_tramo_idx ON declaraciones (tramo_id, recurso_id) WHERE tramo_id IS NOT NULL`,
   `CREATE INDEX IF NOT EXISTS declaraciones_fecha_idx ON declaraciones (fecha, recurso_id)`,
+  /* ---------- App del operario: fotos, vacaciones, avisos, incidencias ---------- */
+  // fotos y documentos (justificantes, incidencias…) guardados en la base de datos
+  `CREATE TABLE IF NOT EXISTS archivos (
+     id          SERIAL PRIMARY KEY,
+     tipo        TEXT NOT NULL,                  -- image/jpeg, application/pdf…
+     bytes       INT NOT NULL,
+     nombre      TEXT,
+     datos       BYTEA NOT NULL,
+     ref_tipo    TEXT,                           -- ausencia | incidencia (NULL = aún sin usar)
+     ref_id      INT,
+     creado_por  INT REFERENCES usuarios(id) ON DELETE SET NULL,
+     creado      TIMESTAMPTZ NOT NULL DEFAULT now()
+   )`,
+  `CREATE INDEX IF NOT EXISTS archivos_ref_idx ON archivos (ref_tipo, ref_id)`,
+  // permisos para aprobar vacaciones (dos pasos) y roles de partida
+  `UPDATE roles SET permisos = permisos || ARRAY['vacaciones_ops','vacaciones_rrhh']
+    WHERE clave = 'admin' AND NOT ('vacaciones_ops' = ANY(permisos))`,
+  `INSERT INTO roles (clave, nombre, descripcion, permisos, sistema, orden) VALUES
+     ('operaciones', 'Operaciones', 'Planifica, gestiona proyectos y recursos; primer visto bueno de vacaciones', '{planificar,proyectos,recursos,informes,vacaciones_ops}', FALSE, 4),
+     ('rrhh', 'RRHH', 'Personas, ausencias y aprobación final de vacaciones', '{recursos,informes,vacaciones_rrhh}', FALSE, 5)
+   ON CONFLICT (clave) DO NOTHING`,
+  `CREATE TABLE IF NOT EXISTS solicitudes_vacaciones (
+     id          SERIAL PRIMARY KEY,
+     recurso_id  INT NOT NULL REFERENCES recursos(id) ON DELETE CASCADE,
+     desde       DATE NOT NULL,
+     hasta       DATE NOT NULL,
+     dias        NUMERIC(5,2) NOT NULL,
+     notas       TEXT,
+     estado      TEXT NOT NULL DEFAULT 'pendiente_ops'
+                 CHECK (estado IN ('pendiente_ops', 'pendiente_rrhh', 'aprobada', 'rechazada', 'anulada')),
+     ops_por     INT REFERENCES usuarios(id) ON DELETE SET NULL,
+     ops_en      TIMESTAMPTZ,
+     ops_nota    TEXT,
+     rrhh_por    INT REFERENCES usuarios(id) ON DELETE SET NULL,
+     rrhh_en     TIMESTAMPTZ,
+     rrhh_nota   TEXT,
+     ausencia_id INT REFERENCES ausencias(id) ON DELETE SET NULL,
+     usuario_id  INT REFERENCES usuarios(id) ON DELETE SET NULL,
+     creado      TIMESTAMPTZ NOT NULL DEFAULT now(),
+     CHECK (hasta >= desde)
+   )`,
+  // ausencias avisadas por el propio operario desde su móvil
+  `ALTER TABLE ausencias ADD COLUMN IF NOT EXISTS avisado_en TIMESTAMPTZ`,
+  `ALTER TABLE ausencias ADD COLUMN IF NOT EXISTS aviso_motivo TEXT`,
+  `CREATE TABLE IF NOT EXISTS incidencias (
+     id           SERIAL PRIMARY KEY,
+     fecha        DATE NOT NULL,
+     recurso_id   INT REFERENCES recursos(id) ON DELETE SET NULL,     -- quien la avisa
+     usuario_id   INT REFERENCES usuarios(id) ON DELETE SET NULL,
+     tipo         TEXT NOT NULL CHECK (tipo IN ('material', 'averia', 'calidad', 'seguridad', 'otro')),
+     texto        TEXT NOT NULL,
+     tramo_id     INT REFERENCES tramos(id) ON DELETE SET NULL,
+     tarea_id     INT REFERENCES tareas(id) ON DELETE SET NULL,
+     maquina_id   INT REFERENCES recursos(id) ON DELETE SET NULL,
+     estado       TEXT NOT NULL DEFAULT 'abierta' CHECK (estado IN ('abierta', 'resuelta')),
+     resuelta_por INT REFERENCES usuarios(id) ON DELETE SET NULL,
+     resuelta_en  TIMESTAMPTZ,
+     resolucion   TEXT,
+     creado       TIMESTAMPTZ NOT NULL DEFAULT now()
+   )`,
+  `CREATE INDEX IF NOT EXISTS incidencias_estado_idx ON incidencias (estado, fecha)`,
   `CREATE TABLE IF NOT EXISTS dias_enviados (
      fecha       DATE NOT NULL,
      recurso_id  INT NOT NULL REFERENCES recursos(id) ON DELETE CASCADE,

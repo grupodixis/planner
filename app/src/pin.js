@@ -22,6 +22,13 @@ const sha = (t) => crypto.createHash('sha256').update(String(t)).digest('hex');
 const PIN_RE = /^\d{4}$/;
 const PIN_FACILES = new Set(['0000', '1111', '2222', '3333', '4444', '5555', '6666', '7777', '8888', '9999', '1234', '4321', '0123', '9876']);
 
+// null si vale; si no, por qué
+function pinNoValido(pin) {
+  if (!PIN_RE.test(String(pin))) return 'El PIN son 4 cifras';
+  if (PIN_FACILES.has(String(pin))) return 'Ese PIN es demasiado fácil de adivinar: elige otro';
+  return null;
+}
+
 function hashPin(pin) {
   const salt = crypto.randomBytes(16).toString('hex');
   return `scrypt:${salt}:${crypto.scryptSync(`pin:${pin}`, salt, 64).toString('hex')}`;
@@ -146,8 +153,8 @@ function gestion(app, asyncH) {
   app.put('/api/pin/:recursoId', admin, asyncH(async (req, res) => {
     const recursoId = Number(req.params.recursoId);
     const pin = String(req.body?.pin || '');
-    if (!PIN_RE.test(pin)) throw fallo(400, 'El PIN son 4 cifras');
-    if (PIN_FACILES.has(pin)) throw fallo(400, 'Ese PIN es demasiado fácil de adivinar: elige otro');
+    const mal = pinNoValido(pin);
+    if (mal) throw fallo(400, mal);
     const out = await tx(async (c) => {
       const { rows: re } = await c.query(`SELECT id, nombre FROM recursos WHERE id = $1 AND tipo = 'operario' AND activo`, [recursoId]);
       if (!re.length) throw fallo(404, 'Operario no encontrado');
@@ -209,4 +216,4 @@ function gestion(app, asyncH) {
   }));
 }
 
-module.exports = { publico, gestion };
+module.exports = { publico, gestion, hashPin, verificarPin, pinNoValido };

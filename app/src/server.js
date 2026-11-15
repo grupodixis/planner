@@ -27,6 +27,8 @@ app.get('/health', (req, res) => res.json({ ok: true, version: VERSION }));
 require('./pin').publico(app, asyncH);   // entrar con PIN desde un dispositivo autorizado (sin sesión)
 require('./usuarios')(app, asyncH);   // entrar, recuperar contraseña, Mi cuenta, usuarios y roles
 require('./pin').gestion(app, asyncH);   // PIN de operarios y dispositivos autorizados
+require('./archivos').montar(app, asyncH);   // fotos y documentos (justificantes, incidencias)
+require('./operario').montar(app, asyncH);   // app del operario: vacaciones, avisos, incidencias, su mes
 eventos.montar(app);   // GET /api/eventos (con sesión)
 
 /* ---------- Tablero y tramos ---------- */

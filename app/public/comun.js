@@ -117,6 +117,7 @@
       if (location.pathname === href) a.setAttribute('aria-current', 'page');
       menu.append(a);
     }
+    refrescarPendientes();
     const salir = document.getElementById('salir');
     if (salir && !salir.onclick) salir.onclick = async () => { await api('POST', '/api/logout'); location.href = '/login.html'; };
   }
@@ -149,6 +150,53 @@
         el('ul', { class: 'lista-sobrantes' }, tramos.map((x) => el('li', {}, `${dia(x.fecha)} · ${dur(x.duracion_h)}`))),
         el('p', { class: 'ayuda' }, '¿Los quito del tablero? Así quedan libres esas personas, máquinas y puestos. Si después deshaces este cierre, vuelven a ponerse.')),
       [{ valor: true, texto: 'Quitarlos', clase: 'primario' }, { valor: false, texto: 'Dejarlos' }, { valor: null, texto: 'Volver', clase: 'ghost' }]);
+  }
+
+  /* ---------- Fotos: se reducen en el navegador antes de subirlas ---------- */
+  async function reducir(file, max = 1600, calidad = 0.8) {
+    if (!/^image\/(jpeg|png|webp|heic|heif)$/i.test(file.type) || file.size < 350 * 1024) return file;
+    try {
+      const bmp = await createImageBitmap(file, { imageOrientation: 'from-image' });
+      const k = Math.min(1, max / Math.max(bmp.width, bmp.height));
+      const cv = document.createElement('canvas');
+      cv.width = Math.round(bmp.width * k); cv.height = Math.round(bmp.height * k);
+      cv.getContext('2d').drawImage(bmp, 0, 0, cv.width, cv.height);
+      const blob = await new Promise((ok) => cv.toBlob(ok, 'image/jpeg', calidad));
+      return blob ? new File([blob], (file.name || 'foto').replace(/\.\w+$/, '') + '.jpg', { type: 'image/jpeg' }) : file;
+    } catch { return file; }
+  }
+  // sube un archivo (foto o PDF) → id
+  async function subirArchivo(file) {
+    const f = await reducir(file);
+    const tipo = /^image\/(jpeg|png|webp)$|^application\/pdf$/.test(f.type) ? f.type : null;
+    if (!tipo) throw new Error('Solo fotos (JPG, PNG) o PDF');
+    if (f.size > 6 * 1024 * 1024) throw new Error('El archivo pasa de 6 MB');
+    const r = await fetch('/api/archivos', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': tipo, 'X-Nombre': encodeURIComponent(f.name || 'foto') }, body: f });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(d.error || `Error ${r.status}`);
+    return d.id;
+  }
+  // miniaturas / enlaces a los archivos de algo
+  function adjuntos(lista) {
+    if (!lista || !lista.length) return null;
+    return el('span', { class: 'adjuntos' }, lista.map((a) => el('a', { href: `/api/archivos/${a.id}`, target: '_blank', rel: 'noopener', title: a.nombre || 'Ver' },
+      a.tipo.startsWith('image/') ? el('img', { src: `/api/archivos/${a.id}`, alt: a.nombre || 'foto', loading: 'lazy' }) : '📄 PDF')));
+  }
+
+  /* ---------- Contadores de lo que espera a este usuario (en el menú) ---------- */
+  async function refrescarPendientes() {
+    if (!usuario || usuario.solo_mi_dia) return;
+    let p;
+    try { p = await api('GET', '/api/pendientes'); } catch { return; }
+    const poner = (href, n, titulo) => {
+      const a = document.querySelector(`nav.menu a[href="${href}"]`);
+      if (!a) return;
+      a.querySelector('.menu-num')?.remove();
+      if (n) a.append(el('span', { class: 'menu-num', title: titulo }, String(n)));
+    };
+    poner('/recursos.html', (p.vacaciones || 0) + (p.justificantes || 0),
+      [p.vacaciones && `${p.vacaciones} petición(es) de vacaciones por aprobar`, p.justificantes && `${p.justificantes} justificante(s) por revisar`].filter(Boolean).join('\n'));
+    poner('/parte.html', p.incidencias || 0, `${p.incidencias} incidencia(s) abierta(s)`);
   }
 
   /* ---------- Avance y rendimiento (mismo aspecto en todas las pantallas) ---------- */
@@ -207,7 +255,7 @@
       if (!pendiente) return;
       if (document.hidden || enMarcha || ocupado() || (esperar && esperar())) { timer = setTimeout(intentar, 1500); return; }
       const datos = pendiente; pendiente = null; enMarcha = true;
-      try { await fn(datos); } catch (e) { console.warn('recarga en vivo', e); } finally { enMarcha = false; }
+      try { await fn(datos); refrescarPendientes(); } catch (e) { console.warn('recarga en vivo', e); } finally { enMarcha = false; }
       if (pendiente && !timer) timer = setTimeout(intentar, 300);
     };
     const programar = (d) => { pendiente = d; if (!timer) timer = setTimeout(intentar, 300); };
@@ -232,5 +280,6 @@
     return { get ultimo() { return quien; } };
   }
 
-  window.s360 = { iniciar, tiene, api, preguntar, preguntarTramosSobrantes, alCambiar, chipAvance, tituloAvance, claseRend };
+  window.s360 = { iniciar, tiene, api, preguntar, preguntarTramosSobrantes, alCambiar, chipAvance, tituloAvance, claseRend,
+    subirArchivo, adjuntos, refrescarPendientes };
 })();

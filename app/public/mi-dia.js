@@ -136,6 +136,7 @@
         t.equipos.length ? el('span', {}, `${t.companeros.length ? ' · ' : ''}${t.equipos.join(', ')}`) : null) : null,
       t.tarea_notas ? el('details', { class: 'md-t-notas' }, el('summary', {}, 'Notas de la tarea'), el('p', {}, t.tarea_notas)) : null,
       cerrado ? el('p', { class: 'md-ok' }, '✔ Confirmado por el encargado') : null,
+      estado.d.fecha === estado.d.hoy ? el('button', { type: 'button', class: 'md-inc-link', onclick: () => window.midiaMas.incidencia(t.id) }, '⚠ Avisar de una incidencia') : null,
       estado.d.fecha > estado.d.hoy ? null : el('div', { class: 'md-botones', role: 'group', 'aria-label': 'Cómo fue' },
         boton('hecho', '✓ Hecho', 'ok'), boton('parcial', '◐ En parte', 'parcial'), boton('no', '✗ No', 'no')),
       el('div', { class: 'md-detalle' }));
@@ -261,10 +262,14 @@
     $('#dia-sig').onclick = () => { estado.fecha = sumarDias(estado.fecha, 1); cargar().catch((e) => toast(e.message, true)); };
     $('#enviar').onclick = enviar;
     prepararExtra();
+    window.midiaMas.iniciar({
+      irADia: (f) => { estado.fecha = f; cargar().catch((e) => toast(e.message, true)); },
+      recargarDia: () => cargar().catch(() => {}),
+    });
     await cargar();
     if (estado.d.comun) vigilarInactividad();
-    // si el encargado confirma o cambia el plan, se ve al momento
-    window.s360.alCambiar(() => cargar());
+    // si el encargado confirma o cambia el plan (o aprueba algo), se ve al momento
+    window.s360.alCambiar(() => Promise.all([cargar(), window.midiaMas.recargar()]));
   }
   init();
 })();
