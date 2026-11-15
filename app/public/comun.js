@@ -149,6 +149,32 @@
       [{ valor: true, texto: 'Quitarlos', clase: 'primario' }, { valor: false, texto: 'Dejarlos' }, { valor: null, texto: 'Volver', clase: 'ghost' }]);
   }
 
+  /* ---------- Avance y rendimiento (mismo aspecto en todas las pantallas) ---------- */
+  const n1 = (x) => (Math.round((x || 0) * 10) / 10).toLocaleString('es-ES');
+  function tituloAvance(a) {
+    if (!a) return '';
+    const l = [`Avance: ${n1(a.hecho_h)} h de ${n1(a.prev_h)} h previstas ya terminadas (${a.hechas} de ${a.tareas} tareas)`];
+    if (a.rendimiento_pct != null) {
+      l.push(`Rendimiento: lo terminado se previó en ${n1(a.rend_prev_h)} h y costó ${n1(a.rend_real_h)} h`
+        + (a.rendimiento_pct >= 100 ? ' (mejor de lo previsto)' : ' (peor de lo previsto)'));
+    } else if (a.hechas) l.push('Rendimiento: aún sin horas reales apuntadas en el parte');
+    if (a.curso_h) l.push(`En curso: ${n1(a.curso_h)} h previstas sin terminar, ${n1(a.curso_real_h)} h gastadas ya`
+      + (a.curso_real_h > a.curso_h ? ' ⚠ ya se ha pasado' : ''));
+    return l.join('\n');
+  }
+  const claseRend = (p) => (p == null ? '' : p >= 100 ? ' bien' : p < 90 ? ' mal' : '');
+  // avance → <span class="av"> 31 % · ⚡107 % </span>   (compacto: sin texto «avance»)
+  function chipAvance(a, { compacto = false } = {}) {
+    if (!a || !a.tareas) return null;
+    if (compacto && !a.hecho_h && !a.curso_real_h) return null;
+    const pct = a.avance_pct ?? 0;
+    return el('span', { class: `av${compacto ? ' compacto' : ''}`, title: tituloAvance(a) },
+      el('span', { class: 'av-barra', 'aria-hidden': 'true' }, el('span', { style: `width:${pct}%` })),
+      el('span', { class: 'av-pct' }, `${compacto ? '' : 'avance '}${n1(pct)} %`),
+      a.rendimiento_pct != null ? el('span', { class: `av-rend${claseRend(a.rendimiento_pct)}` }, `${compacto ? '' : 'rend. '}${a.rendimiento_pct} %`) : null,
+      a.curso_real_h > a.curso_h && a.curso_h ? el('span', { class: 'av-aviso', 'aria-label': 'tarea en curso pasada de horas' }, '⚠') : null);
+  }
+
   /* ---------- Cambios en vivo de otros usuarios ---------- */
   // Cada pestaña se identifica en sus cambios, para no recargarse por lo que ella misma guarda
   const PESTANA = Math.random().toString(36).slice(2, 12);
@@ -204,5 +230,5 @@
     return { get ultimo() { return quien; } };
   }
 
-  window.s360 = { iniciar, tiene, api, preguntar, preguntarTramosSobrantes, alCambiar };
+  window.s360 = { iniciar, tiene, api, preguntar, preguntarTramosSobrantes, alCambiar, chipAvance, tituloAvance, claseRend };
 })();

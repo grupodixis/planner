@@ -7,6 +7,7 @@ const { query, tx } = require('./db');
 const auth = require('./auth');
 const { jornada } = require('./config');
 const { calcularConflictos } = require('./conflictos');
+const avance = require('./avance');
 const { ausenciasEnRango, festivosEnRango, ausenciasPorDia, textoAusencia } = require('./ausencias');
 
 const FECHA_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -228,9 +229,16 @@ module.exports = function montar(app, asyncH) {
       calcularConflictos(lista, jornada, tiposDisponibles, exclusivas,
         { ausencias: ausDia.get(f), festivo: festivoDe.get(f), fecha: f }).map((c) => ({ ...c, fecha: f })));
 
+    // avance y rendimiento de las OTs y proyectos que aparecen en «Por planificar»
+    const ordenIds = [...new Set(tareas.rows.map((t) => t.orden_id))];
+    const av = ordenIds.length ? await avance.resumen({ ordenIds }) : { ordenes: {} };
+    const proyIds = [...new Set(tareas.rows.map((t) => t.proyecto_id).filter(Boolean))];
+    const avP = proyIds.length ? await avance.resumen({ proyectoIds: proyIds }) : { proyectos: {} };
+
     res.json({ fecha: desde, desde, hasta, jornada, lineas: lineas.rows, recursos: recursos.rows,
       tareas: tareas.rows, tramos: tramos.rows, conflictos, ausencias, festivos,
-      dias_cerrados: cerrados.rows.map((r) => r.fecha) });
+      dias_cerrados: cerrados.rows.map((r) => r.fecha),
+      avance: { ordenes: av.ordenes, proyectos: avP.proyectos } });
   }));
 
   /* ---------- Crear tramo (soltar una tarea en el calendario) ---------- */

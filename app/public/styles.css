@@ -682,7 +682,7 @@ tr.baja > td > input { text-decoration: line-through; opacity: .7; }
 .ot-l1 b { color: var(--c); white-space: nowrap; }
 .ot-l1 .punto { display: none; }
 .ot-tit { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
-.ot-l2 { display: flex; align-items: center; gap: 8px; font-size: 11px; color: var(--suave); }
+.ot-l2 { display: flex; align-items: center; gap: 4px 8px; font-size: 11px; color: var(--suave); flex-wrap: wrap; }
 .ot-l2 .tarde { color: var(--rojo); }
 .ot-l2 .prio { border-radius: 99px; padding: 0 5px; border: 1px solid; }
 .ot-l2 .prio.p1 { color: var(--rojo); } .ot-l2 .prio.p2 { color: var(--naranja); }
@@ -1145,3 +1145,19 @@ dialog.dlg-pregunta { width: min(460px, calc(100vw - 32px)); }
 .grupo-areas.soltar-despues { box-shadow: inset 0 -3px 0 var(--azul); }
 .grupo-areas { cursor: pointer; user-select: none; box-sizing: border-box; }
 .grupo-areas:focus-visible { outline: 2px solid var(--azul); outline-offset: -2px; }
+
+/* Avance y rendimiento */
+.av { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--suave); white-space: nowrap; }
+.av-barra { display: inline-block; width: 44px; height: 5px; border-radius: 3px; background: color-mix(in srgb, var(--suave) 25%, transparent); overflow: hidden; }
+.av-barra > span { display: block; height: 100%; background: var(--verde, #4fb35f); border-radius: 3px; }
+.av.compacto .av-barra { width: 30px; }
+.av-pct { font-variant-numeric: tabular-nums; color: var(--texto, inherit); }
+.av-rend { font-variant-numeric: tabular-nums; padding: 0 5px; border-radius: 8px; border: 1px solid color-mix(in srgb, var(--suave) 40%, transparent); }
+.av-rend::before { content: '⚡'; font-size: 10px; margin-right: 2px; }
+.av-rend.bien { color: var(--verde, #4fb35f); border-color: color-mix(in srgb, var(--verde, #4fb35f) 50%, transparent); }
+.av-rend.mal { color: var(--rojo, #e5534b); border-color: color-mix(in srgb, var(--rojo, #e5534b) 50%, transparent); }
+.av-aviso { color: var(--naranja, #e08a2a); }
+
+.real-tarea { font-size: 12px; color: var(--suave); white-space: nowrap; }
+.real-tarea.pasada { color: var(--naranja); }
+.proyecto-avance:not(:empty) { margin: -4px 0 10px; }

@@ -111,6 +111,7 @@
           [p.cliente, `${p.ots_abiertas} OT abiertas${p.ots > p.ots_abiertas ? ` · ${p.ots - p.ots_abiertas} cerradas` : ''}`,
            p.estado === 'cerrado' ? 'cerrado' : null].filter(Boolean).join(' · ')),
         condPendientes(p) ? el('span', { class: 'item-sub aviso-cond' }, `⚠ ${condPendientes(p)} condición(es) previa(s) pendiente(s)`) : null,
+        p.avance?.tareas ? el('span', { class: 'item-sub' }, window.s360.chipAvance(p.avance)) : null,
       ))) : [el('li', { class: 'ayuda' }, q ? 'Ningún proyecto coincide.' : 'Todavía no hay proyectos.')]));
   }
 
@@ -129,6 +130,7 @@
     $('#proyecto-ficha').hidden = !p;
     if (!p) return;
     $('#proyecto-titulo').textContent = `${p.codigo} · ${p.nombre || ''}`;
+    $('#proyecto-avance').replaceChildren(window.s360.chipAvance(p.avance) || '');
     $('#proyecto-borrar').hidden = !puedeEditar();
     $('#form-ot').hidden = !puedeEditar() || p.estado === 'cerrado';
 
@@ -288,7 +290,7 @@
         el('span', { class: 'gp-sub' }, [
           `${ots.length} OT`,
           pa?.horas ? `${durTxt(pa.horas_planificadas)}/${durTxt(pa.horas)}` : null,
-        ].filter(Boolean).join(' · '))),
+        ].filter(Boolean).join(' · '), pa ? window.s360.chipAvance(pa.avance, { compacto: true }) : null)),
       ...(ots.length ? ots.map(itemOT) : [el('li', { class: 'ayuda vacia' }, 'Sin OTs todavía')]),
     ]));
   }
@@ -309,6 +311,7 @@
           o.horas_planificadas > o.horas ? `+${durTxt(+(o.horas_planificadas - o.horas).toFixed(1))} sobre lo estimado` : null,
           o.estado === 'cerrada' ? 'cerrada' : null,
         ].filter(Boolean).join(' · ')),
+        o.avance?.tareas ? el('span', { class: 'item-sub' }, window.s360.chipAvance(o.avance)) : null,
         o.baja_presupuesto ? el('span', { class: 'item-sub baja-txt' }, 'Ya no está en el presupuesto (se conserva por tener planificación)') : null,
         o.tareas ? el('span', { class: 'barra', title: `${o.horas_planificadas}h planificadas de ${o.horas}h · ${o.hechas} de ${o.tareas} tareas hechas` },
           el('span', { class: 'b-plan', style: `width:${o.horas ? (o.horas_planificadas / o.horas) * 100 : 0}%` }),
@@ -380,11 +383,11 @@
     );
 
     const horas = o.lista_tareas.reduce((s, t) => s + t.duracion_h, 0);
-    $('#ot-resumen').textContent = o.lista_tareas.length
+    $('#ot-resumen').replaceChildren(o.lista_tareas.length
       ? `${o.lista_tareas.length} tareas · ${durTxt(o.horas_planificadas)} de ${durTxt(horas)} planificadas`
         + (o.horas_planificadas > horas ? ` (+${Math.round(((o.horas_planificadas - horas) / horas) * 100)}%)` : '')
         + (o.hp_estimadas ? ` · ${durTxt(+o.hp_planificadas.toFixed(1))} de ${durTxt(o.hp_estimadas)} horas-persona` : '')
-        + ` · ${o.hechas} hechas` : '';
+        + ` · ${o.hechas} hechas · ` : '', window.s360.chipAvance(o.avance) || '');
     pintarTareas();
   }
 
@@ -514,7 +517,7 @@
           onchange: (ev) => patch(t, { linea_id: ev.target.value ? Number(ev.target.value) : null }),
         }, Object.entries(areas).map(([v, n]) => el('option', { value: v, selected: String(t.linea_id ?? '') === v }, n)))),
         el('td', {}, req),
-        el('td', { class: 'est' }, el('span', { class: `est-${clasePlan}` }, etiquetaPlan), plan ? el('br') : null, plan),
+        el('td', { class: 'est' }, el('span', { class: `est-${clasePlan}` }, etiquetaPlan), plan ? el('br') : null, plan, realTarea(t)),
         el('td', {}, editar ? el('button', {
           type: 'button', class: 'ghost borrar', disabled: bloqueada,
           title: bloqueada ? 'No se puede borrar una tarea en curso o hecha' : 'Borrar tarea',
@@ -527,6 +530,20 @@
         }, '✕') : ''),
       );
     }));
+  }
+
+  // Horas reales de la tarea y su rendimiento (hecha) o lo que lleva (en curso)
+  function realTarea(t) {
+    const a = t.avance;
+    if (!a || !a.real_h) return null;
+    const txt = (x) => durTxt(+x.toFixed(1));
+    if (a.hecha) {
+      return el('span', { class: 'real-tarea', title: `Prevista en ${txt(a.prev_h)} (horas-persona) · costó ${txt(a.real_h)}` },
+        el('br'), `real ${txt(a.real_h)} `,
+        a.rendimiento_pct != null ? el('span', { class: `av-rend${window.s360.claseRend(a.rendimiento_pct)}` }, `${a.rendimiento_pct} %`) : null);
+    }
+    return el('span', { class: `real-tarea${a.real_h > a.prev_h ? ' pasada' : ''}`, title: 'Horas-persona apuntadas en el parte, de las previstas' },
+      el('br'), `llevas ${txt(a.real_h)} de ${txt(a.prev_h)}${a.real_h > a.prev_h ? ' ⚠' : ''}`);
   }
 
   /* ---------- importar proyecto del compositor (diálogo) ---------- */

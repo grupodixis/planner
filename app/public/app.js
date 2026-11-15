@@ -1260,6 +1260,7 @@
           el('span', { class: 'proy-txt' },
             el('span', { class: 'proy-nom' }, pk ? el('b', {}, t0.proyecto) : null, pk ? ` ${t0.proyecto_nombre || ''}` : 'Sin proyecto'),
             t0.cliente ? el('span', { class: 'proy-sub' }, t0.cliente) : null),
+          pk ? window.s360.chipAvance(estado.datos.avance?.proyectos?.[pk], { compacto: true }) : null,
           P.cond.length ? el('span', { class: 'cond-chip', title: `Condiciones previas sin confirmar:\n· ${P.cond.join('\n· ')}` }, `⚠ ${P.cond.length}`) : null,
           el('span', { class: 'proy-pend', title: 'Tareas con horas por planificar' }, P.pend ? `${P.pend} pend.` : '✓')),
         abierto ? el('div', { class: 'proy-cuerpo' }, partidas.map((A) => [
@@ -1290,7 +1291,8 @@
           entrega ? el('span', { class: tarde ? 'tarde' : '' }, `entrega ${entrega}`) : null,
           el('span', { title: `${pend.length} de ${tareas.length} tareas con horas por planificar` }, pend.length ? `${pend.length}/${tareas.length} pend.` : '✓ planificada'),
           el('span', { class: 'mini-barra', 'aria-hidden': 'true' }, el('span', { style: `width:${horas ? (plan / horas) * 100 : 0}%` })),
-          el('span', { class: 'ot-h' }, `${durTxt(+plan.toFixed(1))}/${durTxt(+horas.toFixed(1))}`))),
+          el('span', { class: 'ot-h', title: 'Horas planificadas / horas de la OT' }, `${durTxt(+plan.toFixed(1))}/${durTxt(+horas.toFixed(1))}`),
+          window.s360.chipAvance(estado.datos.avance?.ordenes?.[o.orden_id], { compacto: true }))),
       abierta && visibles.length ? el('div', { class: 'ot-tareas' }, visibles.map(tarjetaTarea)) : null);
   }
 

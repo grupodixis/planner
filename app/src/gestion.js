@@ -1,6 +1,7 @@
 // Pantalla "Proyectos y OTs": alta y edición de proyectos, órdenes de trabajo y sus tareas.
 const { query, tx } = require('./db');
 const auth = require('./auth');
+const avance = require('./avance');
 
 const FECHA_RE = /^\d{4}-\d{2}-\d{2}$/;
 const COLORES = ['#5aa9f0', '#e08a2a', '#4fb35f', '#b79cf2', '#e57ac4', '#6fcfc0', '#e0c341', '#f07070'];
@@ -92,6 +93,8 @@ module.exports = function montar(app, asyncH) {
                           FROM lineas l WHERE l.proyecto_id = p.id AND l.tipo = 'obra'), '[]') AS obras
          FROM proyectos p
         ORDER BY (p.estado = 'activo') DESC, p.codigo DESC`);
+    const av = await avance.resumen({ proyectoIds: rows.map((p) => p.id) });
+    for (const p of rows) p.avance = av.proyectos[p.id] || null;
     res.json(rows);
   }));
 
@@ -205,6 +208,8 @@ module.exports = function montar(app, asyncH) {
               (SELECT COALESCE(sum(x.duracion_h), 0)::float FROM ordenes o JOIN tareas t ON t.orden_id = o.id
                  JOIN tramos x ON x.tarea_id = t.id WHERE o.partida_id = pa.id) AS horas_planificadas
          FROM partidas pa WHERE pa.proyecto_id = $1 ORDER BY pa.orden, pa.id`, [proyecto]);
+    const av = await avance.resumen({ proyectoIds: [proyecto] });
+    for (const pa of rows) pa.avance = av.partidas[pa.id] || null;
     res.json(rows);
   }));
 
@@ -308,6 +313,8 @@ module.exports = function montar(app, asyncH) {
     const { rows } = await query(
       `${SQL_RESUMEN_OT} ${cond.length ? 'WHERE ' + cond.join(' AND ') : ''}
        ORDER BY pa.orden NULLS LAST, pa.id, (o.estado = 'abierta') DESC, o.prioridad, o.fecha_entrega NULLS LAST, o.codigo`, vals);
+    const av = await avance.resumen({ ordenIds: rows.map((o) => o.id) });
+    for (const o of rows) o.avance = av.ordenes[o.id] || null;
     res.json(rows);
   }));
 
@@ -334,7 +341,9 @@ module.exports = function montar(app, asyncH) {
               COALESCE((SELECT json_agg(json_build_object('id', q.tipo_recurso_id, 'cantidad', q.cantidad))
                           FROM tarea_requisitos_tipo q WHERE q.tarea_id = t.id), '[]') AS requisitos_tipo
          FROM tareas t WHERE t.orden_id = $1 ORDER BY t.orden_en_of, t.id`, [id]);
-    res.json({ ...rows[0], lista_tareas: tareas.rows });
+    const av = await avance.resumen({ ordenIds: [id] });
+    for (const t of tareas.rows) t.avance = av.tareas[t.id] || null;
+    res.json({ ...rows[0], avance: av.ordenes[id] || null, lista_tareas: tareas.rows });
   }));
 
   async function comprobarPartida(partidaId, proyectoId) {

@@ -4,6 +4,7 @@
 //  · Coste real = horas registradas × coste/hora del recurso (el de ese día; si no se guardó, el actual).
 //  · Importe = importe de la partida que trae el compositor (extra.importe_eur), si lo trae.
 const { query } = require('./db');
+const avance = require('./avance');
 const auth = require('./auth');
 const { jornada } = require('./config');
 const { MOTIVOS, NO_PRODUCTIVO } = require('./partes');
@@ -31,18 +32,26 @@ const SQL_REAL_TAREA = `
 
 function vacio() {
   return { prev_h: 0, est_h: 0, plan_h: 0, real_h: 0, prevision_h: 0, coste_op: 0, coste_maq: 0, coste_sub: 0, coste: 0,
-    sin_coste: 0, tareas: 0, hechas: 0, importe: null };
+    sin_coste: 0, tareas: 0, hechas: 0, importe: null, av: avance.base() };
 }
 function sumar(a, b) {
   for (const k of ['prev_h', 'est_h', 'plan_h', 'real_h', 'prevision_h', 'coste_op', 'coste_maq', 'coste_sub', 'coste', 'sin_coste', 'tareas', 'hechas']) a[k] += b[k];
   if (b.importe != null) a.importe = (a.importe || 0) + b.importe;
+  if (b.av) for (const k of Object.keys(a.av)) a.av[k] += b.av[k];
   return a;
 }
 function redondear(x) {
   for (const k of ['prev_h', 'est_h', 'plan_h', 'real_h', 'prevision_h', 'coste_op', 'coste_maq', 'coste_sub', 'coste']) x[k] = r2(x[k]);
   x.desvio_h = r2(x.prevision_h - x.prev_h);
   x.desvio_pct = x.prev_h ? Math.round((x.desvio_h / x.prev_h) * 1000) / 10 : null;
-  x.avance_pct = x.prev_h ? Math.min(100, Math.round((x.real_h / Math.max(x.prevision_h, 0.01)) * 1000) / 10) : null;
+  // avance y rendimiento: mismas reglas que en el resto de la aplicación (avance.js)
+  if (x.av) {
+    const a = avance.cerrar(x.av);
+    x.avance_pct = a.avance_pct;
+    x.rendimiento_pct = a.rendimiento_pct;
+    x.hecho_h = a.hecho_h;
+    x.curso_h = a.curso_h;
+  }
   if (x.importe != null) { x.importe = r2(x.importe); x.margen = r2(x.importe - x.coste); }
   return x;
 }
@@ -78,6 +87,7 @@ async function tareasDe(proyectoIds) {
     x.sin_coste = (re.operario?.sin || 0) + (re.maquina?.sin || 0) + (re.subcontrata?.sin || 0);
     x.tareas = 1;
     x.hechas = t.estado === 'hecha' ? 1 : 0;
+    avance.acumular(x.av, { prev_h: x.prev_h, real_h: x.real_h, hecha: t.estado === 'hecha', baja: t.baja_presupuesto });
     return { ...t, cifras: x };
   });
 }
@@ -133,7 +143,7 @@ function montar(app, asyncH) {
       }
       const o = ots.get(t.orden_id);
       sumar(o.cifras, t.cifras);
-      o.tareas.push({ id: t.id, nombre: t.nombre, estado: t.estado, baja: t.baja_presupuesto, ops: t.ops, cifras: redondear({ ...t.cifras }) });
+      o.tareas.push({ id: t.id, nombre: t.nombre, estado: t.estado, baja: t.baja_presupuesto, ops: t.ops, cifras: redondear({ ...t.cifras, av: { ...t.cifras.av } }) });
     }
     const grupos = [...partidas, { id: null, codigo: '', nombre: 'Sin partida', importe: null }].map((pa) => {
       const suyas = [...ots.values()].filter((o) => (o.partida_id || null) === pa.id);
