@@ -437,6 +437,71 @@ module.exports = function montar(app, asyncH) {
     res.json({ ok: true });
   }));
 
+  /* ---------- Dependencias entre tareas (editar a mano) ---------- */
+  // Tareas que dependen (directa o indirectamente) de :id → no pueden ser su previa (sería un círculo)
+  async function dependientesDe(c, id) {
+    const { rows } = await c.query(
+      `WITH RECURSIVE d AS (
+         SELECT tarea_id FROM tarea_dependencias WHERE depende_de_id = $1
+         UNION SELECT x.tarea_id FROM tarea_dependencias x JOIN d ON x.depende_de_id = d.tarea_id)
+       SELECT tarea_id FROM d`, [id]);
+    return new Set(rows.map((r) => r.tarea_id));
+  }
+
+  // Tareas que pueden ser previas de :id (mismo proyecto; si la OT no tiene proyecto, la misma OT)
+  app.get('/api/tareas/:id/dependencias', asyncH(async (req, res) => {
+    const id = Number(req.params.id);
+    const { rows: t } = await query(
+      `SELECT t.id, t.orden_id, o.proyecto_id, t.ref_externa FROM tareas t JOIN ordenes o ON o.id = t.orden_id WHERE t.id = $1`, [id]);
+    if (!t.length) throw fallo(404, 'Tarea no encontrada');
+    const [{ rows: posibles }, { rows: actuales }, ciclo] = await Promise.all([
+      query(`SELECT t.id, t.nombre, t.estado, o.id AS orden_id, o.codigo AS orden_codigo, o.titulo AS orden_titulo
+               FROM tareas t JOIN ordenes o ON o.id = t.orden_id
+              WHERE ((o.proyecto_id = $1::int) OR ($1::int IS NULL AND o.id = $2::int)) AND t.id <> $3
+              ORDER BY o.codigo, t.orden_en_of, t.id`, [t[0].proyecto_id, t[0].orden_id, id]),
+      query(`SELECT depende_de_id AS id, espera_h::float AS espera_h FROM tarea_dependencias WHERE tarea_id = $1`, [id]),
+      dependientesDe({ query }, id),
+    ]);
+    for (const p of posibles) p.ciclo = ciclo.has(p.id);
+    res.json({ tarea_id: id, importada: !!t[0].ref_externa, actuales, posibles });
+  }));
+
+  // { dependencias: [{ id, espera_h }] } sustituye las previas de la tarea
+  app.put('/api/tareas/:id/dependencias', auth.permiso('proyectos'), asyncH(async (req, res) => {
+    const id = Number(req.params.id);
+    const lista = Array.isArray(req.body?.dependencias) ? req.body.dependencias : null;
+    if (!lista) throw fallo(400, 'Faltan las dependencias');
+    const deps = new Map();
+    for (const d of lista) {
+      const pid = Number(d.id);
+      const espera = Number(d.espera_h || 0);
+      if (!Number.isInteger(pid) || pid === id) throw fallo(400, 'Tarea previa no válida');
+      if (!Number.isFinite(espera) || espera < 0 || espera > 720 || (espera * 2) % 1 !== 0) throw fallo(400, 'Espera no válida (0–720 h, en medias horas)');
+      deps.set(pid, espera);
+    }
+    await tx(async (c) => {
+      const { rows: t } = await c.query(
+        `SELECT t.orden_id, o.proyecto_id FROM tareas t JOIN ordenes o ON o.id = t.orden_id WHERE t.id = $1`, [id]);
+      if (!t.length) throw fallo(404, 'Tarea no encontrada');
+      if (deps.size) {
+        const { rows: ok } = await c.query(
+          `SELECT t.id, t.nombre FROM tareas t JOIN ordenes o ON o.id = t.orden_id
+            WHERE t.id = ANY($1) AND ((o.proyecto_id = $2::int) OR ($2::int IS NULL AND o.id = $3::int))`, [[...deps.keys()], t[0].proyecto_id, t[0].orden_id]);
+        if (ok.length !== deps.size) throw fallo(400, 'Solo puede depender de tareas del mismo proyecto');
+        const ciclo = await dependientesDe(c, id);
+        const malas = ok.filter((x) => ciclo.has(x.id));
+        if (malas.length) throw fallo(400, `«${malas[0].nombre}» ya va después de esta tarea: no puede ir antes (sería un círculo)`);
+      }
+      await c.query('DELETE FROM tarea_dependencias WHERE tarea_id = $1', [id]);
+      for (const [pid, espera] of deps) {
+        await c.query('INSERT INTO tarea_dependencias (tarea_id, depende_de_id, espera_h) VALUES ($1,$2,$3)', [id, pid, espera]);
+      }
+      await c.query('INSERT INTO historial (usuario_id, tarea_id, accion, detalle) VALUES ($1,$2,$3,$4)',
+        [req.usuario.id, id, 'dependencias', JSON.stringify({ previas: [...deps].map(([pid, e]) => ({ id: pid, espera_h: e })) })]);
+    });
+    res.json({ ok: true });
+  }));
+
   // Reordenar tareas dentro de la OT
   app.put('/api/ordenes/:id/tareas/orden', auth.permiso('proyectos'), asyncH(async (req, res) => {
     const ids = Array.isArray(req.body?.ids) ? req.body.ids.map(Number) : [];

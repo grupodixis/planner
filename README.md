@@ -519,6 +519,7 @@ vez. Al confirmar se importa todo de una vez (o nada).
 | POST | `/api/importar` | importar (transacción; devuelve el informe y el id del proyecto) |
 | GET | `/api/importaciones` | historial (`?proyecto_id=`) |
 | POST | `/api/proyectos/:id/condiciones` | `{texto}` añadir condición previa |
+| GET · PUT | `/api/tareas/:id/dependencias` | tareas que pueden ir antes (mismo proyecto; las que harían un círculo, marcadas) · `{dependencias: [{id, espera_h}]}` |
 | PATCH · DELETE | `/api/condiciones/:id` | `{cumplida, texto}` · quitar |
 
 ## Plan por fases
@@ -540,7 +541,7 @@ arrastre entre días. Hecho: calendario laboral (festivos, vacaciones, ausencias
 
 **Fase 5 – Dependencias y avisos.** Hecho en parte: dependencias entre tareas con espera
 (se importan del compositor; aviso leve si se planifica antes de tiempo) y condiciones previas
-del proyecto. Pendiente: editar dependencias a mano, confirmación de subcontratas/alquileres con fecha, avisos de retrasos. Hecho: actualización en vivo
+del proyecto. Hecho: editar dependencias a mano (pulsando «después de…» en la tarea). Pendiente: confirmación de subcontratas/alquileres con fecha, avisos de retrasos. Hecho: actualización en vivo
 entre usuarios (Server-Sent Events).
 
 **Fase 6 – Informes.** Hecho: proyectos (presupuesto / estimado / real / coste / importe),

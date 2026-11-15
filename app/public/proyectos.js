@@ -237,7 +237,7 @@
         editar ? el('button', {
           type: 'button', class: 'ghost borrar mini', 'aria-label': `Quitar «${c.texto}»`, title: 'Quitar',
           onclick: async () => { try { await api('DELETE', `/api/condiciones/${c.id}`); await recargar(); } catch (e) { toast(e.message, true); } },
-        }, '✕') : null))) : null,
+        }, '✕') : null))) : '',
       editar ? el('form', {
         class: 'alta cond-alta',
         onsubmit: async (ev) => {
@@ -247,7 +247,7 @@
           catch (e) { toast(e.message, true); }
         },
       }, el('input', { name: 'texto', placeholder: 'Nueva condición (p. ej. RAL confirmado por el cliente)', maxlength: 200, required: true, 'aria-label': 'Nueva condición previa' }),
-      el('button', { type: 'submit' }, 'Añadir')) : null,
+      el('button', { type: 'submit' }, 'Añadir')) : '',
     );
   }
 
@@ -448,14 +448,71 @@
           type: 'button', class: 'ghost mini', title: 'Quitar la marca y conservar la tarea',
           onclick: () => patch(t, { baja_presupuesto: false }),
         }, 'Mantener') : null) : null,
-      deps.length ? el('span', { class: 't-deps', title: `Va después de:\n${depTxt.join('\n')}` },
-        `⤷ después de ${depTxt.length === 1 ? depTxt[0] : `${depTxt[0]} y ${depTxt.length - 1} más`}`) : null,
+      deps.length ? el(editar ? 'button' : 'span', {
+        type: editar ? 'button' : null, class: `t-deps${editar ? ' editable' : ''}`,
+        title: `Va después de:\n${depTxt.join('\n')}${editar ? '\n\nPulsa para cambiarlo' : ''}`,
+        onclick: editar ? () => editarDependencias(t) : null,
+      }, `⤷ después de ${depTxt.length === 1 ? depTxt[0] : `${depTxt[0]} y ${depTxt.length - 1} más`}`)
+        : editar ? el('button', { type: 'button', class: 't-deps editable vacia', onclick: () => editarDependencias(t) }, '+ después de…') : null,
       t.notas || editar ? el('details', { class: `t-notas${t.notas ? '' : ' vacia'}` },
         el('summary', {}, t.notas ? `Notas: ${t.notas.length > 70 ? t.notas.slice(0, 70) + '…' : t.notas}` : '+ notas'),
         el('textarea', {
           rows: 3, maxlength: 4000, 'aria-label': `Notas de ${t.nombre}`, disabled: !editar,
           onchange: (ev) => patch(t, { notas: ev.target.value }),
         }, t.notas || '')) : null);
+  }
+
+  // Editor de «después de»: tareas previas (del mismo proyecto) con su espera
+  async function editarDependencias(t) {
+    let d;
+    try { d = await api('GET', `/api/tareas/${t.id}/dependencias`); } catch (e) { return toast(e.message, true); }
+    const porId = new Map(d.posibles.map((p) => [p.id, p]));
+    const elegidas = new Map(d.actuales.map((x) => [x.id, x.espera_h]));
+    const dlg = el('dialog', { class: 'dlg-deps', 'aria-labelledby': 'deps-tit' });
+    const lista = el('ul', { class: 'deps-lista' });
+    const sel = el('select', { 'aria-label': 'Añadir tarea previa' });
+    const pintar = () => {
+      lista.replaceChildren(...(elegidas.size ? [...elegidas].map(([id, espera]) => {
+        const p = porId.get(id);
+        return el('li', {},
+          el('span', { class: 'deps-nom' }, el('b', {}, p?.orden_codigo || ''), ` ${p?.nombre || 'tarea'}`),
+          el('label', { class: 'deps-espera', title: 'Horas de calendario que hay que esperar al terminar la previa (secado, curado, transporte…)' },
+            'espera ', el('input', {
+              type: 'number', min: 0, max: 720, step: 0.5, value: espera, 'aria-label': `Espera tras ${p?.nombre || 'la previa'}`,
+              oninput: (ev) => elegidas.set(id, Number(ev.target.value) || 0),
+            }), ' h'),
+          el('button', { type: 'button', class: 'ghost mini borrar', 'aria-label': `Quitar ${p?.nombre || ''}`, onclick: () => { elegidas.delete(id); pintar(); } }, '✕'));
+      }) : [el('li', { class: 'ayuda' }, 'Sin tareas previas: se puede planificar en cualquier momento.')]));
+      const ots = new Map();
+      for (const p of d.posibles) {
+        if (!ots.has(p.orden_id)) ots.set(p.orden_id, { txt: `${p.orden_codigo} · ${p.orden_titulo}`, ps: [] });
+        ots.get(p.orden_id).ps.push(p);
+      }
+      sel.replaceChildren(el('option', { value: '' }, '+ Añadir tarea previa…'),
+        ...[...ots.values()].map((o) => el('optgroup', { label: o.txt }, o.ps.map((p) => el('option', {
+          value: p.id, disabled: elegidas.has(p.id) || p.ciclo,
+        }, `${p.nombre}${p.ciclo ? ' (ya va después de esta)' : elegidas.has(p.id) ? ' ✓' : ''}`)))));
+    };
+    sel.onchange = () => { if (sel.value) { elegidas.set(Number(sel.value), 0); pintar(); } };
+    const cerrar = () => { dlg.close(); dlg.remove(); };
+    dlg.append(
+      el('h2', { id: 'deps-tit' }, 'Va después de…'),
+      el('p', { class: 'ayuda' }, `«${t.nombre}» no debería empezar hasta que terminen estas tareas (y pase la espera, si la hay). El tablero avisa si se planifica antes.`),
+      lista, sel,
+      d.importada ? el('p', { class: 'ayuda aviso-imp' }, 'Esta tarea viene del compositor: si se vuelve a importar, sus dependencias vuelven a ser las del compositor.') : null,
+      el('div', { class: 'acciones' },
+        el('button', { type: 'button', class: 'ghost', onclick: cerrar }, 'Cancelar'),
+        el('button', { type: 'button', class: 'primario', onclick: async () => {
+          try {
+            await api('PUT', `/api/tareas/${t.id}/dependencias`, { dependencias: [...elegidas].map(([id, espera_h]) => ({ id, espera_h })) });
+            cerrar(); toast('Dependencias guardadas'); await refrescarOT();
+          } catch (e) { toast(e.message, true); }
+        } }, 'Guardar')));
+    dlg.addEventListener('cancel', (ev) => { ev.preventDefault(); cerrar(); });
+    document.body.append(dlg);
+    pintar();
+    dlg.showModal();
+    sel.focus();
   }
 
   function pintarTareas() {
