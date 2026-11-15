@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#141414">
+  <title>s360 · Mi día</title>
+  <link rel="stylesheet" href="styles.css?v=202611152219">
+</head>
+<body class="midia-pant">
+  <header class="md-cab">
+    <div class="md-quien">
+      <b id="md-nombre"></b>
+      <nav class="md-fecha" aria-label="Cambiar día">
+        <button type="button" id="dia-ant" aria-label="Día anterior">‹</button>
+        <span id="fecha-txt"></span>
+        <button type="button" id="dia-sig" aria-label="Día siguiente">›</button>
+      </nav>
+    </div>
+    <button type="button" class="ghost" id="salir">Salir</button>
+  </header>
+
+  <main class="md-main">
+    <p class="md-resumen" id="resumen"></p>
+    <p class="md-aviso" id="aviso" hidden></p>
+    <div id="tramos"></div>
+
+    <section class="md-bloque" aria-labelledby="tit-extra">
+      <h2 id="tit-extra">Trabajo no planificado</h2>
+      <ul class="md-extra" id="extra"></ul>
+      <button type="button" class="md-mas" id="extra-abrir">+ Añadir (otra tarea, desplazamiento, espera…)</button>
+      <form id="form-extra" class="md-form-extra" hidden>
+        <div class="md-tipo" role="radiogroup" aria-label="Qué fue">
+          <label><input type="radio" name="tipo" value="productivo" checked> En una tarea</label>
+          <label><input type="radio" name="tipo" value="no_productivo"> No productivo</label>
+        </div>
+        <select name="tarea_id" aria-label="Tarea"></select>
+        <select name="motivo" aria-label="Qué hiciste" hidden></select>
+        <div class="md-horas">
+          <label>De <input name="desde" type="time" step="900" required></label>
+          <label>a <input name="hasta" type="time" step="900" required></label>
+        </div>
+        <input name="notas" maxlength="500" placeholder="Nota (opcional)" aria-label="Nota">
+        <div class="md-acciones">
+          <button type="button" class="ghost" id="extra-cancelar">Cancelar</button>
+          <button type="submit" class="primario">Añadir</button>
+        </div>
+      </form>
+    </section>
+
+    <section class="md-bloque" id="bloque-manana" hidden aria-labelledby="tit-manana">
+      <h2 id="tit-manana">Lo siguiente</h2>
+      <ul class="md-manana" id="manana"></ul>
+    </section>
+
+    <div class="md-enviar">
+      <button type="button" class="primario" id="enviar">Enviar mi día</button>
+      <p class="ayuda" id="enviar-txt"></p>
+    </div>
+  </main>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <script src="comun.js?v=202611152219"></script>
+  <script src="mi-dia.js?v=202611152219"></script>
+</body>
+</html>

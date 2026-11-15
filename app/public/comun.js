@@ -106,6 +106,8 @@
   // Lo llama cada pantalla al cargar el usuario (/api/me)
   function iniciar(u) {
     usuario = u;
+    // los operarios (solo «Mi día») no tienen nada que hacer en el resto de pantallas
+    if (u.solo_mi_dia && location.pathname !== '/mi-dia.html') { location.replace('/mi-dia.html'); return; }
     pintarNombre();
     const menu = document.querySelector('nav.menu');
     const enlaces = [['/parte.html', 'Parte', 'planificar'], ['/informes.html', 'Informes', 'informes'], ['/usuarios.html', 'Usuarios', 'usuarios']];

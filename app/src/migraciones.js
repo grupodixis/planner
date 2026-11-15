@@ -406,6 +406,68 @@ const MIGRACIONES = [
    )`,
   // permiso nuevo: ver informes de horas y costes (el Administrador lo tiene)
   `UPDATE roles SET permisos = array_append(permisos, 'informes') WHERE clave = 'admin' AND NOT ('informes' = ANY(permisos))`,
+
+  /* ---------- Operarios: entrada con PIN y «Mi día» ---------- */
+  // usuarios que solo entran con PIN (sin email ni contraseña)
+  `ALTER TABLE usuarios ALTER COLUMN email DROP NOT NULL`,
+  `ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS pin_hash TEXT`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS usuarios_pin_recurso_idx ON usuarios (recurso_id) WHERE pin_hash IS NOT NULL`,
+  `INSERT INTO roles (clave, nombre, descripcion, permisos, sistema, orden) VALUES
+     ('operario', 'Operario', 'Entra con PIN y solo apunta su propio día (Mi día)', '{mi_dia}', FALSE, 90)
+   ON CONFLICT (clave) DO NOTHING`,
+  // cómo se abrió la sesión (pin en tablet común = sesión corta)
+  `ALTER TABLE sesiones ADD COLUMN IF NOT EXISTS via TEXT`,
+  // móviles y tablets autorizados para entrar con PIN
+  `CREATE TABLE IF NOT EXISTS dispositivos (
+     id          SERIAL PRIMARY KEY,
+     token_hash  TEXT NOT NULL UNIQUE,
+     nombre      TEXT NOT NULL,
+     tipo        TEXT NOT NULL CHECK (tipo IN ('comun', 'personal')),
+     usuario_id  INT REFERENCES usuarios(id) ON DELETE CASCADE,   -- personal: el operario dueño del móvil
+     activo      BOOLEAN NOT NULL DEFAULT TRUE,
+     creado      TIMESTAMPTZ NOT NULL DEFAULT now(),
+     creado_por  INT REFERENCES usuarios(id) ON DELETE SET NULL,
+     ultimo_uso  TIMESTAMPTZ
+   )`,
+  // enlaces de un solo uso para dar de alta el móvil de un operario
+  `CREATE TABLE IF NOT EXISTS altas_movil (
+     token_hash  TEXT PRIMARY KEY,
+     usuario_id  INT NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+     expira      TIMESTAMPTZ NOT NULL,
+     usado       TIMESTAMPTZ,
+     creado_por  INT REFERENCES usuarios(id) ON DELETE SET NULL,
+     creado      TIMESTAMPTZ NOT NULL DEFAULT now()
+   )`,
+  // lo que declara cada operario de su día (lo confirma el encargado en el parte)
+  `CREATE TABLE IF NOT EXISTS declaraciones (
+     id             SERIAL PRIMARY KEY,
+     fecha          DATE NOT NULL,
+     recurso_id     INT NOT NULL REFERENCES recursos(id) ON DELETE CASCADE,
+     tipo           TEXT NOT NULL CHECK (tipo IN ('tramo', 'productivo', 'no_productivo')),
+     tramo_id       INT REFERENCES tramos(id) ON DELETE CASCADE,
+     tarea_id       INT REFERENCES tareas(id) ON DELETE CASCADE,
+     estado         TEXT CHECK (estado IN ('hecho', 'parcial', 'no')),
+     desde          NUMERIC(4,2),
+     hasta          NUMERIC(4,2),
+     terminada      BOOLEAN,
+     motivo         TEXT,
+     notas          TEXT,
+     usuario_id     INT REFERENCES usuarios(id) ON DELETE SET NULL,
+     actualizado    TIMESTAMPTZ NOT NULL DEFAULT now(),
+     resuelto       TEXT CHECK (resuelto IN ('confirmado', 'descartado')),
+     resuelto_en    TIMESTAMPTZ,
+     resuelto_por   INT REFERENCES usuarios(id) ON DELETE SET NULL,
+     registro_id    INT REFERENCES registros(id) ON DELETE SET NULL
+   )`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS declaraciones_tramo_idx ON declaraciones (tramo_id, recurso_id) WHERE tramo_id IS NOT NULL`,
+  `CREATE INDEX IF NOT EXISTS declaraciones_fecha_idx ON declaraciones (fecha, recurso_id)`,
+  `CREATE TABLE IF NOT EXISTS dias_enviados (
+     fecha       DATE NOT NULL,
+     recurso_id  INT NOT NULL REFERENCES recursos(id) ON DELETE CASCADE,
+     enviado_en  TIMESTAMPTZ NOT NULL DEFAULT now(),
+     usuario_id  INT REFERENCES usuarios(id) ON DELETE SET NULL,
+     PRIMARY KEY (fecha, recurso_id)
+   )`,
 ];
 
 async function migrar() {

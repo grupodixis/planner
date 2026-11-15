@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#141414">
+  <title>s360 · Entrar con PIN</title>
+  <link rel="stylesheet" href="styles.css?v=202611152219">
+</head>
+<body class="pin-pant">
+  <main class="pin-caja">
+    <h1>s360 · Mi día</h1>
+    <p class="pin-disp" id="disp"></p>
+
+    <!-- 1. ¿Quién eres? (tablet común) -->
+    <section id="paso-quien" hidden>
+      <h2>¿Quién eres?</h2>
+      <div class="pin-personas" id="personas"></div>
+    </section>
+
+    <!-- 2. PIN -->
+    <section id="paso-pin" hidden>
+      <h2 id="pin-hola"></h2>
+      <div class="pin-puntos" id="puntos" aria-live="polite" aria-label="PIN"><span></span><span></span><span></span><span></span></div>
+      <p class="error" id="err" role="alert"></p>
+      <div class="pin-teclado" id="teclado" role="group" aria-label="Teclado del PIN"></div>
+      <button type="button" class="ghost pin-volver" id="volver" hidden>‹ No soy yo</button>
+    </section>
+
+    <!-- Sin autorizar -->
+    <section id="paso-no" hidden>
+      <p>Este móvil o tablet no está autorizado para entrar con PIN.</p>
+      <p class="ayuda">Pide al encargado el enlace para tu móvil, o entra desde la tablet del taller.</p>
+    </section>
+
+    <!-- Alta del móvil -->
+    <section id="paso-alta" hidden>
+      <p id="alta-txt"></p>
+    </section>
+    <p class="pie pin-pie"><a href="/login.html">Entrar con email y contraseña</a></p>
+  </main>
+
+  <script src="pin.js?v=202611152219"></script>
+</body>
+</html>

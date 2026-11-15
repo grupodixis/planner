@@ -7,6 +7,7 @@
 const { query, tx } = require('./db');
 const auth = require('./auth');
 const { jornada } = require('./config');
+const midia = () => require('./midia');   // (perezoso: midia.js también usa este módulo)
 
 const FECHA_RE = /^\d{4}-\d{2}-\d{2}$/;
 const fallo = (status, msg) => Object.assign(new Error(msg), { status });
@@ -211,10 +212,26 @@ function montar(app, asyncH) {
                FROM ausencias a WHERE $1 BETWEEN a.desde AND a.hasta`, [fecha]),
       query(`SELECT id, nombre, tipo, activo FROM recursos WHERE activo ORDER BY tipo, nombre`),
     ]);
+    const { decl, enviados, conPin } = await midia().delDia(fecha);
     const porCierre = new Map(cierres.rows.filter((c) => c.tramo_id).map((c) => [c.tramo_id, c]));
     for (const tr of tramos.rows) {
       tr.cierre_info = porCierre.get(tr.id) || null;
       tr.registros = registros.rows.filter((g) => g.tramo_id === tr.id);
+      // lo que han apuntado los operarios en «Mi día» y la propuesta de cierre que sale de ello
+      tr.declaraciones = decl.filter((d) => d.tramo_id === tr.id);
+      tr.propuesta = tr.cierre ? null : midia().propuesta(tr, tr.declaraciones.filter((d) => !d.resuelto));
+    }
+    // quién ha enviado su día (operarios con PIN y algo planificado ese día)
+    const envio = new Map(enviados.map((e) => [e.recurso_id, e.enviado_en]));
+    const operariosDia = new Map();
+    for (const tr of tramos.rows) {
+      for (const a of tr.asignados) {
+        if (a.tipo !== 'operario' || !conPin.has(a.id)) continue;
+        const o = operariosDia.get(a.id) || { recurso_id: a.id, nombre: a.nombre, enviado_en: envio.get(a.id) || null, tramos: 0, apuntados: 0 };
+        o.tramos++;
+        if (tr.declaraciones.some((d) => d.recurso_id === a.id)) o.apuntados++;
+        operariosDia.set(a.id, o);
+      }
     }
     res.json({
       fecha, jornada, cerrado: cerrado.rows[0] || null,
@@ -222,6 +239,8 @@ function montar(app, asyncH) {
       no_hechos: cierres.rows.filter((c) => c.cierre === 'no_hecho'),
       sueltos: registros.rows.filter((g) => !g.tramo_id),
       registros: registros.rows,
+      declarado_extra: decl.filter((d) => d.tipo !== 'tramo' && !d.resuelto),
+      envios: [...operariosDia.values()].sort((a, b) => a.nombre.localeCompare(b.nombre)),
       ausencias: ausencias.rows,
       recursos: recursos.rows,
       motivos: MOTIVOS, no_productivo: NO_PRODUCTIVO,
@@ -286,6 +305,8 @@ function montar(app, asyncH) {
         await historial(c, req.usuario.id, tr.tarea_id, 'no_hecho', { fecha: tr.fecha, motivo: b.motivo, notas });
       } else {
         await c.query('UPDATE tramos SET cierre = $2 WHERE id = $1', [id, b.accion]);
+        await c.query(`UPDATE declaraciones SET resuelto = 'confirmado', resuelto_en = now(), resuelto_por = $2
+                        WHERE tramo_id = $1 AND resuelto IS NULL`, [id, req.usuario.id]);
         await historial(c, req.usuario.id, tr.tarea_id, 'parte', { tramo_id: id, cierre: b.accion, real_h: realH, motivo: b.motivo || null });
         const quitados = await avanzarTarea(c, req.usuario.id, tr, b.progreso);
         if (quitados?.length) await c.query('UPDATE tramo_cierres SET quitados = $2 WHERE id = $1', [ci[0].id, JSON.stringify(quitados)]);
@@ -324,6 +345,8 @@ function montar(app, asyncH) {
       } else {
         await c.query('DELETE FROM registros WHERE tramo_id = $1', [ci.tramo_id]);
         await c.query('UPDATE tramos SET cierre = NULL WHERE id = $1', [ci.tramo_id]);
+        // lo que habían apuntado los operarios vuelve a quedar pendiente de revisar
+        await c.query('UPDATE declaraciones SET resuelto = NULL, resuelto_en = NULL, resuelto_por = NULL WHERE tramo_id = $1', [ci.tramo_id]);
       }
       // la tarea vuelve a como estaba antes de este cierre (estado, estimación) y se reponen sus tramos quitados
       const a = ci.tarea_antes;
@@ -387,6 +410,11 @@ function montar(app, asyncH) {
     const out = await tx(async (c) => {
       await exigirAbierto(c, fecha);
       const { rows: abiertos } = await c.query('SELECT id FROM tramos WHERE fecha = $1 AND cierre IS NULL ORDER BY hora_inicio, id', [fecha]);
+      // lo apuntado por los operarios no se valida a ciegas: hay que revisarlo antes
+      const { rows: [{ n: sinRevisar }] } = await c.query(
+        `SELECT count(*)::int AS n FROM declaraciones d LEFT JOIN tramos x ON x.id = d.tramo_id
+          WHERE d.fecha = $1 AND d.resuelto IS NULL AND (d.tipo <> 'tramo' OR x.cierre IS NULL)`, [fecha]);
+      if (sinRevisar) throw fallo(409, `Hay ${sinRevisar} cosa(s) apuntada(s) por los operarios sin revisar: confírmalas o corrígelas antes de cerrar el día`);
       if (abiertos.length && !req.body?.validar_resto) throw fallo(409, `Quedan ${abiertos.length} tramo(s) sin cerrar`);
       let validados = 0;
       for (const { id } of abiertos) {

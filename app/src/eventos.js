@@ -3,7 +3,7 @@
 const clientes = new Set();
 let version = 0;
 
-const SIN_AVISO = /^\/api\/(login|logout|recuperar|restablecer|activar|eventos)/;
+const SIN_AVISO = /^\/api\/(login|logout|recuperar|restablecer|activar|eventos|pin\/entrar|pin\/alta-movil)/;
 
 function emitir(datos) {
   version++;

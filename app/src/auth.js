@@ -11,7 +11,10 @@ const PERMISOS = {
   recursos: 'Recursos, áreas de trabajo, tipos y semillero',
   usuarios: 'Usuarios y roles',
   informes: 'Ver informes de horas, costes y resultados',
+  mi_dia: 'Apuntar su propio día (Mi día). Solo, sin otros permisos: no ve nada más',
 };
+// Quien solo tiene «mi_dia» únicamente ve su pantalla Mi día (ni tablero, ni costes, ni lo de otros)
+const soloMiDia = (u) => !!u && (u.permisos || []).includes('mi_dia') && (u.permisos || []).every((k) => k === 'mi_dia');
 
 function hashPassword(password) {
   const salt = crypto.randomBytes(16).toString('hex');
@@ -45,15 +48,15 @@ function leerCookie(req, nombre) {
   return null;
 }
 
-async function crearSesion(res, usuarioId) {
+async function crearSesion(res, usuarioId, { duracionMs = DURACION_MS, via = null } = {}) {
   const token = crypto.randomBytes(32).toString('hex');
-  const expira = new Date(Date.now() + DURACION_MS);
-  await query('INSERT INTO sesiones (token, usuario_id, expira) VALUES ($1,$2,$3)', [token, usuarioId, expira]);
+  const expira = new Date(Date.now() + duracionMs);
+  await query('INSERT INTO sesiones (token, usuario_id, expira, via) VALUES ($1,$2,$3,$4)', [token, usuarioId, expira, via]);
   await query('UPDATE usuarios SET ultimo_acceso = now() WHERE id = $1', [usuarioId]);
   await query('DELETE FROM sesiones WHERE expira < now()');
   const segura = process.env.COOKIE_SECURE === 'true' ? '; Secure' : '';
   res.setHeader('Set-Cookie',
-    `${COOKIE}=${token}; HttpOnly; Path=/; SameSite=Lax; Max-Age=${DURACION_MS / 1000}${segura}`);
+    `${COOKIE}=${token}; HttpOnly; Path=/; SameSite=Lax; Max-Age=${Math.round(duracionMs / 1000)}${segura}`);
   return token;
 }
 
@@ -71,11 +74,12 @@ async function requiereSesion(req, res, next) {
     const token = leerCookie(req, COOKIE);
     if (!token) return res.status(401).json({ error: 'No autenticado' });
     const { rows } = await query(
-      `SELECT u.id, u.email, u.nombre, u.rol, u.recurso_id, r.nombre AS rol_nombre, COALESCE(r.permisos, '{}') AS permisos
+      `SELECT u.id, u.email, u.nombre, u.rol, u.recurso_id, r.nombre AS rol_nombre, COALESCE(r.permisos, '{}') AS permisos, s.via
          FROM sesiones s JOIN usuarios u ON u.id = s.usuario_id LEFT JOIN roles r ON r.clave = u.rol
         WHERE s.token = $1 AND s.expira > now() AND u.activo`, [token]);
     if (!rows.length) return res.status(401).json({ error: 'Sesión caducada' });
     req.usuario = rows[0];
+    req.usuario.solo_mi_dia = soloMiDia(rows[0]);
     next();
   } catch (e) { next(e); }
 }
@@ -132,6 +136,6 @@ async function asegurarAdmin() {
 }
 
 module.exports = {
-  PERMISOS, hashPassword, verificarPassword, validarPassword, crearSesion, cerrarSesion, tokenActual,
+  PERMISOS, soloMiDia, leerCookie, hashPassword, verificarPassword, validarPassword, crearSesion, cerrarSesion, tokenActual,
   requiereSesion, permiso, tiene, puedeEditar, asegurarAdmin, bloqueado, anotarFallo, anotarAcierto,
 };

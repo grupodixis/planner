@@ -24,12 +24,15 @@ app.get('/health', (req, res) => res.json({ ok: true, version: VERSION }));
 
 /* ---------- Autenticación ---------- */
 
+require('./pin').publico(app, asyncH);   // entrar con PIN desde un dispositivo autorizado (sin sesión)
 require('./usuarios')(app, asyncH);   // entrar, recuperar contraseña, Mi cuenta, usuarios y roles
+require('./pin').gestion(app, asyncH);   // PIN de operarios y dispositivos autorizados
 eventos.montar(app);   // GET /api/eventos (con sesión)
 
 /* ---------- Tablero y tramos ---------- */
 
-require('./partes').montar(app, asyncH);   // parte del día (va antes: protege lo ya cerrado)
+require('./partes').montar(app, asyncH);
+require('./midia').montar(app, asyncH);   // «Mi día» de cada operario y lo que declara para el parte   // parte del día (va antes: protege lo ya cerrado)
 require('./tramos')(app, asyncH);
 require('./informes').montar(app, asyncH);   // informes de horas y costes
 require('./ausencias').montar(app, asyncH);   // vacaciones, bajas, averías y festivos

@@ -87,9 +87,14 @@ app/src/conflictos.js     reglas de conflicto del día
 app/src/ausencias.js      ausencias (vacaciones, bajas, averías), festivos y saldo de vacaciones
 app/src/partes.js         parte del día: cierres de tramos, horas reales, cerrar el día
 app/src/informes.js       informes de horas y costes
+app/src/avance.js         avance y rendimiento (tarea › OT › partida › proyecto)
+app/src/pin.js            entrada con PIN para operarios y dispositivos autorizados
+app/src/midia.js          «Mi día» del operario y lo que declara para el parte
+app/src/eventos.js        avisos en vivo entre pantallas (Server-Sent Events)
 app/src/importar.js       importación de proyectos del compositor (s360-import/1)
 app/src/migraciones.js    cambios de esquema que se aplican solos al arrancar
-app/public/               frontend sin compilación: index (tablero), proyectos, recursos, usuarios
+app/public/               frontend sin compilación: index (tablero), proyectos, recursos, usuarios,
+                          parte, informes, pin (entrar con PIN) y mi-dia (operarios)
 ```
 
 ## Vistas Día, Semana y Mes
@@ -301,6 +306,53 @@ toca: lo real se guarda aparte y se compara.
 - Cada hora real guarda el coste/hora del recurso de ese momento (si después cambia, el
   histórico no cambia; si no tenía, se usa el actual).
 
+## Avance y rendimiento
+
+Mismas reglas en todas las pantallas (`app/src/avance.js`):
+
+- **Peso** de una tarea = horas-persona previstas al crearla o importarla (estimación inicial ×
+  operarios). No cambia aunque luego se reestime con «faltan X h».
+- **Avance** = peso de las tareas **terminadas** ÷ peso total (OT, partida o proyecto). Una
+  tarea cuenta solo al terminarla (lo confirma el encargado). Las que el compositor quitó del
+  presupuesto no cuentan, salvo que ya estén hechas.
+- **Rendimiento** = peso de lo terminado ÷ horas reales que costó (del parte). Más de 100 % = se
+  hizo en menos horas de las previstas. Solo cuentan las tareas terminadas con horas apuntadas.
+- **En curso**: tareas sin terminar que ya tienen horas reales; no suman avance, se enseñan
+  aparte y avisan (⚠) si ya se han pasado de lo previsto.
+- Los **hitos** son las OTs (con su fecha de entrega) y las partidas: para seguir un momento
+  como hito, el compositor lo hace OT.
+- Se ve en el tablero (OTs y proyectos con algo hecho), en Proyectos (lista, ficha, partidas,
+  OTs y cada tarea: «real 32 h · 125 %» o «llevas 45 h de 40») y en Informes (columnas Avance y
+  Rend., tarjetas).
+
+## Operarios: Mi día con PIN
+
+Cada operario apunta su día desde su móvil o desde una tablet común del taller; el encargado
+lo revisa y confirma siempre en el Parte.
+
+- **Acceso** (Usuarios › «Operarios: entrada con PIN»): se le pone un **PIN de 4 cifras** (no
+  vale 0000, 1234…; botón 🎲 para uno al azar). Se crea un usuario con el rol **Operario**
+  (permiso «mi_dia» solo): no ve el tablero, ni costes, ni lo de los demás.
+- El PIN **solo funciona en dispositivos autorizados**:
+  - **Tablet común**: quien administra usuarios entra en ella, pulsa «Autorizar este navegador
+    como tablet común» y sale. Allí se elige quién eres y se teclea el PIN. La sesión dura
+    15 min y la pantalla sale sola al enviar o a los 3 min sin tocarla.
+  - **Móvil del operario**: «Enlace para su móvil» (un solo uso, 3 días; se puede mandar por
+    WhatsApp). Al abrirlo, ese móvil queda autorizado solo para él.
+  - 5 PIN fallidos bloquean a ese operario 15 min; 20, el dispositivo.
+- **Mi día** (`/mi-dia.html`): sus trabajos de hoy (o ayer) con hora, área, OT y compañeros.
+  En cada uno: **✓ Hecho**, **◐ En parte** (de qué hora a qué hora) o **✗ No** (con motivo), y
+  **¿queda terminada la tarea?** (Sí / No, sigue). Nota opcional. **Trabajo no planificado**
+  (otra tarea o tiempo no productivo). **Lo siguiente** que tiene planificado. **Enviar mi
+  día** cuando lo tiene todo; puede seguir cambiándolo hasta que el encargado lo confirme.
+- **En el Parte** el encargado ve quién ha enviado (✔ / ◐ / ✗), lo apuntado en cada tramo y
+  los avisos (quién no ha apuntado, horas distintas, no lo hizo, desacuerdo sobre si quedó
+  terminada, terminada antes de lo previsto). **✓ Confirmar lo apuntado** cierra el tramo con
+  eso (eligiendo él si la tarea sigue o quedó terminada); **✎ Corregir** sale ya rellenado con
+  lo apuntado. Las horas fuera del plan apuntadas se **aceptan** o **descartan**. «Confirmar
+  todo lo apuntado sin avisos» lo hace de una vez. No se puede cerrar el día con cosas
+  apuntadas sin revisar. Deshacer un cierre vuelve a dejar lo apuntado pendiente.
+
 ## Informes
 
 Menú **Informes** (permiso «informes»; de serie solo el Administrador). Exportables a Excel (CSV).
@@ -421,6 +473,18 @@ vez. Al confirmar se importa todo de una vez (o nada).
 | POST · DELETE | `/api/registros` · `/api/registros/:id` | horas fuera del plan `{fecha, recurso_id, tarea_id?, desde, hasta, tipo, motivo?, notas?}` |
 | POST · DELETE | `/api/parte/cerrar` · `/api/parte/cerrar?fecha=` | cerrar el día `{fecha, validar_resto}` · reabrir |
 | GET | `/api/parte/pendientes` | días pasados con trabajo sin cerrar |
+| GET | `/api/pin/dispositivo` | (sin sesión) ¿este navegador está autorizado? y quién puede entrar en él |
+| POST | `/api/pin/entrar` · `/api/pin/alta-movil` | (sin sesión) `{usuario_id, pin}` · `{token}` autorizar el móvil con el enlace |
+| GET | `/api/pin` | operarios con/sin PIN y dispositivos autorizados (permiso «usuarios») |
+| PUT · DELETE | `/api/pin/:recursoId` | `{pin}` poner o cambiar el PIN · quitar el acceso |
+| POST | `/api/pin/:recursoId/enlace-movil` | enlace de un solo uso para su móvil |
+| POST · DELETE | `/api/pin/dispositivos` · `/api/pin/dispositivos/:id` | `{nombre}` autorizar este navegador como tablet común · desautorizar |
+| GET | `/api/mi-dia?fecha=` | (operario) sus tramos con lo apuntado, trabajo no planificado, lo siguiente |
+| PUT · DELETE | `/api/mi-dia/tramos/:id` | `{estado: hecho\|parcial\|no, desde?, hasta?, terminada?, motivo?, notas?}` · borrar lo apuntado |
+| POST · DELETE | `/api/mi-dia/extra` · `/api/mi-dia/extra/:id` | `{fecha, tipo, tarea_id?, motivo?, desde, hasta, notas?}` |
+| POST | `/api/mi-dia/enviar` | `{fecha}` avisar al encargado |
+| POST | `/api/declaraciones/:id/aceptar` · `/descartar` | (encargado) horas fuera del plan apuntadas por un operario |
+| GET | `/api/eventos` | avisos en vivo (Server-Sent Events) para que las pantallas se actualicen solas |
 | GET | `/api/informes/proyectos` · `/api/informes/proyecto/:id` | resumen de proyectos · detalle partida › OT › tarea |
 | GET | `/api/informes/operarios` · `/maquinas` · `/planificacion` | `?desde=&hasta=` |
 | GET | `/api/tablero?fecha=YYYY-MM-DD` · `?desde=…&hasta=…` | jornada, áreas, recursos, tareas abiertas, tramos del día o del rango (máx. 62 días) y avisos (cada uno con su `fecha`) |
@@ -466,17 +530,18 @@ Hecho también: recursos (operarios, maquinaria, subcontratas) y usuarios con ro
 activación por enlace y recuperación de contraseña.
 
 **Fase 3 – Registro real.** Hecho: parte del día del encargado (como estaba / corregir / no se
-hizo, faltan X h, terminada, horas fuera del plan, cerrar el día). Pendiente: que cada
-operario lo mande por WhatsApp desde el móvil y el encargado valide; conectar el reloj de
-fichaje (registro de jornada).
+hizo, faltan X h, terminada, horas fuera del plan, cerrar el día). Hecho: «Mi día» de cada
+operario con PIN (móvil o tablet común) que el encargado confirma en el parte; avance y
+rendimiento por tarea, OT, partida y proyecto. Pendiente: conectar el reloj de fichaje
+(registro de jornada).
 
 **Fase 4 – Vista semana y capacidad.** Hecho: vistas semana (con nº de semana) y mes, carga por día y por periodo. Pendiente: carga vs. capacidad más detallada,
 arrastre entre días. Hecho: calendario laboral (festivos, vacaciones, ausencias) con saldo de vacaciones.
 
 **Fase 5 – Dependencias y avisos.** Hecho en parte: dependencias entre tareas con espera
 (se importan del compositor; aviso leve si se planifica antes de tiempo) y condiciones previas
-del proyecto. Pendiente: editar dependencias a mano, confirmación de subcontratas/alquileres con fecha, avisos de retrasos, actualización en tiempo
-real (WebSocket) en lugar de refresco periódico.
+del proyecto. Pendiente: editar dependencias a mano, confirmación de subcontratas/alquileres con fecha, avisos de retrasos. Hecho: actualización en vivo
+entre usuarios (Server-Sent Events).
 
 **Fase 6 – Informes.** Hecho: proyectos (presupuesto / estimado / real / coste / importe),
 operarios, máquinas, fiabilidad y desvíos, exportación a Excel (CSV). Pendiente: materiales,

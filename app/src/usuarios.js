@@ -139,6 +139,11 @@ module.exports = function (app, asyncH) {
 
   /* ---------- A partir de aquí, con sesión ---------- */
   app.use('/api', auth.requiereSesion);
+  // Los operarios (solo «mi_dia») no ven nada más que lo suyo
+  app.use('/api', (req, res, next) => {
+    if (!req.usuario.solo_mi_dia || /^\/(me|logout|eventos|mi-dia(\/.*)?)$/.test(req.path)) return next();
+    res.status(403).json({ error: 'Con tu usuario solo puedes apuntar tu día' });
+  });
 
   app.get('/api/me', (req, res) => res.json({ ...req.usuario, permisos_todos: auth.PERMISOS }));
 
@@ -180,6 +185,7 @@ module.exports = function (app, asyncH) {
                  FROM enlaces_acceso e WHERE e.usuario_id = u.id AND e.usado IS NULL
                 ORDER BY e.creado DESC LIMIT 1) AS enlace
          FROM usuarios u LEFT JOIN recursos r ON r.id = u.recurso_id
+        WHERE u.pin_hash IS NULL OR u.email IS NOT NULL
         ORDER BY u.activo DESC, u.nombre`);
     const { rows: roles } = await query(
       `SELECT r.*, (SELECT count(*)::int FROM usuarios u WHERE u.rol = r.clave) AS usuarios

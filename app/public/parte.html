@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>s360 · Parte del día</title>
-  <link rel="stylesheet" href="styles.css?v=202611152208">
+  <link rel="stylesheet" href="styles.css?v=202611152219">
 </head>
 <body>
   <header class="top">
@@ -33,6 +33,7 @@
         <span id="estado-dia" class="estado-dia"></span>
       </div>
       <p class="ayuda">Cierra cada tramo: <b>✓ Como estaba</b> si se hizo tal cual, <b>✎ Corregir</b> si cambió la gente o las horas, <b>✗ No se hizo</b> si no se hizo (vuelve a «Por planificar»). Di también cómo va la tarea.</p>
+      <div id="mi-dia-envios" class="md-envios" hidden></div>
       <div id="tramos"></div>
       <div id="no-hechos"></div>
       <div class="cerrar-dia" id="cerrar-dia"></div>
@@ -62,12 +63,13 @@
         <input name="notas" maxlength="500" placeholder="Notas (opcional)" aria-label="Notas">
         <button type="submit" class="primario">Añadir</button>
       </form>
+      <div id="declarado-extra"></div>
       <ul id="sueltos" class="sueltos"></ul>
     </aside>
   </main>
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
-  <script src="comun.js?v=202611152208"></script>
-  <script src="parte.js?v=202611152208"></script>
+  <script src="comun.js?v=202611152219"></script>
+  <script src="parte.js?v=202611152219"></script>
 </body>
 </html>

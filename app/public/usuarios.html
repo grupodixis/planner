@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>s360 · Usuarios</title>
-  <link rel="stylesheet" href="styles.css?v=202611152208">
+  <link rel="stylesheet" href="styles.css?v=202611152219">
 </head>
 <body>
   <header class="top">
@@ -38,6 +38,24 @@
       </div>
     </section>
 
+    <section class="panel" aria-labelledby="tit-pin">
+      <div class="cab-panel"><h2 id="tit-pin">Operarios: entrada con PIN (Mi día)</h2></div>
+      <p class="ayuda">Cada operario apunta su día con un PIN de 4 cifras, desde su móvil o desde la tablet del taller. Solo ve y apunta lo suyo; el encargado lo confirma en el Parte. El PIN solo funciona en los dispositivos autorizados de abajo.</p>
+      <div class="tabla-scroll">
+        <table class="tabla-usuarios tabla-pin">
+          <thead><tr><th>Operario</th><th>PIN</th><th>Su móvil</th><th></th></tr></thead>
+          <tbody id="lista-pin"></tbody>
+        </table>
+      </div>
+      <h3 class="sep">Dispositivos autorizados</h3>
+      <ul class="lista-disp" id="lista-disp"></ul>
+      <form id="form-disp" class="alta-rol">
+        <input name="nombre" placeholder="Nombre (p. ej. Tablet del taller)" maxlength="60" aria-label="Nombre del dispositivo">
+        <button type="submit">Autorizar este navegador como tablet común</button>
+      </form>
+      <p class="ayuda">Para la tablet: entra en ella con tu usuario, abre esta pantalla, pulsa «Autorizar» y luego sal. Para el móvil de un operario: «Enlace para su móvil» y se lo mandas.</p>
+    </section>
+
     <section class="panel" aria-labelledby="tit-roles">
       <div class="cab-panel"><h2 id="tit-roles">Roles y permisos</h2></div>
       <p class="ayuda">Todos pueden ver el tablero, los proyectos y los recursos. Los permisos dicen qué puede <em>cambiar</em> cada rol. El Administrador lo puede todo y no se modifica.</p>
@@ -64,7 +82,7 @@
   </dialog>
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
-  <script src="comun.js?v=202611152208"></script>
-  <script src="usuarios.js?v=202611152208"></script>
+  <script src="comun.js?v=202611152219"></script>
+  <script src="usuarios.js?v=202611152219"></script>
 </body>
 </html>

@@ -61,6 +61,8 @@
     const asunto = activar ? 'Tu cuenta en el planificador s360' : 'Cambiar tu contraseña del planificador s360';
     const cuerpo = `Hola ${u.nombre}:\n\n${activar ? 'Te he dado de alta en el planificador s360.' : 'Aquí tienes el enlace para elegir una contraseña nueva.'} Ábrelo para elegir tu contraseña:\n\n${enl.url}\n\nSirve una sola vez y caduca en ${dias}.\n`;
     $('#enl-mail').href = `mailto:${encodeURIComponent(u.email)}?subject=${encodeURIComponent(asunto)}&body=${encodeURIComponent(cuerpo)}`;
+    $('#enl-mail').textContent = 'Abrir en mi correo';
+    $('#enl-mail').removeAttribute('target');
     if (!dlg.open) dlg.showModal();
     $('#enl-url').select();
   }
@@ -182,6 +184,74 @@
   }
 
   /* ---------- carga y arranque ---------- */
+  /* ---------- operarios con PIN y dispositivos ---------- */
+  const FACILES = new Set(['0000', '1111', '2222', '3333', '4444', '5555', '6666', '7777', '8888', '9999', '1234', '4321', '0123', '9876']);
+  function pinAlAzar() {
+    for (;;) {
+      const n = crypto.getRandomValues(new Uint16Array(1))[0] % 10000;
+      const p = String(n).padStart(4, '0');
+      if (!FACILES.has(p)) return p;
+    }
+  }
+
+  function filaPin(o) {
+    const conPin = o.tiene_pin && o.activo !== false;
+    const input = el('input', { inputmode: 'numeric', maxlength: 4, placeholder: '4 cifras', 'aria-label': `PIN de ${o.nombre}`, class: 'pin-input' });
+    const editor = el('span', { class: 'pin-editor', hidden: true },
+      input,
+      el('button', { type: 'button', class: 'ghost mini', title: 'Otro al azar', 'aria-label': 'Otro PIN al azar', onclick: () => { input.value = pinAlAzar(); } }, '🎲'),
+      el('button', { type: 'button', class: 'primario mini', onclick: async () => {
+        if (await guardar('PUT', `/api/pin/${o.recurso_id}`, { pin: input.value.trim() }, `PIN de ${o.nombre} guardado: díselo ahora (no se vuelve a mostrar)`)) cargarPin();
+      } }, 'Guardar'));
+    const abrirEditor = () => { editor.hidden = false; input.value = pinAlAzar(); input.focus(); input.select(); };
+    const movil = !conPin ? '—'
+      : o.tiene_movil ? `autorizado${o.movil_uso ? ` · usado ${hace(o.movil_uso)}` : ''}`
+        : o.alta_pendiente ? 'enlace enviado, sin abrir' : 'no';
+    return el('tr', {},
+      el('td', {}, o.nombre),
+      el('td', {}, conPin ? el('span', { class: 'est-ok' }, '✓ tiene PIN') : el('span', { class: 'suave' }, 'sin acceso'), ' ', editor),
+      el('td', { class: 'suave' }, movil),
+      el('td', { class: 'acciones' },
+        el('button', { type: 'button', class: 'ghost mini', onclick: abrirEditor }, conPin ? 'Cambiar PIN' : 'Poner PIN'),
+        conPin ? el('button', { type: 'button', class: 'ghost mini', onclick: () => enlaceMovil(o) }, 'Enlace para su móvil') : null,
+        conPin ? el('button', { type: 'button', class: 'ghost mini borrar', onclick: async () => {
+          if (!confirm(`¿Quitar el acceso con PIN a ${o.nombre}? Su móvil deja de valer. Lo ya apuntado se conserva.`)) return;
+          if (await guardar('DELETE', `/api/pin/${o.recurso_id}`, null, 'Acceso quitado')) cargarPin();
+        } }, 'Quitar') : null));
+  }
+
+  async function enlaceMovil(o) {
+    const r = await guardar('POST', `/api/pin/${o.recurso_id}/enlace-movil`);
+    if (!r) return;
+    const dlg = $('#dlg-enlace');
+    $('#dlg-enlace-tit').textContent = `Enlace para el móvil de ${o.nombre}`;
+    $('#enl-texto').textContent = 'Que lo abra en SU móvil: queda autorizado para entrar con su PIN. Que lo guarde en la pantalla de inicio para tenerlo a mano.';
+    $('#enl-url').value = r.url;
+    $('#enl-ayuda').textContent = `Sirve una sola vez y caduca en ${r.caduca_h / 24} días. Si generas otro, este deja de valer.`;
+    const texto = `Hola ${o.nombre.split(' ')[0]}: abre este enlace en tu móvil para apuntar tu día en el planificador (luego entras con tu PIN):\n${r.url}`;
+    $('#enl-mail').href = `https://wa.me/?text=${encodeURIComponent(texto)}`;
+    $('#enl-mail').textContent = 'Enviar por WhatsApp';
+    $('#enl-mail').target = '_blank';
+    $('#enl-mail').rel = 'noopener';
+    if (!dlg.open) dlg.showModal();
+    $('#enl-url').select();
+    cargarPin();
+  }
+
+  async function cargarPin() {
+    const d = await api('GET', '/api/pin');
+    $('#lista-pin').replaceChildren(...(d.operarios.length ? d.operarios.map(filaPin)
+      : [el('tr', {}, el('td', { colspan: 4, class: 'ayuda' }, 'No hay operarios activos en Recursos.'))]));
+    $('#lista-disp').replaceChildren(...(d.dispositivos.length ? d.dispositivos.map((x) => el('li', {},
+      el('span', {}, el('b', {}, x.nombre), x.id === d.este_dispositivo ? el('span', { class: 'chip-este' }, 'este') : null),
+      el('span', { class: 'suave' }, x.tipo === 'comun' ? 'tablet común' : `móvil de ${x.persona}`, ` · usado ${hace(x.ultimo_uso)}`),
+      el('button', { type: 'button', class: 'ghost mini borrar', onclick: async () => {
+        if (!confirm(`¿Desautorizar «${x.nombre}»? Ya no se podrá entrar con PIN desde ahí.`)) return;
+        if (await guardar('DELETE', `/api/pin/dispositivos/${x.id}`, null, 'Dispositivo desautorizado')) cargarPin();
+      } }, 'Quitar'))) : [el('li', { class: 'ayuda' }, 'Ninguno todavía.')]));
+    $('#form-disp').hidden = !!d.este_dispositivo;
+  }
+
   async function cargar() {
     estado.datos = await api('GET', '/api/usuarios');
     const f = $('#form-usuario');
@@ -193,6 +263,7 @@
       : 'Al dar de alta te damos un enlace para que se lo pases (por correo o mensaje): con él elige su contraseña. Para enviarlo automáticamente, configura el correo (SMTP) en el servidor.';
     pintarUsuarios();
     pintarRoles();
+    await cargarPin();
   }
 
   async function init() {
@@ -225,6 +296,14 @@
       const f = ev.target.form;
       const p = estado.datos.personas.find((x) => String(x.id) === ev.target.value);
       if (p && !f.nombre.value) f.nombre.value = p.nombre;
+    };
+    $('#form-disp').onsubmit = async (ev) => {
+      ev.preventDefault();
+      const nombre = ev.target.nombre.value.trim() || 'Tablet del taller';
+      if (await guardar('POST', '/api/pin/dispositivos', { nombre }, `«${nombre}» autorizado: ya se puede entrar con PIN desde este navegador`)) {
+        ev.target.nombre.value = '';
+        cargarPin();
+      }
     };
     $('#form-rol').onsubmit = async (ev) => {
       ev.preventDefault();

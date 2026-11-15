@@ -100,6 +100,8 @@
 
     pintarPersonas(d, ausDe);
     pintarFormHoras(d, editar);
+    pintarEnvios(d, editar);
+    pintarExtraDeclarado(d, editar);
   }
 
   /* ---------- tarjeta de un tramo ---------- */
@@ -130,8 +132,10 @@
         }, 'Deshacer') : null);
     }
 
-    // avance de la tarea (por defecto «terminada» si es su último tramo y cubre todas sus horas)
-    const ultimo = !tr.tramos_despues && tr.tarea_planificadas >= tr.tarea_h;
+    // avance de la tarea (por defecto «terminada» si es su último tramo y cubre todas sus horas;
+    // si los operarios lo han apuntado, lo que digan ellos)
+    const pr = tr.propuesta;
+    const ultimo = pr ? pr.terminada : !tr.tramos_despues && tr.tarea_planificadas >= tr.tarea_h;
     const nombre = `prog-${tr.id}`;
     const ops = Math.max(1, tr.operarios_req || 1);
     const faltan = el('input', { type: 'number', min: 0, step: 0.5, class: 'faltan', 'aria-label': 'Horas de tarea que faltan', value: '' });
@@ -150,14 +154,15 @@
     faltan.addEventListener('input', pintarExplica);
     const progreso = el('div', { class: 'tp-prog' },
       el('span', { class: 'etq' }, 'La tarea:'),
-      el('label', {}, el('input', { type: 'radio', name: nombre, value: 'sigue', checked: !ultimo }), ' sigue'),
+      el('label', {}, el('input', { type: 'radio', name: nombre, value: 'sigue', checked: !ultimo && !pr?.desacuerdo }), ' sigue'),
       el('label', {}, el('input', { type: 'radio', name: nombre, value: 'faltan' }), ' faltan ', faltan, ' h de tarea'),
-      el('label', {}, el('input', { type: 'radio', name: nombre, value: 'terminada', checked: ultimo }), ' terminada'),
+      el('label', {}, el('input', { type: 'radio', name: nombre, value: 'terminada', checked: ultimo && !pr?.desacuerdo }), ' terminada'),
       explica);
     faltan.addEventListener('focus', () => { progreso.querySelector('[value=faltan]').checked = true; });
     // devuelve el avance; undefined = el usuario ha decidido no seguir
     const leerProgreso = async () => {
       const v = progreso.querySelector(`input[name=${nombre}]:checked`)?.value;
+      if (!v) throw new Error('Decide si la tarea sigue o quedó terminada');
       if (v === 'terminada') {
         const q = await window.s360.preguntarTramosSobrantes(tr.tarea, tr.despues);
         if (q === null) return undefined;
@@ -172,6 +177,17 @@
 
     const zona = el('div', { class: 'tp-zona' });
     const botones = editar ? el('div', { class: 'tp-botones' },
+      pr ? el('button', {
+        type: 'button', class: 'primario', title: 'Cierra el tramo con lo que han apuntado los operarios',
+        onclick: async () => {
+          let p; try { p = await leerProgreso(); } catch (e) { return toast(e.message, true); }
+          if (p === undefined) return;
+          accion(async () => {
+            const r = await api('POST', `/api/tramos/${tr.id}/cierre`, cierreDePropuesta(pr, p));
+            return r.tramos_quitados ? `Confirmado · ${r.tramos_quitados} tramo(s) posteriores quitados` : 'Confirmado lo apuntado';
+          });
+        },
+      }, '✓ Confirmar lo apuntado') : null,
       el('button', {
         type: 'button', class: 'primario',
         onclick: async () => {
@@ -183,7 +199,7 @@
           });
         },
       }, '✓ Como estaba'),
-      el('button', { type: 'button', onclick: () => abrirCorregir(tr, zona, leerProgreso) }, '✎ Corregir'),
+      el('button', { type: 'button', onclick: () => abrirCorregir(tr, zona, leerProgreso, pr) }, '✎ Corregir'),
       el('button', { type: 'button', class: 'ghost', onclick: () => abrirNoHecho(tr, zona) }, '✗ No se hizo')) : null;
     const ant = tr.anteriores_abiertos || [];
     const avisoAnt = ant.length ? el('p', { class: 'tp-aviso' },
@@ -191,11 +207,72 @@
       ...ant.slice(0, 4).flatMap((a, i) => [i ? ', ' : '', a.fecha === tr.fecha ? `hoy ${hhmm(a.hora_inicio)}`
         : el('a', { href: `?fecha=${a.fecha}`, onclick: (ev) => { ev.preventDefault(); irA(a.fecha); } }, fechaCorta(a.fecha))]),
       '. Ciérralos antes: «faltan X h» y «terminada» los dan por hechos tal como estaban planificados.') : null;
-    return el('div', { class: 'tarjeta-parte', style: `--c:${tr.color}` }, cab, gente, avisoAnt, editar ? progreso : null, botones, zona);
+    return el('div', { class: `tarjeta-parte${pr ? ' con-declarado' : ''}`, style: `--c:${tr.color}` }, cab, gente, bloqueDeclarado(tr), avisoAnt, editar ? progreso : null, botones, zona);
+  }
+
+  // Lo que han apuntado los operarios en «Mi día» para este tramo
+  const EST_TXT = { hecho: '✓ hecho', parcial: '◐ en parte', no: '✗ no lo hizo' };
+  function bloqueDeclarado(tr) {
+    const decl = (tr.declaraciones || []).filter((x) => !x.resuelto);
+    if (!decl.length) return null;
+    const d = estado.datos;
+    return el('div', { class: 'tp-declarado' },
+      el('p', { class: 'tp-decl-tit' }, 'Apuntado por los operarios'),
+      el('ul', {}, decl.map((x) => el('li', { class: `e-${x.estado}` },
+        el('b', {}, x.recurso), ': ', EST_TXT[x.estado],
+        x.estado === 'parcial' ? ` ${hhmm(x.desde)}–${hhmm(x.hasta)}` : '',
+        x.estado !== 'no' && x.terminada === true ? ' · tarea terminada' : x.estado !== 'no' && x.terminada === false ? ' · sigue' : '',
+        x.motivo ? ` · ${d.motivos[x.motivo] || x.motivo}` : '',
+        x.notas ? el('span', { class: 'tp-decl-nota' }, ` «${x.notas}»`) : null))),
+      tr.propuesta?.avisos?.length ? el('ul', { class: 'tp-decl-avisos' }, tr.propuesta.avisos.map((a) => el('li', {}, `⚠ ${a}`))) : null);
+  }
+
+  // Cuerpo del cierre a partir de la propuesta (lo apuntado) y del avance elegido
+  function cierreDePropuesta(pr, progreso) {
+    if (pr.accion === 'no_hecho') return { accion: 'no_hecho', motivo: pr.motivo, notas: pr.notas };
+    return { accion: pr.accion, registros: pr.registros, motivo: pr.motivo, notas: pr.notas, progreso };
+  }
+
+  // Confirmar de una vez todo lo apuntado que no tiene avisos
+  async function confirmarTodo() {
+    const d = estado.datos;
+    const limpios = d.tramos.filter((tr) => !tr.cierre && tr.propuesta && !tr.propuesta.avisos.length);
+    let n = 0, err = 0;
+    for (const tr of limpios) {
+      let progreso = null;
+      if (tr.propuesta.accion !== 'no_hecho' && tr.propuesta.terminada) {
+        const q = await window.s360.preguntarTramosSobrantes(tr.tarea, tr.despues);
+        if (q === null) continue;
+        progreso = { terminada: true, quitar_futuros: q };
+      }
+      try { await api('POST', `/api/tramos/${tr.id}/cierre`, cierreDePropuesta(tr.propuesta, progreso)); n++; } catch (e) { err++; toast(e.message, true); }
+    }
+    for (const x of d.declarado_extra) {
+      try { await api('POST', `/api/declaraciones/${x.id}/aceptar`); n++; } catch (e) { err++; toast(e.message, true); }
+    }
+    if (!err) toast(`${n} confirmado(s)`);
+    await cargar();
+  }
+
+  // Quién ha enviado su día
+  function pintarEnvios(d, editar) {
+    const caja = $('#mi-dia-envios');
+    const pendientes = d.tramos.filter((tr) => !tr.cierre && tr.propuesta);
+    const limpios = pendientes.filter((tr) => !tr.propuesta.avisos.length).length + d.declarado_extra.length;
+    caja.hidden = !d.envios.length && !pendientes.length && !d.declarado_extra.length;
+    if (caja.hidden) return;
+    caja.replaceChildren(
+      el('span', { class: 'md-env-tit' }, 'Mi día:'),
+      ...d.envios.map((o) => el('span', {
+        class: `md-env ${o.enviado_en ? 'ok' : o.apuntados ? 'medio' : 'no'}`,
+        title: o.enviado_en ? `Enviado a las ${new Date(o.enviado_en).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}` : `Ha apuntado ${o.apuntados} de ${o.tramos} y no lo ha enviado`,
+      }, o.enviado_en ? '✔ ' : o.apuntados ? '◐ ' : '✗ ', o.nombre.split(' ')[0])),
+      editar && limpios ? el('button', { type: 'button', class: 'primario mini', onclick: confirmarTodo,
+        title: 'Confirma los tramos apuntados sin avisos y las horas fuera del plan apuntadas' }, `Confirmar todo lo apuntado sin avisos (${limpios})`) : '');
   }
 
   // Corregir: horas reales de cada persona / máquina
-  function abrirCorregir(tr, zona, leerProgreso) {
+  function abrirCorregir(tr, zona, leerProgreso, pr) {
     const d = estado.datos;
     const opciones = (sel) => [el('option', { value: '' }, '— elegir —'),
       ...['operario', 'maquina', 'subcontrata'].map((clase) => el('optgroup', { label: { operario: 'Operarios', maquina: 'Máquinas y vehículos', subcontrata: 'Subcontratas / alquiler' }[clase] },
@@ -211,7 +288,8 @@
     };
     // sale con lo planificado, sin quien faltó todo el día
     const fuera = new Set(d.ausencias.filter((x) => x.hora_desde == null).map((x) => x.recurso_id));
-    tr.asignados.filter((a) => !fuera.has(a.id)).forEach(fila);
+    if (pr?.registros) pr.registros.forEach((g) => fila({ id: g.recurso_id, desde: g.desde, hasta: g.hasta }));
+    else tr.asignados.filter((a) => !fuera.has(a.id)).forEach(fila);
     if (!filas.children.length) fila();
     const motivo = el('select', { 'aria-label': 'Por qué cambió' }, el('option', { value: '' }, '¿Por qué cambió? (opcional)'),
       Object.entries(d.motivos).map(([k, t]) => el('option', { value: k }, t)));
@@ -298,6 +376,19 @@
       el('span', { class: 'sl-quien' }, g.recurso),
       el('span', {}, `${hhmm(g.desde)}–${hhmm(g.hasta)} · ${g.tipo === 'productivo' ? `${g.orden_codigo} ${g.tarea}` : NP[g.motivo] || g.motivo}${g.notas ? ` · ${g.notas}` : ''}`),
       editar ? el('button', { type: 'button', class: 'ghost mini borrar', 'aria-label': 'Quitar', onclick: () => accion(() => api('DELETE', `/api/registros/${g.id}`), 'Quitado') }, '✕') : null)));
+  }
+
+  // Horas fuera del plan que han apuntado los operarios: aceptar o descartar
+  function pintarExtraDeclarado(d, editar) {
+    const NP = d.no_productivo;
+    $('#declarado-extra').replaceChildren(...(d.declarado_extra.length ? [
+      el('p', { class: 'tp-decl-tit' }, 'Apuntado por los operarios'),
+      el('ul', { class: 'sueltos declarados' }, d.declarado_extra.map((x) => el('li', {},
+        el('span', { class: 'sl-quien' }, x.recurso),
+        el('span', {}, `${hhmm(x.desde)}–${hhmm(x.hasta)} · ${x.tipo === 'productivo' ? `${x.orden_codigo} ${x.tarea}` : NP[x.motivo] || x.motivo}${x.notas ? ` · ${x.notas}` : ''}`),
+        editar ? el('span', { class: 'sl-acc' },
+          el('button', { type: 'button', class: 'primario mini', onclick: () => accion(() => api('POST', `/api/declaraciones/${x.id}/aceptar`), 'Aceptado') }, 'Aceptar'),
+          el('button', { type: 'button', class: 'ghost mini', onclick: () => accion(() => api('POST', `/api/declaraciones/${x.id}/descartar`), 'Descartado') }, 'Descartar')) : null)))] : []));
   }
 
   function irA(f) { estado.fecha = f; cargar().catch((e) => toast(e.message, true)); }
