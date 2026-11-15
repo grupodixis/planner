@@ -635,7 +635,9 @@
       if (estado.arrastre?.tipo !== 'recurso') return;
       ev.preventDefault(); ev.stopPropagation();
       b.classList.remove('recibe');
-      const recId = Number(ev.dataTransfer.getData(MIME_REC));
+      // el id sale del arrastre en curso (algunos navegadores no devuelven el dato del drag)
+      const recId = Number(estado.arrastre.id) || Number(ev.dataTransfer.getData(MIME_REC));
+      if (!recId) return toast('No se pudo saber qué recurso arrastrabas; prueba otra vez', true);
       if (tr.asignados.some((r) => r.id === recId)) return toast('Ese recurso ya está en este tramo');
       await accion(() => api('POST', `/api/tramos/${tr.id}/asignaciones`, { recurso_id: recId }), 'Recurso asignado');
     });

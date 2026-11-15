@@ -429,7 +429,10 @@ module.exports = function montar(app, asyncH) {
   app.post('/api/tramos/:id/asignaciones', auth.permiso('planificar'), asyncH(async (req, res) => {
     const id = Number(req.params.id);
     const recursoId = Number(req.body?.recurso_id);
+    if (!Number.isInteger(recursoId) || recursoId <= 0) throw fallo(400, 'Falta el recurso a asignar');
     await tx(async (c) => {
+      const { rows: rec } = await c.query('SELECT 1 FROM recursos WHERE id = $1', [recursoId]);
+      if (!rec.length) throw fallo(404, 'Ese recurso ya no existe; recarga la página');
       const f = await leerFranja(c, id, req.body || {});
       await c.query(
         `INSERT INTO tramo_asignaciones (tramo_id, recurso_id, asignado_por, desde, hasta) VALUES ($1,$2,$3,$4,$5)
