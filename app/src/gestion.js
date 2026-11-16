@@ -344,9 +344,9 @@ module.exports = function montar(app, asyncH) {
     const av = await avance.resumen({ ordenIds: [id] });
     for (const t of tareas.rows) t.avance = av.tareas[t.id] || null;
     const { rows: nm } = await query(
-      `SELECT count(*)::int AS n FROM materiales m JOIN tareas t ON t.id = m.tarea_id
-        WHERE t.orden_id = $1 AND m.origen = CASE WHEN EXISTS (SELECT 1 FROM materiales m2 JOIN tareas t2 ON t2.id = m2.tarea_id
-                                                               WHERE t2.orden_id = $1 AND m2.origen = 'bom') THEN 'bom' ELSE 'estimado' END`, [id]);
+      `SELECT count(*)::int AS n FROM materiales m
+        WHERE m.orden_id = $1 AND m.origen = CASE WHEN EXISTS (SELECT 1 FROM materiales m2 WHERE m2.orden_id = $1 AND m2.origen = 'bom')
+                                                  THEN 'bom' ELSE 'estimado' END`, [id]);
     res.json({ ...rows[0], avance: av.ordenes[id] || null, lista_tareas: tareas.rows, n_materiales: nm[0].n });
   }));
 

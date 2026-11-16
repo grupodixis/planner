@@ -151,7 +151,32 @@ function resolverTarea(valor, tareas, porDefecto) {
     || tareas.find((t) => sinAcentos(t.nombre) === v)?.id
     || tareas.find((t) => sinAcentos(t.nombre).startsWith(v))?.id
     || tareas.find((t) => sinAcentos(t.nombre).includes(v))?.id
+    || parecida(v, tareas)
     || null;
+}
+// «Corte perfiles HEA» ≈ «Corte de perfiles laminados HEA/IPE…»: la que comparte más palabras (≥ 60 % de las del texto)
+const palabras = (s) => new Set(sinAcentos(s).split(/[^a-z0-9]+/).filter((w) => w.length > 2 && !['del', 'las', 'los', 'con', 'para', 'por', 'una'].includes(w)));
+function parecida(v, tareas) {
+  const pv = palabras(v);
+  if (pv.size < 2) return null;
+  let mejor = null, nota = 0;
+  for (const t of tareas) {
+    const pt = palabras(t.nombre);
+    const comunes = [...pv].filter((w) => pt.has(w)).length;
+    const x = comunes / pv.size;
+    if (x > nota) { nota = x; mejor = t; }
+  }
+  return nota >= 0.6 ? mejor.id : null;
+}
+// tareas del proyecto de la OT; las de la propia OT primero (ganan si hay nombres repetidos)
+async function tareasProyecto(ordenId) {
+  const { rows } = await query(
+    `SELECT t.id, t.nombre, t.ref_externa, t.orden_id, o.codigo AS ot_codigo, t.orden_id = $1 AS de_esta_ot,
+            (SELECT min(x.fecha) FROM tramos x WHERE x.tarea_id = t.id) AS primera_fecha
+       FROM tareas t JOIN ordenes o ON o.id = t.orden_id
+      WHERE o.proyecto_id = (SELECT proyecto_id FROM ordenes WHERE id = $1)
+      ORDER BY (t.orden_id = $1) DESC, o.codigo, t.orden_en_of, t.id`, [ordenId]);
+  return rows;
 }
 
 /* ---------- Cálculo por OT: grupos, corte, estimado vs real, fechas ---------- */
@@ -184,13 +209,9 @@ async function calcular(ordenId) {
        FROM ordenes o LEFT JOIN proyectos p ON p.id = o.proyecto_id LEFT JOIN usuarios ub ON ub.id = o.bom_por
       WHERE o.id = $1`, [ordenId]);
   if (!ot.length) throw fallo(404, 'OT no encontrada');
-  const { rows: tareas } = await query(
-    `SELECT t.id, t.nombre, t.ref_externa, t.estado, t.orden_en_of,
-            (SELECT min(x.fecha) FROM tramos x WHERE x.tarea_id = t.id) AS primera_fecha
-       FROM tareas t WHERE t.orden_id = $1 ORDER BY t.orden_en_of, t.id`, [ordenId]);
+  const tareas = await tareasProyecto(ordenId);
   const { rows: lineas } = await query(
-    `SELECT m.* FROM materiales m JOIN tareas t ON t.id = m.tarea_id
-      WHERE t.orden_id = $1 ORDER BY m.origen, m.orden, m.id`, [ordenId]);
+    `SELECT m.* FROM materiales m WHERE m.orden_id = $1 ORDER BY m.origen, m.orden, m.id`, [ordenId]);
   const { rows: dec } = await query(
     `SELECT g.*, u.nombre AS revisado_por_nombre FROM material_grupos g LEFT JOIN usuarios u ON u.id = g.revisado_por
       WHERE g.orden_id = $1`, [ordenId]);
@@ -219,11 +240,13 @@ async function calcular(ordenId) {
     const fechas = [...g.tareas].map((id) => fechaTarea.get(id)).filter(Boolean).sort();
     const tipo = (g.perfil || '').split(' ')[0];
     const barraDef = aj.barras_tipo[tipo] || aj.barras_tipo[(g.perfil || '').split(' ').slice(0, 2).join(' ')] || aj.barra_mm;
-    const barra = d.barra_mm || barraDef;
+    const maxPieza = Math.max(0, ...(hayBom ? g.bom : g.estimado).map((l) => (l.unidad === 'ud' ? Number(l.longitud_mm) || 0 : 0)));
+    const barraAuto = maxPieza > barraDef ? ([12000, 14000, 16000].find((x) => x >= maxPieza) || barraDef) : barraDef;
+    const barra = d.barra_mm || barraAuto;
     const out = {
       clave: g.clave, familia: g.familia, perfil: g.perfil, material: g.material, acabado: g.acabado, descripcion: g.descripcion,
       tareas: [...g.tareas], fecha_necesaria: fechas[0] || null,
-      barra_mm: barra, barra_def_mm: barraDef,
+      barra_mm: barra, barra_def_mm: barraAuto, barra_auto: barraAuto !== barraDef,
       en_stock: d.en_stock ?? null, nota: d.nota || null, revisado_por: d.revisado_por_nombre || null, revisado_en: d.revisado_en || null,
       n_bom: g.bom.length, n_estimado: g.estimado.length,
     };
@@ -310,8 +333,8 @@ function montar(app, asyncH) {
     const ordenId = Number(req.params.id);
     const b = req.body || {};
     const origen = b.origen === 'estimado' ? 'estimado' : 'bom';
-    const { rows: tareas } = await query('SELECT id, nombre, ref_externa FROM tareas WHERE orden_id = $1 ORDER BY orden_en_of, id', [ordenId]);
-    if (!tareas.length) throw fallo(400, 'La OT no tiene tareas: crea antes la tarea que consume el material');
+    const tareas = await tareasProyecto(ordenId);
+    if (!tareas.some((t) => t.de_esta_ot)) throw fallo(400, 'La OT no tiene tareas: crea antes la tarea que consume el material');
     const { rows: ot } = await query('SELECT codigo, titulo FROM ordenes WHERE id = $1', [ordenId]);
     const p = parsear(b.texto);
     if (p.ot && ot[0] && sinAcentos(p.ot) !== sinAcentos(ot[0].codigo)) {
@@ -322,8 +345,13 @@ function montar(app, asyncH) {
     let errores = 0;
     p.filas.forEach((f, i) => {
       const r = normalizar(f, origen);
-      const tareaId = r.linea ? resolverTarea(r.linea.tarea, tareas, tareaDef) : null;
-      if (!r.error && !tareaId) r.error = r.linea.tarea ? `Tarea «${r.linea.tarea}» no encontrada en la OT` : 'Elige la tarea que consume el material';
+      let tareaId = r.linea ? resolverTarea(r.linea.tarea, tareas, tareaDef) : null;
+      // tarea que no existe en el proyecto: va a la de por defecto con aviso (se corrige luego en el despiece)
+      if (!r.error && !tareaId && r.linea.tarea && tareaDef) {
+        tareaId = tareaDef;
+        r.avisos = [...(r.avisos || []), `Tarea «${r.linea.tarea}» no encontrada: va a la de por defecto`];
+      }
+      if (!r.error && !tareaId) r.error = 'Elige la tarea que consume el material';
       if (r.error) errores++;
       filas.push({ fila: i + 1, ...r, tarea_id: tareaId });
     });
@@ -331,22 +359,22 @@ function montar(app, asyncH) {
     if (b.simular) {
       return res.json({ formato: p.formato, filas, validas: validas.length, errores, tarea_defecto: tareaDef,
         aviso_tarea: p.tarea && !resolverTarea(p.tarea, tareas, null) ? `La tarea «${p.tarea}» del archivo no está en esta OT: elige una` : null,
-        reemplaza: (await query(`SELECT count(*)::int AS n FROM materiales m JOIN tareas t ON t.id = m.tarea_id WHERE t.orden_id = $1 AND m.origen = $2`, [ordenId, origen])).rows[0].n });
+        reemplaza: (await query(`SELECT count(*)::int AS n FROM materiales WHERE orden_id = $1 AND origen = $2`, [ordenId, origen])).rows[0].n });
     }
     if (!validas.length) throw fallo(400, 'Ninguna línea válida');
     if (errores && !b.ignorar_errores) throw fallo(400, `${errores} línea(s) con error: corrígelas o impórtalas sin ellas`);
     await tx(async (c) => {
       // el BOM se sustituye entero (es la foto del despiece actual)
-      await c.query(`DELETE FROM materiales m USING tareas t WHERE t.id = m.tarea_id AND t.orden_id = $1 AND m.origen = $2`, [ordenId, origen]);
+      await c.query(`DELETE FROM materiales WHERE orden_id = $1 AND origen = $2`, [ordenId, origen]);
       let i = 0;
       for (const f of validas) {
         const l = f.linea;
         await c.query(
-          `INSERT INTO materiales (tarea_id, origen, familia, perfil, material, acabado, tratamiento, descripcion, marca,
+          `INSERT INTO materiales (orden_id, tarea_id, origen, familia, perfil, material, acabado, tratamiento, descripcion, marca,
                                    longitud_mm, angulo_a, angulo_b, cantidad, unidad, peso_kg, notas, orden, creado_por)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)`,
+           VALUES ($19,$1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)`,
           [f.tarea_id, origen, l.familia, l.perfil, l.material, l.acabado, l.tratamiento, l.descripcion, l.marca,
-            l.longitud_mm, l.angulo_a, l.angulo_b, l.cantidad, l.unidad, l.peso_kg, l.notas, ++i, req.usuario.id]);
+            l.longitud_mm, l.angulo_a, l.angulo_b, l.cantidad, l.unidad, l.peso_kg, l.notas, ++i, req.usuario.id, ordenId]);
       }
       if (origen === 'bom') await c.query('UPDATE ordenes SET bom_en = now(), bom_por = $2 WHERE id = $1', [ordenId, req.usuario.id]);
     });
@@ -366,8 +394,10 @@ function montar(app, asyncH) {
     const r = normalizar({ ...mapearObjeto(b), _comercial: !b.perfil && !!b.descripcion }, b.origen === 'estimado' ? 'estimado' : 'bom');
     if (r.error && !parcial) throw fallo(400, r.error);
     if (b.tarea_id != null) {
-      const { rows } = await query('SELECT 1 FROM tareas WHERE id = $1 AND orden_id = $2', [Number(b.tarea_id), ordenId]);
-      if (!rows.length) throw fallo(400, 'La tarea no es de esta OT');
+      const { rows } = await query(
+        `SELECT 1 FROM tareas t JOIN ordenes o ON o.id = t.orden_id
+          WHERE t.id = $1 AND o.proyecto_id = (SELECT proyecto_id FROM ordenes WHERE id = $2)`, [Number(b.tarea_id), ordenId]);
+      if (!rows.length) throw fallo(400, 'La tarea no es de este proyecto');
     }
     return r;
   }
@@ -380,16 +410,16 @@ function montar(app, asyncH) {
     const r = await leerLineaEditable(b, ordenId, false);
     const l = r.linea;
     const { rows } = await query(
-      `INSERT INTO materiales (tarea_id, origen, ${COLS.join(', ')}, orden, creado_por)
+      `INSERT INTO materiales (tarea_id, origen, ${COLS.join(', ')}, orden, creado_por, orden_id)
        VALUES ($1, $2, ${COLS.map((_, i) => `$${i + 3}`).join(', ')},
-               COALESCE((SELECT max(orden) FROM materiales WHERE tarea_id = $1), 0) + 1, $${COLS.length + 3}) RETURNING *`,
-      [Number(b.tarea_id), b.origen === 'estimado' ? 'estimado' : 'bom', ...COLS.map((k) => l[k]), req.usuario.id]);
+               COALESCE((SELECT max(orden) FROM materiales WHERE orden_id = $${COLS.length + 4}), 0) + 1, $${COLS.length + 3}, $${COLS.length + 4}) RETURNING *`,
+      [Number(b.tarea_id), b.origen === 'estimado' ? 'estimado' : 'bom', ...COLS.map((k) => l[k]), req.usuario.id, ordenId]);
     res.status(201).json({ ...rows[0], avisos: r.avisos });
   }));
 
   app.patch('/api/materiales/:id', auth.permiso('materiales'), asyncH(async (req, res) => {
     const id = Number(req.params.id);
-    const { rows: act } = await query('SELECT m.*, t.orden_id FROM materiales m JOIN tareas t ON t.id = m.tarea_id WHERE m.id = $1', [id]);
+    const { rows: act } = await query('SELECT m.* FROM materiales m WHERE m.id = $1', [id]);
     if (!act.length) throw fallo(404, 'Línea no encontrada');
     // se vuelve a normalizar la línea entera con lo cambiado encima
     const b = { ...act[0], ...req.body };
@@ -440,7 +470,7 @@ function montar(app, asyncH) {
   // Todas las OTs con material: para almacén (qué revisar) y para la vista general
   app.get('/api/materiales/ots', auth.permiso('materiales', 'almacen', 'compras', 'proyectos', 'planificar'), asyncH(async (req, res) => {
     const { rows } = await query(
-      `SELECT DISTINCT t.orden_id FROM materiales m JOIN tareas t ON t.id = m.tarea_id JOIN ordenes o ON o.id = t.orden_id
+      `SELECT DISTINCT m.orden_id FROM materiales m JOIN ordenes o ON o.id = m.orden_id
         WHERE o.estado IS DISTINCT FROM 'cerrada'`);
     const out = [];
     for (const r of rows) {
@@ -499,8 +529,8 @@ async function guardarEstimado(c, tareaId, lista, usuarioId) {
     const l = r.linea;
     await c.query(
       `INSERT INTO materiales (tarea_id, origen, familia, perfil, material, acabado, tratamiento, descripcion, marca,
-                               longitud_mm, angulo_a, angulo_b, cantidad, unidad, peso_kg, notas, orden, creado_por)
-       VALUES ($1,'estimado',$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)`,
+                               longitud_mm, angulo_a, angulo_b, cantidad, unidad, peso_kg, notas, orden, creado_por, orden_id)
+       VALUES ($1,'estimado',$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,(SELECT orden_id FROM tareas WHERE id = $1))`,
       [tareaId, l.familia, l.perfil, l.material, l.acabado, l.tratamiento, l.descripcion, l.marca,
         l.longitud_mm, l.angulo_a, l.angulo_b, l.cantidad, l.unidad, l.peso_kg, l.notas, ++i, usuarioId || null]);
   }

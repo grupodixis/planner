@@ -25,6 +25,7 @@
   const fecha = (f) => (f ? new Date(`${f}T12:00:00`).toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' }) : '');
   const nf = (n, d = 2) => (n == null ? '' : Number(n).toLocaleString('es-ES', { maximumFractionDigits: d }));
   const metrosBarra = (mm) => `${nf(mm / 1000, 2)} m`;
+  const norm = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
   const DIAS = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
 
   const params = new URLSearchParams(location.search);
@@ -36,7 +37,17 @@
   const etiquetaAcabado = (k) => (k ? (opciones?.acabados[k] || k).replace(/ \(.*\)$/, '') : '');
   const chips = (g) => [g.material, etiquetaAcabado(g.acabado)].filter(Boolean).map((t) => el('span', { class: 'mat-chip' }, t));
   const unidadTxt = (g, n) => (g.unidad === 'barra' ? `${nf(n, 0)} ${n === 1 ? 'barra' : 'barras'} de ${metrosBarra(g.barra_mm)}` : `${nf(n, 3)} ${g.unidad}`);
-  const nombreTarea = (id) => datos.tareas.find((t) => t.id === id)?.nombre || `#${id}`;
+  const nombreTarea = (id) => {
+    const t = datos.tareas.find((x) => x.id === id);
+    return t ? (t.de_esta_ot ? t.nombre : `${t.nombre} (${t.ot_codigo})`) : `#${id}`;
+  };
+  // tareas del proyecto agrupadas por OT (la de esta OT, primero)
+  const opcionesTareas = (sel) => {
+    const porOt = new Map();
+    for (const t of datos.tareas) { if (!porOt.has(t.ot_codigo)) porOt.set(t.ot_codigo, []); porOt.get(t.ot_codigo).push(t); }
+    return [...porOt].map(([ot, ts]) => el('optgroup', { label: ot === datos.ot.codigo ? `${ot} (esta OT)` : ot },
+      ts.map((t) => el('option', { value: t.id, selected: t.id === sel }, t.nombre))));
+  };
 
   /* ---------- Lista de OTs ---------- */
   async function cargarLista() {
@@ -79,7 +90,7 @@
       tarjeta('Almacén', `${r.revisados}/${r.materiales}`, r.revisados < r.materiales ? 'pendientes de revisar' : 'todo revisado', r.revisados < r.materiales ? 'aviso' : 'bien'),
       tarjeta('A pedir', String(r.a_pedir), r.revisados < r.materiales ? 'de lo ya revisado' : 'materiales'),
       tarjeta('Hace falta', r.fecha_necesaria ? fecha(r.fecha_necesaria) : '—', r.fecha_necesaria ? 'primera tarea que lo usa' : 'tareas sin planificar'),
-      tragina ? tarjeta('Vía Tragina', `${fecha(tragina.pedir_antes)} ${tragina.hora}:00`, tragina.vencido ? 'ya no llega: Luchana o local' : `llega el ${fecha(tragina.llegada)}`, tragina.vencido ? 'mal' : '') : null);
+      tragina ? tarjeta('Vía Tragina', `${fecha(tragina.pedir_antes)} ${tragina.hora}:00`, tragina.vencido ? 'ya no llega: Luchana o local' : `llega el ${fecha(tragina.llegada)}`, tragina.vencido ? 'mal' : '') : '');
     for (const b of document.querySelectorAll('[role=tab]')) b.setAttribute('aria-selected', String(b.dataset.vista === vista));
     if (vista === 'bom') pintarBom();
     else if (vista === 'comparar') pintarComparar();
@@ -126,7 +137,7 @@
         el('td', {}, g.unidad === 'barra' && puede.editar
           ? el('select', { class: 'mat-barra', 'aria-label': 'Barra comercial', onchange: (ev) => guardarGrupo(g, { barra_mm: ev.target.value === 'def' ? null : Number(ev.target.value) }) },
             [...new Set([g.barra_def_mm, 6000, 12000, 1000, 3000, g.barra_mm])].map((mm) => el('option', { value: mm === g.barra_def_mm ? 'def' : mm, selected: mm === g.barra_mm },
-              `${metrosBarra(mm)}${mm === g.barra_def_mm ? ' (normal)' : ''}`)))
+              `${metrosBarra(mm)}${mm === g.barra_def_mm ? (g.barra_auto ? ' (por la pieza más larga)' : ' (normal)') : ''}`)))
           : g.unidad === 'barra' ? metrosBarra(g.barra_mm) : '')));
       if (abierto && c) filas.push(el('tr', { class: 'mat-corte-fila' }, el('td', { colspan: 7 }, planoCorte(g))));
     }
@@ -190,7 +201,7 @@
         catch (e) { toast(e.message, true); await cargar(); }
       };
       let input;
-      if (tipo === 'tarea') input = el('select', { onchange: (ev) => guardar(Number(ev.target.value)) }, datos.tareas.map((t) => el('option', { value: t.id, selected: t.id === v }, t.nombre)));
+      if (tipo === 'tarea') input = el('select', { onchange: (ev) => guardar(Number(ev.target.value)) }, opcionesTareas(v));
       else if (tipo === 'unidad') input = el('select', { onchange: (ev) => guardar(ev.target.value) }, opciones.unidades.map((u) => el('option', { value: u, selected: u === v }, u)));
       else if (tipo === 'acabado') input = el('select', { onchange: (ev) => guardar(ev.target.value) }, el('option', { value: '' }, '—'),
         Object.entries(opciones.acabados).map(([kk, t]) => el('option', { value: kk, selected: kk === v }, t.replace(/ \(.*\)$/, ''))),
@@ -205,7 +216,7 @@
     for (const t of datos.tareas) {
       const ls = porTarea.get(t.id);
       if (!ls) continue;
-      cuerpo.push(el('tr', { class: 'mat-fam' }, el('th', { colspan: COLS.length + 1 }, `${t.nombre}`, el('span', { class: 'ayuda' }, ` · ${ls.length} líneas${t.primera_fecha ? ` · desde el ${fecha(t.primera_fecha)}` : ''}`))));
+      cuerpo.push(el('tr', { class: 'mat-fam' }, el('th', { colspan: COLS.length + 1 }, nombreTarea(t.id), el('span', { class: 'ayuda' }, ` · ${ls.length} líneas${t.primera_fecha ? ` · desde el ${fecha(t.primera_fecha)}` : ''}`))));
       for (const l of ls) {
         cuerpo.push(el('tr', {}, COLS.map((c) => celda(l, c)),
           el('td', {}, editable ? el('button', { type: 'button', class: 'ghost borrar', 'aria-label': 'Quitar línea', title: 'Quitar línea',
@@ -238,7 +249,7 @@
     el('input', { name: 'material', placeholder: 'Material', size: 7 }),
     el('input', { name: 'longitud_mm', type: 'number', step: 'any', placeholder: 'L mm', size: 6 }),
     el('input', { name: 'cantidad', type: 'number', step: 'any', placeholder: 'Cant.', size: 4, required: true }),
-    el('select', { name: 'tarea_id', 'aria-label': 'Tarea que lo consume' }, datos.tareas.map((t) => el('option', { value: t.id }, t.nombre))),
+    el('select', { name: 'tarea_id', 'aria-label': 'Tarea que lo consume' }, opcionesTareas(null)),
     el('button', { type: 'submit', class: 'primario' }, '＋ Añadir'));
     return f;
   }
@@ -276,8 +287,9 @@
   function dialogoImportar() {
     const ta = el('textarea', { rows: 10, class: 'mat-texto', placeholder: 'Pega aquí el JSON (s360-bom/1) o una tabla copiada de Excel / Notion con cabecera (marca, perfil, material, longitud, cantidad…)' });
     const archivo = el('input', { type: 'file', accept: '.json,.csv,.txt,.tsv,application/json,text/csv,text/plain' });
-    const tareaSel = el('select', {}, el('option', { value: '' }, 'La que diga cada línea…'), datos.tareas.map((t) => el('option', { value: t.id }, t.nombre)));
-    const corteDef = datos.tareas.find((t) => /cort/i.test(t.nombre)) || datos.tareas[0];
+    const tareaSel = el('select', {}, el('option', { value: '' }, 'La que diga cada línea…'), opcionesTareas(null));
+    const propias = datos.tareas.filter((t) => t.de_esta_ot);
+    const corteDef = propias.find((t) => /cort/i.test(t.nombre)) || propias[0];
     if (corteDef) tareaSel.value = corteDef.id;
     const prev = el('div', { class: 'mat-prev' });
     const msg = el('p', { class: 'error', role: 'alert' });
@@ -302,9 +314,25 @@
     document.body.append(d);
     d.showModal();
     ta.focus();
+    let pendiente = null;
+    try { pendiente = sessionStorage.getItem('s360-bom-pendiente'); sessionStorage.removeItem('s360-bom-pendiente'); } catch { /* nada */ }
+    if (pendiente) { ta.value = pendiente; setTimeout(vistaPrevia, 0); }
 
     async function vistaPrevia() {
       msg.textContent = ''; prev.replaceChildren(); btnImp.disabled = true;
+      // ¿el archivo es de otra OT? se ofrece abrir esa OT con el archivo ya pegado
+      let otArchivo = null;
+      try { otArchivo = JSON.parse(ta.value).ot || null; } catch { /* tabla u otro: lo valida el servidor */ }
+      if (otArchivo && norm(otArchivo) !== norm(datos.ot.codigo)) {
+        const todas = await api('GET', '/api/ordenes');
+        const otra = todas.find((o) => norm(o.codigo) === norm(otArchivo));
+        msg.replaceChildren(`El archivo es de la ${otArchivo} y estás en la ${datos.ot.codigo}. `,
+          otra ? el('button', { type: 'button', class: 'primario', onclick: () => {
+            try { sessionStorage.setItem('s360-bom-pendiente', ta.value); } catch { /* sin almacenamiento: habrá que volver a pegarlo */ }
+            location.href = `/materiales.html?ot=${otra.id}&importar=1`;
+          } }, `Abrir ${otra.codigo} e importar allí`) : 'Esa OT no existe en el planificador: revisa el campo «ot» del archivo.');
+        return;
+      }
       try {
         const r = await api('POST', `/api/ordenes/${otId}/materiales/importar`, { texto: ta.value, tarea_id: tareaSel.value || null, simular: true });
         ultima = r;
@@ -406,6 +434,7 @@
     $('#btn-ajustes').onclick = dialogoAjustes;
     $('#btn-imprimir').onclick = imprimir;
     await cargar();
+    if (params.get('importar') && datos.puede.editar) { history.replaceState(null, '', `?ot=${otId}`); dialogoImportar(); }
     window.s360.alCambiar(cargar);
   }
   init().catch((e) => toast(e.message, true));

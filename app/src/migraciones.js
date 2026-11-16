@@ -645,6 +645,11 @@ const MIGRACIONES = [
      ('almacen', 'Almacén', 'Confirma existencias y recibe material', '{almacen}', FALSE, 7),
      ('compras', 'Compras', 'Proveedores y pedidos de material', '{compras,materiales,almacen}', FALSE, 8)
    ON CONFLICT (clave) DO NOTHING`,
+  // el BOM es de la OT donde se importa, pero cada línea puede ir a una tarea de otra OT del
+  // mismo proyecto (pintura en la OT de tratamiento, pernos en la de montaje…)
+  `ALTER TABLE materiales ADD COLUMN IF NOT EXISTS orden_id INT REFERENCES ordenes(id) ON DELETE CASCADE`,
+  `UPDATE materiales m SET orden_id = t.orden_id FROM tareas t WHERE t.id = m.tarea_id AND m.orden_id IS NULL`,
+  `CREATE INDEX IF NOT EXISTS materiales_orden_idx ON materiales (orden_id, origen)`,
   `UPDATE roles SET permisos = permisos || ARRAY['materiales','almacen','compras']
     WHERE clave = 'admin' AND NOT ('materiales' = ANY(permisos))`,
 ];
