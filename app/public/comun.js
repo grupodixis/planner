@@ -188,14 +188,24 @@
     if (!usuario || usuario.solo_mi_dia) return;
     let p;
     try { p = await api('GET', '/api/pendientes'); } catch { return; }
-    const poner = (href, n, titulo) => {
-      const a = document.querySelector(`nav.menu a[href="${href}"]`);
-      if (!a) return;
-      a.querySelector('.menu-num')?.remove();
-      if (n) a.append(el('span', { class: 'menu-num', title: titulo }, String(n)));
+    const marcar = (nodo, n, titulo) => {
+      if (!nodo) return;
+      nodo.querySelector('.menu-num')?.remove();
+      if (n) nodo.append(el('span', { class: 'menu-num', title: titulo }, String(n)));
     };
-    poner('/recursos.html', (p.vacaciones || 0) + (p.justificantes || 0),
-      [p.vacaciones && `${p.vacaciones} petición(es) de vacaciones por aprobar`, p.justificantes && `${p.justificantes} justificante(s) por revisar`].filter(Boolean).join('\n'));
+    const poner = (href, n, titulo) => {
+      const a = document.querySelector(`nav.menu a[data-menu="${href}"]`) || document.querySelector(`nav.menu a[href="${href}"]`);
+      if (!a) return;
+      a.dataset.menu = href;
+      // con algo pendiente, el enlace lleva directamente a donde está
+      a.href = n && href === '/recursos.html' ? '/recursos.html?tipo=calendario' : href;
+      marcar(a, n, titulo);
+    };
+    const nRec = (p.vacaciones || 0) + (p.justificantes || 0);
+    const tRec = [p.vacaciones && `${p.vacaciones} petición(es) de vacaciones por aprobar`, p.justificantes && `${p.justificantes} justificante(s) por revisar`].filter(Boolean).join('\n');
+    poner('/recursos.html', nRec, tRec ? `${tRec}\n(en Vacaciones y festivos)` : '');
+    // y dentro de Recursos, en la pestaña donde está
+    marcar(document.getElementById('tab-calendario'), nRec, tRec);
     poner('/parte.html', p.incidencias || 0, `${p.incidencias} incidencia(s) abierta(s)`);
   }
 

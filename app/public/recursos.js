@@ -475,6 +475,7 @@
   // Peticiones de vacaciones: primero Operaciones y después RRHH
   const EST_SOL = { pendiente_ops: 'espera a Operaciones', pendiente_rrhh: 'espera a RRHH', aprobada: 'aprobada', rechazada: 'rechazada' };
   async function pintarSolicitudes() {
+    window.s360.refrescarPendientes();   // contadores del menú y de la pestaña al día
     const puedo = { ops: window.s360.tiene('vacaciones_ops'), rrhh: window.s360.tiene('vacaciones_rrhh') };
     $('#sol-vac').hidden = !puedo.ops && !puedo.rrhh;
     if ($('#sol-vac').hidden) return;
