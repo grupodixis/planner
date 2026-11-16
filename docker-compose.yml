@@ -42,10 +42,15 @@ services:
       JORNADA_INICIO: ${JORNADA_INICIO:-7}
       JORNADA_FIN: ${JORNADA_FIN:-15}
       VACACIONES_DIAS: ${VACACIONES_DIAS:-22}
+      ARCHIVOS_DIR: /data/archivos
       TZ: Europe/Madrid
+    volumes:
+      # audios y vídeos de las capturas (las fotos van en la base de datos)
+      - archivos:/data/archivos
     ports:
       # En el PC: todas las interfaces. En el servidor: WEB_BIND=127.0.0.1 (lo publica nginx/Plesk)
       - "${WEB_BIND:-0.0.0.0}:${WEB_PORT:-8080}:3000"
 
 volumes:
   db_data:
+  archivos:

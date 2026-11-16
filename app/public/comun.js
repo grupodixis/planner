@@ -110,9 +110,10 @@
     if (u.solo_mi_dia && location.pathname !== '/mi-dia.html') { location.replace('/mi-dia.html'); return; }
     pintarNombre();
     const menu = document.querySelector('nav.menu');
-    const enlaces = [['/parte.html', 'Parte', 'planificar'], ['/informes.html', 'Informes', 'informes'], ['/usuarios.html', 'Usuarios', 'usuarios']];
+    const enlaces = [['/parte.html', 'Parte', 'planificar'], ['/bandeja.html', 'Bandeja', 'planificar'], ['/informes.html', 'Informes', 'informes'],
+      ['/usuarios.html', 'Usuarios', 'usuarios'], ['/capturar.html', '＋ Capturar', null]];
     for (const [href, txt, permiso] of enlaces) {
-      if (!menu || !tiene(permiso) || menu.querySelector(`a[href="${href}"]`)) continue;
+      if (!menu || (permiso && !tiene(permiso)) || menu.querySelector(`a[href="${href}"]`)) continue;
       const a = el('a', { href }, txt);
       if (location.pathname === href) a.setAttribute('aria-current', 'page');
       menu.append(a);
@@ -179,8 +180,13 @@
   // miniaturas / enlaces a los archivos de algo
   function adjuntos(lista) {
     if (!lista || !lista.length) return null;
-    return el('span', { class: 'adjuntos' }, lista.map((a) => el('a', { href: `/api/archivos/${a.id}`, target: '_blank', rel: 'noopener', title: a.nombre || 'Ver' },
-      a.tipo.startsWith('image/') ? el('img', { src: `/api/archivos/${a.id}`, alt: a.nombre || 'foto', loading: 'lazy' }) : '📄 PDF')));
+    return el('span', { class: 'adjuntos' }, lista.map((a) => {
+      const src = `/api/archivos/${a.id}`;
+      if (a.tipo.startsWith('audio/')) return el('audio', { src, controls: '', preload: 'none', title: a.nombre || 'audio' });
+      if (a.tipo.startsWith('video/')) return el('video', { src, controls: '', preload: 'metadata', playsinline: '', title: a.nombre || 'vídeo' });
+      return el('a', { href: src, target: '_blank', rel: 'noopener', title: a.nombre || 'Ver' },
+        a.tipo.startsWith('image/') ? el('img', { src, alt: a.nombre || 'foto', loading: 'lazy' }) : '📄 PDF');
+    }));
   }
 
   /* ---------- Contadores de lo que espera a este usuario (en el menú) ---------- */
@@ -206,7 +212,9 @@
     poner('/recursos.html', nRec, tRec ? `${tRec}\n(en Vacaciones y festivos)` : '');
     // y dentro de Recursos, en la pestaña donde está
     marcar(document.getElementById('tab-calendario'), nRec, tRec);
-    poner('/parte.html', p.incidencias || 0, `${p.incidencias} incidencia(s) abierta(s)`);
+    poner('/bandeja.html', p.bandeja || 0, `${p.bandeja} captura(s) por clasificar`);
+    // los asuntos que me han asignado (aunque no planifique): en «＋ Capturar» › Mis asuntos
+    poner('/capturar.html', p.mis_asuntos || 0, `${p.mis_asuntos} asunto(s) a tu cargo`);
   }
 
   /* ---------- Avance y rendimiento (mismo aspecto en todas las pantallas) ---------- */

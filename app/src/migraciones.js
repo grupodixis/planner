@@ -522,6 +522,45 @@ const MIGRACIONES = [
      creado       TIMESTAMPTZ NOT NULL DEFAULT now()
    )`,
   `CREATE INDEX IF NOT EXISTS incidencias_estado_idx ON incidencias (estado, fecha)`,
+  /* ---------- Bandeja de capturas (GTD): texto, audio, foto, vídeo → tarea / asunto / información ---------- */
+  `ALTER TABLE archivos ADD COLUMN IF NOT EXISTS ruta TEXT`,
+  `ALTER TABLE archivos ALTER COLUMN datos DROP NOT NULL`,
+  `CREATE TABLE IF NOT EXISTS capturas (
+     id              SERIAL PRIMARY KEY,
+     creado          TIMESTAMPTZ NOT NULL DEFAULT now(),
+     usuario_id      INT REFERENCES usuarios(id) ON DELETE SET NULL,     -- quien la capturó
+     recurso_id      INT REFERENCES recursos(id) ON DELETE SET NULL,     -- su ficha (si es operario)
+     texto           TEXT,
+     categoria       TEXT CHECK (categoria IN ('material', 'averia', 'calidad', 'seguridad', 'mejora', 'otro')),
+     proyecto_id     INT REFERENCES proyectos(id) ON DELETE SET NULL,
+     orden_id        INT REFERENCES ordenes(id) ON DELETE SET NULL,
+     tramo_id        INT REFERENCES tramos(id) ON DELETE SET NULL,
+     tarea_id        INT REFERENCES tareas(id) ON DELETE SET NULL,
+     maquina_id      INT REFERENCES recursos(id) ON DELETE SET NULL,
+     estado          TEXT NOT NULL DEFAULT 'bandeja'
+                     CHECK (estado IN ('bandeja', 'asunto', 'tarea', 'info', 'resuelta', 'descartada')),
+     prioridad       TEXT NOT NULL DEFAULT 'normal' CHECK (prioridad IN ('alta', 'normal', 'baja')),
+     responsable_id  INT REFERENCES usuarios(id) ON DELETE SET NULL,
+     fecha_limite    DATE,
+     tarea_creada_id INT REFERENCES tareas(id) ON DELETE SET NULL,
+     nota            TEXT,                                               -- del supervisor
+     clasificada_por INT REFERENCES usuarios(id) ON DELETE SET NULL,
+     clasificada_en  TIMESTAMPTZ,
+     resuelta_por    INT REFERENCES usuarios(id) ON DELETE SET NULL,
+     resuelta_en     TIMESTAMPTZ,
+     resolucion      TEXT,
+     origen_incidencia_id INT UNIQUE
+   )`,
+  `CREATE INDEX IF NOT EXISTS capturas_estado_idx ON capturas (estado, creado)`,
+  // las incidencias pasan a ser capturas (una sola bandeja)
+  `INSERT INTO capturas (creado, usuario_id, recurso_id, texto, categoria, proyecto_id, orden_id, tramo_id, tarea_id, maquina_id,
+                         estado, resuelta_por, resuelta_en, resolucion, origen_incidencia_id)
+   SELECT i.creado, i.usuario_id, i.recurso_id, i.texto, i.tipo, o.proyecto_id, t.orden_id, i.tramo_id, i.tarea_id, i.maquina_id,
+          CASE WHEN i.estado = 'abierta' THEN 'bandeja' ELSE 'resuelta' END, i.resuelta_por, i.resuelta_en, i.resolucion, i.id
+     FROM incidencias i LEFT JOIN tareas t ON t.id = i.tarea_id LEFT JOIN ordenes o ON o.id = t.orden_id
+    WHERE NOT EXISTS (SELECT 1 FROM capturas c WHERE c.origen_incidencia_id = i.id)`,
+  `UPDATE archivos a SET ref_tipo = 'captura', ref_id = c.id FROM capturas c
+    WHERE a.ref_tipo = 'incidencia' AND a.ref_id = c.origen_incidencia_id`,
   `CREATE TABLE IF NOT EXISTS dias_enviados (
      fecha       DATE NOT NULL,
      recurso_id  INT NOT NULL REFERENCES recursos(id) ON DELETE CASCADE,

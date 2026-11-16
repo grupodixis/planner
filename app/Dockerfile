@@ -9,6 +9,9 @@ RUN npm ci --omit=dev && npm cache clean --force
 COPY src ./src
 COPY public ./public
 
+# carpeta de audios y vídeos (el volumen «archivos» se monta aquí)
+RUN mkdir -p /data/archivos && chown node:node /data/archivos
+
 USER node
 EXPOSE 3000
 

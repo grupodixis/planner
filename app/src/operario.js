@@ -81,13 +81,6 @@ const MOTIVOS_AVISO = {
   personal: 'Asunto personal',
   otro: 'Otro',
 };
-const TIPOS_INCIDENCIA = {
-  material: 'Falta material',
-  averia: 'Avería de máquina o herramienta',
-  calidad: 'Problema de calidad / error',
-  seguridad: 'Seguridad',
-  otro: 'Otro',
-};
 
 function montar(app, asyncH) {
   const soloSuyo = auth.permiso('mi_dia');
@@ -108,9 +101,9 @@ function montar(app, asyncH) {
                FROM ausencias a WHERE a.recurso_id = $1 AND a.avisado_en IS NOT NULL AND a.hasta >= $2 ORDER BY a.desde DESC`, [recursoId, sumarDias(hoy, -30)]),
       query(`SELECT a.id, a.tipo, a.desde, a.hasta, a.hora_desde::float AS hora_desde, a.hora_hasta::float AS hora_hasta, a.notas, a.aviso_motivo
                FROM ausencias a WHERE a.recurso_id = $1 AND a.tipo = 'falta' AND a.justificante = 'pendiente' ORDER BY a.desde DESC`, [recursoId]),
-      query(`SELECT i.id, i.fecha, i.tipo, i.texto, i.estado, i.resolucion, i.resuelta_en, m.nombre AS maquina, t.nombre AS tarea
-               FROM incidencias i LEFT JOIN recursos m ON m.id = i.maquina_id LEFT JOIN tareas t ON t.id = i.tarea_id
-              WHERE i.recurso_id = $1 AND (i.estado = 'abierta' OR i.creado > now() - interval '14 days') ORDER BY i.creado DESC`, [recursoId]),
+      query(`SELECT c.id, c.creado::date AS fecha, c.categoria AS tipo, c.texto, c.estado, c.resolucion, c.nota, m.nombre AS maquina, t.nombre AS tarea
+               FROM capturas c LEFT JOIN recursos m ON m.id = c.maquina_id LEFT JOIN tareas t ON t.id = c.tarea_id
+              WHERE c.usuario_id = $1 AND (c.estado IN ('bandeja','asunto') OR c.creado > now() - interval '14 days') ORDER BY c.creado DESC`, [req.usuario.id]),
       query(`SELECT id, nombre FROM recursos WHERE tipo = 'maquina' AND activo ORDER BY nombre`),
       query(`SELECT x.id, o.codigo || ' · ' || t.nombre AS nombre, x.tarea_id FROM tramos x
                JOIN tramo_asignaciones a ON a.tramo_id = x.id AND a.recurso_id = $1
@@ -118,14 +111,14 @@ function montar(app, asyncH) {
               WHERE x.fecha = $2 ORDER BY x.hora_inicio`, [recursoId, hoy]),
     ]);
     const adjuntosAus = await archivos.de('ausencia', [...new Set([...avisos, ...pendientes].map((a) => a.id))]);
-    const adjuntosInc = await archivos.de('incidencia', incidencias.map((i) => i.id));
+    const adjuntosInc = await archivos.de('captura', incidencias.map((i) => i.id));
     for (const a of avisos) { a.archivos = adjuntosAus.get(a.id) || []; a.texto = textoAusencia(a); }
     for (const a of pendientes) { a.archivos = adjuntosAus.get(a.id) || []; a.texto = textoAusencia(a); }
     for (const i of incidencias) i.archivos = adjuntosInc.get(i.id) || [];
     delete s.festSet;
     res.json({
       hoy, saldo: s, solicitudes, avisos, justificantes_pendientes: pendientes, incidencias, maquinas, tramos_hoy: tramosHoy,
-      motivos_aviso: MOTIVOS_AVISO, tipos_incidencia: TIPOS_INCIDENCIA,
+      motivos_aviso: MOTIVOS_AVISO, tipos_incidencia: require('./capturas').CATEGORIAS, estados_captura: require('./capturas').ESTADOS,
     });
   }));
 
@@ -224,36 +217,6 @@ function montar(app, asyncH) {
     });
     if (!n) throw fallo(400, 'Sube primero la foto');
     res.json({ ok: true, archivos: n });
-  }));
-
-  /* ---------- Incidencias ---------- */
-  // { tipo, texto, tramo_id?, maquina_id?, archivos?: [ids] }
-  app.post('/api/mi-dia/incidencias', soloSuyo, asyncH(async (req, res) => {
-    const recursoId = recursoDe(req);
-    const b = req.body || {};
-    if (!TIPOS_INCIDENCIA[b.tipo]) throw fallo(400, 'Elige qué pasa');
-    const t = texto(b.texto, 1000);
-    if (!t) throw fallo(400, 'Cuenta brevemente qué pasa');
-    const id = await tx(async (c) => {
-      let tramoId = null, tareaId = null, maquinaId = null;
-      if (b.tramo_id) {
-        const { rows } = await c.query(
-          `SELECT x.id, x.tarea_id FROM tramos x JOIN tramo_asignaciones a ON a.tramo_id = x.id AND a.recurso_id = $2 WHERE x.id = $1`,
-          [Number(b.tramo_id), recursoId]);
-        if (rows.length) { tramoId = rows[0].id; tareaId = rows[0].tarea_id; }
-      }
-      if (b.maquina_id) {
-        const { rows } = await c.query(`SELECT id FROM recursos WHERE id = $1 AND tipo = 'maquina'`, [Number(b.maquina_id)]);
-        if (rows.length) maquinaId = rows[0].id;
-      }
-      const { rows } = await c.query(
-        `INSERT INTO incidencias (fecha, recurso_id, usuario_id, tipo, texto, tramo_id, tarea_id, maquina_id)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id`,
-        [hoyMadrid(), recursoId, req.usuario.id, b.tipo, t, tramoId, tareaId, maquinaId]);
-      await archivos.enlazar(c, b.archivos, 'incidencia', rows[0].id, req.usuario.id);
-      return rows[0].id;
-    });
-    res.status(201).json({ id });
   }));
 
   /* ---------- Mi mes: horas y ausencias día a día ---------- */
@@ -361,41 +324,8 @@ function montar(app, asyncH) {
     res.json({ ok: true, ...out });
   }));
 
-  /* ---------- Incidencias (encargado) ---------- */
-  const encargado = auth.permiso('planificar');
-  app.get('/api/incidencias', encargado, asyncH(async (req, res) => {
-    const estado = req.query.estado === 'todas' ? null : 'abierta';
-    const { rows } = await query(
-      `SELECT i.*, r.nombre AS recurso, m.nombre AS maquina, t.nombre AS tarea, o.codigo AS orden_codigo, u.nombre AS resuelta_por_nombre,
-              EXISTS (SELECT 1 FROM ausencias a WHERE a.recurso_id = i.maquina_id AND a.tipo = 'averia' AND a.hasta >= CURRENT_DATE) AS maquina_parada
-         FROM incidencias i LEFT JOIN recursos r ON r.id = i.recurso_id LEFT JOIN recursos m ON m.id = i.maquina_id
-         LEFT JOIN tareas t ON t.id = i.tarea_id LEFT JOIN ordenes o ON o.id = t.orden_id LEFT JOIN usuarios u ON u.id = i.resuelta_por
-        WHERE ($1::text IS NULL OR i.estado = $1) ORDER BY i.creado DESC LIMIT 200`, [estado]);
-    const adj = await archivos.de('incidencia', rows.map((i) => i.id));
-    for (const i of rows) i.archivos = adj.get(i.id) || [];
-    res.json({ incidencias: rows, tipos: TIPOS_INCIDENCIA });
-  }));
-
-  app.post('/api/incidencias/:id/resolver', encargado, asyncH(async (req, res) => {
-    const { rowCount } = await query(
-      `UPDATE incidencias SET estado = 'resuelta', resuelta_por = $2, resuelta_en = now(), resolucion = $3 WHERE id = $1 AND estado = 'abierta'`,
-      [Number(req.params.id), req.usuario.id, texto(req.body?.resolucion, 500)]);
-    if (!rowCount) throw fallo(409, 'Ya estaba resuelta');
-    res.json({ ok: true });
-  }));
-
-  // Avería: la máquina queda no disponible desde hoy (un día; se amplía en Recursos si dura más)
-  app.post('/api/incidencias/:id/maquina-parada', encargado, asyncH(async (req, res) => {
-    const { rows } = await query('SELECT maquina_id, texto FROM incidencias WHERE id = $1', [Number(req.params.id)]);
-    if (!rows.length || !rows[0].maquina_id) throw fallo(400, 'Esta incidencia no dice qué máquina');
-    const hoy = hoyMadrid();
-    const hasta = req.body?.hasta && FECHA_RE.test(req.body.hasta) && req.body.hasta >= hoy ? req.body.hasta : hoy;
-    await query(`INSERT INTO ausencias (recurso_id, tipo, desde, hasta, notas, creado_por) VALUES ($1,'averia',$2,$3,$4,$5)`,
-      [rows[0].maquina_id, hoy, hasta, `Incidencia: ${rows[0].texto}`.slice(0, 500), req.usuario.id]);
-    res.json({ ok: true, afectados: (await afectados(rows[0].maquina_id, { desde: hoy, hasta, hora_desde: null })).length });
-  }));
-
   // Avisos de ausencia de los operarios (para el parte y el tablero)
+  const encargado = auth.permiso('planificar');
   app.get('/api/avisos-ausencia', encargado, asyncH(async (req, res) => {
     const desde = FECHA_RE.test(req.query.desde || '') ? req.query.desde : sumarDias(hoyMadrid(), -1);
     const hasta = FECHA_RE.test(req.query.hasta || '') ? req.query.hasta : sumarDias(hoyMadrid(), 7);
@@ -419,8 +349,9 @@ function montar(app, asyncH) {
       out.vacaciones = (await query(`SELECT count(*)::int AS n FROM solicitudes_vacaciones WHERE estado = ANY($1)`, [estados])).rows[0].n;
     }
     if (auth.tiene(u, 'planificar')) {
-      out.incidencias = (await query(`SELECT count(*)::int AS n FROM incidencias WHERE estado = 'abierta'`)).rows[0].n;
+      out.bandeja = (await query(`SELECT count(*)::int AS n FROM capturas WHERE estado = 'bandeja'`)).rows[0].n;
     }
+    out.mis_asuntos = (await query(`SELECT count(*)::int AS n FROM capturas WHERE estado = 'asunto' AND responsable_id = $1`, [u.id])).rows[0].n;
     if (auth.tiene(u, 'recursos') || auth.tiene(u, 'planificar')) {
       out.justificantes = (await query(
         `SELECT count(DISTINCT a.id)::int AS n FROM ausencias a JOIN archivos f ON f.ref_tipo = 'ausencia' AND f.ref_id = a.id
@@ -430,4 +361,4 @@ function montar(app, asyncH) {
   }));
 }
 
-module.exports = { montar, MOTIVOS_AVISO, TIPOS_INCIDENCIA };
+module.exports = { montar, MOTIVOS_AVISO };

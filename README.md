@@ -90,8 +90,9 @@ app/src/informes.js       informes de horas y costes
 app/src/avance.js         avance y rendimiento (tarea › OT › partida › proyecto)
 app/src/pin.js            entrada con PIN para operarios y dispositivos autorizados
 app/src/midia.js          «Mi día» del operario y lo que declara para el parte
-app/src/operario.js       app del operario: vacaciones (dos pasos), avisos, incidencias, su mes, PIN
-app/src/archivos.js       fotos y PDF (en la base de datos)
+app/src/operario.js       app del operario: vacaciones (dos pasos), avisos, justificantes, su mes, PIN
+app/src/archivos.js       fotos y PDF (en la base de datos), audio y vídeo (en disco)
+app/src/capturas.js       bandeja de capturas: capturar y clasificar (tarea / asunto / información)
 app/src/eventos.js        avisos en vivo entre pantallas (Server-Sent Events)
 app/src/importar.js       importación de proyectos del compositor (s360-import/1)
 app/src/migraciones.js    cambios de esquema que se aplican solos al arrancar
@@ -376,7 +377,7 @@ para cambiar su PIN).
   quitar el aviso mientras no haya pasado el día.
 - **Justificantes pendientes**: sus faltas sin justificante; sube la foto. RRHH / el encargado
   la ve en Recursos › «Faltas pendientes de justificante» y marca justificada o no.
-- **Incidencias**: falta material, avería (con qué máquina), calidad, seguridad u otro, con
+- **Incidencias** (ahora son capturas, ver «Bandeja de capturas»): falta material, avería (con qué máquina), calidad, seguridad u otro, con
   texto y fotos; desde la pestaña o con «⚠ Avisar de una incidencia» en un trabajo de hoy. El
   encargado las ve en el Parte («Incidencias abiertas»): **Máquina parada hoy** (la máquina
   queda no disponible en el tablero; se amplía en Recursos) y **Resuelta** (con nota que ve
@@ -386,7 +387,35 @@ para cambiar su PIN).
 - **Fotos**: el móvil las reduce (máx. 1600 px) antes de subirlas; se guardan en la base de
   datos (entran en las copias). Un operario solo ve las suyas.
 - En el menú salen **contadores**: en Recursos, peticiones de vacaciones que te esperan y
-  justificantes por revisar; en Parte, incidencias abiertas.
+  justificantes por revisar; en Bandeja, capturas por clasificar; en ＋ Capturar, asuntos a tu cargo.
+
+## Bandeja de capturas (GTD)
+
+Para apuntar cualquier cosa en el momento y que alguien la lleve a término.
+
+- **Capturar** (cualquiera): operarios en Mi día › **＋ Capturar** (botón central); el resto en
+  el menú **＋ Capturar** (`/capturar.html`, también en el móvil). Texto, **audio** (hasta 3 min),
+  **foto**, **vídeo** (30 s como máximo; se graba en el navegador a ~1,5 Mbps) o algo de la
+  galería. Opcional: el tipo (falta material, avería — con qué máquina —, calidad, seguridad,
+  idea / mejora, otro) y **de qué es**: por defecto el trabajo que tiene hoy; puede elegir otro
+  proyecto y su OT. Desde cada trabajo de Mi día: «＋ Capturar algo de este trabajo».
+  Las antiguas «incidencias» son ahora capturas (se pasaron solas a la bandeja).
+- **Bandeja** (`/bandeja.html`, quien planifica; contador en el menú): cada captura se
+  **clasifica** como
+  - **Tarea en una OT** (nombre, horas, operarios, oficio, área): pasa a «Por planificar»; en
+    sus notas queda el texto capturado;
+  - **Asunto con responsable** (y fecha límite y prioridad): lo ve su responsable en
+    «＋ Capturar › Asuntos a mi cargo» (con contador) y lo da por **resuelto**;
+  - **Información** del proyecto / OT;
+  - **Descartar**.
+  Con una nota que ve quien lo capturó. Pestañas: Por clasificar, Asuntos abiertos, Todo
+  (120 días); filtro por proyecto. «Máquina parada hoy» en las averías. «Volver a la bandeja»
+  si se clasificó mal.
+- Quien capturó ve en **Lo que he capturado** en qué quedó cada cosa.
+- En el Parte se ve un resumen de lo que hay por clasificar.
+- **Archivos**: fotos y PDF en la base de datos; audios y vídeos en disco (volumen Docker
+  `archivos`, `/data/archivos`). Al desplegar, `desplegar-vps.sh` copia lo nuevo a
+  `backups/archivos/` junto a la copia de la base de datos.
 
 ## Informes
 
@@ -519,19 +548,23 @@ vez. Al confirmar se importa todo de una vez (o nada).
 | POST · DELETE | `/api/mi-dia/extra` · `/api/mi-dia/extra/:id` | `{fecha, tipo, tarea_id?, motivo?, desde, hasta, notas?}` |
 | POST | `/api/mi-dia/enviar` | `{fecha}` avisar al encargado |
 | POST | `/api/declaraciones/:id/aceptar` · `/descartar` | (encargado) horas fuera del plan apuntadas por un operario |
-| GET | `/api/mi-dia/gestiones` | (operario) saldo y peticiones de vacaciones, avisos, justificantes pendientes, incidencias |
+| GET | `/api/mi-dia/gestiones` | (operario) saldo y peticiones de vacaciones, avisos, justificantes pendientes, sus capturas |
 | GET · POST · DELETE | `/api/mi-dia/vacaciones/previa?desde=&hasta=` · `/api/mi-dia/vacaciones` · `/:id` | ver cuántos días y avisos · pedir `{desde, hasta, notas}` · anular |
 | POST · DELETE | `/api/mi-dia/ausencias` · `/api/mi-dia/ausencias/:id` | avisar `{motivo, desde, hasta?, hora_desde?, hora_hasta?, notas, archivos[]}` · quitar el aviso |
 | POST | `/api/mi-dia/ausencias/:id/justificante` | `{archivos: [ids]}` |
-| POST | `/api/mi-dia/incidencias` | `{tipo, texto, tramo_id?, maquina_id?, archivos[]}` |
 | GET | `/api/mi-dia/mes?mes=YYYY-MM` | su mes día a día |
 | POST | `/api/mi-dia/pin` | `{actual, nuevo}` |
 | POST · GET | `/api/archivos` · `/api/archivos/:id` | subir (cuerpo = la foto o el PDF, máx. 6 MB) → `{id}` · ver |
 | GET · POST | `/api/solicitudes-vacaciones` · `/api/solicitudes-vacaciones/:id` | peticiones · `{decision: aprobar\|rechazar, nota}` (el paso lo marca el estado) |
-| GET | `/api/incidencias?estado=todas` | incidencias (abiertas por defecto) |
-| POST | `/api/incidencias/:id/resolver` · `/api/incidencias/:id/maquina-parada` | `{resolucion}` · la máquina, no disponible hoy |
 | GET | `/api/avisos-ausencia?desde=&hasta=` | ausencias avisadas por los operarios |
 | GET | `/api/pendientes` | contadores del menú para el usuario |
+| GET | `/api/capturas/opciones` | proyectos y OTs abiertas, mis trabajos de hoy, máquinas, tipos |
+| POST | `/api/capturas` | `{texto?, categoria?, proyecto_id?, orden_id?, tramo_id?, maquina_id?, archivos: [ids]}` |
+| GET | `/api/capturas/mias` | lo que he capturado y en qué quedó |
+| GET | `/api/capturas?vista=bandeja\|asuntos\|mios\|todas&proyecto_id=` | bandeja (quien planifica) · `mios`: asuntos a mi cargo |
+| GET | `/api/capturas/opciones-clasificar` | responsables, oficios y áreas |
+| POST | `/api/capturas/:id/clasificar` | `{destino: tarea\|asunto\|info\|descartar, proyecto_id, orden_id, categoria, nota, prioridad, responsable_id, fecha_limite, tarea: {nombre, duracion_h, operarios_req, oficio_id, linea_id}}` |
+| POST | `/api/capturas/:id/resolver` · `/reabrir` · `/maquina-parada` | `{resolucion}` (quien planifica o el responsable) · volver a la bandeja · máquina no disponible hoy |
 | GET | `/api/eventos` | avisos en vivo (Server-Sent Events) para que las pantallas se actualicen solas |
 | GET | `/api/informes/proyectos` · `/api/informes/proyecto/:id` | resumen de proyectos · detalle partida › OT › tarea |
 | GET | `/api/informes/operarios` · `/maquinas` · `/planificacion` | `?desde=&hasta=` |

@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>s360 · Capturar</title>
+  <link rel="stylesheet" href="styles.css?v=202611161022">
+</head>
+<body class="capturar-pant">
+  <header class="top">
+    <h1>s360_planificacion <span>· capturar</span></h1>
+    <nav class="menu" aria-label="Pantallas">
+      <a href="/">Tablero</a>
+      <a href="/proyectos.html">Proyectos</a>
+      <a href="/recursos.html">Recursos</a>
+    </nav>
+    <div class="usuario"><span id="usuario-nombre"></span> <button id="salir" class="ghost">Salir</button></div>
+  </header>
+
+  <main class="capturar-main">
+    <section class="panel" id="mis-asuntos-panel" hidden aria-labelledby="tit-asuntos">
+      <h2 id="tit-asuntos">Asuntos a mi cargo</h2>
+      <ul class="md-lista" id="mis-asuntos"></ul>
+    </section>
+    <section class="panel" aria-labelledby="tit-cap">
+      <h2 id="tit-cap">Capturar</h2>
+      <p class="ayuda">Apunta lo que sea en el momento (texto, audio, foto o vídeo de 30 s). Quien planifica lo clasifica desde la Bandeja.</p>
+      <div id="captura"></div>
+    </section>
+  </main>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <script src="comun.js?v=202611161022"></script>
+  <script src="captura.js?v=202611161022"></script>
+  <script src="capturar.js?v=202611161022"></script>
+</body>
+</html>

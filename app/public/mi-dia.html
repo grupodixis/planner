@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#141414">
   <title>s360 · Mi día</title>
-  <link rel="stylesheet" href="styles.css?v=202611160952">
+  <link rel="stylesheet" href="styles.css?v=202611161022">
 </head>
 <body class="midia-pant">
   <header class="md-cab">
@@ -124,32 +124,26 @@
       </form>
     </section>
     <section class="md-bloque">
-      <h2>Incidencia</h2>
-      <form id="form-inc" class="md-form">
-        <div class="md-chips" id="inc-tipos" role="radiogroup" aria-label="Qué pasa"></div>
-        <select name="tramo_id" aria-label="En qué trabajo (opcional)"></select>
-        <select name="maquina_id" aria-label="Qué máquina" hidden></select>
-        <textarea name="texto" rows="3" maxlength="1000" placeholder="Cuenta brevemente qué pasa" aria-label="Qué pasa" required></textarea>
-        <div class="md-fotos" id="inc-fotos"></div>
-        <button type="submit" class="primario md-grande">Enviar incidencia</button>
-      </form>
-    </section>
-    <section class="md-bloque">
-      <h2>Mis avisos e incidencias</h2>
+      <h2>Mis avisos</h2>
       <ul class="md-lista" id="mis-avisos"></ul>
     </section>
   </main>
 
+  <!-- Capturar: a la bandeja -->
+  <main class="md-main" id="v-capturar" hidden></main>
+
   <nav class="md-tabs" aria-label="Secciones">
     <button type="button" data-vista="dia" aria-current="page"><span aria-hidden="true">📋</span>Mi día</button>
     <button type="button" data-vista="mes"><span aria-hidden="true">📅</span>Mi mes</button>
+    <button type="button" data-vista="capturar" class="md-tab-capturar"><span aria-hidden="true">＋</span>Capturar</button>
     <button type="button" data-vista="vac"><span aria-hidden="true">🌴</span>Vacaciones</button>
-    <button type="button" data-vista="avisar"><span aria-hidden="true">⚠️</span>Avisar</button>
+    <button type="button" data-vista="avisar"><span aria-hidden="true">🙋</span>Avisar</button>
   </nav>
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
-  <script src="comun.js?v=202611160952"></script>
-  <script src="mi-dia-mas.js?v=202611160952"></script>
-  <script src="mi-dia.js?v=202611160952"></script>
+  <script src="comun.js?v=202611161022"></script>
+  <script src="captura.js?v=202611161022"></script>
+  <script src="mi-dia-mas.js?v=202611161022"></script>
+  <script src="mi-dia.js?v=202611161022"></script>
 </body>
 </html>

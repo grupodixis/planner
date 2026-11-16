@@ -48,7 +48,7 @@
       api('GET', `/api/tablero?fecha=${f}`),
       api('GET', '/api/parte/pendientes'),
       enc ? api('GET', `/api/avisos-ausencia?desde=${f}&hasta=${f}`) : [],
-      enc ? api('GET', '/api/incidencias') : { incidencias: [], tipos: {} },
+      enc ? api('GET', '/api/capturas?vista=bandeja') : { capturas: [], categorias: {}, cuenta: {} },
     ]);
     if (f !== estado.fecha) return;
     estado.avisos = avisos; estado.inc = inc;
@@ -385,8 +385,8 @@
 
   // Avisos de ausencia de los operarios (de este día) e incidencias abiertas
   function pintarAvisosIncidencias() {
-    const av = estado.avisos || [], inc = estado.inc?.incidencias || [];
-    const T = estado.inc?.tipos || {};
+    const av = estado.avisos || [], inc = estado.inc?.capturas || [];
+    const T = estado.inc?.categorias || {};
     const caja = $('#avisos-inc');
     caja.replaceChildren(
       av.length ? el('section', {}, el('h2', {}, 'Avisos de los operarios'),
@@ -396,21 +396,11 @@
           a.notas ? el('span', { class: 'ayuda' }, ` «${a.notas}»`) : null,
           ' ', window.s360.adjuntos(a.archivos),
           el('span', { class: 'ayuda' }, a.archivos.length ? ' · justificante adjunto, revísalo en Recursos' : ' · sin justificante'))))) : '',
-      inc.length ? el('section', {}, el('h2', {}, `Incidencias abiertas (${inc.length})`),
-        el('ul', { class: 'lista-inc' }, inc.map((i) => el('li', { class: `inc t-${i.tipo}` },
-          el('div', {}, el('b', {}, T[i.tipo] || i.tipo), el('span', { class: 'ayuda' }, ` · ${i.recurso || '—'} · ${fechaCorta(i.fecha)}`)),
-          el('div', {}, i.texto),
-          i.maquina || i.tarea ? el('div', { class: 'ayuda' }, [i.maquina && `Máquina: ${i.maquina}`, i.tarea && `Tarea: ${i.orden_codigo} ${i.tarea}`].filter(Boolean).join(' · ')) : null,
-          window.s360.adjuntos(i.archivos),
-          el('div', { class: 'inc-acc' },
-            i.maquina_id && !i.maquina_parada ? el('button', { type: 'button', class: 'ghost mini', title: 'La máquina queda no disponible hoy en el tablero (amplíalo en Recursos si dura más)',
-              onclick: () => accion(async () => { const r = await api('POST', `/api/incidencias/${i.id}/maquina-parada`); return `${i.maquina} no disponible hoy${r.afectados ? ` · afecta a ${r.afectados} tramo(s)` : ''}`; }) }, 'Máquina parada hoy') : null,
-            i.maquina_parada ? el('span', { class: 'ayuda' }, 'máquina parada') : null,
-            el('button', { type: 'button', class: 'primario mini', onclick: () => {
-              const nota = prompt('¿Cómo se ha resuelto? (opcional, lo verá el operario)');
-              if (nota === null) return;
-              accion(() => api('POST', `/api/incidencias/${i.id}/resolver`, { resolucion: nota }), 'Incidencia resuelta');
-            } }, 'Resuelta')))))) : '');
+      inc.length ? el('section', {}, el('h2', {}, el('a', { href: '/bandeja.html' }, `Bandeja: ${inc.length} por clasificar`)),
+        el('ul', { class: 'lista-inc' }, inc.slice(0, 5).map((c) => el('li', { class: `inc t-${c.categoria || 'otro'}` },
+          el('div', {}, el('b', {}, T[c.categoria] || 'Captura'), el('span', { class: 'ayuda' }, ` · ${c.autor || '—'}`)),
+          c.texto ? el('div', {}, c.texto.length > 140 ? `${c.texto.slice(0, 140)}…` : c.texto) : el('div', { class: 'ayuda' }, `${c.archivos.length} adjunto(s)`)))),
+        inc.length > 5 ? el('p', { class: 'ayuda' }, el('a', { href: '/bandeja.html' }, `y ${inc.length - 5} más…`)) : null) : '');
   }
 
   // Horas fuera del plan que han apuntado los operarios: aceptar o descartar

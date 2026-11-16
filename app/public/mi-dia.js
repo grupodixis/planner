@@ -136,7 +136,7 @@
         t.equipos.length ? el('span', {}, `${t.companeros.length ? ' · ' : ''}${t.equipos.join(', ')}`) : null) : null,
       t.tarea_notas ? el('details', { class: 'md-t-notas' }, el('summary', {}, 'Notas de la tarea'), el('p', {}, t.tarea_notas)) : null,
       cerrado ? el('p', { class: 'md-ok' }, '✔ Confirmado por el encargado') : null,
-      estado.d.fecha === estado.d.hoy ? el('button', { type: 'button', class: 'md-inc-link', onclick: () => window.midiaMas.incidencia(t.id) }, '⚠ Avisar de una incidencia') : null,
+      estado.d.fecha === estado.d.hoy ? el('button', { type: 'button', class: 'md-inc-link', onclick: () => window.midiaMas.incidencia(t.id) }, '＋ Capturar algo de este trabajo') : null,
       estado.d.fecha > estado.d.hoy ? null : el('div', { class: 'md-botones', role: 'group', 'aria-label': 'Cómo fue' },
         boton('hecho', '✓ Hecho', 'ok'), boton('parcial', '◐ En parte', 'parcial'), boton('no', '✗ No', 'no')),
       el('div', { class: 'md-detalle' }));

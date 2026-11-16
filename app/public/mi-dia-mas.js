@@ -39,10 +39,10 @@
   const est = { vista: 'dia', mes: null, g: null, ctx: null, ausMotivo: null, incTipo: null };
 
   /* ---------- pestañas ---------- */
-  const TITULOS = { mes: 'Mi mes', vac: 'Vacaciones', avisar: 'Avisar' };
+  const TITULOS = { mes: 'Mi mes', vac: 'Vacaciones', avisar: 'Avisar', capturar: 'Capturar' };
   function mostrar(vista) {
     est.vista = vista;
-    for (const v of ['dia', 'mes', 'vac', 'avisar']) $(`#v-${v}`).hidden = v !== vista;
+    for (const v of ['dia', 'mes', 'vac', 'avisar', 'capturar']) $(`#v-${v}`).hidden = v !== vista;
     document.querySelectorAll('.md-tabs button').forEach((b) => {
       if (b.dataset.vista === vista) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
     });
@@ -52,6 +52,10 @@
     window.scrollTo(0, 0);
     if (vista === 'mes') cargarMes().catch((e) => toast(e.message, true));
     if (vista === 'vac' || vista === 'avisar') cargarGestiones().catch((e) => toast(e.message, true));
+    if (vista === 'capturar') {
+      if (!est.captura) est.captura = window.Captura.montar($('#v-capturar'), { toast });
+      else est.captura.recargar().catch(() => {});
+    }
   }
 
   /* ---------- fotos ---------- */
@@ -150,16 +154,6 @@
       if (k === 'medico' || k === 'retraso') $('#form-aus').cuanto.value = 'horas';
       ajustarAus();
     });
-    chips($('#inc-tipos'), g.tipos_incidencia, est.incTipo, (k) => { est.incTipo = k; });
-    const fi = $('#form-inc');
-    const trSel = fi.tramo_id.value;
-    fi.tramo_id.replaceChildren(el('option', { value: '' }, g.tramos_hoy.length ? '¿En qué trabajo? (opcional)' : 'Sin trabajo planificado hoy'),
-      ...g.tramos_hoy.map((t) => el('option', { value: t.id }, t.nombre)));
-    if (trSel) fi.tramo_id.value = trSel;
-    fi.maquina_id.hidden = est.incTipo !== 'averia';
-    const mqSel = fi.maquina_id.value;
-    fi.maquina_id.replaceChildren(el('option', { value: '' }, '¿Qué máquina?'), ...g.maquinas.map((m) => el('option', { value: m.id }, m.nombre)));
-    if (mqSel) fi.maquina_id.value = mqSel;
 
     // faltas que esperan justificante
     $('#bloque-justif').hidden = !g.justificantes_pendientes.length;
@@ -180,7 +174,7 @@
     }));
 
     // lo que ha avisado
-    const MOT = g.motivos_aviso, TI = g.tipos_incidencia;
+    const MOT = g.motivos_aviso;
     const items = [
       ...g.avisos.map((a) => ({ cuando: a.avisado_en, nodo: el('li', {},
         el('div', {}, el('b', {}, MOT[a.aviso_motivo] || 'Ausencia'), ` · ${rango(a.desde, a.hasta)}${a.hora_desde != null ? ` ${hhmm(a.hora_desde)}–${hhmm(a.hora_hasta)}` : ''}`),
@@ -189,12 +183,9 @@
           if (!confirm('¿Quitar este aviso?')) return;
           try { await api('DELETE', `/api/mi-dia/ausencias/${a.id}`); toast('Aviso quitado'); cargarGestiones(); est.ctx.recargarDia(); } catch (e) { toast(e.message, true); }
         } }, 'Quitar aviso') : null) })),
-      ...g.incidencias.map((i) => ({ cuando: i.fecha, nodo: el('li', {},
-        el('div', {}, el('b', {}, TI[i.tipo] || i.tipo), ` · ${fCorta(i.fecha)}`, i.maquina ? ` · ${i.maquina}` : ''),
-        el('div', {}, i.texto), window.s360.adjuntos(i.archivos),
-        el('div', { class: i.estado === 'resuelta' ? 'md-ok' : 'ayuda' }, i.estado === 'resuelta' ? `✔ Resuelta${i.resolucion ? `: ${i.resolucion}` : ''}` : '⏳ abierta')) })),
     ].sort((a, b) => String(b.cuando).localeCompare(String(a.cuando)));
-    $('#mis-avisos').replaceChildren(...(items.length ? items.map((x) => x.nodo) : [el('li', { class: 'ayuda' }, 'Nada en los últimos días.')]));
+    $('#mis-avisos').replaceChildren(...(items.length ? items.map((x) => x.nodo) : [el('li', { class: 'ayuda' }, 'Nada en los últimos días.')]),
+      el('li', { class: 'ayuda' }, 'Para una avería, falta de material u otra incidencia, usa ', el('b', {}, '＋ Capturar'), '.'));
   }
 
   function ajustarAus() {
@@ -268,32 +259,16 @@
       } catch (e) { toast(e.message, true); }
     };
 
-    const fi = $('#form-inc');
-    const fotosInc = zonaFotos($('#inc-fotos'));
-    fi.onsubmit = async (ev) => {
-      ev.preventDefault();
-      if (!est.incTipo) return toast('Elige qué pasa', true);
-      try {
-        await api('POST', '/api/mi-dia/incidencias', {
-          tipo: est.incTipo, texto: fi.texto.value, tramo_id: Number(fi.tramo_id.value) || null,
-          maquina_id: est.incTipo === 'averia' ? Number(fi.maquina_id.value) || null : null, archivos: fotosInc.ids,
-        });
-        toast('Incidencia enviada al encargado');
-        fi.reset(); fotosInc.limpiar(); est.incTipo = null;
-        cargarGestiones();
-      } catch (e) { toast(e.message, true); }
-    };
     const hoy = new Date().toLocaleDateString('sv-SE');
     fa.desde.value = hoy;
   }
 
-  // desde una tarjeta de Mi día: «⚠ Incidencia» con ese trabajo ya elegido
-  async function incidencia(tramoId) {
-    mostrar('avisar');
-    await cargarGestiones().catch(() => {});
-    $('#form-inc').tramo_id.value = String(tramoId);
-    $('#form-inc').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  // desde una tarjeta de Mi día: capturar algo de ese trabajo
+  function incidencia(tramoId) {
+    if (!est.captura) est.captura = window.Captura.montar($('#v-capturar'), { toast, tramoId });
+    mostrar('capturar');
+    est.captura.elegirTramo(tramoId);
   }
 
-  window.midiaMas = { iniciar, mostrar, incidencia, vista: () => est.vista, recargar: () => (est.vista === 'mes' ? cargarMes() : est.vista === 'dia' ? null : cargarGestiones()) };
+  window.midiaMas = { iniciar, mostrar, incidencia, vista: () => est.vista, recargar: () => (est.vista === 'mes' ? cargarMes() : est.vista === 'dia' ? null : est.vista === 'capturar' ? est.captura?.recargar() : cargarGestiones()) };
 })();

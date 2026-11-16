@@ -28,7 +28,8 @@ require('./pin').publico(app, asyncH);   // entrar con PIN desde un dispositivo 
 require('./usuarios')(app, asyncH);   // entrar, recuperar contraseña, Mi cuenta, usuarios y roles
 require('./pin').gestion(app, asyncH);   // PIN de operarios y dispositivos autorizados
 require('./archivos').montar(app, asyncH);   // fotos y documentos (justificantes, incidencias)
-require('./operario').montar(app, asyncH);   // app del operario: vacaciones, avisos, incidencias, su mes
+require('./operario').montar(app, asyncH);   // app del operario: vacaciones, avisos, justificantes, su mes
+require('./capturas').montar(app, asyncH);   // bandeja de capturas (texto, audio, foto, vídeo) → tarea / asunto / info
 eventos.montar(app);   // GET /api/eventos (con sesión)
 
 /* ---------- Tablero y tramos ---------- */

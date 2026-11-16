@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>s360 · Bandeja</title>
+  <link rel="stylesheet" href="styles.css?v=202611161022">
+</head>
+<body class="bandeja-pant">
+  <header class="top">
+    <h1>s360_planificacion <span>· bandeja</span></h1>
+    <nav class="menu" aria-label="Pantallas">
+      <a href="/">Tablero</a>
+      <a href="/proyectos.html">Proyectos</a>
+      <a href="/recursos.html">Recursos</a>
+    </nav>
+    <div class="usuario"><span id="usuario-nombre"></span> <button id="salir" class="ghost">Salir</button></div>
+  </header>
+
+  <div class="pestanas" role="tablist" aria-label="Qué ver">
+    <button role="tab" data-vista="bandeja" id="tab-bandeja">Por clasificar</button>
+    <button role="tab" data-vista="asuntos" id="tab-asuntos">Asuntos abiertos</button>
+    <button role="tab" data-vista="todas" id="tab-todas">Todo (120 días)</button>
+    <span class="inf-rango"><select id="filtro-proyecto" aria-label="Filtrar por proyecto"></select></span>
+  </div>
+
+  <main class="bandeja-main">
+    <p class="ayuda" id="ayuda-vista"></p>
+    <ul class="lista-bandeja" id="lista"></ul>
+  </main>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <script src="comun.js?v=202611161022"></script>
+  <script src="bandeja.js?v=202611161022"></script>
+</body>
+</html>

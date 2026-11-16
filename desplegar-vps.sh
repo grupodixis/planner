@@ -171,6 +171,12 @@ if [ "$NUEVO" = 0 ] && docker compose ps --status running db 2>/dev/null | grep 
   mkdir -p backups
   docker compose exec -T db pg_dump -U s360 s360 > "backups/s360-$(date +%Y%m%d-%H%M).sql"
   ls -1t backups/*.sql | tail -n +21 | xargs -r rm --   # se guardan las 20 últimas
+  # audios y vídeos de las capturas (no van en la base de datos): copia de lo nuevo
+  if docker compose ps --status running web 2>/dev/null | grep -q web; then
+    mkdir -p backups/archivos
+    docker compose exec -T web sh -c 'cd /data/archivos 2>/dev/null && tar -cf - .' 2>/dev/null \
+      | tar -C backups/archivos -xf - --skip-old-files 2>/dev/null || true
+  fi
 fi
 
 if [ -n "$RESTAURAR" ]; then
