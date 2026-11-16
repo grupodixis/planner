@@ -131,9 +131,9 @@ async function repasarPlanes(hoy, h) {
       if (!antes) { await guardar(clave, firma); continue; }   // primera vez: solo se apunta
       if (antes.valor === firma) continue;
       if (h < 6 || h >= 21) continue;   // de noche se espera (la firma vieja se queda y avisa por la mañana)
-      // si están planificando, se agrupa: como mucho un aviso cada 20 min por persona y día
+      // si están planificando, se agrupa: como mucho un aviso cada 5 min por persona y día
       const ultimo = await estado(`planaviso:${g.recurso_id}:${f}`);
-      if (ultimo && Date.now() - new Date(ultimo.actualizado).getTime() < 20 * 60 * 1000) continue;
+      if (ultimo && Date.now() - new Date(ultimo.actualizado).getTime() < 5 * 60 * 1000) continue;
       await guardar(clave, firma);
       await guardar(`planaviso:${g.recurso_id}:${f}`, '1');
       await avisar(await deRecurso(g.recurso_id), 'plan', {

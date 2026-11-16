@@ -448,7 +448,7 @@ app **instalada** en la pantalla de inicio (iOS 16.4+).
   En la tablet común no se ofrece.
 - **Qué avisa**:
   - operarios: **cambio en su plan** de hoy o mañana (se repasa cada minuto; si están
-    planificando se agrupa, como mucho uno cada 20 min; de noche espera a la mañana),
+    planificando se agrupa, como mucho uno cada 5 min; de noche espera a la mañana),
     **recordatorio a las 17:00** si no ha enviado su día (laborables con trabajo),
     **vacaciones** aprobadas o rechazadas;
   - todos: lo que **capturé** se convierte en tarea o se resuelve; **asunto asignado** a mí y
