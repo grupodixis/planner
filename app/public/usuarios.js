@@ -225,7 +225,7 @@
     if (!r) return;
     const dlg = $('#dlg-enlace');
     $('#dlg-enlace-tit').textContent = `Enlace para el móvil de ${o.nombre}`;
-    $('#enl-texto').textContent = 'Que lo abra en SU móvil: queda autorizado para entrar con su PIN. Que lo guarde en la pantalla de inicio para tenerlo a mano.';
+    $('#enl-texto').textContent = 'Que lo abra en SU móvil: queda autorizado para entrar con su PIN. En Android le saldrá «Instalar la app»; en iPhone, el propio enlace le explica cómo añadirla a la pantalla de inicio.';
     $('#enl-url').value = r.url;
     $('#enl-ayuda').textContent = `Sirve una sola vez y caduca en ${r.caduca_h / 24} días. Si generas otro, este deja de valer.`;
     const texto = `Hola ${o.nombre.split(' ')[0]}: abre este enlace en tu móvil para apuntar tu día en el planificador (luego entras con tu PIN):\n${r.url}`;

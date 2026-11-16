@@ -4,8 +4,14 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <meta name="theme-color" content="#141414">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-title" content="s360">
   <title>s360 · Capturar</title>
-  <link rel="stylesheet" href="styles.css?v=202611161022">
+  <link rel="stylesheet" href="styles.css?v=202611161210">
 </head>
 <body class="capturar-pant">
   <header class="top">
@@ -19,6 +25,7 @@
   </header>
 
   <main class="capturar-main">
+    <div id="instalar" class="pwa-caja"></div>
     <section class="panel" id="mis-asuntos-panel" hidden aria-labelledby="tit-asuntos">
       <h2 id="tit-asuntos">Asuntos a mi cargo</h2>
       <ul class="md-lista" id="mis-asuntos"></ul>
@@ -31,8 +38,9 @@
   </main>
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
-  <script src="comun.js?v=202611161022"></script>
-  <script src="captura.js?v=202611161022"></script>
-  <script src="capturar.js?v=202611161022"></script>
+  <script src="pwa.js?v=202611161210"></script>
+  <script src="comun.js?v=202611161210"></script>
+  <script src="captura.js?v=202611161210"></script>
+  <script src="capturar.js?v=202611161210"></script>
 </body>
 </html>

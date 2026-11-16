@@ -5,8 +5,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#141414">
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-title" content="s360">
   <title>s360 · Mi día</title>
-  <link rel="stylesheet" href="styles.css?v=202611161022">
+  <link rel="stylesheet" href="styles.css?v=202611161210">
 </head>
 <body class="midia-pant">
   <header class="md-cab">
@@ -26,6 +31,7 @@
   </header>
 
   <main class="md-main" id="v-dia">
+    <div id="instalar" class="pwa-caja"></div>
     <p class="md-resumen" id="resumen"></p>
     <p class="md-aviso" id="aviso" hidden></p>
     <div id="tramos"></div>
@@ -142,9 +148,10 @@
   </nav>
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
-  <script src="comun.js?v=202611161022"></script>
-  <script src="captura.js?v=202611161022"></script>
-  <script src="mi-dia-mas.js?v=202611161022"></script>
-  <script src="mi-dia.js?v=202611161022"></script>
+  <script src="pwa.js?v=202611161210"></script>
+  <script src="comun.js?v=202611161210"></script>
+  <script src="captura.js?v=202611161210"></script>
+  <script src="mi-dia-mas.js?v=202611161210"></script>
+  <script src="mi-dia.js?v=202611161210"></script>
 </body>
 </html>

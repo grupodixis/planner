@@ -258,6 +258,7 @@
       return;
     }
     $('#salir').onclick = salir;
+    window.s360pwa?.boton($('#instalar'));
     $('#dia-ant').onclick = () => { estado.fecha = sumarDias(estado.fecha, -1); cargar().catch((e) => toast(e.message, true)); };
     $('#dia-sig').onclick = () => { estado.fecha = sumarDias(estado.fecha, 1); cargar().catch((e) => toast(e.message, true)); };
     $('#enviar').onclick = enviar;

@@ -70,22 +70,55 @@
     $('#volver').onclick = () => { persona = null; ver('quien'); };
   }
 
+  async function autorizar(token) {
+    ver('alta');
+    $('#alta-txt').textContent = 'Autorizando este móvil…';
+    try {
+      const r = await api('POST', '/api/pin/alta-movil', { token });
+      $('#alta-txt').textContent = `Listo, ${r.nombre}: este móvil ya puede entrar con tu PIN.`;
+      return true;
+    } catch (e) {
+      $('#alta-txt').textContent = e.message;
+      return false;
+    }
+  }
+
   async function init() {
     teclado();
     const q = new URLSearchParams(location.search);
+    window.s360pwa?.boton($('#instalar'));
+    // código pegado (desde la app instalada, sobre todo en iPhone)
+    $('#form-codigo').onsubmit = async (ev) => {
+      ev.preventDefault();
+      const v = $('#codigo').value.trim();
+      const token = (v.match(/[?&]alta=([\w-]+)/) || [])[1] || v;
+      if (!token) return;
+      if (await autorizar(token)) cargarDispositivo();
+    };
     // abrir el enlace de alta en el móvil del operario
     if (q.get('alta')) {
-      ver('alta');
-      $('#alta-txt').textContent = 'Autorizando este móvil…';
-      try {
-        const r = await api('POST', '/api/pin/alta-movil', { token: q.get('alta') });
-        history.replaceState(null, '', '/pin.html');
-        $('#alta-txt').textContent = `Listo, ${r.nombre}: este móvil ya puede entrar con tu PIN.`;
-      } catch (e) {
-        $('#alta-txt').textContent = e.message;
+      const token = q.get('alta');
+      history.replaceState(null, '', '/pin.html');
+      const s = window.s360pwa;
+      if (s && s.esIOS() && !s.instalada()) {
+        // en iPhone no se gasta el enlace en Safari: se copia y se usa desde la app instalada
+        ver('alta');
+        $('#alta-txt').textContent = 'Este enlace es para autorizar tu móvil.';
+        $('#alta-ios').hidden = false;
+        $('#instalar').hidden = true;   // ya lo explica el paso a paso
+        $('#copiar-codigo').onclick = async () => {
+          try { await navigator.clipboard.writeText(token); $('#copiar-codigo').textContent = '✔ Copiado'; }
+          catch { prompt('Copia este código:', token); }
+        };
+        $('#usar-safari').onclick = async () => { $('#alta-ios').hidden = true; if (await autorizar(token)) cargarDispositivo(); };
         return;
       }
+      if (!(await autorizar(token))) return;
     }
+    await cargarDispositivo();
+  }
+
+  async function cargarDispositivo() {
     try { disp = await api('GET', '/api/pin/dispositivo'); } catch { ver('no'); return; }
     $('#disp').textContent = disp.nombre;
     if (!disp.personas.length) { ver('no'); $('#paso-no p').textContent = 'Nadie tiene PIN en este dispositivo todavía.'; return; }

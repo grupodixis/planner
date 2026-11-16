@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#141414">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <title>s360</title>
+  <style>body { margin: 0; background: #141414; }</style>
+</head>
+<body>
+  <script>
+    // Al abrir la app instalada: cada uno a su pantalla
+    (async () => {
+      try {
+        const r = await fetch('/api/me', { credentials: 'same-origin' });
+        if (r.ok) {
+          const u = await r.json();
+          location.replace(u.solo_mi_dia ? '/mi-dia.html' : '/capturar.html');
+          return;
+        }
+        const d = await fetch('/api/pin/dispositivo', { credentials: 'same-origin' });
+        location.replace(d.ok ? '/pin.html' : '/login.html');
+      } catch { location.replace('/offline.html'); }
+    })();
+  </script>
+</body>
+</html>

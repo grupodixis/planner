@@ -5,8 +5,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#141414">
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-title" content="s360">
   <title>s360 · Entrar con PIN</title>
-  <link rel="stylesheet" href="styles.css?v=202611161022">
+  <link rel="stylesheet" href="styles.css?v=202611161210">
 </head>
 <body class="pin-pant">
   <main class="pin-caja">
@@ -32,15 +37,33 @@
     <section id="paso-no" hidden>
       <p>Este móvil o tablet no está autorizado para entrar con PIN.</p>
       <p class="ayuda">Pide al encargado el enlace para tu móvil, o entra desde la tablet del taller.</p>
+      <form id="form-codigo" class="pin-codigo">
+        <label for="codigo">¿Ya tienes el enlace o el código? Pégalo aquí:</label>
+        <input id="codigo" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="https://…/pin.html?alta=… o el código">
+        <button type="submit" class="primario">Autorizar este móvil</button>
+      </form>
     </section>
 
     <!-- Alta del móvil -->
     <section id="paso-alta" hidden>
       <p id="alta-txt"></p>
+      <!-- iPhone: la app instalada no comparte la sesión con Safari, así que se autoriza desde la app -->
+      <div id="alta-ios" class="pin-alta-ios" hidden>
+        <p><b>En iPhone, primero instala la app</b> y autoriza desde ella:</p>
+        <ol>
+          <li>Pulsa <b>Copiar código</b>.</li>
+          <li>Pulsa <b>Compartir</b> <span aria-hidden="true">⬆︎</span> → <b>Añadir a pantalla de inicio</b>.</li>
+          <li>Abre <b>s360</b> desde la pantalla de inicio y pega el código.</li>
+        </ol>
+        <button type="button" class="primario" id="copiar-codigo">Copiar código</button>
+        <button type="button" class="ghost" id="usar-safari">Prefiero usarla en Safari</button>
+      </div>
     </section>
+    <div id="instalar" class="pwa-caja"></div>
     <p class="pie pin-pie"><a href="/login.html">Entrar con email y contraseña</a></p>
   </main>
 
-  <script src="pin.js?v=202611161022"></script>
+  <script src="pwa.js?v=202611161210"></script>
+  <script src="pin.js?v=202611161210"></script>
 </body>
 </html>

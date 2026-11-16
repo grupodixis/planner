@@ -1435,3 +1435,15 @@ button.t-deps.vacia { opacity: .55; }
 .lista-bandeja .adjuntos audio { max-width: 320px; }
 .lista-bandeja .adjuntos video { width: 220px; height: 140px; }
 .lista-bandeja .adjuntos img { width: 90px; height: 90px; }
+
+/* App instalable */
+.pwa-caja:empty { display: none; }
+.pwa-instalar { width: 100%; padding: 12px; border-radius: 12px; border: 1px dashed var(--azul); background: var(--azul-bg); color: var(--texto); font-size: 15px; }
+.pwa-ios { margin: 0; padding: 10px 12px; border: 1px dashed var(--azul); border-radius: 12px; font-size: 14px; color: var(--suave); text-align: left; }
+.pin-codigo { display: grid; gap: 8px; margin-top: 14px; text-align: left; }
+.pin-codigo label { font-size: 13px; color: var(--suave); }
+.pin-codigo input { background: #1f1f1f; border: 1px solid var(--borde); border-radius: 8px; padding: 10px; font-size: 15px; color: var(--texto); }
+.pin-alta-ios { text-align: left; display: grid; gap: 8px; }
+.pin-alta-ios ol { margin: 0; padding-left: 20px; display: grid; gap: 4px; }
+.pin-caja .pwa-caja { margin-top: 10px; }
+.capturar-main .pwa-caja { margin-top: 4px; }

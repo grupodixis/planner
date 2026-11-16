@@ -417,6 +417,24 @@ Para apuntar cualquier cosa en el momento y que alguien la lleve a término.
   `archivos`, `/data/archivos`). Al desplegar, `desplegar-vps.sh` copia lo nuevo a
   `backups/archivos/` junto a la copia de la base de datos.
 
+## App en el móvil (PWA)
+
+La aplicación se puede **instalar** como una app (icono en la pantalla de inicio, a pantalla
+completa, sin barra del navegador). Al abrirla, cada uno va a lo suyo: un operario con
+sesión, a **Mi día**; el resto, a **＋ Capturar** (desde ahí el menú); sin sesión, a entrar
+con PIN (si el móvil está autorizado) o con email.
+
+- **Android (Chrome)**: sale el botón **📲 Instalar la app** en Entrar con PIN, Mi día y
+  Capturar (o en el menú de Chrome › «Instalar aplicación»). La app comparte la autorización
+  y la sesión con Chrome.
+- **iPhone (Safari)**: Compartir ⬆︎ › **Añadir a pantalla de inicio**. En iPhone la app
+  instalada **no comparte** lo de Safari: por eso, al abrir en Safari el enlace para su móvil,
+  no se gasta: se le enseña cómo instalar la app, se copia el código y se **pega en la app**
+  (Entrar con PIN › «¿Ya tienes el enlace o el código?»). También vale pegar el enlace entero.
+- `manifest.webmanifest`, iconos (`icono-192/512`, `icono-512-maskable`, `apple-touch-icon`),
+  `sw.js` (service worker mínimo: no guarda nada en caché salvo la página «Sin conexión») e
+  `inicio.html` (a dónde va cada uno al abrir la app).
+
 ## Informes
 
 Menú **Informes** (permiso «informes»; de serie solo el Administrador). Exportables a Excel (CSV).
