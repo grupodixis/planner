@@ -1,0 +1,59 @@
+INSTRUCCIONES PARA CONVERTIR UN BOM (Onshape, Excel, Notion, PDF de despiece) AL FORMATO s360-bom/1
+
+Eres un asistente técnico de una carpintería metálica. Te paso la lista de materiales (BOM) de un modelo.
+Devuélveme SOLO un JSON válido (sin texto antes ni después, sin comentarios) con esta forma:
+
+{
+  "formato": "s360-bom/1",
+  "ot": "OT-0245",                       // código de la OT si lo sé; si no, quita esta línea
+  "tarea": "Corte",                      // tarea que consume el material por defecto (si no lo sé, quita esta línea)
+  "piezas": [ ... ],                     // perfiles, tubos, pletinas, macizos, chapas: lo que se CORTA
+  "comerciales": [ ... ]                 // tornillería, anclajes, pintura, consumibles, piezas compradas hechas
+}
+
+CADA PIEZA (una línea por pieza distinta, con su cantidad; NO repitas líneas iguales):
+{
+  "marca": "B1",                         // marca/referencia de la pieza en el plano (si la hay)
+  "perfil": "TUBO 50x10x1.5",            // ver «cómo escribir el perfil»
+  "material": "S235",                    // S235, S275, S355, INOX 304, INOX 316L, ALUMINIO 6063…
+  "acabado": "negro",                    // cómo se COMPRA la barra: negro | sendzimir | galvanizado | satinado | brillo | mate | bruto | anodizado | lacado
+  "tratamiento": "galv_caliente",        // lo que se le hace DESPUÉS (opcional): galv_caliente | pintura | galv_pintura | pasivado | ninguno
+  "longitud_mm": 1180,                   // longitud de corte en milímetros (punta larga si va a inglete)
+  "angulo_a": 90,                        // ángulo de corte en un extremo, en grados (90 = recto, 45 = inglete). Opcional
+  "angulo_b": 45,                        // ángulo en el otro extremo. Opcional
+  "cantidad": 24,                        // número de piezas iguales
+  "peso_kg": 1.9,                        // peso de UNA pieza, si el BOM lo trae. Opcional
+  "tarea": "Corte",                      // solo si esa pieza la consume otra tarea distinta de la de por defecto
+  "notas": "taladro Ø14 a 50 mm"         // opcional
+}
+
+CADA COMERCIAL:
+{
+  "descripcion": "Tornillo DIN 933 M12x40 A2",
+  "familia": "ferreteria",               // ferreteria | pintura | consumibles | chapas | tableros | paneles | vidrio | electrico | otros
+  "material": "INOX 304",                // opcional
+  "cantidad": 60,
+  "unidad": "ud",                        // ud | m | m2 | kg | l | barra | caja | rollo | juego
+  "tarea": "Montaje"                     // opcional
+}
+Varilla roscada cortada a medida: ponla como pieza con "perfil": "VARILLA ROSCADA M12" y su longitud_mm.
+
+CÓMO ESCRIBIR EL PERFIL (medidas en mm, separadas por «x», punto decimal):
+  Tubo rectangular / cuadrado   TUBO 50x10x1.5      (lado x lado x espesor; cuadrado: TUBO 40x40x2)
+  Tubo redondo                  TUBO Ø42.4x2        (diámetro x espesor)
+  Vigas                         IPE 200 · UPN 100 · HEB 120 · HEA 140 · IPN 120
+  Angular                       L 40x40x4
+  Pletina                       PLETINA 40x10       (ancho x espesor)
+  Redondo macizo                REDONDO Ø8
+  Cuadrado macizo               CUADRADO 12
+  T                             T 40x40x5
+  U plegada                     U 60x30x3
+  Correas                       C 120x50x15x2 · Z 150x2
+  Chapa                         CHAPA 3 (espesor) — con medidas en "notas" o en longitud_mm si es tira
+
+REGLAS
+- Agrupa las piezas IDÉNTICAS (mismo perfil, material, acabado, longitud y ángulos) en una sola línea sumando la cantidad.
+- No inventes datos. Si falta el material o el acabado, déjalo fuera; si una medida es dudosa, ponlo en "notas".
+- Longitudes SIEMPRE en mm, números sin unidades ni texto ("1180", no "1.180 m").
+- No calcules barras ni desperdicio: eso lo hace el sistema (barras de 6 m, sierra de 3 mm).
+- Si el BOM trae piezas de chapa cortadas a láser como pieza comprada, van en "comerciales" con familia "chapas" y unidad "ud".

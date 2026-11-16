@@ -350,6 +350,8 @@
     $('#form-tarea').hidden = !editar || o.estado === 'cerrada';
     const primeraFecha = o.lista_tareas.map((t) => t.primera_fecha).filter(Boolean).sort()[0];
     $('#ot-tablero').href = primeraFecha ? `/?fecha=${primeraFecha}` : '/';
+    $('#ot-materiales').href = `/materiales.html?ot=${o.id}`;
+    $('#ot-materiales').textContent = o.n_materiales ? `Materiales (${o.n_materiales})` : 'Materiales';
 
     const guardar = (k) => async (v) => {
       await api('PATCH', `/api/ordenes/${o.id}`, { [k]: v });

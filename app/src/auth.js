@@ -13,6 +13,9 @@ const PERMISOS = {
   informes: 'Ver informes de horas, costes y resultados',
   vacaciones_ops: 'Vacaciones: primer visto bueno (Operaciones)',
   vacaciones_rrhh: 'Vacaciones: aprobación final (RRHH)',
+  materiales: 'Materiales de las OTs: importar y editar el BOM (despiece)',
+  almacen: 'Almacén: confirmar existencias y recibir material',
+  compras: 'Compras: proveedores y pedidos',
   mi_dia: 'Apuntar su propio día (Mi día). Solo, sin otros permisos: no ve nada más',
 };
 // Quien solo tiene «mi_dia» únicamente ve su pantalla Mi día (ni tablero, ni costes, ni lo de otros)

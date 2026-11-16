@@ -17,6 +17,7 @@ const TIPOS = {
   bandeja: { txt: 'Resumen de capturas nuevas en la bandeja', para: (u) => auth.tiene(u, 'planificar') },
   ausencias: { txt: 'Un operario avisa de que no viene o llega tarde', para: (u) => auth.tiene(u, 'planificar') },
   vac_pendiente: { txt: 'Peticiones de vacaciones que esperan mi paso', para: (u) => auth.tiene(u, 'vacaciones_ops') || auth.tiene(u, 'vacaciones_rrhh') },
+  materiales: { txt: 'Material nuevo de una OT para revisar en almacén', para: (u) => auth.tiene(u, 'almacen') },
   asuntos: { txt: 'Asuntos asignados a mí o que vencen mañana', para: (u) => !u.solo_mi_dia },
 };
 const SILENCIO = { desde: 21, hasta: 7 };

@@ -1,0 +1,72 @@
+{
+  "formato": "s360-bom/1",
+  "ot": "OT-0245",
+  "tarea": "Corte de perfiles",
+  "piezas": [
+    {
+      "marca": "B1",
+      "perfil": "TUBO 50x10x1.5",
+      "material": "S235",
+      "acabado": "negro",
+      "tratamiento": "galv_caliente",
+      "longitud_mm": 1180,
+      "angulo_a": 90,
+      "angulo_b": 90,
+      "cantidad": 24
+    },
+    {
+      "marca": "B2",
+      "perfil": "TUBO 50x10x1.5",
+      "material": "S235",
+      "longitud_mm": 2450,
+      "angulo_a": 45,
+      "angulo_b": 45,
+      "cantidad": 6,
+      "acabado": "negro",
+      "tratamiento": "galv_caliente"
+    },
+    {
+      "marca": "P1",
+      "perfil": "PLETINA 40x10",
+      "material": "S235",
+      "longitud_mm": 120,
+      "cantidad": 30,
+      "acabado": "negro",
+      "tratamiento": "galv_caliente"
+    },
+    {
+      "marca": "M1",
+      "perfil": "REDONDO Ø8",
+      "material": "S235",
+      "longitud_mm": 950,
+      "cantidad": 40,
+      "acabado": "negro",
+      "tratamiento": "galv_caliente"
+    },
+    {
+      "perfil": "VARILLA ROSCADA M12",
+      "acabado": "galvanizado",
+      "longitud_mm": 150,
+      "cantidad": 30,
+      "tarea": "Montaje",
+      "marca": "V1"
+    }
+  ],
+  "comerciales": [
+    {
+      "descripcion": "Esmalte alquídico negro satinado",
+      "familia": "pintura",
+      "cantidad": 4,
+      "unidad": "l",
+      "tarea": "Pintura"
+    },
+    {
+      "descripcion": "Tornillo DIN 933 M12x40 A2",
+      "familia": "ferreteria",
+      "material": "INOX 304",
+      "cantidad": 60,
+      "unidad": "ud",
+      "tarea": "Montaje"
+    }
+  ]
+}

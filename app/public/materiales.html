@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <meta name="theme-color" content="#141414">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-title" content="s360">
+  <title>s360 · Materiales</title>
+  <link rel="stylesheet" href="styles.css?v=202611161656">
+</head>
+<body class="bandeja-pant mat-pant">
+  <header class="top">
+    <h1>s360_planificacion <span>· materiales</span></h1>
+    <nav class="menu" aria-label="Pantallas">
+      <a href="/">Tablero</a>
+      <a href="/proyectos.html">Proyectos</a>
+      <a href="/recursos.html">Recursos</a>
+    </nav>
+    <div class="usuario"><span id="usuario-nombre"></span> <button id="salir" class="ghost">Salir</button></div>
+  </header>
+
+  <main class="mat-main">
+    <!-- sin ?ot: todas las OTs con material -->
+    <section id="vista-lista" hidden>
+      <div class="mat-cab">
+        <h2>Materiales de las OTs</h2>
+        <div class="acciones-cab"><a class="boton ghost" href="/almacen.html">Almacén</a> <a class="boton ghost" href="/proveedores.html">Proveedores</a> <button type="button" class="ghost" id="btn-ajustes-l">Ajustes</button></div>
+      </div>
+      <p class="ayuda">Las OTs con material estimado o con BOM cargado, por la fecha en que hace falta. Para cargar el BOM de una OT, ábrela aquí o desde Proyectos → OT → Materiales.</p>
+      <div class="mat-buscar"><label>Abrir una OT <select id="sel-ot"><option value="">Elige…</option></select></label></div>
+      <ul class="mat-ots" id="lista-ots"></ul>
+    </section>
+
+    <!-- con ?ot=ID -->
+    <section id="vista-ot" hidden>
+      <div class="mat-cab">
+        <div>
+          <a href="/materiales.html" class="ayuda">← Todas las OTs</a>
+          <h2 id="ot-tit"></h2>
+          <p class="ayuda" id="ot-sub"></p>
+        </div>
+        <div class="acciones-cab">
+          <button type="button" class="primario" id="btn-importar">Importar BOM</button>
+          <button type="button" class="ghost" id="btn-imprimir">Imprimir corte</button>
+          <button type="button" class="ghost" id="btn-ajustes">Ajustes</button>
+        </div>
+      </div>
+      <div class="kpis" id="tarjetas"></div>
+      <div class="pestanas" role="tablist" aria-label="Qué ver">
+        <button role="tab" data-vista="pedir" id="tab-pedir">Material a pedir</button>
+        <button role="tab" data-vista="bom" id="tab-bom">Despiece (BOM)</button>
+        <button role="tab" data-vista="comparar" id="tab-comparar">Estimado vs real</button>
+      </div>
+      <div id="panel"></div>
+    </section>
+  </main>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <script src="pwa.js?v=202611161656"></script>
+  <script src="comun.js?v=202611161656"></script>
+  <script src="materiales.js?v=202611161656"></script>
+</body>
+</html>
