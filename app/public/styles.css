@@ -1447,3 +1447,12 @@ button.t-deps.vacia { opacity: .55; }
 .pin-alta-ios ol { margin: 0; padding-left: 20px; display: grid; gap: 4px; }
 .pin-caja .pwa-caja { margin-top: 10px; }
 .capturar-main .pwa-caja { margin-top: 4px; }
+
+/* Avisos */
+.dlg-avisos { width: min(460px, calc(100vw - 24px)); }
+.dlg-avisos fieldset { border: 1px solid var(--linea); border-radius: 8px; margin: 0 0 10px; padding: 8px 10px; display: grid; gap: 6px; }
+.dlg-avisos legend { font-size: 13px; color: var(--suave); padding: 0 4px; }
+.av-tipo { display: flex; gap: 8px; align-items: flex-start; font-size: 14px; }
+.av-sil { display: inline-flex; gap: 6px; align-items: center; margin-left: 24px; font-size: 14px; }
+.av-sil select { background: #1f1f1f; border: 1px solid var(--borde); border-radius: 6px; padding: 4px; }
+.dlg-avisos .acciones { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }

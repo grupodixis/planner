@@ -120,6 +120,11 @@
     }
     refrescarPendientes();
     const salir = document.getElementById('salir');
+    if (salir && window.s360pwa && !document.getElementById('btn-avisos')) {
+      const b = el('button', { type: 'button', class: 'ghost', id: 'btn-avisos', title: 'Avisos al móvil', 'aria-label': 'Avisos', onclick: () => window.s360pwa.ajustes() }, '🔔');
+      salir.before(b, ' ');
+      window.s360pwa.renovar();
+    }
     if (salir && !salir.onclick) salir.onclick = async () => { await api('POST', '/api/logout'); location.href = '/login.html'; };
   }
 

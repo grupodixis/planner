@@ -561,6 +561,22 @@ const MIGRACIONES = [
     WHERE NOT EXISTS (SELECT 1 FROM capturas c WHERE c.origen_incidencia_id = i.id)`,
   `UPDATE archivos a SET ref_tipo = 'captura', ref_id = c.id FROM capturas c
     WHERE a.ref_tipo = 'incidencia' AND a.ref_id = c.origen_incidencia_id`,
+  /* ---------- Avisos al móvil (notificaciones push) ---------- */
+  `CREATE TABLE IF NOT EXISTS ajustes (clave TEXT PRIMARY KEY, valor JSONB NOT NULL)`,
+  `CREATE TABLE IF NOT EXISTS push_suscripciones (
+     id          SERIAL PRIMARY KEY,
+     usuario_id  INT NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+     endpoint    TEXT NOT NULL UNIQUE,
+     p256dh      TEXT NOT NULL,
+     auth        TEXT NOT NULL,
+     agente      TEXT,
+     creado      TIMESTAMPTZ NOT NULL DEFAULT now(),
+     ultimo_ok   TIMESTAMPTZ
+   )`,
+  // qué avisos quiere cada uno y sus horas de silencio (NULL = los de por defecto)
+  `ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS avisos JSONB`,
+  // memoria de los avisos programados (firma del plan, último resumen, recordatorios enviados)
+  `CREATE TABLE IF NOT EXISTS push_estado (clave TEXT PRIMARY KEY, valor TEXT, actualizado TIMESTAMPTZ NOT NULL DEFAULT now())`,
   `CREATE TABLE IF NOT EXISTS dias_enviados (
      fecha       DATE NOT NULL,
      recurso_id  INT NOT NULL REFERENCES recursos(id) ON DELETE CASCADE,

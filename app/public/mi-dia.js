@@ -259,6 +259,8 @@
     }
     $('#salir').onclick = salir;
     window.s360pwa?.boton($('#instalar'));
+    const fq = new URLSearchParams(location.search).get('fecha');
+    if (/^\d{4}-\d{2}-\d{2}$/.test(fq || '')) estado.fecha = fq;
     $('#dia-ant').onclick = () => { estado.fecha = sumarDias(estado.fecha, -1); cargar().catch((e) => toast(e.message, true)); };
     $('#dia-sig').onclick = () => { estado.fecha = sumarDias(estado.fecha, 1); cargar().catch((e) => toast(e.message, true)); };
     $('#enviar').onclick = enviar;
@@ -269,6 +271,13 @@
     });
     await cargar();
     if (estado.d.comun) vigilarInactividad();
+    // avisos al móvil: solo en el móvil de cada uno (en la tablet común no tiene sentido)
+    if (estado.d.comun) $('#ajustes-avisos').hidden = true;
+    else {
+      window.s360pwa?.avisos($('#activar-avisos'));
+      window.s360pwa?.renovar();
+      $('#ajustes-avisos').onclick = () => window.s360pwa?.ajustes();
+    }
     // si el encargado confirma o cambia el plan (o aprueba algo), se ve al momento
     window.s360.alCambiar(() => Promise.all([cargar(), window.midiaMas.recargar()]));
   }

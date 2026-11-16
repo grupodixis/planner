@@ -46,6 +46,7 @@
     try { yo = await api('GET', '/api/me'); } catch { location.href = '/login.html'; return; }
     window.s360.iniciar(yo);
     window.s360pwa?.boton($('#instalar'));
+    window.s360pwa?.avisos($('#activar-avisos'));
     const cap = window.Captura.montar($('#captura'), { toast });
     await cargarAsuntos().catch((e) => toast(e.message, true));
     window.s360.alCambiar(() => Promise.all([cargarAsuntos(), cap.recargar()]));

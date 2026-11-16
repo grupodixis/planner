@@ -12,6 +12,7 @@ const { query, tx } = require('./db');
 const auth = require('./auth');
 const archivos = require('./archivos');
 const { afectados } = require('./ausencias');
+const notif = require('./notificaciones');
 
 const fallo = (status, msg) => Object.assign(new Error(msg), { status });
 const texto = (v, max) => String(v || '').trim().slice(0, max) || null;
@@ -117,6 +118,13 @@ function montar(app, asyncH) {
       if (!t && !n) throw fallo(400, 'No se ha podido adjuntar lo grabado: vuelve a intentarlo');
       return rows[0].id;
     });
+    // averías y seguridad: aviso al momento a quien planifica (lo demás va en el resumen de la bandeja)
+    if (notif.URGENTES.includes(b.categoria)) {
+      notif.avisarLuego(notif.conPermiso('planificar'), 'urgente', {
+        titulo: `⚠ ${CATEGORIAS[b.categoria]}`, cuerpo: `${req.usuario.nombre}: ${(t || 'ver foto / vídeo').slice(0, 140)}`,
+        url: '/bandeja.html', tag: `captura-${id}`, urgente: true,
+      });
+    }
     res.status(201).json({ id });
   }));
 
@@ -214,6 +222,18 @@ function montar(app, asyncH) {
       await c.query(`UPDATE capturas SET ${base}, estado = 'descartada' WHERE id = $1`, comun);
       return { estado: 'descartada' };
     });
+    // avisos: a quien lo capturó si es tarea; al responsable si es un asunto
+    const { rows: cap } = await query('SELECT usuario_id, texto FROM capturas WHERE id = $1', [id]);
+    const resumen = (cap[0]?.texto || 'lo que apuntaste').slice(0, 120);
+    if (out.estado === 'tarea' && cap[0]?.usuario_id !== req.usuario.id) {
+      notif.avisarLuego([cap[0]?.usuario_id], 'capturas', { titulo: 'Lo que capturaste ya es una tarea', cuerpo: resumen, url: '/inicio.html', tag: `captura-${id}` });
+    }
+    if (out.estado === 'asunto' && Number(b.responsable_id) !== req.usuario.id) {
+      notif.avisarLuego([Number(b.responsable_id)], 'asuntos', {
+        titulo: 'Te han asignado un asunto', cuerpo: `${resumen}${b.fecha_limite ? ` · para el ${b.fecha_limite.split('-').reverse().join('/')}` : ''}`,
+        url: '/capturar.html', tag: `captura-${id}`,
+      });
+    }
     res.json({ ok: true, ...out });
   }));
 
@@ -226,6 +246,12 @@ function montar(app, asyncH) {
     if (!['asunto', 'bandeja'].includes(rows[0].estado)) throw fallo(409, 'Ya está cerrada');
     await query(`UPDATE capturas SET estado = 'resuelta', resuelta_por = $2, resuelta_en = now(), resolucion = $3 WHERE id = $1`,
       [id, req.usuario.id, texto(req.body?.resolucion, 1000)]);
+    const { rows: cap } = await query('SELECT usuario_id, texto FROM capturas WHERE id = $1', [id]);
+    if (cap[0]?.usuario_id && cap[0].usuario_id !== req.usuario.id) {
+      notif.avisarLuego([cap[0].usuario_id], 'capturas', {
+        titulo: '✔ Resuelto lo que capturaste', cuerpo: texto(req.body?.resolucion, 140) || (cap[0].texto || '').slice(0, 120), url: '/inicio.html', tag: `captura-${id}`,
+      });
+    }
     res.json({ ok: true });
   }));
 

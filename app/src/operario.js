@@ -6,6 +6,9 @@ const auth = require('./auth');
 const { vacacionesDias } = require('./config');
 const { laborables, afectados, festivosEnRango, ausenciasEnRango, textoAusencia } = require('./ausencias');
 const archivos = require('./archivos');
+const notif = require('./notificaciones');
+const fFecha = (f) => f.split('-').reverse().join('/');
+const hhmm = (h) => `${Math.floor(h)}:${String(Math.round((h % 1) * 60)).padStart(2, '0')}`;
 
 const FECHA_RE = /^\d{4}-\d{2}-\d{2}$/;
 const fallo = (status, msg) => Object.assign(new Error(msg), { status });
@@ -152,6 +155,10 @@ function montar(app, asyncH) {
     const { rows } = await query(
       `INSERT INTO solicitudes_vacaciones (recurso_id, desde, hasta, dias, notas, usuario_id) VALUES ($1,$2,$3,$4,$5,$6) RETURNING id`,
       [recursoId, desde, hasta, dias, texto(b.notas, 500), req.usuario.id]);
+    notif.avisarLuego(notif.conPermiso('vacaciones_ops'), 'vac_pendiente', {
+      titulo: 'Petición de vacaciones', cuerpo: `${req.usuario.nombre}: ${fFecha(desde)} – ${fFecha(hasta)} (${dias} días). Espera tu visto bueno.`,
+      url: '/recursos.html?tipo=calendario', tag: `vac-${rows[0].id}`,
+    });
     res.status(201).json({ id: rows[0].id, dias });
   }));
 
@@ -191,7 +198,14 @@ function montar(app, asyncH) {
       await archivos.enlazar(c, b.archivos, 'ausencia', rows[0].id, req.usuario.id);
       return rows[0].id;
     });
-    res.status(201).json({ id: out, afectados: (await afectados(recursoId, { desde, hasta, hora_desde: hd, hora_hasta: hh })).length });
+    const nAf = (await afectados(recursoId, { desde, hasta, hora_desde: hd, hora_hasta: hh })).length;
+    const cuando = desde === hoyMadrid() ? 'hoy' : desde === hasta ? `el ${fFecha(desde)}` : `del ${fFecha(desde)} al ${fFecha(hasta)}`;
+    notif.avisarLuego(notif.conPermiso('planificar'), 'ausencias', {
+      titulo: `${req.usuario.nombre}: ${MOTIVOS_AVISO[b.motivo].toLowerCase()}`,
+      cuerpo: `${hd != null ? `De ${hhmm(hd)} a ${hhmm(hh)} ` : 'Todo el día '}${cuando}${nAf ? ` · tenía ${nAf} trabajo(s) planificado(s)` : ''}`,
+      url: `/parte.html?fecha=${desde}`, tag: `aus-${out}`,
+    });
+    res.status(201).json({ id: out, afectados: nAf });
   }));
 
   // Quitar un aviso propio (se equivocó) mientras no haya pasado el día
@@ -321,6 +335,23 @@ function montar(app, asyncH) {
       }
       throw fallo(409, 'Esta petición ya está resuelta');
     });
+    // avisos: a RRHH cuando Operaciones da el visto bueno; al operario cuando se resuelve
+    const { rows: sv } = await query(
+      `SELECT s.recurso_id, s.desde, s.hasta, s.dias::float AS dias, r.nombre FROM solicitudes_vacaciones s JOIN recursos r ON r.id = s.recurso_id WHERE s.id = $1`, [id]);
+    const s = sv[0];
+    if (s && out.estado === 'pendiente_rrhh') {
+      notif.avisarLuego(notif.conPermiso('vacaciones_rrhh'), 'vac_pendiente', {
+        titulo: 'Vacaciones para aprobar', cuerpo: `${s.nombre}: ${fFecha(s.desde)} – ${fFecha(s.hasta)} (${s.dias} días). Operaciones ya dio el visto bueno.`,
+        url: '/recursos.html?tipo=calendario', tag: `vac-${id}`,
+      });
+    }
+    if (s && (out.estado === 'aprobada' || out.estado === 'rechazada')) {
+      notif.avisarLuego(notif.deRecurso(s.recurso_id), 'vacaciones', {
+        titulo: out.estado === 'aprobada' ? '🌴 Vacaciones aprobadas' : 'Vacaciones rechazadas',
+        cuerpo: `${fFecha(s.desde)} – ${fFecha(s.hasta)}${out.estado === 'rechazada' && nota ? ` · ${nota}` : ''}`,
+        url: '/mi-dia.html', tag: `vac-${id}`,
+      });
+    }
     res.json({ ok: true, ...out });
   }));
 

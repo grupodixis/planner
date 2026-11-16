@@ -29,7 +29,8 @@ require('./usuarios')(app, asyncH);   // entrar, recuperar contraseña, Mi cuent
 require('./pin').gestion(app, asyncH);   // PIN de operarios y dispositivos autorizados
 require('./archivos').montar(app, asyncH);   // fotos y documentos (justificantes, incidencias)
 require('./operario').montar(app, asyncH);   // app del operario: vacaciones, avisos, justificantes, su mes
-require('./capturas').montar(app, asyncH);   // bandeja de capturas (texto, audio, foto, vídeo) → tarea / asunto / info
+require('./capturas').montar(app, asyncH);
+require('./notificaciones').montar(app, asyncH);   // avisos al móvil (push) y avisos programados   // bandeja de capturas (texto, audio, foto, vídeo) → tarea / asunto / info
 eventos.montar(app);   // GET /api/eventos (con sesión)
 
 /* ---------- Tablero y tramos ---------- */

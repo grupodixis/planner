@@ -92,6 +92,7 @@ app/src/pin.js            entrada con PIN para operarios y dispositivos autoriza
 app/src/midia.js          «Mi día» del operario y lo que declara para el parte
 app/src/operario.js       app del operario: vacaciones (dos pasos), avisos, justificantes, su mes, PIN
 app/src/archivos.js       fotos y PDF (en la base de datos), audio y vídeo (en disco)
+app/src/notificaciones.js avisos al móvil (push) y avisos programados
 app/src/capturas.js       bandeja de capturas: capturar y clasificar (tarea / asunto / información)
 app/src/eventos.js        avisos en vivo entre pantallas (Server-Sent Events)
 app/src/importar.js       importación de proyectos del compositor (s360-import/1)
@@ -435,6 +436,28 @@ con PIN (si el móvil está autorizado) o con email.
   `sw.js` (service worker mínimo: no guarda nada en caché salvo la página «Sin conexión») e
   `inicio.html` (a dónde va cada uno al abrir la app).
 
+## Avisos al móvil (notificaciones)
+
+Notificaciones push (Web Push, claves VAPID propias que se crean solas y se guardan en la
+tabla `ajustes`). Llegan aunque la app esté cerrada: en Android siempre; en iPhone solo con la
+app **instalada** en la pantalla de inicio (iOS 16.4+).
+
+- **Activar**: botón «🔔 Activar avisos en este móvil» (Mi día, Capturar) o la 🔔 de la cabecera
+  (todas las pantallas), que abre los **ajustes**: qué avisos quiero, **horas de silencio**
+  (por defecto 21:00–7:00; averías y seguridad avisan siempre), enviar una prueba, desactivar.
+  En la tablet común no se ofrece.
+- **Qué avisa**:
+  - operarios: **cambio en su plan** de hoy o mañana (se repasa cada minuto; si están
+    planificando se agrupa, como mucho uno cada 20 min; de noche espera a la mañana),
+    **recordatorio a las 17:00** si no ha enviado su día (laborables con trabajo),
+    **vacaciones** aprobadas o rechazadas;
+  - todos: lo que **capturé** se convierte en tarea o se resuelve; **asunto asignado** a mí y
+    asuntos que **vencen mañana** (a las 8:00);
+  - quien planifica: **avería o seguridad** capturada (al momento), **resumen de la bandeja**
+    (cada 30 min si hay nuevas), un operario **avisa de que no viene o llega tarde**;
+  - Operaciones / RRHH: **petición de vacaciones** que espera su paso.
+- Al pulsar el aviso se abre la pantalla correspondiente.
+
 ## Informes
 
 Menú **Informes** (permiso «informes»; de serie solo el Administrador). Exportables a Excel (CSV).
@@ -583,6 +606,10 @@ vez. Al confirmar se importa todo de una vez (o nada).
 | GET | `/api/capturas/opciones-clasificar` | responsables, oficios y áreas |
 | POST | `/api/capturas/:id/clasificar` | `{destino: tarea\|asunto\|info\|descartar, proyecto_id, orden_id, categoria, nota, prioridad, responsable_id, fecha_limite, tarea: {nombre, duracion_h, operarios_req, oficio_id, linea_id}}` |
 | POST | `/api/capturas/:id/resolver` · `/reabrir` · `/maquina-parada` | `{resolucion}` (quien planifica o el responsable) · volver a la bandeja · máquina no disponible hoy |
+| GET | `/api/push/clave` | clave pública VAPID |
+| POST · DELETE | `/api/push/suscribir` | `{suscripcion}` (la del navegador) · `{endpoint}` |
+| GET · PUT | `/api/push/preferencias` | qué avisos y horas de silencio · `{off: [tipos], silencio: {desde, hasta} \| null}` |
+| POST | `/api/push/prueba` | manda un aviso de prueba a mis dispositivos |
 | GET | `/api/eventos` | avisos en vivo (Server-Sent Events) para que las pantallas se actualicen solas |
 | GET | `/api/informes/proyectos` · `/api/informes/proyecto/:id` | resumen de proyectos · detalle partida › OT › tarea |
 | GET | `/api/informes/operarios` · `/maquinas` · `/planificacion` | `?desde=&hasta=` |
