@@ -71,8 +71,9 @@ async function avisar(usuarioIds, tipo, msg) {
     const p = prefsDe(s);
     if (p.off.includes(tipo)) return;
     if (!msg.urgente && tipo !== 'prueba' && p.silencio && enSilencio(p.silencio, h)) return;
+    // siempre «high»: con «normal», Android en reposo (Doze) los retiene hasta que se usa el móvil
     try {
-      await webpush.sendNotification({ endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } }, payload, { TTL: 6 * 3600, urgency: msg.urgente ? 'high' : 'normal' });
+      await webpush.sendNotification({ endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } }, payload, { TTL: 6 * 3600, urgency: 'high' });
       n++;
       query('UPDATE push_suscripciones SET ultimo_ok = now() WHERE id = $1', [s.sid]).catch(() => {});
     } catch (e) {
