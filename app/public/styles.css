@@ -1456,3 +1456,7 @@ button.t-deps.vacia { opacity: .55; }
 .av-sil { display: inline-flex; gap: 6px; align-items: center; margin-left: 24px; font-size: 14px; }
 .av-sil select { background: #1f1f1f; border: 1px solid var(--borde); border-radius: 6px; padding: 4px; }
 .dlg-avisos .acciones { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
+
+.av-bateria { margin: 0 0 10px; padding: 10px 12px; border-radius: 10px; background: var(--naranja-bg); border: 1px solid var(--naranja); font-size: 14px; line-height: 1.4; }
+.av-cerrada { margin: 0 0 10px; font-size: 14px; }
+.av-cerrada summary { cursor: pointer; color: var(--azul); margin-bottom: 8px; }

@@ -262,9 +262,18 @@ function montar(app, asyncH) {
     res.json({ ok: true });
   }));
 
+  // { espera: segundos } → se manda más tarde (para probar con la app cerrada)
   app.post('/api/push/prueba', asyncH(async (req, res) => {
-    const n = await avisar([req.usuario.id], 'prueba', { titulo: 'Avisos activados ✔', cuerpo: 'Así te llegarán los avisos del planificador.', url: '/inicio.html', tag: 'prueba' });
-    res.json({ enviados: n });
+    const espera = Math.min(Math.max(Number(req.body?.espera) || 0, 0), 60);
+    const msg = espera
+      ? { titulo: '✔ Te llegan con la app cerrada', cuerpo: 'Perfecto: los avisos funcionan aunque no tengas la app abierta.', url: '/inicio.html', tag: 'prueba' }
+      : { titulo: 'Avisos activados ✔', cuerpo: 'Así te llegarán los avisos del planificador.', url: '/inicio.html', tag: 'prueba' };
+    if (espera) {
+      const id = req.usuario.id;
+      setTimeout(() => avisar([id], 'prueba', msg).catch(() => {}), espera * 1000);
+      return res.json({ programado: true, espera });
+    }
+    res.json({ enviados: await avisar([req.usuario.id], 'prueba', msg) });
   }));
 
   setTimeout(() => { repasar(); setInterval(repasar, 60 * 1000); }, 15 * 1000);

@@ -457,6 +457,11 @@ app **instalada** en la pantalla de inicio (iOS 16.4+).
     (cada 30 min si hay nuevas), un operario **avisa de que no viene o llega tarde**;
   - Operaciones / RRHH: **petición de vacaciones** que espera su paso.
 - Al pulsar el aviso se abre la pantalla correspondiente.
+- **Android y la batería**: si el ahorro de batería restringe Chrome, los avisos no llegan con
+  la app cerrada. Al activarlos sale «Un último paso» con la ruta exacta según la marca
+  (Samsung, Xiaomi, Huawei, Oppo/Realme/OnePlus u otras) y **Probar con la app cerrada** (el
+  servidor manda una prueba a los 20 s). También en 🔔 › «¿No te llegan con la app cerrada?».
+  Una web no puede abrir esa pantalla de ajustes directamente.
 
 ## Informes
 

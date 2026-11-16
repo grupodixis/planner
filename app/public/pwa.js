@@ -75,9 +75,47 @@
     b.textContent = '🔔 Activar avisos en este móvil';
     b.onclick = async () => {
       b.disabled = true;
-      try { await activar(); avisosCajas.forEach(pintarAvisos); } catch (e) { alert(e.message); b.disabled = false; }
+      try { await activar(); avisosCajas.forEach(pintarAvisos); ultimoPaso(); } catch (e) { alert(e.message); b.disabled = false; }
     };
     caja.append(b);
+  }
+
+  /* ---------- Android: que no los corte el ahorro de batería ---------- */
+  const esAndroid = () => /Android/i.test(navigator.userAgent);
+  // Desde una web no se puede abrir directamente esa pantalla de ajustes: se explica en una línea, según la marca
+  async function rutaBateria() {
+    let modelo = '';
+    try { modelo = (await navigator.userAgentData?.getHighEntropyValues(['model']))?.model || ''; } catch { /* sin datos */ }
+    const ua = `${navigator.userAgent} ${modelo}`;
+    if (/SM-|Samsung/i.test(ua)) return 'Ajustes › Aplicaciones › Chrome › Batería › <b>Sin restricciones</b>';
+    if (/Redmi|POCO|Xiaomi|\bMi /i.test(ua)) return 'Ajustes › Aplicaciones › Chrome › Ahorro de batería › <b>Sin restricciones</b>';
+    if (/HUAWEI|HONOR/i.test(ua)) return 'Ajustes › Batería › Inicio de aplicaciones › Chrome › <b>Gestionar manualmente</b> (todo activado)';
+    if (/OPPO|CPH|realme|RMX|OnePlus/i.test(ua)) return 'Ajustes › Batería › Chrome › <b>Permitir actividad en segundo plano</b>';
+    return 'Ajustes › Aplicaciones › Chrome › Batería › <b>Sin restricciones</b>';
+  }
+  async function consejoBateria() {
+    return `<p class="av-bateria">🔋 Para que lleguen con la app cerrada: ${await rutaBateria()}.</p>`;
+  }
+  async function probarCerrada() {
+    await jfetch('POST', '/api/push/prueba', { espera: 20 });
+    alert('Cierra la app ahora. En 20 segundos te llegará un aviso de prueba.\nSi no llega, revisa el ajuste de batería.');
+  }
+  // justo después de activarlos en Android: el último paso, breve
+  async function ultimoPaso() {
+    if (!esAndroid()) return;
+    const d = document.createElement('dialog');
+    d.className = 'dlg-pregunta dlg-avisos';
+    d.innerHTML = `<h2>Un último paso</h2>${await consejoBateria()}
+      <div class="acciones"><button type="button" class="ghost" data-a="cerrar">Ya está</button>
+      <button type="button" class="primario" data-a="probar">Probar con la app cerrada</button></div>`;
+    d.addEventListener('click', async (ev) => {
+      const a = ev.target.dataset?.a;
+      if (!a) return;
+      if (a === 'probar') await probarCerrada().catch((e) => alert(e.message));
+      d.close(); d.remove();
+    });
+    document.body.append(d);
+    d.showModal();
   }
 
   // Diálogo: qué avisos quiero y horas de silencio
@@ -101,6 +139,8 @@
         <span class="av-sil"><select id="av-desde" aria-label="Desde">${horas(sil ? sil.desde : 21)}</select> a <select id="av-hasta" aria-label="Hasta">${horas(sil ? sil.hasta : 7)}</select></span>
         <p class="ayuda">Las averías y la seguridad avisan siempre.</p>
       </fieldset>
+      ${activa && esAndroid() ? `<details class="av-cerrada"><summary>¿No te llegan con la app cerrada?</summary>${await consejoBateria()}
+        <button type="button" class="ghost" data-a="prueba-cerrada">Probar con la app cerrada</button></details>` : ''}
       <div class="acciones">
         ${activa ? '<button type="button" class="ghost" data-a="prueba">Enviar prueba</button><button type="button" class="ghost" data-a="quitar">Desactivar aquí</button>' : '<button type="button" class="ghost" data-a="activar">Activar aquí</button>'}
         <button type="button" class="ghost" data-a="cerrar">Cancelar</button>
@@ -115,7 +155,8 @@
         if (a === 'cerrar') return cerrar();
         if (a === 'prueba') { const r = await jfetch('POST', '/api/push/prueba'); alert(r.enviados ? 'Enviado: debería llegarte en unos segundos.' : 'No se ha podido enviar (¿estás en horas de silencio o lo tienes desactivado?)'); return; }
         if (a === 'quitar') { await desactivar(); cerrar(); avisosCajas.forEach(pintarAvisos); return; }
-        if (a === 'activar') { await activar(); cerrar(); avisosCajas.forEach(pintarAvisos); return; }
+        if (a === 'activar') { await activar(); cerrar(); avisosCajas.forEach(pintarAvisos); ultimoPaso(); return; }
+        if (a === 'prueba-cerrada') { await probarCerrada(); cerrar(); return; }
         if (a === 'guardar') {
           const off = [...d.querySelectorAll('fieldset input[type=checkbox][value]')].filter((i) => !i.checked).map((i) => i.value);
           const silencio = d.querySelector('#av-sil').checked ? { desde: Number(d.querySelector('#av-desde').value), hasta: Number(d.querySelector('#av-hasta').value) } : null;
@@ -131,6 +172,6 @@
   window.s360pwa = {
     instalada, esIOS, boton: (caja) => { if (!caja) return; cajas.add(caja); pintar(caja); },
     avisos: (caja) => { if (!caja) return; avisosCajas.add(caja); pintarAvisos(caja); },
-    ajustes, activar, renovar,
+    ajustes, activar, renovar, ultimoPaso,
   };
 })();
