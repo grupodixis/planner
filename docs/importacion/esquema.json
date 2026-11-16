@@ -150,30 +150,7 @@
         "requiere": { "type": "array", "items": { "$ref": "#/$defs/requisito" } },
         "despues_de": { "type": "array", "items": { "$ref": "#/$defs/dependencia" }, "description": "Tareas (de este archivo) que deben ir antes." },
         "notas": { "type": "string", "maxLength": 4000 },
-        "extra": { "$ref": "#/$defs/extra" },
-        "materiales": {
-          "type": "array", "maxItems": 500,
-          "description": "Escandallo ESTIMADO de la tarea (lo que consume). Si viene, sustituye al estimado anterior de esa tarea. Ver docs/materiales/README.md.",
-          "items": { "$ref": "#/$defs/material" }
-        }
-      }
-    },
-    "material": {
-      "type": "object",
-      "required": ["cantidad"],
-      "anyOf": [{ "required": ["perfil"] }, { "required": ["descripcion"] }],
-      "additionalProperties": false,
-      "properties": {
-        "perfil": { "type": "string", "maxLength": 80, "description": "Perfil comercial: «TUBO 50x10x1.5», «UPN 100», «L 40x40x4», «PLETINA 40x10», «REDONDO Ø8», «TUBO Ø42.4x2», «CHAPA 3». Se normaliza al importar." },
-        "descripcion": { "type": "string", "maxLength": 200, "description": "Comerciales sin perfil: «Tornillo DIN 933 M12x40 A2», «Esmalte alquídico negro satinado»." },
-        "material": { "type": "string", "maxLength": 40, "description": "S235, S275, S355, INOX 304, INOX 316L, ALUMINIO 6063…" },
-        "acabado": { "type": "string", "maxLength": 40, "description": "Cómo se COMPRA: negro, sendzimir, galvanizado, satinado, brillo, mate, bruto, anodizado, lacado." },
-        "tratamiento": { "type": "string", "maxLength": 40, "description": "Lo que se hace después (informativo): galv_caliente, pintura, galv_pintura, pasivado, ninguno." },
-        "familia": { "enum": ["largos", "chapas", "ferreteria", "pintura", "consumibles", "tableros", "paneles", "vidrio", "electrico", "otros"], "description": "Si falta, se deduce del perfil." },
-        "cantidad": { "type": "number", "exclusiveMinimum": 0 },
-        "unidad": { "enum": ["ud", "m", "m2", "kg", "l", "barra", "caja", "rollo", "juego"], "description": "Largos estimados: «m» o «barra». Por defecto: m para largos sin longitud, ud para lo demás." },
-        "longitud_mm": { "type": "number", "exclusiveMinimum": 0, "description": "Solo si se estiman piezas concretas (unidad = ud)." },
-        "notas": { "type": "string", "maxLength": 500 }
+        "extra": { "$ref": "#/$defs/extra" }
       }
     }
   }

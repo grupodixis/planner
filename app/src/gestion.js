@@ -339,15 +339,13 @@ module.exports = function montar(app, asyncH) {
                          WHERE d.tarea_id = t.id), '[]') AS dependencias,
               COALESCE((SELECT json_agg(tr.recurso_id) FROM tarea_requisitos tr WHERE tr.tarea_id = t.id), '[]') AS requisitos,
               COALESCE((SELECT json_agg(json_build_object('id', q.tipo_recurso_id, 'cantidad', q.cantidad))
-                          FROM tarea_requisitos_tipo q WHERE q.tarea_id = t.id), '[]') AS requisitos_tipo
+                          FROM tarea_requisitos_tipo q WHERE q.tarea_id = t.id), '[]') AS requisitos_tipo,
+              (SELECT count(*)::int FROM tarea_llevar l WHERE l.tarea_id = t.id AND l.tipo = 'material') AS n_material,
+              (SELECT count(*)::int FROM tarea_llevar l WHERE l.tarea_id = t.id AND l.tipo = 'herramienta') AS n_herramienta
          FROM tareas t WHERE t.orden_id = $1 ORDER BY t.orden_en_of, t.id`, [id]);
     const av = await avance.resumen({ ordenIds: [id] });
     for (const t of tareas.rows) t.avance = av.tareas[t.id] || null;
-    const { rows: nm } = await query(
-      `SELECT count(*)::int AS n FROM materiales m
-        WHERE m.orden_id = $1 AND m.origen = CASE WHEN EXISTS (SELECT 1 FROM materiales m2 WHERE m2.orden_id = $1 AND m2.origen = 'bom')
-                                                  THEN 'bom' ELSE 'estimado' END`, [id]);
-    res.json({ ...rows[0], avance: av.ordenes[id] || null, lista_tareas: tareas.rows, n_materiales: nm[0].n });
+    res.json({ ...rows[0], avance: av.ordenes[id] || null, lista_tareas: tareas.rows });
   }));
 
   async function comprobarPartida(partidaId, proyectoId) {

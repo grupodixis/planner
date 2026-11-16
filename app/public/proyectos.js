@@ -350,8 +350,6 @@
     $('#form-tarea').hidden = !editar || o.estado === 'cerrada';
     const primeraFecha = o.lista_tareas.map((t) => t.primera_fecha).filter(Boolean).sort()[0];
     $('#ot-tablero').href = primeraFecha ? `/?fecha=${primeraFecha}` : '/';
-    $('#ot-materiales').href = `/materiales.html?ot=${o.id}`;
-    $('#ot-materiales').textContent = o.n_materiales ? `Materiales (${o.n_materiales})` : 'Materiales';
 
     const guardar = (k) => async (v) => {
       await api('PATCH', `/api/ordenes/${o.id}`, { [k]: v });
@@ -444,18 +442,26 @@
     const deps = t.dependencias || [];
     const espera = (d) => (d.espera_h ? ` (+${durTxt(d.espera_h)} espera)` : '');
     const depTxt = deps.map((d) => `${d.orden_codigo === estado.ot.codigo ? '' : d.orden_codigo + ' '}${d.nombre}${espera(d)}`);
+    const nLlevar = (t.n_material || 0) + (t.n_herramienta || 0);
+    const llevar = nLlevar || editar ? el('button', {
+      type: 'button', class: `t-llevar${nLlevar ? '' : ' vacia'}`,
+      title: nLlevar ? `Llevar: ${t.n_material} material(es) · ${t.n_herramienta} herramienta(s)` : 'Materiales y herramientas: añadir',
+      'aria-label': nLlevar ? `Materiales y herramientas de ${t.nombre}: ${nLlevar}` : `Añadir materiales y herramientas a ${t.nombre}`,
+      onclick: () => editarLlevar(t, editar),
+    }, '🧰', nLlevar ? el('span', { class: 't-llevar-n' }, String(nLlevar)) : null) : null;
+    const depsEl = deps.length ? el(editar ? 'button' : 'span', {
+        type: editar ? 'button' : null, class: `t-deps${editar ? ' editable' : ''}`,
+        title: `Va después de:\n${depTxt.join('\n')}${editar ? '\n\nPulsa para cambiarlo' : ''}`,
+        onclick: editar ? () => editarDependencias(t) : null,
+      }, `⤷ después de ${depTxt.length === 1 ? depTxt[0] : `${depTxt[0]} y ${depTxt.length - 1} más`}`)
+        : editar ? el('button', { type: 'button', class: 't-deps editable vacia', onclick: () => editarDependencias(t) }, '+ después de…') : null;
     return el('div', { class: 't-extra' },
+      llevar || depsEl ? el('div', { class: 't-fila1' }, llevar, depsEl) : null,
       t.baja_presupuesto ? el('span', { class: 'baja-txt' }, 'Ya no está en el presupuesto',
         editar ? el('button', {
           type: 'button', class: 'ghost mini', title: 'Quitar la marca y conservar la tarea',
           onclick: () => patch(t, { baja_presupuesto: false }),
         }, 'Mantener') : null) : null,
-      deps.length ? el(editar ? 'button' : 'span', {
-        type: editar ? 'button' : null, class: `t-deps${editar ? ' editable' : ''}`,
-        title: `Va después de:\n${depTxt.join('\n')}${editar ? '\n\nPulsa para cambiarlo' : ''}`,
-        onclick: editar ? () => editarDependencias(t) : null,
-      }, `⤷ después de ${depTxt.length === 1 ? depTxt[0] : `${depTxt[0]} y ${depTxt.length - 1} más`}`)
-        : editar ? el('button', { type: 'button', class: 't-deps editable vacia', onclick: () => editarDependencias(t) }, '+ después de…') : null,
       t.notas || editar ? el('details', { class: `t-notas${t.notas ? '' : ' vacia'}` },
         el('summary', {}, t.notas ? `Notas: ${t.notas.length > 70 ? t.notas.slice(0, 70) + '…' : t.notas}` : '+ notas'),
         el('textarea', {
@@ -465,6 +471,67 @@
   }
 
   // Editor de «después de»: tareas previas (del mismo proyecto) con su espera
+  // Materiales y herramientas que hacen falta para la tarea (lo que hay que llevar)
+  async function editarLlevar(t, editar) {
+    let lineas;
+    try { lineas = await api('GET', `/api/tareas/${t.id}/llevar`); } catch (e) { return toast(e.message, true); }
+    let cambiado = false;
+    const dlg = el('dialog', { class: 'dlg-llevar', 'aria-labelledby': 'llevar-tit' });
+    const cuerpo = el('div', { class: 'llevar-cuerpo' });
+    const guardar = async (l, cambio) => {
+      try { Object.assign(l, await api('PATCH', `/api/llevar/${l.id}`, cambio)); cambiado = true; }
+      catch (e) { toast(e.message, true); pintar(); }
+    };
+    const fila = (l) => el('li', { class: 'llevar-fila' },
+      editar ? [
+        el('input', { class: 'll-desc', value: l.descripcion, maxlength: 200, 'aria-label': 'Qué', onchange: (ev) => (ev.target.value.trim() ? guardar(l, { descripcion: ev.target.value }) : (ev.target.value = l.descripcion)) }),
+        el('input', { class: 'll-cant', type: 'number', min: 0, step: 'any', value: l.cantidad ?? '', placeholder: 'Cant.', 'aria-label': 'Cantidad', onchange: (ev) => guardar(l, { cantidad: ev.target.value }) }),
+        el('input', { class: 'll-ud', value: l.unidad || '', maxlength: 20, placeholder: 'ud', 'aria-label': 'Unidad', onchange: (ev) => guardar(l, { unidad: ev.target.value }) }),
+        el('input', { class: 'll-nota', value: l.nota || '', maxlength: 300, placeholder: 'Nota', 'aria-label': 'Nota', onchange: (ev) => guardar(l, { nota: ev.target.value }) }),
+        el('button', { type: 'button', class: 'ghost mini borrar', 'aria-label': `Quitar ${l.descripcion}`, onclick: async () => {
+          try { await api('DELETE', `/api/llevar/${l.id}`); lineas = lineas.filter((x) => x !== l); cambiado = true; pintar(); }
+          catch (e) { toast(e.message, true); }
+        } }, '✕'),
+      ] : [
+        el('span', { class: 'll-desc' }, l.descripcion),
+        el('span', { class: 'll-cant' }, l.cantidad != null ? `${String(l.cantidad).replace('.', ',')} ${l.unidad || ''}` : ''),
+        el('span', { class: 'll-nota ayuda' }, l.nota || ''),
+      ]);
+    const pintar = () => {
+      cuerpo.replaceChildren(...[['material', 'Materiales'], ['herramienta', 'Herramientas']].map(([tipo, tit]) => {
+        const ls = lineas.filter((l) => l.tipo === tipo);
+        return el('section', { class: `llevar-grupo ${tipo}` },
+          el('h3', {}, tit, el('span', { class: 'ayuda' }, ` · ${ls.length}`)),
+          ls.length ? el('ul', {}, ls.map(fila)) : el('p', { class: 'ayuda' }, 'Nada apuntado.'));
+      }));
+    };
+    const tipoSel = el('select', { 'aria-label': 'Tipo' }, el('option', { value: 'material' }, 'Material'), el('option', { value: 'herramienta' }, 'Herramienta'));
+    const desc = el('input', { placeholder: 'Qué hace falta…', maxlength: 200, required: true, 'aria-label': 'Qué hace falta' });
+    const cant = el('input', { type: 'number', min: 0, step: 'any', placeholder: 'Cant.', 'aria-label': 'Cantidad' });
+    const ud = el('input', { placeholder: 'ud', maxlength: 20, 'aria-label': 'Unidad' });
+    const nota = el('input', { placeholder: 'Nota', maxlength: 300, 'aria-label': 'Nota' });
+    const form = editar ? el('form', { class: 'llevar-nueva', onsubmit: async (ev) => {
+      ev.preventDefault();
+      try {
+        lineas.push(await api('POST', `/api/tareas/${t.id}/llevar`, { tipo: tipoSel.value, descripcion: desc.value, cantidad: cant.value, unidad: ud.value, nota: nota.value }));
+        cambiado = true;
+        desc.value = ''; cant.value = ''; nota.value = '';
+        pintar(); desc.focus();
+      } catch (e) { toast(e.message, true); }
+    } }, tipoSel, desc, cant, ud, nota, el('button', { type: 'submit', class: 'primario' }, '＋ Añadir')) : null;
+    const cerrar = async () => { dlg.close(); dlg.remove(); if (cambiado) await refrescarOT(); };
+    dlg.append(
+      el('div', { class: 'dlg-cab' }, el('h2', { id: 'llevar-tit' }, '🧰 Materiales y herramientas'),
+        el('button', { type: 'button', class: 'ghost', 'aria-label': 'Cerrar', onclick: cerrar }, '✕')),
+      el('p', { class: 'ayuda' }, `Lo que hace falta para «${t.nombre}».`),
+      cuerpo, form);
+    dlg.addEventListener('cancel', (ev) => { ev.preventDefault(); cerrar(); });
+    document.body.append(dlg);
+    pintar();
+    dlg.showModal();
+    (desc || dlg).focus();
+  }
+
   async function editarDependencias(t) {
     let d;
     try { d = await api('GET', `/api/tareas/${t.id}/dependencias`); } catch (e) { return toast(e.message, true); }

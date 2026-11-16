@@ -110,15 +110,10 @@
     if (u.solo_mi_dia && location.pathname !== '/mi-dia.html') { location.replace('/mi-dia.html'); return; }
     pintarNombre();
     const menu = document.querySelector('nav.menu');
-    const enlaces = [['/parte.html', 'Parte', 'planificar'], ['/bandeja.html', 'Bandeja', 'planificar'],
-      // Materiales lleva dentro Almacén y Proveedores; quien solo es de almacén va directo a su pantalla
-      ['/materiales.html', 'Materiales', ['materiales', 'compras', 'proyectos']],
-      ['/almacen.html', 'Almacén', () => tiene('almacen') && !['materiales', 'compras', 'proyectos'].some(tiene)],
-      ['/informes.html', 'Informes', 'informes'],
+    const enlaces = [['/parte.html', 'Parte', 'planificar'], ['/bandeja.html', 'Bandeja', 'planificar'], ['/informes.html', 'Informes', 'informes'],
       ['/usuarios.html', 'Usuarios', 'usuarios'], ['/capturar.html', '＋ Capturar', null]];
     for (const [href, txt, permiso] of enlaces) {
-      const vale = !permiso || (typeof permiso === 'function' ? permiso() : [].concat(permiso).some(tiene));
-      if (!menu || !vale || menu.querySelector(`a[href="${href}"]`)) continue;
+      if (!menu || (permiso && !tiene(permiso)) || menu.querySelector(`a[href="${href}"]`)) continue;
       const a = el('a', { href }, txt);
       if (location.pathname === href) a.setAttribute('aria-current', 'page');
       menu.append(a);

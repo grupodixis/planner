@@ -559,33 +559,19 @@ vez. Al confirmar se importa todo de una vez (o nada).
   planificación. Lo que ya no está en el archivo se borra si no tiene nada planificado; si lo
   tiene, se conserva marcado «ya no está en el presupuesto».
 
-## Materiales (escandallo, BOM, corte y almacén)
+## Materiales y herramientas de la tarea (🧰)
 
-Del escandallo **estimado** en el presupuesto al material **a pedir**, sin teclear dos veces.
-Detalle, formato y API en [`docs/materiales/`](docs/materiales/README.md).
+Lo mínimo, para empezar por lo simple: cada tarea puede tener la lista de lo que hay que
+llevar. En **Proyectos → OT**, debajo del nombre de cada tarea, el icono 🧰 (gris si no hay
+nada; con un número si tiene líneas) abre la lista: **material** o **herramienta**, qué es,
+cantidad, unidad y nota. Se añade, se corrige y se quita; nada más.
 
-- **Estimado:** el compositor lo manda dentro de cada tarea (`materiales` en `s360-import/1`).
-- **BOM real:** el técnico (Sofía) lo pega en **Materiales → OT → Importar BOM**: JSON
-  `s360-bom/1` (lo prepara una IA a partir del BOM de Onshape, con las
-  [instrucciones](app/public/instrucciones-bom.txt)) o una tabla copiada de Excel/Notion. Vista
-  previa con errores y avisos; sustituye al BOM anterior de la OT.
-- **Cada línea va ligada a la tarea que la consume** → se sabe cuándo hace falta.
-- **Nombres normalizados** («Tubo rect. 50×10×1,5» → `TUBO 50x10x1.5`); material y acabado
-  separados; el tratamiento posterior (galvanizado, pintura) no cambia lo que se pide.
-- **Material a pedir:** agrupado por perfil + material + acabado en toda la OT; **corte
-  optimizado** en barras de 6 m con sierra de 3 mm, plano de corte por barra, retales ≥ 300 mm;
-  **Imprimir corte** para el taller. Barra comercial cambiable por material (12 m, 1 m…).
-- **Almacén** (pantalla para el móvil de Sergio): por material, «No hay», «Hay todo» o el
-  número. Le llega un aviso push al cargarse un BOM. Lo que falta = a pedir.
-- **Fechas:** hace falta = primera fecha planificada de la tarea; «pedir antes del» vía
-  Menorca Tragina (viernes 16:00 → llega el miércoles a Ydica, Gavà, a nombre de Dixis); en rojo
-  si ya no llega (Luchana o local). Configurable en **Ajustes**.
-- **Estimado vs real** por material (desvío en %).
-- **Proveedores:** zona (Menorca, Baleares, península, online), cómo llega el material,
-  material habitual y contacto. Importados de Notion.
-- Roles nuevos: **Técnico** (`materiales`), **Almacén** (`almacen`), **Compras** (`compras`).
-- Siguiente fase: pedidos por correo desde compras@hamenorca.com (con panel de ajustes del
-  correo), transporte, recepción con foto del albarán, «falta material» en el tablero.
+Siguientes pasos, uno a uno y solo cuando el anterior se use: que el operario lo vea en
+**Mi día** («Llevar», con casilla de cargado) → pegar varias líneas / copiar de otra tarea →
+«hay / hay que pedir» → pedidos a proveedores → recepción. (Los proveedores de Notion ya están
+guardados en la base de datos, sin pantalla todavía.)
+
+API: `GET|POST /api/tareas/:id/llevar` · `PATCH|DELETE /api/llevar/:id`.
 
 ## API
 
@@ -680,12 +666,6 @@ Detalle, formato y API en [`docs/materiales/`](docs/materiales/README.md).
 | POST | `/api/proyectos/:id/condiciones` | `{texto}` añadir condición previa |
 | GET · PUT | `/api/tareas/:id/dependencias` | tareas que pueden ir antes (mismo proyecto; las que harían un círculo, marcadas) · `{dependencias: [{id, espera_h}]}` |
 | PATCH · DELETE | `/api/condiciones/:id` | `{cumplida, texto}` · quitar |
-| GET · PUT | `/api/materiales/opciones` · `/api/materiales/ajustes` | familias, acabados, unidades y ajustes (barra, sierra, retal, Tragina) |
-| GET | `/api/materiales/ots` · `/api/ordenes/:id/materiales` | OTs con material · líneas, grupos con corte optimizado, existencias y fechas |
-| POST | `/api/ordenes/:id/materiales/importar` | `{texto, tarea_id, simular, ignorar_errores, origen}` BOM (JSON s360-bom/1 o tabla) |
-| POST · PATCH · DELETE | `/api/ordenes/:id/materiales` · `/api/materiales/:id` | añadir · corregir · quitar una línea |
-| PUT | `/api/ordenes/:id/materiales/grupo` | `{clave, en_stock}` (almacén) · `{clave, barra_mm}` (técnico) |
-| GET · POST · PATCH | `/api/proveedores` · `/api/proveedores/:id` | proveedores |
 
 ## Plan por fases
 
@@ -710,8 +690,8 @@ del proyecto. Hecho: editar dependencias a mano (pulsando «después de…» en 
 entre usuarios (Server-Sent Events).
 
 **Fase 6 – Informes.** Hecho: proyectos (presupuesto / estimado / real / coste / importe),
-operarios, máquinas, fiabilidad y desvíos, exportación a Excel (CSV). Pendiente: coste de
-materiales, PDF, devolver las horas reales al compositor para presupuestar mejor.
+operarios, máquinas, fiabilidad y desvíos, exportación a Excel (CSV). Pendiente: materiales,
+PDF, devolver las horas reales al compositor para presupuestar mejor.
 
 Pendientes técnicos: drag & drop táctil (tablets), migraciones versionadas en lugar de scripts
 de inicio, HTTPS con proxy inverso (Caddy/Traefik) para publicarlo fuera de la red local, tests.

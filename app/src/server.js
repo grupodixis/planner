@@ -227,7 +227,7 @@ require('./gestion')(app, asyncH);
 require('./recursos')(app, asyncH);
 require('./importar')(app, asyncH);
 require('./semillero')(app, asyncH);
-require('./materiales').montar(app, asyncH);   // materiales de las OTs (estimado, BOM, corte, existencias) y proveedores
+require('./llevar')(app, asyncH);   // materiales y herramientas de cada tarea
 
 /* ---------- Historial ---------- */
 

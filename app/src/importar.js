@@ -594,12 +594,6 @@ async function importar(c, archivo, resoluciones, usuario, simular) {
       }
     }
     idTarea.set(t.ref_externa, id);
-    // escandallo estimado del compositor (si el archivo lo trae, sustituye al anterior de la tarea)
-    if (Array.isArray(t.materiales)) {
-      const malos = await require('./materiales').guardarEstimado(c, id, t.materiales, usuario.id);
-      resumen.materiales = (resumen.materiales || 0) + t.materiales.length - malos.length;
-      malos.forEach((m) => avisos.push({ ruta: `${x.ruta}.materiales`, mensaje: `«${t.nombre}»: material omitido (${m})` }));
-    }
     await c.query('DELETE FROM tarea_requisitos_tipo WHERE tarea_id = $1', [id]);
     await c.query('DELETE FROM tarea_requisitos WHERE tarea_id = $1', [id]);
     for (const [tipoId, cantidad] of reqTipo) {

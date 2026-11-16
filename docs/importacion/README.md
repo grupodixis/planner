@@ -111,7 +111,6 @@ Leyenda: **●** obligatorio · ○ opcional.
 | `requiere` | ○ | array de requisitos | Máquinas / subcontratas necesarias (ver abajo). **No se ponen personas**: eso es `oficio` + `operarios`. |
 | `despues_de` | ○ | array | Tareas que deben ir antes: `"ref_externa"` o `{ "ref": "…", "espera_h": 24 }`. |
 | `notas` | ○ | texto ≤ 4000 | Se ven en el detalle de la tarea. |
-| `materiales` | ○ | array (≤ 500) | **Escandallo estimado** de lo que consume la tarea: `{perfil \| descripcion, material, acabado, familia, cantidad, unidad}`. Largos en `m` o `barra`. Si viene, sustituye al estimado anterior de la tarea; si no viene, no se toca. Ver [`docs/materiales/`](../materiales/README.md). |
 | `extra` | ○ | objeto libre | |
 
 **Ejemplo de horas:** una soldadura de 16 h con 2 operarios es `"horas": 16, "operarios": 2`
@@ -254,8 +253,6 @@ Respuesta (resumen):
 - [ ] Área por nombre (`area`) si se conoce; si no, `area_tipo` (`obra` para lo que se hace en obra).
 - [ ] `despues_de` solo apunta a tareas del mismo archivo; las esperas (secado…) en `espera_h`.
 - [ ] Fechas `AAAA-MM-DD`.
-- [ ] `materiales` en la tarea que los consume (el corte, normalmente): perfil normalizado
-      (`TUBO 50x10x1.5`, `UPN 100`…), material y acabado de compra por separado, largos en metros.
 - [ ] Datos propios (importes, mediciones) solo dentro de `extra`.
 - [ ] Validar contra `esquema.json` antes de exportar.
 
@@ -272,7 +269,6 @@ o en Python: `jsonschema.validate(json.load(open(f)), json.load(open("esquema.js
     explícito; `oficio` pasa a ser requisito; `area_tipo` con área de obra automática;
     `despues_de` se aplica y admite `espera_h`; `proyecto.condiciones`; nombres hasta 120
     caracteres. Las formas antiguas de `requiere` se siguen aceptando.
-  - *2026-11-16* (compatible): `tareas[].materiales` (escandallo estimado).
 - Cambios **compatibles** (nuevos campos opcionales) se añaden sin cambiar de versión y se
   anotan aquí.
 - Cambios **incompatibles** (renombrar, cambiar tipos o significado) crean `s360-import/2`; el

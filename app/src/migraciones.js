@@ -585,44 +585,16 @@ const MIGRACIONES = [
      PRIMARY KEY (fecha, recurso_id)
    )`,
 
-  // 2026-11 · Materiales: escandallo estimado (compositor) y BOM real (técnico) por tarea,
-  // agrupado por OT para pedir; existencias que confirma almacén; proveedores
-  `CREATE TABLE IF NOT EXISTS materiales (
-     id           SERIAL PRIMARY KEY,
-     tarea_id     INT NOT NULL REFERENCES tareas(id) ON DELETE CASCADE,
-     origen       TEXT NOT NULL CHECK (origen IN ('estimado', 'bom')),
-     familia      TEXT NOT NULL DEFAULT 'otros',
-     perfil       TEXT,              -- normalizado: «TUBO 50x10x1.5», «UPN 100»…
-     material     TEXT,              -- S235, INOX 316L…
-     acabado      TEXT,              -- cómo se compra: negro, sendzimir, satinado…
-     tratamiento  TEXT,              -- lo que se le hace después (informativo)
-     descripcion  TEXT,              -- comerciales: «Tornillo DIN 933 M12x40 A2»
-     marca        TEXT,              -- marca de la pieza en el plano
-     longitud_mm  NUMERIC(9,1),
-     angulo_a     NUMERIC(5,1),
-     angulo_b     NUMERIC(5,1),
-     cantidad     NUMERIC(12,3) NOT NULL CHECK (cantidad > 0),
-     unidad       TEXT NOT NULL DEFAULT 'ud',
-     peso_kg      NUMERIC(10,2),
-     notas        TEXT,
-     orden        INT NOT NULL DEFAULT 0,
-     creado       TIMESTAMPTZ NOT NULL DEFAULT now(),
-     creado_por   INT REFERENCES usuarios(id) ON DELETE SET NULL
-   )`,
-  `CREATE INDEX IF NOT EXISTS materiales_tarea_idx ON materiales (tarea_id, origen)`,
-  // lo que se decide por material agrupado de la OT (barra comercial, existencias)
-  `CREATE TABLE IF NOT EXISTS material_grupos (
-     orden_id      INT NOT NULL REFERENCES ordenes(id) ON DELETE CASCADE,
-     clave         TEXT NOT NULL,
-     barra_mm      INT,
-     en_stock      NUMERIC(12,3),
-     nota          TEXT,
-     revisado_por  INT REFERENCES usuarios(id) ON DELETE SET NULL,
-     revisado_en   TIMESTAMPTZ,
-     PRIMARY KEY (orden_id, clave)
-   )`,
-  `ALTER TABLE ordenes ADD COLUMN IF NOT EXISTS bom_en TIMESTAMPTZ`,
-  `ALTER TABLE ordenes ADD COLUMN IF NOT EXISTS bom_por INT REFERENCES usuarios(id) ON DELETE SET NULL`,
+  // 2026-11 · Se retira el primer módulo de materiales (BOM, corte, almacén): se empieza por lo simple.
+  // Sus tablas estaban vacías. Los proveedores (importados de Notion) se conservan para más adelante.
+  `DROP TABLE IF EXISTS material_grupos`,
+  `DROP TABLE IF EXISTS materiales`,
+  `ALTER TABLE ordenes DROP COLUMN IF EXISTS bom_en`,
+  `ALTER TABLE ordenes DROP COLUMN IF EXISTS bom_por`,
+  `UPDATE roles SET permisos = array_remove(array_remove(array_remove(permisos, 'materiales'), 'almacen'), 'compras')
+    WHERE permisos && ARRAY['materiales','almacen','compras']`,
+  `DELETE FROM roles r WHERE r.clave IN ('tecnico', 'almacen', 'compras')
+     AND NOT EXISTS (SELECT 1 FROM usuarios u WHERE u.rol = r.clave)`,
   `CREATE TABLE IF NOT EXISTS proveedores (
      id           SERIAL PRIMARY KEY,
      nombre       TEXT NOT NULL,
@@ -630,8 +602,8 @@ const MIGRACIONES = [
      telefono     TEXT,
      contacto     TEXT,
      localidad    TEXT,
-     zona         TEXT NOT NULL DEFAULT 'menorca' CHECK (zona IN ('menorca', 'baleares', 'peninsula', 'online')),
-     transporte   TEXT NOT NULL DEFAULT 'proveedor' CHECK (transporte IN ('proveedor', 'tragina', 'luchana', 'paqueteria', 'recogemos')),
+     zona         TEXT NOT NULL DEFAULT 'menorca',
+     transporte   TEXT NOT NULL DEFAULT 'proveedor',
      materiales   TEXT[] NOT NULL DEFAULT '{}',
      web          TEXT,
      notas        TEXT,
@@ -639,19 +611,21 @@ const MIGRACIONES = [
      ref_notion   TEXT UNIQUE,
      creado       TIMESTAMPTZ NOT NULL DEFAULT now()
    )`,
-  `CREATE UNIQUE INDEX IF NOT EXISTS proveedores_nombre_idx ON proveedores (lower(nombre))`,
-  `INSERT INTO roles (clave, nombre, descripcion, permisos, sistema, orden) VALUES
-     ('tecnico', 'Técnico', 'Diseño y modelado: BOM y materiales de las OTs', '{materiales,informes}', FALSE, 6),
-     ('almacen', 'Almacén', 'Confirma existencias y recibe material', '{almacen}', FALSE, 7),
-     ('compras', 'Compras', 'Proveedores y pedidos de material', '{compras,materiales,almacen}', FALSE, 8)
-   ON CONFLICT (clave) DO NOTHING`,
-  // el BOM es de la OT donde se importa, pero cada línea puede ir a una tarea de otra OT del
-  // mismo proyecto (pintura en la OT de tratamiento, pernos en la de montaje…)
-  `ALTER TABLE materiales ADD COLUMN IF NOT EXISTS orden_id INT REFERENCES ordenes(id) ON DELETE CASCADE`,
-  `UPDATE materiales m SET orden_id = t.orden_id FROM tareas t WHERE t.id = m.tarea_id AND m.orden_id IS NULL`,
-  `CREATE INDEX IF NOT EXISTS materiales_orden_idx ON materiales (orden_id, origen)`,
-  `UPDATE roles SET permisos = permisos || ARRAY['materiales','almacen','compras']
-    WHERE clave = 'admin' AND NOT ('materiales' = ANY(permisos))`,
+
+  // 2026-11 · Lo mínimo: qué materiales y herramientas hacen falta para cada tarea
+  `CREATE TABLE IF NOT EXISTS tarea_llevar (
+     id           SERIAL PRIMARY KEY,
+     tarea_id     INT NOT NULL REFERENCES tareas(id) ON DELETE CASCADE,
+     tipo         TEXT NOT NULL DEFAULT 'material' CHECK (tipo IN ('material', 'herramienta')),
+     descripcion  TEXT NOT NULL,
+     cantidad     NUMERIC(12,3),
+     unidad       TEXT,
+     nota         TEXT,
+     orden        INT NOT NULL DEFAULT 0,
+     creado       TIMESTAMPTZ NOT NULL DEFAULT now(),
+     creado_por   INT REFERENCES usuarios(id) ON DELETE SET NULL
+   )`,
+  `CREATE INDEX IF NOT EXISTS tarea_llevar_tarea_idx ON tarea_llevar (tarea_id, orden)`,
 ];
 
 async function migrar() {
