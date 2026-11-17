@@ -95,6 +95,7 @@ app/src/archivos.js       fotos y PDF (en la base de datos), audio y vídeo (en 
 app/src/notificaciones.js avisos al móvil (push) y avisos programados
 app/src/capturas.js       bandeja de capturas: capturar y clasificar (tarea / asunto / información)
 app/src/eventos.js        avisos en vivo entre pantallas (Server-Sent Events)
+app/public/ayuda*.js      ayuda: «?», recorridos y novedades
 app/src/importar.js       importación de proyectos del compositor (s360-import/2 y /1) y catálogo
 app/src/migraciones.js    cambios de esquema que se aplican solos al arrancar
 app/public/               frontend sin compilación: index (tablero), proyectos, recursos, usuarios,
@@ -660,6 +661,21 @@ y material añadidos a mano en el planificador se conservan.
 `GET /api/importar/catalogo` devuelve los nombres exactos (áreas con su equipo fijo, capacidades,
 equipos por familia y uso, subcontratas, categorías, materiales y herramientas) para que el
 compositor los use.
+
+## Ayuda: «?», recorridos y novedades
+
+- **«?»** arriba a la derecha (en las pantallas que ya tienen ayuda; de momento *Material de las
+  partidas*): panel con para qué sirve la pantalla, **recorridos guiados**, un **vídeo corto**
+  (se amplía al pulsarlo), el **esquema del circuito** y los pasos típicos según el rol.
+- **Recorridos «hazlo conmigo»**: oscurecen la pantalla y resaltan un elemento cada vez. En los
+  pasos marcados «lo haces tú» el recorrido espera a que la persona pulse o escriba de verdad; los
+  pasos que cambiarían datos solo se enseñan (el resaltado no deja pulsarlos). La primera vez se
+  ofrece el recorrido de su rol; si un recorrido cambia (sube su `version`), se vuelve a ofrecer.
+- **Novedades**: al entrar tras una actualización, una ventana con lo nuevo que afecta a sus permisos.
+- Textos en `app/public/ayuda-textos.js`; motor en `app/public/ayuda.js`. Las pantallas solo marcan
+  sus elementos con `data-ayuda="…"`. Lo visto se guarda en el navegador.
+- **Regla**: cada funcionalidad nueva añade su ayuda, su paso de recorrido si hace falta y su línea
+  en `novedades`. Los vídeos se graban con `herramientas/ayuda/` sobre la copia de prueba.
 
 ## Material: escandallo, asignación, stock y compras
 

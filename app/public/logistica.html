@@ -11,7 +11,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
   <meta name="apple-mobile-web-app-title" content="s360">
   <title>s360 · Logística</title>
-  <link rel="stylesheet" href="styles.css?v=202611172209">
+  <link rel="stylesheet" href="styles.css?v=202611172230">
 </head>
 <body class="bandeja-pant logistica-pant">
   <header class="top">
@@ -28,18 +28,20 @@
   <main class="log-main">
     <h2>Material de las partidas</h2>
     <p class="ayuda" id="sub">Lo que el técnico ha enviado: logística dice qué hay, compras pide lo que falta y logística lo recibe.</p>
-    <div class="llv-tabs" role="tablist" id="tabs"></div>
+    <div class="llv-tabs" role="tablist" id="tabs" data-ayuda="log-pestanas"></div>
     <div class="log-filtros">
-      <input type="search" id="buscar" placeholder="Buscar material, proyecto o partida" aria-label="Buscar">
+      <input type="search" id="buscar" data-ayuda="log-buscar" placeholder="Buscar material, proyecto o partida" aria-label="Buscar">
       <select id="f-partida" aria-label="Partida"><option value="">Todas las partidas</option></select>
     </div>
     <div id="lista"></div>
   </main>
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
-  <script src="pwa.js?v=202611172209"></script>
-  <script src="comun.js?v=202611172209"></script>
-  <script src="material-ui.js?v=202611172209"></script>
-  <script src="logistica.js?v=202611172209"></script>
+  <script src="pwa.js?v=202611172230"></script>
+  <script src="comun.js?v=202611172230"></script>
+  <script src="ayuda-textos.js?v=202611172230"></script>
+  <script src="ayuda.js?v=202611172230"></script>
+  <script src="material-ui.js?v=202611172230"></script>
+  <script src="logistica.js?v=202611172230"></script>
 </body>
 </html>

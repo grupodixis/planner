@@ -154,7 +154,7 @@
         } catch (e) { toast(e.message, true); }
         inp.value = '';
       });
-      return el('label', { class: 'boton ghost mini mat-adj-subir' }, op.camara ? '📷 Foto' : '📎 Foto / PDF', inp);
+      return el('label', { class: 'boton ghost mini mat-adj-subir', 'data-ayuda': 'mat-foto' }, op.camara ? '📷 Foto' : '📎 Foto / PDF', inp);
     };
     const guardarEnlaces = async (lista) => {
       try { Object.assign(l, await api('PATCH', `/api/escandallo/${l.id}`, { enlaces: lista })); pintar(); op.alCambiar?.(l); } catch (e) { toast(e.message, true); }

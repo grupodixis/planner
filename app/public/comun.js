@@ -178,6 +178,8 @@
       window.s360pwa.renovar();
     }
     if (salir && !salir.onclick) salir.onclick = async () => { await api('POST', '/api/logout'); location.href = '/login.html'; };
+    // ayuda («?», recorridos y novedades): en las pantallas que cargan ayuda.js
+    window.s360ayuda?.iniciar().catch(() => {});
   }
 
   // preguntar('Título', 'Texto o nodo', [{ valor, texto, clase }]) → valor elegido (null si se cierra)

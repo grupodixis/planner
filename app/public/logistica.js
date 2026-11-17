@@ -34,7 +34,7 @@
 
   function pintar() {
     $('#tabs').replaceChildren(...VISTAS.map(([k, txt]) => el('button', {
-      type: 'button', role: 'tab', class: 'llv-tab', 'aria-selected': String(k === vista),
+      type: 'button', role: 'tab', class: 'llv-tab', 'aria-selected': String(k === vista), 'data-ayuda': `log-pestana-${k}`,
       onclick: () => { vista = k; history.replaceState(null, '', `?vista=${k}`); pintar(); },
     }, txt, d.cuentas[k] ? el('span', { class: `llv-n${['revisar', 'comprar', 'recibir'].includes(k) ? ' aviso' : ''}` }, String(d.cuentas[k])) : null)));
     const est = VISTAS.find((v) => v[0] === vista)?.[2];
@@ -54,7 +54,7 @@
       const nTarde = g.filter((l) => l.fecha_necesaria && l.fecha_necesaria < hoy && l.estado !== 'disponible').length;
       const nFalta = g.filter((l) => l.falta).length;
       const det = el('details', { class: 'log-partida' },
-        el('summary', {},
+        el('summary', { 'data-ayuda': 'log-partida' },
           el('span', { class: 'log-sum-tit' },
             el('b', {}, `${l0.proyecto_codigo} · ${l0.partida_codigo ? `${l0.partida_codigo} · ` : ''}${l0.partida_nombre}`),
             el('small', { class: 'ayuda' }, l0.proyecto_nombre)),
@@ -70,7 +70,7 @@
     };
     const todas = (v) => { for (const g of orden) abiertas[g[0].partida_id] = v; guardarAbiertas(); pintar(); };
     $('#lista').replaceChildren(...(orden.length ? [
-      orden.length > 1 && !forzar ? el('div', { class: 'log-acc-barra' },
+      orden.length > 1 && !forzar ? el('div', { class: 'log-acc-barra', 'data-ayuda': 'log-acc-barra' },
         el('span', { class: 'ayuda' }, `${orden.length} partidas`),
         el('button', { type: 'button', class: 'ghost', onclick: () => todas(true) }, 'Abrir todas'),
         el('button', { type: 'button', class: 'ghost', onclick: () => todas(false) }, 'Cerrar todas')) : null,
@@ -80,7 +80,7 @@
 
   function tarjeta(l) {
     const tarde = l.fecha_necesaria && l.fecha_necesaria < hoy && l.estado !== 'disponible';
-    return el('div', { class: `log-linea est-${l.estado}` },
+    return el('div', { class: `log-linea est-${l.estado}`, 'data-ayuda': 'log-linea' },
       el('div', { class: 'log-l1' },
         el('span', { class: 'log-desc' }, el('b', {}, l.descripcion),
           l.baja_presupuesto ? el('span', { class: 'mat-baja', title: 'Ya no viene en el presupuesto (reimportación)' }, ' · fuera de presupuesto') : null),
@@ -132,7 +132,7 @@
       const inp = el('input', { inputmode: 'decimal', value: l.stock != null ? cant(l.stock) : '', placeholder: '¿cuánto?', 'aria-label': `Cuánto hay de ${l.descripcion}` });
       const guardar = () => hecho(`/api/escandallo/${l.id}/stock`, { stock: inp.value }, 'Apuntado');
       inp.addEventListener('keydown', (ev) => { if (ev.key === 'Enter') { ev.preventDefault(); guardar(); } });
-      out.push(el('div', { class: 'log-acc' },
+      out.push(el('div', { class: 'log-acc', 'data-ayuda': 'log-stock' },
         el('button', { type: 'button', class: l.stock === 0 ? 'sel no' : '', onclick: () => hecho(`/api/escandallo/${l.id}/stock`, { stock: 0 }, 'Apuntado: no hay; avisado a compras') }, 'No hay'),
         el('button', { type: 'button', class: l.stock != null && l.stock >= l.cantidad ? 'sel' : '', onclick: () => hecho(`/api/escandallo/${l.id}/stock`, { stock: l.cantidad }, 'Apuntado: hay todo') }, 'Hay todo'),
         el('span', { class: 'log-hay' }, 'Hay ', inp, ` ${l.unidad || ''} `, el('button', { type: 'button', class: 'primario mini', onclick: guardar }, '✓'))));
@@ -144,7 +144,7 @@
       const f = el('input', { type: 'date', 'aria-label': 'Llega el', min: hoy });
       const num = el('input', { placeholder: 'Nº pedido', maxlength: 60, class: 'log-num', 'aria-label': 'Número de pedido o referencia del proveedor' });
       const doc = adjDoc('pedido');
-      out.push(el('div', { class: 'log-acc' },
+      out.push(el('div', { class: 'log-acc', 'data-ayuda': 'log-pedir' },
         prov, el('label', { class: 'ayuda' }, 'llega ', f), num, doc.nodo,
         el('button', { type: 'button', class: 'primario', onclick: () => hecho(`/api/escandallo/${l.id}/compra`, { estado: 'pedido', proveedor_id: prov.value || null, fecha_prevista: f.value || null, num_pedido: num.value, archivos: doc.ids }, 'Marcado como pedido; avisado a logística y técnico') }, '🛒 Pedido')));
     }
@@ -158,7 +158,7 @@
     if (puede.logistica && (l.estado === 'pedido' || (l.estado === 'por_pedir' && vista === 'recibir'))) {
       const alb = el('input', { placeholder: 'Nº albarán', maxlength: 60, class: 'log-num', 'aria-label': 'Número de albarán del proveedor' });
       const doc = adjDoc('albarán');
-      out.push(el('div', { class: 'log-acc' }, alb, doc.nodo,
+      out.push(el('div', { class: 'log-acc', 'data-ayuda': 'log-recibir' }, alb, doc.nodo,
         el('button', { type: 'button', class: 'primario', onclick: () => hecho(`/api/escandallo/${l.id}/recibir`, { num_albaran: alb.value, archivos: doc.ids }, 'Recibido; avisado a los operarios de la tarea') }, '✔ Recibido')));
     }
     if (puede.logistica && l.compra === 'recibido') {
