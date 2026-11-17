@@ -229,7 +229,7 @@
         onclick: () => { abiertos.has(l.id) ? abiertos.delete(l.id) : abiertos.add(l.id); pintar(); } }, '📎', nAdj ? el('span', { class: 'llv-n' }, String(nAdj)) : null);
       const f = el('div', { class: `llv-fila esc-fila${nueva ? ' nueva' : ''}`, role: 'row' },
         el('span', { class: 'llv-num' }, nueva ? '＋' : String(i + 1)), desc, cantI, ud, nota, clip,
-        nueva ? el('span') : chipEstado(l),
+        nueva ? el('span') : el('span', {}, chipEstado(l), l.baja_presupuesto ? el('span', { class: 'mat-baja', title: 'Ya no viene en el presupuesto (reimportación); se conserva porque logística ya lo había tocado' }, ' fuera de presupuesto') : null),
         editar ? (nueva ? el('button', { type: 'button', class: 'primario mini', tabindex: '-1', title: 'Añadir (Enter)', onclick: crear }, '＋')
           : el('button', { type: 'button', class: 'ghost mini borrar', tabindex: '-1', 'aria-label': `Quitar ${l.descripcion}`, title: 'Quitar (Ctrl+Supr)', onclick: () => quitar(l) }, '✕')) : el('span'));
       if (!nueva && editar) f.addEventListener('keydown', (ev) => { if (ev.ctrlKey && ev.key === 'Delete') { ev.preventDefault(); quitar(l); } });

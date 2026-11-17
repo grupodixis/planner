@@ -689,6 +689,14 @@ const MIGRACIONES = [
   // Lo que se planifica en el área lo lleva solo (requisitos cumplidos, detalle, Mi día)
   `ALTER TABLE lineas ADD COLUMN IF NOT EXISTS equipamiento TEXT[] NOT NULL DEFAULT '{}'`,
   `ALTER TABLE recursos ADD COLUMN IF NOT EXISTS fijo_area BOOLEAN NOT NULL DEFAULT FALSE`,
+  // Importación s360-import/2: material del escandallo con ref del compositor, desglose de tiempos de la tarea,
+  // y marca de lo que vino importado (para reimportar sin pisar lo añadido a mano)
+  `ALTER TABLE partida_escandallo ADD COLUMN IF NOT EXISTS ref_externa TEXT`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS partida_escandallo_ref ON partida_escandallo (ref_externa) WHERE ref_externa IS NOT NULL`,
+  `ALTER TABLE partida_escandallo ADD COLUMN IF NOT EXISTS baja_presupuesto BOOLEAN NOT NULL DEFAULT FALSE`,
+  `ALTER TABLE tareas ADD COLUMN IF NOT EXISTS desglose JSONB`,
+  `ALTER TABLE tarea_herramienta ADD COLUMN IF NOT EXISTS importada BOOLEAN NOT NULL DEFAULT FALSE`,
+  `ALTER TABLE tarea_material ADD COLUMN IF NOT EXISTS importada BOOLEAN NOT NULL DEFAULT FALSE`,
   // Nº de pedido al proveedor (al marcar «pedido») y nº de albarán (al recibir)
   `ALTER TABLE partida_escandallo ADD COLUMN IF NOT EXISTS num_pedido TEXT`,
   `ALTER TABLE partida_escandallo ADD COLUMN IF NOT EXISTS num_albaran TEXT`,

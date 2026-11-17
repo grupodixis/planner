@@ -1934,3 +1934,8 @@ dialog.dlg-req[open] { display: flex; }
 .stk-alb-fila { display: grid; grid-template-columns: 1fr auto; gap: 8px; }
 .stk-alb { font-size: 16px; padding: 10px; }
 .stk-alb-fila .stk-foto { white-space: nowrap; }
+.tabla-desglose { width: 100%; border-collapse: collapse; font-size: 12px; }
+.tabla-desglose td { padding: 2px 4px; border-top: 1px solid var(--linea); }
+.tabla-desglose td.num { text-align: right; white-space: nowrap; }
+.tabla-desglose tfoot td { font-weight: 600; }
+.mat-baja { color: var(--naranja); font-size: 12px; }

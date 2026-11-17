@@ -1,4 +1,6 @@
-// Importación de proyectos · formato s360-import/1 (especificación en docs/importacion/README.md).
+// Importación de proyectos · formatos s360-import/2 y /1 (especificación en docs/importacion/README.md).
+// v2 añade: material de la partida (escandallo) y, por tarea, desglose de tiempos, capacidades,
+// equipos, subcontratas, herramientas de mano y el material que consume.
 //
 // POST /api/importar?simular=1  → vista previa (no cambia nada)
 // POST /api/importar            → importa
@@ -11,6 +13,7 @@ const Ajv2020 = require('ajv/dist/2020');
 const addFormats = require('ajv-formats');
 const { pool } = require('./db');
 const auth = require('./auth');
+const notif = require('./notificaciones');
 // Copia de docs/importacion/esquema.json (la imagen Docker solo incluye app/)
 const esquema = require('./importacion-esquema.json');
 
@@ -122,33 +125,53 @@ const leerRequisito = (r) => {
   if ('tipo_recurso' in r) return { tipo: r.tipo_recurso, clase: r.clase || 'maquina', cantidad: r.cantidad || 1 };
   return { tipo: r.nombre, clase: r.tipo || 'maquina', cantidad: 1 }; // forma antigua {nombre, tipo}
 };
+// v2: «equipos» (máquinas) y «subcontratas» se tratan como requisitos de tipo
+const leerEquipo = (clase) => (e) => (typeof e === 'string' ? { tipo: e, clase, cantidad: 1 } : { tipo: e.tipo, clase, cantidad: e.cantidad || 1 });
+const reqDe = (t) => [
+  ...(t.requiere || []).map(leerRequisito),
+  ...(t.equipos || []).map(leerEquipo('maquina')),
+  ...(t.subcontratas || []).map(leerEquipo('subcontrata')),
+];
+const leerCapacidad = (k) => (typeof k === 'string' ? { nombre: k, cantidad: 1 } : { nombre: k.capacidad, cantidad: k.cantidad || 1, familia: k.familia });
+const leerHerramienta = (h) => (typeof h === 'string' ? { nombre: h, cantidad: null, nota: null } : { nombre: h.nombre, cantidad: h.cantidad ?? null, nota: h.nota || null });
 const leerDependencia = (d) => (typeof d === 'string' ? { ref: d, espera_h: 0 } : { ref: d.ref, espera_h: d.espera_h || 0 });
 
 // Recorre el archivo y devuelve la lista plana de partidas, OTs y tareas con su ruta
 function aplanar(P) {
-  const partidas = [], ots = [], tareas = [];
+  const partidas = [], ots = [], tareas = [], materiales = [];
   P.partidas.forEach((pa, i) => {
     const rp = `proyecto.partidas[${i}]`;
     partidas.push({ d: pa, ruta: rp, orden: i + 1 });
+    (pa.materiales || []).forEach((m, k) => materiales.push({ d: m, ruta: `${rp}.materiales[${k}]`, partida: pa.ref_externa, orden: k + 1 }));
     pa.ots.forEach((ot, j) => {
       const ro = `${rp}.ots[${j}]`;
       ots.push({ d: ot, ruta: ro, partida: pa.ref_externa });
       ot.tareas.forEach((t, k) => tareas.push({ d: t, ruta: `${ro}.tareas[${k}]`, ot: ot.ref_externa, orden: k + 1 }));
     });
   });
-  return { partidas, ots, tareas };
+  return { partidas, ots, tareas, materiales };
 }
 
 // Comprobaciones que el esquema no puede hacer: refs repetidas, dependencias rotas o en círculo
 function erroresSemanticos(plano) {
   const errores = [];
-  for (const [nivel, lista] of [['partida', plano.partidas], ['OT', plano.ots], ['tarea', plano.tareas]]) {
+  for (const [nivel, lista] of [['partida', plano.partidas], ['OT', plano.ots], ['tarea', plano.tareas], ['material', plano.materiales]]) {
     const vistos = new Map();
     for (const x of lista) {
       const r = x.d.ref_externa;
       if (vistos.has(r)) errores.push({ ruta: `${x.ruta}.ref_externa`, mensaje: `ref_externa «${r}» repetida (ya usada en ${vistos.get(r)})` });
       else vistos.set(r, x.ruta);
     }
+  }
+  // material que consume cada tarea: tiene que estar en «materiales» de alguna partida del archivo
+  const refsMat = new Set(plano.materiales.map((x) => x.d.ref_externa));
+  for (const x of plano.tareas) {
+    const vistos = new Set();
+    (x.d.materiales || []).forEach((m, i) => {
+      if (!refsMat.has(m.ref)) errores.push({ ruta: `${x.ruta}.materiales[${i}].ref`, mensaje: `el material «${m.ref}» no está en «materiales» de ninguna partida del archivo` });
+      else if (vistos.has(m.ref)) errores.push({ ruta: `${x.ruta}.materiales[${i}].ref`, mensaje: `el material «${m.ref}» está repetido en esta tarea` });
+      vistos.add(m.ref);
+    });
   }
   const refs = new Set(plano.tareas.map((x) => x.d.ref_externa));
   const grafo = new Map();
@@ -189,7 +212,9 @@ async function importar(c, archivo, resoluciones, usuario, simular) {
   const errores = [];
   const cambios = [];
   const cuenta = () => ({ crear: 0, actualizar: 0, igual: 0, borrar: 0, baja: 0 });
-  const resumen = { partidas: cuenta(), ots: cuenta(), tareas: cuenta(), condiciones: { crear: 0, quitar: 0 }, dependencias: 0 };
+  const resumen = { partidas: cuenta(), ots: cuenta(), tareas: cuenta(), materiales: cuenta(), condiciones: { crear: 0, quitar: 0 }, dependencias: 0,
+    asignaciones_material: 0, herramientas: 0, capacidades: 0, equipos: 0, desgloses: 0, a_logistica: 0 };
+  const avisarDespues = [];   // avisos al móvil que solo se mandan si se importa de verdad
   const hoy = new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Madrid' });
 
   /* 1 · Proyecto existente: por ref_externa, o uno creado a mano con el mismo código */
@@ -218,6 +243,9 @@ async function importar(c, archivo, resoluciones, usuario, simular) {
   await ajenos(`SELECT t.ref_externa, o.proyecto_id, COALESCE(p.codigo, '(sin proyecto)') AS codigo FROM tareas t
                   JOIN ordenes o ON o.id = t.orden_id LEFT JOIN proyectos p ON p.id = o.proyecto_id WHERE t.ref_externa = ANY($1)`,
   plano.tareas.map((x) => x.d.ref_externa), 'tarea', plano.tareas);
+  await ajenos(`SELECT e.ref_externa, pa.proyecto_id, p.codigo FROM partida_escandallo e JOIN partidas pa ON pa.id = e.partida_id
+                  JOIN proyectos p ON p.id = pa.proyecto_id WHERE e.ref_externa = ANY($1)`,
+  plano.materiales.map((x) => x.d.ref_externa), 'material', plano.materiales);
   if (errores.length) return { errores };
 
   /* 2 · Resolver nombres: áreas, tipos de recurso (oficios incluidos) y recursos concretos */
@@ -225,6 +253,7 @@ async function importar(c, archivo, resoluciones, usuario, simular) {
   const tipos = (await c.query('SELECT id, clase, nombre FROM tipos_recurso ORDER BY lower(nombre)')).rows;
   const recursos = (await c.query('SELECT id, tipo, nombre, activo FROM recursos ORDER BY tipo, nombre')).rows;
   const alias = (await c.query('SELECT clase, nombre, destino_id FROM import_alias')).rows;
+  const capacidades = (await c.query('SELECT id, familia, nombre FROM capacidades ORDER BY orden, lower(nombre)')).rows;
   // Áreas que puede usar este proyecto: las fijas y sus propias obras (o las obras sueltas, sin proyecto)
   const areasActivas = areas.filter((a) => a.activo && (a.tipo !== 'obra' || !a.proyecto_id || a.proyecto_id === proy?.id));
   const recursosActivos = recursos.filter((r) => r.activo);
@@ -259,7 +288,10 @@ async function importar(c, archivo, resoluciones, usuario, simular) {
     }
     const ops = t.operarios ?? 1;
     if (t.oficio && ops >= 1) pedir(`tipo:operario:${norm(t.oficio)}`, { clase: 'tipo', subclase: 'operario', nombre: t.oficio.trim() });
-    for (const r of (t.requiere || []).map(leerRequisito)) {
+    for (const k of (t.capacidades || []).map(leerCapacidad)) {
+      pedir(`capacidad:${norm(k.nombre)}`, { clase: 'capacidad', nombre: k.nombre.trim(), familia: k.familia });
+    }
+    for (const r of reqDe(t)) {
       if (r.recurso) pedir(`recurso:${norm(r.recurso)}`, { clase: 'recurso', nombre: r.recurso.trim() });
       else if (r.clase !== 'operario' && areaPorRequisito(r.tipo)) { if (!areaReq.has(t.ref_externa)) areaReq.set(t.ref_externa, areaPorRequisito(r.tipo)); reqAArea++; }
       else if (r.clase !== 'operario' && sinControl(r.tipo)) reqSinControl++;
@@ -297,6 +329,14 @@ async function importar(c, archivo, resoluciones, usuario, simular) {
           : { accion: 'ignorar', estado: delTipo.length ? 'varias' : 'falta' };
         e.nombre = `Área de tipo «${e.area_tipo}»`;
       }
+    } else if (e.clase === 'capacidad') {
+      existe = capacidades.find((k) => norm(k.nombre) === norm(e.nombre));
+      opciones = capacidades;
+      puede = ['crear', 'asociar', 'ignorar'];
+      const al = aliasDe('capacidad', e.nombre);
+      const sug = masParecido(e.nombre, capacidades);
+      defecto = al && capacidades.some((k) => k.id === al) ? { accion: 'asociar', id: al, estado: 'recordado' }
+        : sug ? { accion: 'asociar', id: sug.id, estado: 'parecido' } : { accion: 'crear', estado: 'falta' };
     } else if (e.clase === 'tipo') {
       const deClase = tipos.filter((t) => t.clase === e.subclase);
       existe = deClase.find((t) => norm(t.nombre) === norm(e.nombre));
@@ -316,7 +356,7 @@ async function importar(c, archivo, resoluciones, usuario, simular) {
         : sug ? { accion: 'asociar', id: sug.id, estado: 'parecido' } : { accion: 'ignorar', estado: 'falta' };
     }
     if (existe) { e.estado = 'existe'; e.accion = 'usar'; e.id = existe.id; continue; }
-    Object.assign(e, defecto, { puede, opciones: opciones.map((o) => ({ id: o.id, nombre: o.nombre, ...(o.tipo ? { tipo: o.tipo } : {}) })) });
+    Object.assign(e, defecto, { puede, opciones: opciones.map((o) => ({ id: o.id, nombre: o.nombre, ...(o.tipo ? { tipo: o.tipo } : {}), ...(o.familia ? { familia: o.familia } : {}) })) });
     // Lo que el usuario eligió en la vista previa manda
     const elegido = resoluciones[e.clave];
     if (elegido) {
@@ -354,6 +394,13 @@ async function importar(c, archivo, resoluciones, usuario, simular) {
       continue;
     }
     // crear
+    if (e.clase === 'capacidad') {
+      const { rows } = await c.query(
+        `INSERT INTO capacidades (familia, nombre, orden) VALUES ($1, $2, COALESCE((SELECT max(orden) FROM capacidades), 0) + 1)
+         ON CONFLICT (lower(nombre)) DO UPDATE SET nombre = capacidades.nombre RETURNING id`, [String(e.familia || 'Otras').slice(0, 60), e.nombre]);
+      e.final = rows[0].id;
+      continue;
+    }
     if (e.clase === 'tipo') {
       const { rows } = await c.query('INSERT INTO tipos_recurso (clase, nombre) VALUES ($1, $2) RETURNING id', [e.subclase, e.nombre]);
       e.final = rows[0].id;
@@ -471,6 +518,80 @@ async function importar(c, archivo, resoluciones, usuario, simular) {
     }
   }
 
+  /* 5b · Material de cada partida (escandallo). Lo que el archivo trae manda; lo añadido a mano (sin ref) no se toca */
+  const idMaterial = new Map();     // ref → id
+  const matInfo = new Map();        // ref → { cantidad, unidad, descripcion }
+  if (plano.materiales.length || plano.partidas.some((x) => x.d.materiales)) {
+    const catalogo = (await c.query(`SELECT id, nombre FROM catalogo WHERE tipo = 'material' AND activo`)).rows;
+    const catPorNombre = new Map(catalogo.map((k) => [norm(k.nombre), k.id]));
+    const { rows: previos } = await c.query(
+      `SELECT e.*, (SELECT count(*)::int FROM tarea_material m WHERE m.escandallo_id = e.id AND NOT m.importada) AS asignado_a_mano
+         FROM partida_escandallo e JOIN partidas pa ON pa.id = e.partida_id
+        WHERE pa.proyecto_id = $1 AND e.ref_externa IS NOT NULL`, [proy.id]);
+    const previoDe = new Map(previos.map((e) => [e.ref_externa, e]));
+    for (const x of plano.materiales) {
+      const m = x.d;
+      const catalogoId = catPorNombre.get(norm(m.catalogo || m.descripcion)) || null;
+      if (m.catalogo && !catPorNombre.has(norm(m.catalogo))) avisos.push({ ruta: `${x.ruta}.catalogo`, mensaje: `«${m.catalogo}» no está en el catálogo de materiales (se importa igual, con su descripción)` });
+      const nuevo = {
+        partida_id: idPartida.get(x.partida), catalogo_id: catalogoId, descripcion: m.descripcion.trim(), cantidad: m.cantidad,
+        unidad: m.unidad || null, nota: m.nota || null, orden: x.orden, enlaces: m.enlaces || [], baja_presupuesto: false,
+      };
+      matInfo.set(m.ref_externa, { cantidad: m.cantidad, unidad: m.unidad || '', descripcion: nuevo.descripcion });
+      const ya = previoDe.get(m.ref_externa);
+      if (!ya) {
+        const { rows } = await c.query(
+          `INSERT INTO partida_escandallo (partida_id, catalogo_id, descripcion, cantidad, unidad, nota, orden, enlaces, ref_externa, creado_por)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING id`,
+          [nuevo.partida_id, catalogoId, nuevo.descripcion, m.cantidad, nuevo.unidad, nuevo.nota, x.orden, nuevo.enlaces, m.ref_externa, usuario.id]);
+        idMaterial.set(m.ref_externa, rows[0].id);
+        resumen.materiales.crear++;
+        cambios.push({ nivel: 'material', accion: 'crear', ref: m.ref_externa, nombre: `${nuevo.descripcion} · ${String(m.cantidad).replace('.', ',')} ${m.unidad || ''}`.trim() });
+      } else {
+        idMaterial.set(m.ref_externa, ya.id);
+        const campos = diferencias({ ...ya, cantidad: Number(ya.cantidad) }, nuevo, { partida_id: () => null, catalogo_id: () => null, orden: () => null });
+        delete campos.partida_id; delete campos.catalogo_id; delete campos.orden;
+        await c.query(
+          `UPDATE partida_escandallo SET partida_id = $2, catalogo_id = $3, descripcion = $4, cantidad = $5, unidad = $6, nota = $7,
+                  orden = $8, enlaces = $9, baja_presupuesto = FALSE WHERE id = $1`,
+          [ya.id, nuevo.partida_id, catalogoId, nuevo.descripcion, m.cantidad, nuevo.unidad, nuevo.nota, x.orden, nuevo.enlaces]);
+        registrar('materiales', 'material', m.ref_externa, null, nuevo.descripcion, campos);
+        // logística ya lo había mirado o compras pedido: que lo sepan
+        if (campos.cantidad && (ya.stock != null || ya.compra)) {
+          avisos.push({ ruta: x.ruta, mensaje: `«${nuevo.descripcion}»: la cantidad cambia de ${fmtN(ya.cantidad)} a ${fmtN(m.cantidad)} y logística ya lo había ${ya.compra === 'pedido' ? 'pedido' : ya.compra === 'recibido' ? 'recibido' : 'revisado'}: revisadlo` });
+        }
+      }
+    }
+    // líneas importadas antes que ya no vienen: se borran si nadie las ha tocado; si no, se marcan
+    for (const ya of previos) {
+      if (idMaterial.has(ya.ref_externa)) continue;
+      if (ya.stock == null && !ya.compra && !ya.asignado_a_mano) {
+        await c.query('DELETE FROM partida_escandallo WHERE id = $1', [ya.id]);
+        resumen.materiales.borrar++;
+        cambios.push({ nivel: 'material', accion: 'borrar', ref: ya.ref_externa, nombre: ya.descripcion });
+      } else {
+        if (!ya.baja_presupuesto) await c.query('UPDATE partida_escandallo SET baja_presupuesto = TRUE WHERE id = $1', [ya.id]);
+        resumen.materiales.baja++;
+        cambios.push({ nivel: 'material', accion: 'baja', ref: ya.ref_externa, nombre: ya.descripcion });
+        avisos.push({ ruta: ya.ref_externa, mensaje: `«${ya.descripcion}» ya no está en el presupuesto pero logística ya lo ${ya.compra === 'pedido' ? 'ha pedido' : ya.compra === 'recibido' ? 'ha recibido' : 'ha revisado'}: se conserva marcado` });
+      }
+    }
+    // escandallo ya revisado por el técnico en el compositor: se manda a logística
+    for (const x of plano.partidas) {
+      if (!x.d.enviar_a_logistica || !(x.d.materiales || []).length) continue;
+      const { rows } = await c.query(
+        'UPDATE partidas SET escandallo_enviado = now() WHERE id = $1 AND escandallo_enviado IS NULL RETURNING id, nombre', [idPartida.get(x.d.ref_externa)]);
+      if (rows.length) {
+        resumen.a_logistica++;
+        avisarDespues.push(() => notif.avisarLuego(notif.conPermiso('logistica'), 'mat_revisar', {
+          titulo: `Material por revisar: ${rows[0].nombre}`,
+          cuerpo: `${x.d.materiales.length} línea(s) importadas de ${P.codigo || P.nombre}`,
+          url: '/logistica.html?vista=revisar', tag: `revisar-${rows[0].id}`,
+        }));
+      }
+    }
+  }
+
   /* 6 · OTs */
   const idOT = new Map();
   const { rows: [{ n: nOTs }] } = await c.query('SELECT count(*)::int AS n FROM ordenes');
@@ -544,7 +665,7 @@ async function importar(c, archivo, resoluciones, usuario, simular) {
       const id = idDe(`tipo:operario:${norm(t.oficio)}`);
       if (id) reqTipo.set(id, Math.max(reqTipo.get(id) || 0, Math.min(ops, 50)));
     }
-    for (const r of (t.requiere || []).map(leerRequisito)) {
+    for (const r of reqDe(t)) {
       if (r.recurso) {
         const id = idDe(`recurso:${norm(r.recurso)}`);
         if (id) reqRec.add(id);
@@ -553,21 +674,38 @@ async function importar(c, archivo, resoluciones, usuario, simular) {
         if (id) reqTipo.set(id, Math.max(reqTipo.get(id) || 0, r.cantidad));
       }
     }
-    if (ops === 0 && !(t.requiere || []).length) avisos.push({ ruta: x.ruta, mensaje: `«${t.nombre}» no tiene operarios ni requisitos: nadie la hace` });
+    if (ops === 0 && !reqDe(t).length) avisos.push({ ruta: x.ruta, mensaje: `«${t.nombre}» no tiene operarios ni requisitos: nadie la hace` });
 
     const nuevo = {
       orden_id: idOT.get(x.ot), nombre: t.nombre.trim(), duracion_h: t.horas, operarios_req: ops, orden_en_of: x.orden,
       notas: t.notas || null, extra: t.extra || null, baja_presupuesto: false,
     };
+    // desglose de tiempos (informativo): avisa si no cuadra con horas × operarios
+    if (t.desglose) {
+      nuevo.desglose = t.desglose.length ? t.desglose : null;
+      if (t.desglose.length) {
+        resumen.desgloses++;
+        const hp = t.desglose.reduce((acc, d) => acc + d.horas_persona, 0);
+        const esperado = t.horas * Math.max(ops, 1);
+        if (Math.abs(hp - esperado) > esperado * 0.1 + 0.25) {
+          avisos.push({ ruta: `${x.ruta}.desglose`, mensaje: `«${t.nombre}»: el desglose suma ${fmtH(hp)} horas-persona y la tarea son ${fmtH(t.horas)} × ${Math.max(ops, 1)} = ${fmtH(esperado)}` });
+        }
+        t.desglose.forEach((d, i) => {
+          if (d.cantidad && d.rendimiento && Math.abs(d.cantidad * d.rendimiento - d.horas_persona) > d.horas_persona * 0.15 + 0.1) {
+            avisos.push({ ruta: `${x.ruta}.desglose[${i}]`, mensaje: `«${d.concepto}»: ${fmtN(d.cantidad)} × ${fmtN(d.rendimiento)} h = ${fmtH(d.cantidad * d.rendimiento)}, no ${fmtH(d.horas_persona)}` });
+          }
+        });
+      }
+    }
     // Si el área no se pudo resolver, se deja la que tenga (puesta a mano)
     if (lineaId || !previa.has(t.ref_externa)) nuevo.linea_id = lineaId;
     const ya = previa.get(t.ref_externa);
     let id;
     if (!ya) {
       const { rows } = await c.query(
-        `INSERT INTO tareas (orden_id, nombre, duracion_h, operarios_req, linea_id, orden_en_of, notas, extra, ref_externa, actualizado_por)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING id`,
-        [nuevo.orden_id, nuevo.nombre, nuevo.duracion_h, ops, lineaId, x.orden, nuevo.notas, nuevo.extra, t.ref_externa, usuario.id]);
+        `INSERT INTO tareas (orden_id, nombre, duracion_h, operarios_req, linea_id, orden_en_of, notas, extra, ref_externa, actualizado_por, desglose)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING id`,
+        [nuevo.orden_id, nuevo.nombre, nuevo.duracion_h, ops, lineaId, x.orden, nuevo.notas, nuevo.extra, t.ref_externa, usuario.id, nuevo.desglose ? JSON.stringify(nuevo.desglose) : null]);
       id = rows[0].id;
       resumen.tareas.crear++;
       cambios.push({ nivel: 'tarea', accion: 'crear', ref: t.ref_externa, nombre: nuevo.nombre, horas: t.horas, ot: x.ot });
@@ -587,7 +725,7 @@ async function importar(c, archivo, resoluciones, usuario, simular) {
       if (depTxt !== depAntes) campos.dependencias = [depAntes.split(', ').filter(Boolean).length, (t.despues_de || []).length];
       const s = Object.keys(nuevo);
       await c.query(`UPDATE tareas SET ${s.map((k, i) => `${k} = $${i + 2}`).join(', ')}, actualizado = now(), actualizado_por = $${s.length + 2} WHERE id = $1`,
-        [id, ...s.map((k) => nuevo[k]), usuario.id]);
+        [id, ...s.map((k) => (k === 'desglose' && nuevo[k] ? JSON.stringify(nuevo[k]) : nuevo[k])), usuario.id]);
       registrar('tareas', 'tarea', t.ref_externa, null, nuevo.nombre, campos);
       if (ya.planificadas > t.horas) {
         avisos.push({ ruta: `${x.ruta}.horas`, mensaje: `«${t.nombre}»: pasa a ${fmtH(t.horas)} pero ya tiene ${fmtH(ya.planificadas)} planificadas (se verá como exceso)` });
@@ -600,6 +738,54 @@ async function importar(c, archivo, resoluciones, usuario, simular) {
       await c.query('INSERT INTO tarea_requisitos_tipo (tarea_id, tipo_recurso_id, cantidad) VALUES ($1,$2,$3)', [id, tipoId, cantidad]);
     }
     for (const recId of reqRec) await c.query('INSERT INTO tarea_requisitos (tarea_id, recurso_id) VALUES ($1,$2)', [id, recId]);
+    resumen.equipos += [...reqTipo.keys()].filter((k) => !t.oficio || k !== idDe(`tipo:operario:${norm(t.oficio)}`)).length;
+
+    // capacidades: lo que trae el archivo manda (si no trae el campo, no se tocan)
+    if (t.capacidades) {
+      const caps = new Map();
+      for (const k of t.capacidades.map(leerCapacidad)) {
+        const kid = idDe(`capacidad:${norm(k.nombre)}`);
+        if (kid) caps.set(kid, Math.max(caps.get(kid) || 0, k.cantidad));
+      }
+      await c.query('DELETE FROM tarea_capacidades WHERE tarea_id = $1', [id]);
+      for (const [kid, n] of caps) await c.query('INSERT INTO tarea_capacidades (tarea_id, capacidad_id, cantidad) VALUES ($1,$2,$3)', [id, kid, n]);
+      resumen.capacidades += caps.size;
+      if (ops >= 1 && [...caps.values()].some((n) => n > ops)) avisos.push({ ruta: `${x.ruta}.capacidades`, mensaje: `«${t.nombre}» pide más personas que sepan algo que operarios tiene (${ops})` });
+    }
+    // herramientas de mano: se reponen las importadas; las añadidas a mano se quedan
+    if (t.herramientas) {
+      await c.query('DELETE FROM tarea_herramienta WHERE tarea_id = $1 AND importada', [id]);
+      for (const h of t.herramientas.map(leerHerramienta)) {
+        const r = await c.query(
+          `INSERT INTO tarea_herramienta (tarea_id, catalogo_id, descripcion, cantidad, nota, creado_por, importada)
+           VALUES ($1, (SELECT id FROM catalogo WHERE tipo = 'herramienta' AND lower(nombre) = lower($2) LIMIT 1), $2, $3, $4, $5, TRUE)
+           ON CONFLICT DO NOTHING`, [id, h.nombre.trim(), h.cantidad, h.nota, usuario.id]);
+        resumen.herramientas += r.rowCount;
+        if (tipos.some((tp) => tp.clase === 'maquina' && norm(tp.nombre) === norm(h.nombre))) {
+          avisos.push({ ruta: `${x.ruta}.herramientas`, mensaje: `«${h.nombre}» es un equipo del que hay pocos: mejor en «equipos» para que el tablero controle que no se cruce` });
+        }
+      }
+    }
+    // material que consume: se reponen las asignaciones importadas
+    if (t.materiales) {
+      await c.query('DELETE FROM tarea_material WHERE tarea_id = $1 AND importada', [id]);
+      for (const m of t.materiales) {
+        await c.query(
+          `INSERT INTO tarea_material (escandallo_id, tarea_id, cantidad, creado_por, importada) VALUES ($1,$2,$3,$4,TRUE)
+           ON CONFLICT (escandallo_id, tarea_id) DO UPDATE SET cantidad = EXCLUDED.cantidad, importada = TRUE`,
+          [idMaterial.get(m.ref), id, m.cantidad, usuario.id]);
+        resumen.asignaciones_material++;
+      }
+    }
+  }
+  // un material no puede repartirse en más de lo que hay
+  {
+    const usado = new Map();
+    for (const x of plano.tareas) for (const m of x.d.materiales || []) usado.set(m.ref, (usado.get(m.ref) || 0) + m.cantidad);
+    for (const [ref, n] of usado) {
+      const mi = matInfo.get(ref);
+      if (mi && n > mi.cantidad + 1e-9) avisos.push({ ruta: ref, mensaje: `«${mi.descripcion}»: las tareas consumen ${fmtN(n)} ${mi.unidad} y la partida tiene ${fmtN(mi.cantidad)}` });
+    }
   }
   const idsArchivo = [...idTarea.values()];
   await c.query('DELETE FROM tarea_dependencias WHERE tarea_id = ANY($1)', [idsArchivo]);
@@ -672,6 +858,7 @@ async function importar(c, archivo, resoluciones, usuario, simular) {
     errores: [],
   };
   if (!simular) {
+    informe.avisar = avisarDespues;
     const { rows } = await c.query(
       `INSERT INTO importaciones (proyecto_id, ref_externa, usuario_id, origen, resumen, archivo) VALUES ($1,$2,$3,$4,$5,$6) RETURNING id`,
       [proy.id, P.ref_externa, usuario.id, archivo.origen || null, informe.resumen, archivo]);
@@ -688,6 +875,7 @@ async function importar(c, archivo, resoluciones, usuario, simular) {
   }
 }
 
+const fmtN = (n) => String(Math.round(Number(n) * 1000) / 1000).replace('.', ',');
 const fmtH = (h) => `${String(Math.round(h * 10) / 10).replace('.', ',')} h`;
 
 // JSON con las claves ordenadas (jsonb no conserva el orden de las claves)
@@ -735,9 +923,12 @@ module.exports = function montar(app, asyncH) {
       await c.query('BEGIN');
       // una importación a la vez (evita dos códigos iguales si dos personas importan a la vez)
       await c.query('SELECT pg_advisory_xact_lock(360360)');
-      const informe = await importar(c, archivo, resoluciones, req.usuario, simular);
+      const { avisar = [], ...informe } = await importar(c, archivo, resoluciones, req.usuario, simular);
       if (informe.errores?.length || simular) await c.query('ROLLBACK');
-      else await c.query('COMMIT');
+      else {
+        await c.query('COMMIT');
+        avisar.forEach((f) => f());   // avisos al móvil, solo cuando ya está guardado
+      }
       res.json({ ...base, ...informe, ok: !informe.errores?.length });
     } catch (e) {
       await c.query('ROLLBACK').catch(() => {});
@@ -745,6 +936,35 @@ module.exports = function montar(app, asyncH) {
     } finally {
       c.release();
     }
+  }));
+
+  // Catálogo de nombres que entiende la importación (para que el compositor use los nombres exactos)
+  app.get('/api/importar/catalogo', auth.permiso('proyectos'), asyncH(async (req, res) => {
+    const q = (sql) => pool.query(sql).then((r) => r.rows);
+    const [areas, capacidades, tipos, materiales, herramientas] = await Promise.all([
+      q(`SELECT l.nombre, l.tipo, l.exclusiva AS una_a_la_vez, d.nombre AS departamento, l.equipamiento AS otros_elementos_fijos,
+                COALESCE((SELECT json_agg(r.nombre ORDER BY r.nombre) FROM recursos r WHERE r.linea_id = l.id AND r.fijo_area AND r.activo), '[]') AS maquinas_fijas
+           FROM lineas l LEFT JOIN departamentos d ON d.id = l.departamento_id
+          WHERE l.activo AND l.tipo <> 'obra' ORDER BY d.orden NULLS LAST, l.orden, l.nombre`),
+      q(`SELECT k.familia, k.nombre,
+                (SELECT count(*)::int FROM recurso_capacidades rc JOIN recursos r ON r.id = rc.recurso_id AND r.activo
+                  WHERE rc.capacidad_id = k.id AND rc.estado = 'validada') AS personas
+           FROM capacidades k ORDER BY k.orden, lower(k.nombre)`),
+      q(`SELECT t.clase, t.nombre, t.familia, t.uso,
+                (SELECT count(*)::int FROM recurso_tipos rt JOIN recursos r ON r.id = rt.recurso_id AND r.activo WHERE rt.tipo_recurso_id = t.id) AS unidades
+           FROM tipos_recurso t ORDER BY t.clase, t.familia NULLS LAST, lower(t.nombre)`),
+      q(`SELECT familia, nombre, unidad FROM catalogo WHERE tipo = 'material' AND activo ORDER BY familia, nombre`),
+      q(`SELECT familia, nombre FROM catalogo WHERE tipo = 'herramienta' AND activo ORDER BY familia, nombre`),
+    ]);
+    res.json({
+      formato: 's360-catalogo/1', generado: new Date().toISOString(), importacion: 's360-import/2',
+      areas, area_tipos: TIPOS_AREA,
+      capacidades,
+      equipos: tipos.filter((t) => t.clase === 'maquina').map(({ clase, ...t }) => t),
+      subcontratas: tipos.filter((t) => t.clase === 'subcontrata').map(({ clase, familia, uso, ...t }) => t),
+      categorias: tipos.filter((t) => t.clase === 'operario').map((t) => t.nombre),
+      materiales, herramientas,
+    });
   }));
 
   // Historial de importaciones de un proyecto

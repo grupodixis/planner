@@ -1,92 +1,238 @@
 {
-  "formato": "s360-import/1",
-  "generado": "2026-11-12T13:45:00+01:00",
-  "origen": { "sistema": "compositor-proyectos", "version": "0.2", "usuario": "Pablo S. Sánchez" },
+  "formato": "s360-import/2",
+  "generado": "2026-11-17T20:00:00+01:00",
+  "origen": { "sistema": "compositor", "version": "2.0", "usuario": "sofia" },
   "proyecto": {
-    "ref_externa": "PRES-2026-0045",
-    "codigo": "PR-2026-045",
-    "nombre": "Pérgola y barandillas hotel Fornells",
-    "cliente": "Hotel Fornells",
-    "obra": "Carrer Major 12, Fornells",
-    "notas": "Acceso a obra por la parte trasera. Montaje antes del 15/12.",
+    "ref_externa": "PRES-2026-0061",
+    "codigo": "P-2026-0061",
+    "nombre": "Escalera exterior y barandilla · Vivienda Es Castell",
+    "cliente": "Comunidad Carrer de sa Font 12",
+    "obra": "Carrer de sa Font 12, Es Castell",
+    "notas": "Escalera de dos tramos con meseta. Galvanizado no incluido: imprimación + esmalte.",
     "condiciones": [
-      "Anticipo del 40 % cobrado",
-      "RAL confirmado por el cliente",
-      "Pilares de obra replanteados"
+      "RAL 7016 confirmado por el cliente",
+      "Anticipo del 30 % cobrado",
+      "Acceso para camión grúa confirmado"
     ],
     "partidas": [
       {
-        "ref_externa": "PRES-2026-0045/C4.001",
-        "codigo": "C4.001",
-        "nombre": "Pérgola de acero lacado 6×4 m",
-        "extra": { "importe": 8450.00, "medicion": "24 m²" },
+        "ref_externa": "PRES-2026-0061/01",
+        "codigo": "01",
+        "nombre": "Fabricación y pintura de escalera y barandilla",
+        "enviar_a_logistica": true,
+        "materiales": [
+          { "ref_externa": "PRES-2026-0061/01/M01", "descripcion": "IPE 200 S275", "cantidad": 2, "unidad": "barra", "nota": "Zancas. Barras de 6 m" },
+          { "ref_externa": "PRES-2026-0061/01/M02", "descripcion": "Pletina 50×8 S275", "cantidad": 6, "unidad": "barra", "nota": "Soportes de peldaño" },
+          { "ref_externa": "PRES-2026-0061/01/M03", "descripcion": "Tubo redondo Ø42,4×2 S235", "cantidad": 4, "unidad": "barra", "nota": "Pasamanos" },
+          { "ref_externa": "PRES-2026-0061/01/M04", "descripcion": "Tubo cuadrado 40×40×2 S235", "cantidad": 6, "unidad": "barra", "nota": "Montantes de barandilla" },
+          { "ref_externa": "PRES-2026-0061/01/M05", "descripcion": "Chapa lisa negra 10 mm 1250×2500", "cantidad": 1, "unidad": "chapa", "nota": "Placas de anclaje 250×250" },
+          { "ref_externa": "PRES-2026-0061/01/M06", "descripcion": "Hilo de soldadura SG2 (ER70S-6) Ø0,8 bobina 15 kg", "cantidad": 1, "unidad": "bobina" },
+          { "ref_externa": "PRES-2026-0061/01/M07", "descripcion": "Botella de Mezcla argón + 18 % CO2", "cantidad": 1, "unidad": "ud" },
+          { "ref_externa": "PRES-2026-0061/01/M08", "descripcion": "Imprimación antioxidante sintética gris", "cantidad": 8, "unidad": "l" },
+          { "ref_externa": "PRES-2026-0061/01/M09", "descripcion": "Esmalte sintético RAL 7016 gris antracita", "cantidad": 10, "unidad": "l",
+            "enlaces": ["https://www.titanlux.es/"] }
+        ],
         "ots": [
           {
-            "ref_externa": "PRES-2026-0045/C4.001/OT1",
-            "titulo": "Pérgola · fabricación",
+            "ref_externa": "PRES-2026-0061/01/OT1",
+            "codigo": "OT-0061-FAB",
+            "titulo": "Fabricación de escalera y barandilla",
             "prioridad": "alta",
-            "fecha_entrega": "2026-12-05",
+            "fecha_entrega": "2026-12-11",
             "tareas": [
               {
-                "ref_externa": "PRES-2026-0045/C4.001/OT1/T1", "nombre": "Corte perfiles", "horas": 6, "operarios": 1,
-                "oficio": "Oficial cerrajero", "area": "Taller corte",
-                "requiere": [{ "tipo_recurso": "Sierra de cinta" }]
+                "ref_externa": "PRES-2026-0061/01/OT1/T1",
+                "nombre": "Corte de zancas, pletinas y tubos",
+                "horas": 4,
+                "operarios": 1,
+                "area": "Sierra semiautomática 1",
+                "capacidades": ["Corte de perfiles (sierra de cinta, tronzadora)"],
+                "herramientas": ["Flexómetro 5 m", "Escuadra de taller"],
+                "materiales": [
+                  { "ref": "PRES-2026-0061/01/M01", "cantidad": 2 },
+                  { "ref": "PRES-2026-0061/01/M02", "cantidad": 6 },
+                  { "ref": "PRES-2026-0061/01/M03", "cantidad": 4 },
+                  { "ref": "PRES-2026-0061/01/M04", "cantidad": 6 }
+                ],
+                "desglose": [
+                  { "concepto": "Corte de zancas IPE 200 a inglete", "fase": "preparacion", "cantidad": 4, "unidad": "cortes", "rendimiento": 0.25, "horas_persona": 1 },
+                  { "concepto": "Corte de pletinas de peldaño", "fase": "preparacion", "cantidad": 28, "unidad": "cortes", "rendimiento": 0.075, "horas_persona": 2.1 },
+                  { "concepto": "Corte de tubos de barandilla", "fase": "preparacion", "cantidad": 18, "unidad": "cortes", "rendimiento": 0.05, "horas_persona": 0.9 }
+                ]
               },
               {
-                "ref_externa": "PRES-2026-0045/C4.001/OT1/T2", "nombre": "Armado y punteado", "horas": 12, "operarios": 2,
-                "oficio": "Soldador", "area_tipo": "taller",
-                "requiere": [{ "tipo_recurso": "Soldadora MIG/MAG", "cantidad": 2 }],
-                "despues_de": ["PRES-2026-0045/C4.001/OT1/T1"]
+                "ref_externa": "PRES-2026-0061/01/OT1/T2",
+                "nombre": "Corte y taladro de placas de anclaje",
+                "horas": 1.5,
+                "operarios": 1,
+                "area": "Cizalla universal",
+                "capacidades": ["Cizallado de chapa", "Taladrado y roscado"],
+                "materiales": [{ "ref": "PRES-2026-0061/01/M05", "cantidad": 1 }],
+                "desglose": [
+                  { "concepto": "Placas 250×250×10 con 4 taladros Ø18", "fase": "preparacion", "cantidad": 8, "unidad": "placas", "rendimiento": 0.1875, "horas_persona": 1.5 }
+                ]
               },
               {
-                "ref_externa": "PRES-2026-0045/C4.001/OT1/T3", "nombre": "Soldadura y repasos", "horas": 16, "operarios": 1,
-                "oficio": "Soldador", "area": "Taller armado",
-                "requiere": [{ "recurso": "MIG 1" }],
-                "despues_de": ["PRES-2026-0045/C4.001/OT1/T2"]
+                "ref_externa": "PRES-2026-0061/01/OT1/T3",
+                "nombre": "Armado y soldadura de zancas y peldaños",
+                "horas": 12,
+                "operarios": 2,
+                "area": "Potro de grandes estructuras",
+                "capacidades": [
+                  { "capacidad": "Armado y punteado de estructuras", "cantidad": 2 },
+                  { "capacidad": "Soldadura MIG/MAG (acero)", "cantidad": 1 }
+                ],
+                "equipos": [{ "tipo": "Soldadora MIG/MAG", "cantidad": 2 }],
+                "herramientas": ["Sargentos (juego)", "Escuadra magnética (soldadura)", "Radial pequeña 115/125"],
+                "materiales": [
+                  { "ref": "PRES-2026-0061/01/M06", "cantidad": 1 },
+                  { "ref": "PRES-2026-0061/01/M07", "cantidad": 1 }
+                ],
+                "despues_de": ["PRES-2026-0061/01/OT1/T1", "PRES-2026-0061/01/OT1/T2"],
+                "desglose": [
+                  { "concepto": "Armado y punteado de peldaños", "fase": "fabricacion", "cantidad": 14, "unidad": "peldaños", "rendimiento": 0.5, "horas_persona": 7 },
+                  { "concepto": "Soldadura de nudos", "fase": "soldadura", "cantidad": 14, "unidad": "nudos", "rendimiento": 0.75, "horas_persona": 10.5 },
+                  { "concepto": "Repasado y amolado de soldaduras", "fase": "acabado", "horas_persona": 6.5 }
+                ]
               },
               {
-                "ref_externa": "PRES-2026-0045/C4.001/OT1/T4", "nombre": "Lacado (externo)", "horas": 24, "operarios": 0,
-                "requiere": [{ "tipo_recurso": "Lacado", "clase": "subcontrata" }],
-                "despues_de": [{ "ref": "PRES-2026-0045/C4.001/OT1/T3" }],
-                "notas": "RAL 7016 texturado"
+                "ref_externa": "PRES-2026-0061/01/OT1/T4",
+                "nombre": "Armado y soldadura de barandilla",
+                "horas": 8,
+                "operarios": 1,
+                "area": "Mesa de pequeña estructura 1",
+                "capacidades": ["Soldadura MIG/MAG (acero)"],
+                "equipos": ["Soldadora MIG/MAG"],
+                "herramientas": ["Sargentos (juego)", "Nivel de burbuja 60 cm"],
+                "despues_de": ["PRES-2026-0061/01/OT1/T1"],
+                "desglose": [
+                  { "concepto": "Armado de tramos de barandilla", "fase": "fabricacion", "cantidad": 3, "unidad": "tramos", "rendimiento": 1.5, "horas_persona": 4.5 },
+                  { "concepto": "Soldadura", "fase": "soldadura", "cantidad": 3, "unidad": "tramos", "rendimiento": 1, "horas_persona": 3 },
+                  { "concepto": "Repaso", "fase": "acabado", "horas_persona": 0.5 }
+                ]
               }
             ]
           },
           {
-            "ref_externa": "PRES-2026-0045/C4.001/OT2",
-            "titulo": "Pérgola · montaje en obra",
-            "prioridad": "normal",
-            "fecha_entrega": "2026-12-15",
+            "ref_externa": "PRES-2026-0061/01/OT2",
+            "codigo": "OT-0061-PIN",
+            "titulo": "Pintura de escalera y barandilla",
             "tareas": [
               {
-                "ref_externa": "PRES-2026-0045/C4.001/OT2/T1", "nombre": "Transporte a obra", "horas": 2, "operarios": 1,
-                "area_tipo": "transporte",
-                "requiere": [{ "tipo_recurso": "Camión grúa" }],
-                "despues_de": [{ "ref": "PRES-2026-0045/C4.001/OT1/T4", "espera_h": 24 }],
-                "notas": "Esperar 24 h a que cure el lacado antes de cargar."
+                "ref_externa": "PRES-2026-0061/01/OT2/T1",
+                "nombre": "Preparación de superficie e imprimación",
+                "horas": 6,
+                "operarios": 1,
+                "area": "Cabina de pintura portátil",
+                "capacidades": ["Preparación de superficie (desengrase, lijado, chorreado)", "Imprimación"],
+                "herramientas": ["Radial pequeña 115/125"],
+                "materiales": [{ "ref": "PRES-2026-0061/01/M08", "cantidad": 8 }],
+                "despues_de": ["PRES-2026-0061/01/OT1/T3", "PRES-2026-0061/01/OT1/T4"],
+                "desglose": [
+                  { "concepto": "Desengrase y lijado", "fase": "acabado", "cantidad": 32, "unidad": "m²", "rendimiento": 0.1, "horas_persona": 3.2 },
+                  { "concepto": "Imprimación a pistola", "fase": "acabado", "cantidad": 32, "unidad": "m²", "rendimiento": 0.0875, "horas_persona": 2.8 }
+                ]
               },
               {
-                "ref_externa": "PRES-2026-0045/C4.001/OT2/T2", "nombre": "Montaje y anclajes", "horas": 8, "operarios": 2,
-                "oficio": "Montador", "area_tipo": "obra",
-                "requiere": [{ "tipo_recurso": "Plataforma elevadora", "clase": "subcontrata" }, { "tipo_recurso": "Taladro percutor" }],
-                "despues_de": ["PRES-2026-0045/C4.001/OT2/T1"]
+                "ref_externa": "PRES-2026-0061/01/OT2/T2",
+                "nombre": "Acabado esmalte RAL 7016",
+                "horas": 5,
+                "operarios": 1,
+                "area": "Cabina de pintura portátil",
+                "capacidades": ["Pintura con pistola aerográfica"],
+                "materiales": [{ "ref": "PRES-2026-0061/01/M09", "cantidad": 9 }],
+                "despues_de": [{ "ref": "PRES-2026-0061/01/OT2/T1", "espera_h": 24 }],
+                "notas": "Dos manos. Esperar secado de la imprimación (24 h).",
+                "desglose": [
+                  { "concepto": "Esmalte a pistola, dos manos", "fase": "acabado", "cantidad": 64, "unidad": "m²", "rendimiento": 0.078125, "horas_persona": 5 }
+                ]
               }
             ]
           }
         ]
       },
       {
-        "ref_externa": "PRES-2026-0045/C5.002",
-        "codigo": "C5.002",
-        "nombre": "Barandilla galvanizada terraza",
+        "ref_externa": "PRES-2026-0061/02",
+        "codigo": "02",
+        "nombre": "Montaje en obra",
+        "materiales": [
+          { "ref_externa": "PRES-2026-0061/02/M10", "descripcion": "Tornillo hexagonal DIN 933 M16×50 8.8 galvanizado en caliente", "cantidad": 24, "unidad": "ud" },
+          { "ref_externa": "PRES-2026-0061/02/M11", "descripcion": "Arandela plana DIN 125 M16 galvanizada en caliente", "cantidad": 48, "unidad": "ud" },
+          { "ref_externa": "PRES-2026-0061/02/M12", "descripcion": "Cartucho de anclaje químico epoxi 410 ml", "cantidad": 4, "unidad": "ud", "nota": "Con 16 varillas M16×190" }
+        ],
         "ots": [
           {
-            "ref_externa": "PRES-2026-0045/C5.002/OT1",
-            "titulo": "Barandilla terraza",
+            "ref_externa": "PRES-2026-0061/02/OT1",
+            "codigo": "OT-0061-MON",
+            "titulo": "Transporte y montaje en obra",
+            "fecha_entrega": "2026-12-18",
             "tareas": [
-              { "ref_externa": "PRES-2026-0045/C5.002/OT1/T1", "nombre": "Corte y taladrado", "horas": 4, "operarios": 1, "area": "Taller corte" },
-              { "ref_externa": "PRES-2026-0045/C5.002/OT1/T2", "nombre": "Soldadura", "horas": 6.5, "operarios": 1, "oficio": "Soldador", "area_tipo": "taller", "requiere": [{ "tipo_recurso": "Soldadora MIG/MAG" }], "despues_de": ["PRES-2026-0045/C5.002/OT1/T1"] },
-              { "ref_externa": "PRES-2026-0045/C5.002/OT1/T3", "nombre": "Montaje", "horas": 5, "operarios": 2, "oficio": "Montador", "area_tipo": "obra", "despues_de": ["PRES-2026-0045/C5.002/OT1/T2"] }
+              {
+                "ref_externa": "PRES-2026-0061/02/OT1/T1",
+                "nombre": "Carga y transporte a obra",
+                "horas": 2,
+                "operarios": 1,
+                "area": "Transporte",
+                "capacidades": ["Conducción de camión (carnet C)"],
+                "equipos": ["Camión"],
+                "despues_de": [{ "ref": "PRES-2026-0061/01/OT2/T2", "espera_h": 24 }],
+                "desglose": [{ "concepto": "Carga, viaje y descarga", "fase": "transporte", "horas_persona": 2 }]
+              },
+              {
+                "ref_externa": "PRES-2026-0061/02/OT1/T2",
+                "nombre": "Replanteo y anclajes químicos",
+                "horas": 4,
+                "operarios": 2,
+                "area_tipo": "obra",
+                "capacidades": [
+                  "Replanteo y toma de medidas en obra",
+                  { "capacidad": "Anclajes químicos y mecánicos", "cantidad": 2 }
+                ],
+                "equipos": ["Kit de medición"],
+                "herramientas": ["Martillo perforador SDS", "Nivel láser / láser de líneas"],
+                "materiales": [{ "ref": "PRES-2026-0061/02/M12", "cantidad": 4 }],
+                "desglose": [
+                  { "concepto": "Replanteo de placas", "fase": "montaje", "horas_persona": 2 },
+                  { "concepto": "Taladro y anclaje químico", "fase": "montaje", "cantidad": 16, "unidad": "anclajes", "rendimiento": 0.375, "horas_persona": 6 }
+                ]
+              },
+              {
+                "ref_externa": "PRES-2026-0061/02/OT1/T3",
+                "nombre": "Montaje y nivelación de escalera y barandilla",
+                "horas": 6,
+                "operarios": 3,
+                "area_tipo": "obra",
+                "capacidades": [
+                  { "capacidad": "Montaje de barandillas y escaleras", "cantidad": 2 },
+                  "Soldadura MIG/MAG (acero)",
+                  "Señalista de grúa / eslingado de cargas"
+                ],
+                "equipos": ["Soldadora MIG/MAG", "Llave de impacto"],
+                "subcontratas": ["Grúa"],
+                "herramientas": ["Nivel de burbuja 2 m", "Arnés anticaídas"],
+                "materiales": [
+                  { "ref": "PRES-2026-0061/02/M10", "cantidad": 24 },
+                  { "ref": "PRES-2026-0061/02/M11", "cantidad": 48 }
+                ],
+                "despues_de": ["PRES-2026-0061/02/OT1/T1", { "ref": "PRES-2026-0061/02/OT1/T2", "espera_h": 24 }],
+                "notas": "Esperar 24 h de curado del anclaje químico.",
+                "desglose": [
+                  { "concepto": "Izado y presentación con grúa", "fase": "montaje", "horas_persona": 6 },
+                  { "concepto": "Atornillado y nivelación", "fase": "montaje", "horas_persona": 6 },
+                  { "concepto": "Soldadura de barandilla a zanca", "fase": "soldadura", "horas_persona": 6 }
+                ]
+              },
+              {
+                "ref_externa": "PRES-2026-0061/02/OT1/T4",
+                "nombre": "Retoques de pintura y limpieza",
+                "horas": 2,
+                "operarios": 1,
+                "area_tipo": "obra",
+                "capacidades": ["Pintura a brocha y rodillo (retoques en obra)"],
+                "materiales": [{ "ref": "PRES-2026-0061/01/M09", "cantidad": 1 }],
+                "despues_de": ["PRES-2026-0061/02/OT1/T3"],
+                "desglose": [{ "concepto": "Retoques en soldaduras de obra y limpieza", "fase": "acabado", "horas_persona": 2 }]
+              }
             ]
           }
         ]

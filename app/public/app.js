@@ -554,6 +554,18 @@
     return [L.materiales.length ? `Material:\n· ${L.materiales.map(matLinea).join('\n· ')}` : null,
       L.herramientas.length ? `Herramientas:\n· ${L.herramientas.map((h) => `${h.cantidad > 1 ? `${cantM(h.cantidad)}× ` : ''}${h.descripcion}${h.preparado_por?.length ? ` · ✔ (${h.preparado_por.join(', ')})` : ''}`).join('\n· ')}` : null].filter(Boolean).join('\n');
   }
+  // desglose de tiempos que vino del compositor (concepto · medición · horas-persona)
+  function desgloseTabla(t) {
+    const hp = t.desglose.reduce((s, d) => s + d.horas_persona, 0);
+    const n = (v) => String(Math.round(v * 100) / 100).replace('.', ',');
+    return el('table', { class: 'tabla-desglose' },
+      el('tbody', {}, t.desglose.map((d) => el('tr', {},
+        el('td', {}, d.concepto),
+        el('td', { class: 'ayuda' }, d.cantidad ? `${n(d.cantidad)} ${d.unidad || ''}${d.rendimiento ? ` × ${n(d.rendimiento)} h` : ''}` : ''),
+        el('td', { class: 'num' }, `${n(d.horas_persona)} h`)))),
+      el('tfoot', {}, el('tr', {}, el('td', {}, 'Total'), el('td', { class: 'ayuda' }, `${n(t.duracion_h)} h × ${Math.max(t.operarios_req, 1)} op`), el('td', { class: 'num' }, `${n(hp)} h`))));
+  }
+
   // icono 🧰 con el estado del material; «fecha» = día del tramo (si llega después, en rojo)
   function iconoMat(t, fecha = null) {
     const L = t.llevar;
@@ -1463,6 +1475,8 @@
         const fijo = ar ? [...(ar.maquinas || []).map((m) => m.nombre), ...(ar.equipamiento || [])] : [];
         return fijo.length ? [el('dt', {}, 'En el área'), el('dd', { class: 'det-llevar' }, fijo.join(' · '))] : [];
       })(),
+      t.desglose?.length ? el('dt', {}, 'Desglose') : null,
+      t.desglose?.length ? el('dd', { class: 'det-desglose' }, desgloseTabla(t)) : null,
       t.notas ? el('dt', {}, 'Notas') : null,
       t.notas ? el('dd', { class: 'notas' }, t.notas) : null,
       t.condiciones_pendientes?.length ? el('dt', {}, 'Condiciones') : null,

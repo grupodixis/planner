@@ -57,7 +57,8 @@
     const tarde = l.fecha_necesaria && l.fecha_necesaria < hoy && l.estado !== 'disponible';
     return el('div', { class: `log-linea est-${l.estado}` },
       el('div', { class: 'log-l1' },
-        el('span', { class: 'log-desc' }, el('b', {}, l.descripcion)),
+        el('span', { class: 'log-desc' }, el('b', {}, l.descripcion),
+          l.baja_presupuesto ? el('span', { class: 'mat-baja', title: 'Ya no viene en el presupuesto (reimportación)' }, ' · fuera de presupuesto') : null),
         chipEstado(l)),
       el('div', { class: 'log-l2 ayuda' },
         `Necesita ${cant(l.cantidad)} ${l.unidad || ''}`,

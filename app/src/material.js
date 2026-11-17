@@ -32,7 +32,7 @@ function estado(l) {
 const SQL_LINEAS = `
   SELECT e.id, e.partida_id, e.catalogo_id, e.descripcion, e.cantidad::float, e.unidad, e.nota, e.orden,
          e.enlaces, e.stock::float, e.stock_en, e.compra, e.proveedor_id, e.fecha_prevista, e.pedido_en, e.recibido_en, e.nota_logistica,
-         e.num_pedido, e.num_albaran,
+         e.num_pedido, e.num_albaran, e.ref_externa, e.baja_presupuesto,
          pa.codigo AS partida_codigo, pa.nombre AS partida_nombre, pa.escandallo_enviado, pa.proyecto_id,
          p.codigo AS proyecto_codigo, p.nombre AS proyecto_nombre,
          pr.nombre AS proveedor, us.nombre AS stock_por, up.nombre AS pedido_por, ur.nombre AS recibido_por,

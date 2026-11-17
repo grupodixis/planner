@@ -1,26 +1,52 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/grupodixis/planner/docs/importacion/esquema.json",
-  "title": "s360 · Importación de proyectos (s360-import/1)",
-  "description": "Un archivo = un proyecto con sus partidas, OTs y tareas con horas estimadas. Ver docs/importacion/README.md.",
+  "title": "s360 · Importación de proyectos (s360-import/2)",
+  "description": "Un archivo = un proyecto con sus partidas (y su material), OTs y tareas (horas, desglose, capacidades, equipos, herramientas y material). Ver docs/importacion/README.md. Acepta también s360-import/1.",
   "type": "object",
-  "required": ["formato", "proyecto"],
+  "required": [
+    "formato",
+    "proyecto"
+  ],
   "additionalProperties": false,
   "properties": {
-    "formato": { "const": "s360-import/1", "description": "Versión del formato. Obligatorio y exacto." },
-    "generado": { "type": "string", "format": "date-time", "description": "Cuándo se generó el archivo (ISO 8601)." },
+    "formato": {
+      "enum": [
+        "s360-import/2",
+        "s360-import/1"
+      ],
+      "description": "Versión del formato. Usar «s360-import/2». «s360-import/1» se sigue aceptando (sin los campos nuevos)."
+    },
+    "generado": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Cuándo se generó el archivo (ISO 8601)."
+    },
     "origen": {
       "type": "object",
       "description": "Qué programa generó el archivo (informativo).",
       "additionalProperties": false,
       "properties": {
-        "sistema": { "type": "string", "maxLength": 80 },
-        "version": { "type": "string", "maxLength": 40 },
-        "usuario": { "type": "string", "maxLength": 120 }
+        "sistema": {
+          "type": "string",
+          "maxLength": 80
+        },
+        "version": {
+          "type": "string",
+          "maxLength": 40
+        },
+        "usuario": {
+          "type": "string",
+          "maxLength": 120
+        }
       }
     },
-    "proyecto": { "$ref": "#/$defs/proyecto" },
-    "extra": { "$ref": "#/$defs/extra" }
+    "proyecto": {
+      "$ref": "#/$defs/proyecto"
+    },
+    "extra": {
+      "$ref": "#/$defs/extra"
+    }
   },
   "$defs": {
     "ref": {
@@ -30,59 +56,190 @@
       "pattern": "^\\S(.*\\S)?$",
       "description": "Identificador estable en el sistema de origen. No debe cambiar entre exportaciones del mismo elemento."
     },
-    "texto": { "type": "string", "pattern": "\\S" },
-    "fecha": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$", "description": "Fecha AAAA-MM-DD." },
-    "nombreCatalogo": { "type": "string", "minLength": 1, "maxLength": 120, "pattern": "\\S" },
+    "texto": {
+      "type": "string",
+      "pattern": "\\S"
+    },
+    "fecha": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+      "description": "Fecha AAAA-MM-DD."
+    },
+    "nombreCatalogo": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 120,
+      "pattern": "\\S"
+    },
     "extra": {
       "type": "object",
       "description": "Datos libres del origen (importes, mediciones…). Se guardan pero el planificador no los interpreta."
     },
     "proyecto": {
       "type": "object",
-      "required": ["ref_externa", "nombre", "partidas"],
+      "required": [
+        "ref_externa",
+        "nombre",
+        "partidas"
+      ],
       "additionalProperties": false,
       "properties": {
-        "ref_externa": { "$ref": "#/$defs/ref" },
-        "codigo": { "type": "string", "maxLength": 30, "description": "Código visible (p. ej. P-2026-0059). Si falta, el planificador asigna PR-###." },
-        "nombre": { "allOf": [{ "$ref": "#/$defs/texto" }], "maxLength": 120 },
-        "cliente": { "type": "string", "maxLength": 120 },
-        "obra": { "type": "string", "maxLength": 200, "description": "Dirección o ubicación de la obra. Da nombre al área de obra que se crea para las tareas con area_tipo «obra»." },
-        "notas": { "type": "string", "maxLength": 4000 },
+        "ref_externa": {
+          "$ref": "#/$defs/ref"
+        },
+        "codigo": {
+          "type": "string",
+          "maxLength": 30,
+          "description": "Código visible (p. ej. P-2026-0059). Si falta, el planificador asigna PR-###."
+        },
+        "nombre": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/texto"
+            }
+          ],
+          "maxLength": 120
+        },
+        "cliente": {
+          "type": "string",
+          "maxLength": 120
+        },
+        "obra": {
+          "type": "string",
+          "maxLength": 200,
+          "description": "Dirección o ubicación de la obra. Da nombre al área de obra que se crea para las tareas con area_tipo «obra»."
+        },
+        "notas": {
+          "type": "string",
+          "maxLength": 4000
+        },
         "condiciones": {
           "type": "array",
           "description": "Condiciones previas que hay que confirmar antes de ejecutar (pago, RAL, estado de pilares…). En el planificador salen como pendientes hasta que alguien las marca.",
-          "items": { "type": "string", "minLength": 1, "maxLength": 200, "pattern": "\\S" }
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200,
+            "pattern": "\\S"
+          }
         },
-        "partidas": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/partida" } },
-        "extra": { "$ref": "#/$defs/extra" }
+        "partidas": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/partida"
+          }
+        },
+        "extra": {
+          "$ref": "#/$defs/extra"
+        }
       }
     },
     "partida": {
       "type": "object",
-      "required": ["ref_externa", "nombre", "ots"],
+      "required": [
+        "ref_externa",
+        "nombre",
+        "ots"
+      ],
       "additionalProperties": false,
       "properties": {
-        "ref_externa": { "$ref": "#/$defs/ref" },
-        "codigo": { "type": "string", "maxLength": 30, "description": "Código de la partida en el presupuesto (p. ej. 01 o C4.001)." },
-        "nombre": { "allOf": [{ "$ref": "#/$defs/texto" }], "maxLength": 120 },
-        "ots": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/ot" } },
-        "extra": { "$ref": "#/$defs/extra" }
+        "ref_externa": {
+          "$ref": "#/$defs/ref"
+        },
+        "codigo": {
+          "type": "string",
+          "maxLength": 30,
+          "description": "Código de la partida en el presupuesto (p. ej. 01 o C4.001)."
+        },
+        "nombre": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/texto"
+            }
+          ],
+          "maxLength": 120
+        },
+        "ots": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/ot"
+          }
+        },
+        "extra": {
+          "$ref": "#/$defs/extra"
+        },
+        "materiales": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/material"
+          },
+          "description": "Escandallo de la partida: todo el material que necesita."
+        },
+        "enviar_a_logistica": {
+          "type": "boolean",
+          "default": false,
+          "description": "true = el escandallo llega ya revisado por el técnico: se envía a logística al importar (avisa a logística para revisar stock)."
+        }
       }
     },
     "ot": {
       "type": "object",
-      "required": ["ref_externa", "titulo", "tareas"],
+      "required": [
+        "ref_externa",
+        "titulo",
+        "tareas"
+      ],
       "additionalProperties": false,
       "properties": {
-        "ref_externa": { "$ref": "#/$defs/ref" },
-        "codigo": { "type": "string", "maxLength": 30, "description": "Si falta, el planificador asigna OT-####." },
-        "titulo": { "allOf": [{ "$ref": "#/$defs/texto" }], "maxLength": 120 },
-        "descripcion": { "type": "string", "maxLength": 4000 },
-        "prioridad": { "enum": ["urgente", "alta", "normal", "baja"], "default": "normal" },
-        "fecha_entrega": { "$ref": "#/$defs/fecha" },
-        "color": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$", "description": "Color en el tablero. Si falta, se asigna uno." },
-        "tareas": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/tarea" } },
-        "extra": { "$ref": "#/$defs/extra" }
+        "ref_externa": {
+          "$ref": "#/$defs/ref"
+        },
+        "codigo": {
+          "type": "string",
+          "maxLength": 30,
+          "description": "Si falta, el planificador asigna OT-####."
+        },
+        "titulo": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/texto"
+            }
+          ],
+          "maxLength": 120
+        },
+        "descripcion": {
+          "type": "string",
+          "maxLength": 4000
+        },
+        "prioridad": {
+          "enum": [
+            "urgente",
+            "alta",
+            "normal",
+            "baja"
+          ],
+          "default": "normal"
+        },
+        "fecha_entrega": {
+          "$ref": "#/$defs/fecha"
+        },
+        "color": {
+          "type": "string",
+          "pattern": "^#[0-9a-fA-F]{6}$",
+          "description": "Color en el tablero. Si falta, se asigna uno."
+        },
+        "tareas": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/tarea"
+          }
+        },
+        "extra": {
+          "$ref": "#/$defs/extra"
+        }
       }
     },
     "requisito": {
@@ -91,66 +248,443 @@
         {
           "type": "object",
           "title": "Tipo de recurso",
-          "required": ["tipo_recurso"],
+          "required": [
+            "tipo_recurso"
+          ],
           "additionalProperties": false,
           "properties": {
-            "tipo_recurso": { "$ref": "#/$defs/nombreCatalogo", "description": "Nombre del tipo (p. ej. «Soldadora MIG/MAG», «Grúa»)." },
-            "clase": { "enum": ["maquina", "subcontrata"], "default": "maquina" },
-            "cantidad": { "type": "integer", "minimum": 1, "maximum": 50, "default": 1 }
+            "tipo_recurso": {
+              "$ref": "#/$defs/nombreCatalogo",
+              "description": "Nombre del tipo (p. ej. «Soldadora MIG/MAG», «Grúa»)."
+            },
+            "clase": {
+              "enum": [
+                "maquina",
+                "subcontrata"
+              ],
+              "default": "maquina"
+            },
+            "cantidad": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50,
+              "default": 1
+            }
           }
         },
         {
           "type": "object",
           "title": "Recurso concreto",
-          "required": ["recurso"],
+          "required": [
+            "recurso"
+          ],
           "additionalProperties": false,
           "properties": {
-            "recurso": { "$ref": "#/$defs/nombreCatalogo", "description": "Nombre del recurso concreto (p. ej. «MIG 1»)." }
+            "recurso": {
+              "$ref": "#/$defs/nombreCatalogo",
+              "description": "Nombre del recurso concreto (p. ej. «MIG 1»)."
+            }
           }
         },
         {
           "type": "object",
           "title": "Forma antigua (se acepta): {nombre, tipo} = tipo de recurso de esa clase",
-          "required": ["nombre"],
+          "required": [
+            "nombre"
+          ],
           "additionalProperties": false,
           "properties": {
-            "nombre": { "$ref": "#/$defs/nombreCatalogo" },
-            "tipo": { "enum": ["maquina", "subcontrata"] }
+            "nombre": {
+              "$ref": "#/$defs/nombreCatalogo"
+            },
+            "tipo": {
+              "enum": [
+                "maquina",
+                "subcontrata"
+              ]
+            }
           }
         },
-        { "type": "string", "minLength": 1, "maxLength": 120, "pattern": "\\S", "title": "Forma antigua (se acepta): texto = recurso concreto" }
+        {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120,
+          "pattern": "\\S",
+          "title": "Forma antigua (se acepta): texto = recurso concreto"
+        }
       ]
     },
     "dependencia": {
       "oneOf": [
-        { "type": "string", "minLength": 1, "maxLength": 80, "pattern": "^\\S(.*\\S)?$", "title": "ref_externa de la tarea previa" },
+        {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80,
+          "pattern": "^\\S(.*\\S)?$",
+          "title": "ref_externa de la tarea previa"
+        },
         {
           "type": "object",
-          "required": ["ref"],
+          "required": [
+            "ref"
+          ],
           "additionalProperties": false,
           "properties": {
-            "ref": { "$ref": "#/$defs/ref" },
-            "espera_h": { "type": "number", "minimum": 0, "maximum": 720, "multipleOf": 0.5, "description": "Horas de calendario que hay que esperar tras la tarea previa (secado, curado…). No son horas de trabajo." }
+            "ref": {
+              "$ref": "#/$defs/ref"
+            },
+            "espera_h": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 720,
+              "multipleOf": 0.5,
+              "description": "Horas de calendario que hay que esperar tras la tarea previa (secado, curado…). No son horas de trabajo."
+            }
           }
         }
       ]
     },
     "tarea": {
       "type": "object",
-      "required": ["ref_externa", "nombre", "horas"],
+      "required": [
+        "ref_externa",
+        "nombre",
+        "horas"
+      ],
       "additionalProperties": false,
       "properties": {
-        "ref_externa": { "$ref": "#/$defs/ref" },
-        "nombre": { "allOf": [{ "$ref": "#/$defs/texto" }], "maxLength": 120 },
-        "horas": { "type": "number", "exclusiveMinimum": 0, "maximum": 999, "multipleOf": 0.5, "description": "Duración estimada de la tarea (no horas-persona). En medias horas." },
-        "operarios": { "type": "integer", "minimum": 0, "maximum": 50, "default": 1, "description": "Personas a la vez. Horas-persona = horas × operarios." },
-        "oficio": { "type": "string", "minLength": 1, "maxLength": 120, "description": "Especialidad que deben tener los operarios (p. ej. «Soldador»). Se convierte en requisito «operarios × oficio»." },
-        "area": { "type": "string", "maxLength": 120, "description": "Nombre de un área de trabajo concreta del planificador (p. ej. «Cabina de pintura»)." },
-        "area_tipo": { "enum": ["taller", "pintura", "oficina", "obra", "transporte", "otro"], "description": "Tipo de área cuando no se sabe la concreta. «obra» = el área de la obra de este proyecto (se crea si no existe)." },
-        "requiere": { "type": "array", "items": { "$ref": "#/$defs/requisito" } },
-        "despues_de": { "type": "array", "items": { "$ref": "#/$defs/dependencia" }, "description": "Tareas (de este archivo) que deben ir antes." },
-        "notas": { "type": "string", "maxLength": 4000 },
-        "extra": { "$ref": "#/$defs/extra" }
+        "ref_externa": {
+          "$ref": "#/$defs/ref"
+        },
+        "nombre": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/texto"
+            }
+          ],
+          "maxLength": 120
+        },
+        "horas": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 999,
+          "multipleOf": 0.5,
+          "description": "Duración estimada de la tarea (no horas-persona). En medias horas."
+        },
+        "operarios": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 50,
+          "default": 1,
+          "description": "Personas a la vez. Horas-persona = horas × operarios."
+        },
+        "oficio": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120,
+          "description": "Categoría de los operarios (Oficial 1ª, Encargado…). En s360-import/2 lo que piden las tareas va en «capacidades»; se mantiene por compatibilidad."
+        },
+        "area": {
+          "type": "string",
+          "maxLength": 120,
+          "description": "Nombre de un área de trabajo concreta del planificador (p. ej. «Cabina de pintura»)."
+        },
+        "area_tipo": {
+          "enum": [
+            "taller",
+            "pintura",
+            "oficina",
+            "obra",
+            "transporte",
+            "otro"
+          ],
+          "description": "Tipo de área cuando no se sabe la concreta. «obra» = el área de la obra de este proyecto (se crea si no existe)."
+        },
+        "requiere": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/requisito"
+          }
+        },
+        "despues_de": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/dependencia"
+          },
+          "description": "Tareas (de este archivo) que deben ir antes."
+        },
+        "notas": {
+          "type": "string",
+          "maxLength": 4000
+        },
+        "extra": {
+          "$ref": "#/$defs/extra"
+        },
+        "desglose": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/tiempo"
+          },
+          "description": "Cómo se ha calculado el tiempo de la tarea. Informativo: se ve en la tarea. Si la suma de horas-persona no cuadra con horas × operarios (±10 %), avisa."
+        },
+        "capacidades": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/capacidad"
+          },
+          "description": "Lo que tienen que saber hacer los operarios («2 que sepan soldar MIG/MAG»). Sustituye a «oficio»."
+        },
+        "equipos": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/equipo"
+          },
+          "description": "Máquinas o equipos de los que hay pocos (taladro magnético, soldadora…), por TIPO. En el tablero se asigna cuál."
+        },
+        "subcontratas": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/equipo"
+          },
+          "description": "Subcontratas o alquileres que necesita (grúa, plataforma elevadora, lacado…), por TIPO."
+        },
+        "herramientas": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/herramienta"
+          },
+          "description": "Herramientas de mano que hay que preparar (radial, sargentos, nivel…). Sin control de cantidad: el operario las marca en Mi día."
+        },
+        "materiales": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/uso_material"
+          },
+          "description": "Material de la partida que consume esta tarea (ref_externa de una línea de «materiales» del archivo) y cuánto."
+        }
+      }
+    },
+    "cantidad": {
+      "type": "number",
+      "exclusiveMinimum": 0,
+      "maximum": 1000000,
+      "description": "Cantidad (> 0). Decimales con punto."
+    },
+    "unidad": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 20,
+      "description": "Unidad: ud, m, m², m³, kg, l, barra, caja…"
+    },
+    "material": {
+      "type": "object",
+      "required": [
+        "ref_externa",
+        "descripcion",
+        "cantidad"
+      ],
+      "additionalProperties": false,
+      "description": "Una línea del escandallo (material) de la partida. Lo revisa logística y lo pide compras.",
+      "properties": {
+        "ref_externa": {
+          "$ref": "#/$defs/ref",
+          "description": "Id. estable de la línea (para reimportar y para que las tareas la referencien)."
+        },
+        "descripcion": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/texto"
+            }
+          ],
+          "maxLength": 200,
+          "description": "Qué material. Mejor con el nombre exacto del catálogo (p. ej. «Tubo cuadrado 40×40×2 S275»)."
+        },
+        "catalogo": {
+          "$ref": "#/$defs/nombreCatalogo",
+          "description": "Nombre exacto del catálogo de materiales, si es distinto de la descripción."
+        },
+        "cantidad": {
+          "$ref": "#/$defs/cantidad",
+          "description": "Cantidad total de la partida (con mermas incluidas)."
+        },
+        "unidad": {
+          "$ref": "#/$defs/unidad"
+        },
+        "nota": {
+          "type": "string",
+          "maxLength": 1000,
+          "description": "Acabado, calidad, RAL, medidas de corte…"
+        },
+        "enlaces": {
+          "type": "array",
+          "maxItems": 10,
+          "items": {
+            "type": "string",
+            "pattern": "^https?://",
+            "maxLength": 500
+          },
+          "description": "Fichas técnicas, catálogo del proveedor…"
+        },
+        "extra": {
+          "$ref": "#/$defs/extra"
+        }
+      }
+    },
+    "tiempo": {
+      "type": "object",
+      "required": [
+        "concepto",
+        "horas_persona"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "concepto": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/texto"
+            }
+          ],
+          "maxLength": 200,
+          "description": "Qué parte del trabajo (p. ej. «Corte de perfiles», «Soldadura de nudos»)."
+        },
+        "fase": {
+          "enum": [
+            "preparacion",
+            "fabricacion",
+            "soldadura",
+            "montaje",
+            "acabado",
+            "control",
+            "transporte",
+            "otros"
+          ],
+          "description": "Para agrupar en informes."
+        },
+        "cantidad": {
+          "$ref": "#/$defs/cantidad",
+          "description": "Medición de la que sale el tiempo (p. ej. 24 cortes, 36 m de cordón)."
+        },
+        "unidad": {
+          "$ref": "#/$defs/unidad"
+        },
+        "rendimiento": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "description": "Horas-persona por unidad (h/ud). horas_persona ≈ cantidad × rendimiento."
+        },
+        "horas_persona": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 9999,
+          "description": "Horas-persona de este concepto (no duración)."
+        }
+      }
+    },
+    "capacidad": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/nombreCatalogo",
+          "title": "Nombre de la capacidad (1 persona)"
+        },
+        {
+          "type": "object",
+          "required": [
+            "capacidad"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "capacidad": {
+              "$ref": "#/$defs/nombreCatalogo",
+              "description": "Nombre exacto de la capacidad (ver catálogo)."
+            },
+            "cantidad": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50,
+              "default": 1,
+              "description": "Cuántas personas que lo sepan hacer a la vez."
+            },
+            "familia": {
+              "type": "string",
+              "maxLength": 60,
+              "description": "Solo si la capacidad no existe y se crea: en qué familia va."
+            }
+          }
+        }
+      ]
+    },
+    "equipo": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/nombreCatalogo",
+          "title": "Nombre del tipo (1 unidad)"
+        },
+        {
+          "type": "object",
+          "required": [
+            "tipo"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "tipo": {
+              "$ref": "#/$defs/nombreCatalogo",
+              "description": "Nombre del tipo (ver catálogo)."
+            },
+            "cantidad": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50,
+              "default": 1
+            }
+          }
+        }
+      ]
+    },
+    "herramienta": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/nombreCatalogo",
+          "title": "Nombre de la herramienta"
+        },
+        {
+          "type": "object",
+          "required": [
+            "nombre"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "nombre": {
+              "$ref": "#/$defs/nombreCatalogo"
+            },
+            "cantidad": {
+              "type": "number",
+              "exclusiveMinimum": 0,
+              "maximum": 999
+            },
+            "nota": {
+              "type": "string",
+              "maxLength": 300
+            }
+          }
+        }
+      ]
+    },
+    "uso_material": {
+      "type": "object",
+      "required": [
+        "ref",
+        "cantidad"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "ref": {
+          "$ref": "#/$defs/ref",
+          "description": "ref_externa de una línea de «materiales» de cualquier partida del archivo."
+        },
+        "cantidad": {
+          "$ref": "#/$defs/cantidad",
+          "description": "Cuánto consume esta tarea (misma unidad que la línea)."
+        }
       }
     }
   }

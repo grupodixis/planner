@@ -725,9 +725,10 @@
 
   /* ---------- importar proyecto del compositor (diálogo) ---------- */
   const imp = { archivo: null, nombre: '', resoluciones: {}, informe: null, ocupado: false };
-  const CLASE_TXT = { area: 'Área', area_tipo: 'Área de obra', tipo: { operario: 'Categoría', maquina: 'Tipo de máquina', subcontrata: 'Subcontrata / alquiler' }, recurso: 'Recurso concreto' };
+  const CLASE_TXT = { area: 'Área', area_tipo: 'Área de obra', tipo: { operario: 'Categoría', maquina: 'Tipo de máquina', subcontrata: 'Subcontrata / alquiler' }, recurso: 'Recurso concreto', capacidad: 'Capacidad (saber hacer)' };
   const ESTADO_RES = { recordado: ['recordado', 'Asociación recordada de una importación anterior'], parecido: ['parecido', 'Se parece a uno que ya existe: compruébalo'], falta: ['nuevo', 'No existe en el planificador'], varias: ['varias', 'Hay varias áreas de ese tipo: elige una'], elegido: ['elegido', 'Lo has elegido en esta vista previa'] };
-  const CAMPO_TXT = { nombre: 'nombre', titulo: 'título', duracion_h: 'horas', operarios_req: 'operarios', linea_id: 'área', notas: 'notas', descripcion: 'descripción', prioridad: 'prioridad', fecha_entrega: 'entrega', codigo: 'código', tipos: 'requisitos', recursos: 'recursos concretos', dependencias: 'dependencias', ot: 'OT', orden: 'posición', extra: 'datos extra', cliente: 'cliente', obra: 'obra', partida_id: 'partida', color: 'color' };
+  const CAMPO_TXT = { nombre: 'nombre', titulo: 'título', duracion_h: 'horas', operarios_req: 'operarios', linea_id: 'área', notas: 'notas', descripcion: 'descripción', prioridad: 'prioridad', fecha_entrega: 'entrega', codigo: 'código', tipos: 'requisitos', recursos: 'recursos concretos', dependencias: 'dependencias', ot: 'OT', orden: 'posición', extra: 'datos extra', cliente: 'cliente', obra: 'obra', partida_id: 'partida', color: 'color',
+    cantidad: 'cantidad', unidad: 'unidad', nota: 'nota', enlaces: 'enlaces', desglose: 'desglose de tiempos' };
 
   function abrirImportar() {
     Object.assign(imp, { archivo: null, nombre: '', resoluciones: {}, informe: null });
@@ -784,7 +785,7 @@
     const hayCambios = r.cambios.length || r.proyecto.accion === 'crear';
     $('#imp-estado').textContent = hayCambios ? 'Vista previa: aún no se ha cambiado nada' : 'El archivo no trae cambios';
 
-    caja.replaceChildren(
+    caja.replaceChildren(...[
       el('div', { class: `imp-proy ${r.proyecto.accion}` },
         el('span', { class: 'imp-accion' }, accionTxt),
         el('h3', {}, `${r.proyecto.codigo} · ${r.proyecto.nombre}`),
@@ -792,6 +793,12 @@
           el('dt', {}, 'Partidas'), el('dd', {}, n(R.partidas)),
           el('dt', {}, 'OTs'), el('dd', {}, n(R.ots)),
           el('dt', {}, 'Tareas'), el('dd', {}, n(R.tareas)),
+          R.materiales && Object.values(R.materiales).some(Boolean) ? el('dt', {}, 'Material') : null,
+          R.materiales && Object.values(R.materiales).some(Boolean) ? el('dd', {}, `${n(R.materiales)}${R.asignaciones_material ? ` · ${R.asignaciones_material} asignaciones a tareas` : ''}${R.a_logistica ? ` · ${R.a_logistica} partida(s) se envían a logística` : ''}`) : null,
+          R.capacidades || R.equipos || R.herramientas ? el('dt', {}, 'Lo que piden') : null,
+          R.capacidades || R.equipos || R.herramientas ? el('dd', {}, [R.capacidades && `${R.capacidades} capacidades`, R.equipos && `${R.equipos} equipos / subcontratas`, R.herramientas && `${R.herramientas} herramientas de mano`].filter(Boolean).join(' · ')) : null,
+          R.desgloses ? el('dt', {}, 'Desglose') : null,
+          R.desgloses ? el('dd', {}, `${R.desgloses} tarea(s) con desglose de tiempos`) : null,
           el('dt', {}, 'Horas'), el('dd', {}, `${durTxt(R.horas)} de duración · ${durTxt(R.horas_persona)} horas-persona`),
           R.dependencias ? el('dt', {}, 'Dependencias') : null, R.dependencias ? el('dd', {}, `${R.dependencias} «después de»`) : null,
           R.condiciones.crear || R.condiciones.quitar ? el('dt', {}, 'Condiciones') : null,
@@ -803,12 +810,12 @@
       r.cambios.length ? el('details', { class: 'imp-cambios', open: r.proyecto.accion !== 'crear' && r.cambios.length <= 15 },
         el('summary', {}, `Detalle de cambios (${r.cambios.length})`),
         el('ul', {}, r.cambios.map(lineaCambio))) : null,
-    );
+    ].filter(Boolean));
   }
 
   function lineaCambio(c) {
     const signo = { crear: '+', actualizar: '~', borrar: '−', baja: '!' }[c.accion];
-    const nivel = { proyecto: 'Proyecto', partida: 'Partida', ot: 'OT', tarea: 'Tarea' }[c.nivel];
+    const nivel = { proyecto: 'Proyecto', partida: 'Partida', ot: 'OT', tarea: 'Tarea', material: 'Material' }[c.nivel];
     const corto = (v) => { const x = v == null || v === '' ? '—' : String(v); return x.length > 40 ? x.slice(0, 40) + '…' : x; };
     const campos = c.campos ? Object.entries(c.campos).map(([k, [a, b]]) =>
       k === 'extra' ? 'datos extra' : `${CAMPO_TXT[k] || k}: ${corto(k === 'prioridad' ? PRIORIDADES[a] : a)} → ${corto(k === 'prioridad' ? PRIORIDADES[b] : b)}`) : [];
@@ -825,7 +832,7 @@
       ? el('p', { class: 'ayuda' }, `${r.usados.length} nombre${r.usados.length > 1 ? 's' : ''} del archivo coincide${r.usados.length > 1 ? 'n' : ''} con áreas, tipos o recursos que ya existen.`)
       : null;
     if (!r.resolver.length) return el('div', { class: 'imp-resolver' }, usados);
-    const orden = { area_tipo: 0, area: 1, tipo: 2, recurso: 3 };
+    const orden = { area_tipo: 0, area: 1, capacidad: 2, tipo: 3, recurso: 4 };
     const lista = [...r.resolver].sort((a, b) => orden[a.clase] - orden[b.clase] || (a.subclase || '').localeCompare(b.subclase || ''));
     return el('div', { class: 'imp-resolver' },
       el('h4', {}, 'Nombres que no coinciden'),
@@ -845,7 +852,7 @@
             },
           },
           e.puede.includes('crear') ? el('option', { value: 'crear', selected: valor === 'crear' },
-            e.clase === 'tipo' ? `Crear «${e.nombre}»` : `Crear área «${e.nombre}»`) : null,
+            e.clase === 'tipo' ? `Crear «${e.nombre}»` : e.clase === 'capacidad' ? `Crear capacidad «${e.nombre}»${e.familia ? ` (${e.familia})` : ''}` : `Crear área «${e.nombre}»`) : null,
           e.puede.includes('asociar') && e.opciones.length ? el('optgroup', { label: 'Usar uno que ya existe' },
             e.opciones.map((o) => el('option', { value: `asociar:${o.id}`, selected: valor === `asociar:${o.id}` }, o.nombre))) : null,
           el('option', { value: 'ignorar', selected: valor === 'ignorar' },
