@@ -329,6 +329,14 @@ Mismas reglas en todas las pantallas (`app/src/avance.js`):
   OTs y cada tarea: «real 32 h · 125 %» o «llevas 45 h de 40») y en Informes (columnas Avance y
   Rend., tarjetas).
 
+## Menú principal
+
+Agrupado (`comun.js › GRUPOS`), cada grupo con desplegable (al pasar el ratón o pulsar) y la suma de
+lo pendiente de sus pantallas: **Planificación** (Tablero, Parte del día, Bandeja, Mi día) ·
+**Proyectos** (Proyectos y OTs, Logística y compras) · **Personas** (Recursos, Capacidades, Usuarios y
+accesos) · **Informes**. Solo salen las pantallas que permite el rol; un grupo con una sola pantalla
+es un enlace directo. **＋ Capturar** va como botón junto al usuario.
+
 ## Capacidades (saber hacer)
 
 Lo que pide una tarea es **saber hacer algo** («2 que sepan soldar MIG/MAG»), no una categoría.

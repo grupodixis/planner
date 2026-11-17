@@ -1800,3 +1800,32 @@ dialog.md-menu::backdrop { background: rgba(0,0,0,.55); }
 .cap-per.prop { flex-direction: column; align-items: stretch; gap: 4px; }
 .cap-per.prop .cap-prop { display: flex; justify-content: flex-end; align-items: center; gap: 6px; }
 .cap-val .cap-personas { grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); }
+
+/* Menú principal agrupado (Planificación · Proyectos · Personas · Informes) */
+.top h1 span { display: none; }
+.menu { align-items: center; }
+.menu-grupo { position: relative; }
+.menu-g-btn { display: inline-flex; align-items: center; gap: 4px; background: none; color: var(--suave); padding: 5px 10px; border-radius: 8px; border: 1px solid transparent; font: inherit; cursor: pointer; }
+.menu-g-btn:hover, .menu-grupo.abierto .menu-g-btn { color: var(--texto); border-color: var(--borde); }
+.menu-g-btn[aria-current="page"] { color: var(--texto); background: #262626; border-color: var(--borde); }
+.menu-caret { font-size: 10px; opacity: .7; }
+.menu-g-num:empty { display: none; }
+.menu-g-num .menu-num { margin-left: 2px; }
+.menu-panel { display: none; position: absolute; top: calc(100% + 6px); left: 0; z-index: 50; min-width: 260px; padding: 6px;
+  background: var(--panel); border: 1px solid var(--borde); border-radius: 10px; box-shadow: 0 10px 30px rgba(0,0,0,.5); }
+.menu-grupo.abierto .menu-panel { display: grid; gap: 2px; }
+@media (hover: hover) { .menu-grupo:hover .menu-panel { display: grid; gap: 2px; } .menu-grupo:hover::after { content: ''; position: absolute; left: 0; right: 0; top: 100%; height: 8px; } }
+.menu .menu-panel a { display: grid; grid-template-columns: 1fr auto; gap: 1px 8px; padding: 8px 10px; border-radius: 8px; border: 1px solid transparent; color: var(--texto); white-space: normal; }
+.menu .menu-panel a b { font-weight: 600; grid-column: 1; }
+.menu .menu-panel a small { color: var(--suave); font-size: 12px; grid-column: 1; }
+.menu .menu-panel a .menu-num { grid-column: 2; grid-row: 1 / span 2; align-self: center; }
+.menu .menu-panel a:hover { background: #262626; border-color: transparent; }
+.menu .menu-panel a[aria-current="page"] { background: var(--azul-bg); border-color: transparent; }
+.usuario { display: flex; align-items: center; gap: 8px; }
+.boton.btn-capturar { background: var(--azul); color: #fff; border-color: transparent; padding: 5px 12px; text-decoration: none; font-weight: 600; }
+.boton.btn-capturar[aria-current="page"] { outline: 2px solid var(--texto); }
+@media (max-width: 900px) {
+  .top .menu { overflow: visible; }
+  .menu-panel { position: fixed; left: 8px; right: 8px; top: auto; min-width: 0; }
+}
+@media (max-width: 900px) { .menu-panel { right: auto; width: calc(100vw - 32px); max-width: 420px; } }

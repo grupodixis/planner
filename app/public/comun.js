@@ -103,6 +103,58 @@
     span.replaceChildren(b);
   }
 
+  /* ---------- Menú principal agrupado ---------- */
+  // [href, texto, permiso(s) o null = todos, descripción]
+  const GRUPOS = [
+    ['Planificación', [['/', 'Tablero', null, 'Planificar tareas en áreas y operarios'], ['/parte.html', 'Parte del día', 'planificar', 'Confirmar lo hecho cada día'],
+      ['/bandeja.html', 'Bandeja', 'planificar', 'Capturas por clasificar'], ['/mi-dia.html', 'Mi día', 'mi_dia', 'Apuntar mi propio día']]],
+    ['Proyectos', [['/proyectos.html', 'Proyectos y OTs', null, 'Partidas, OTs, tareas, escandallo e importación'],
+      ['/logistica.html', 'Logística y compras', ['logistica', 'compras', 'escandallo'], 'Stock, pedidos y recepción de material']]],
+    ['Personas', [['/recursos.html', 'Recursos', null, 'Operarios, máquinas, subcontratas, vacaciones'],
+      ['/capacidades.html', 'Capacidades', ['recursos', 'planificar'], 'Lo que sabe hacer cada uno'], ['/usuarios.html', 'Usuarios y accesos', 'usuarios', 'Cuentas, roles y PIN']]],
+    ['Informes', [['/informes.html', 'Informes', 'informes', 'Horas, costes y resultados']]],
+  ];
+  const aqui = (href) => (href === '/' ? ['/', '/index.html'].includes(location.pathname) : location.pathname === href);
+  function pintarMenu(menu) {
+    const puede = (p) => !p || [].concat(p).some((k) => tiene(k));
+    const cerrarTodo = (salvo) => menu.querySelectorAll('.menu-grupo.abierto').forEach((g) => { if (g !== salvo) g.classList.remove('abierto'); });
+    const nodos = [];
+    for (const [titulo, items] of GRUPOS) {
+      const vis = items.filter(([, , p]) => puede(p));
+      if (!vis.length) continue;
+      if (vis.length === 1) {
+        const [href, txt] = vis[0];
+        const a = el('a', { href, 'data-menu': href }, txt);
+        if (aqui(href)) a.setAttribute('aria-current', 'page');
+        nodos.push(a);
+        continue;
+      }
+      const actual = vis.some(([href]) => aqui(href));
+      const g = el('div', { class: 'menu-grupo' });
+      const b = el('button', { type: 'button', class: 'menu-g-btn', 'aria-haspopup': 'true', 'aria-expanded': 'false', ...(actual ? { 'aria-current': 'page' } : {}) },
+        el('span', { class: 'menu-g-txt' }, titulo), el('span', { class: 'menu-g-num' }), el('span', { class: 'menu-caret', 'aria-hidden': 'true' }, '▾'));
+      b.onclick = (ev) => { ev.stopPropagation(); const abrir = !g.classList.contains('abierto'); cerrarTodo(g); g.classList.toggle('abierto', abrir); b.setAttribute('aria-expanded', String(abrir)); };
+      const panel = el('div', { class: 'menu-panel', role: 'menu' }, vis.map(([href, txt, , desc]) => el('a', {
+        href, role: 'menuitem', 'data-menu': href, ...(aqui(href) ? { 'aria-current': 'page' } : {}),
+      }, el('b', {}, txt), desc ? el('small', {}, desc) : null)));
+      g.append(b, panel);
+      nodos.push(g);
+    }
+    menu.replaceChildren(...nodos);
+    // «＋ Capturar»: siempre a mano, como botón, junto al usuario
+    const usuarioDiv = document.querySelector('header .usuario');
+    if (usuarioDiv && !usuarioDiv.querySelector('.btn-capturar')) {
+      const cap = el('a', { href: '/capturar.html', class: 'boton btn-capturar', 'data-menu': '/capturar.html', title: 'Apuntar algo rápido: incidencia, idea, encargo…' }, '＋ Capturar');
+      if (aqui('/capturar.html')) cap.setAttribute('aria-current', 'page');
+      usuarioDiv.prepend(cap);
+    }
+    if (!pintarMenu.listo) {
+      pintarMenu.listo = true;
+      document.addEventListener('click', (ev) => { if (!ev.target.closest('.menu-grupo')) cerrarTodo(); });
+      document.addEventListener('keydown', (ev) => { if (ev.key === 'Escape') cerrarTodo(); });
+    }
+  }
+
   // Lo llama cada pantalla al cargar el usuario (/api/me)
   function iniciar(u) {
     usuario = u;
@@ -110,15 +162,7 @@
     if (u.solo_mi_dia && location.pathname !== '/mi-dia.html') { location.replace('/mi-dia.html'); return; }
     pintarNombre();
     const menu = document.querySelector('nav.menu');
-    const enlaces = [['/mi-dia.html', 'Mi día', 'mi_dia'], ['/parte.html', 'Parte', 'planificar'], ['/bandeja.html', 'Bandeja', 'planificar'],
-      ['/logistica.html', 'Logística', ['logistica', 'compras', 'escandallo']], ['/capacidades.html', 'Capacidades', ['recursos', 'planificar']], ['/informes.html', 'Informes', 'informes'],
-      ['/usuarios.html', 'Usuarios', 'usuarios'], ['/capturar.html', '＋ Capturar', null]];
-    for (const [href, txt, permiso] of enlaces) {
-      if (!menu || (permiso && ![].concat(permiso).some((p) => tiene(p))) || menu.querySelector(`a[href="${href}"]`)) continue;
-      const a = el('a', { href }, txt);
-      if (location.pathname === href) a.setAttribute('aria-current', 'page');
-      menu.append(a);
-    }
+    if (menu) pintarMenu(menu);
     refrescarPendientes();
     const salir = document.getElementById('salir');
     if (salir && window.s360pwa && !document.getElementById('btn-avisos')) {
@@ -206,9 +250,9 @@
       if (n) nodo.append(el('span', { class: 'menu-num', title: titulo }, String(n)));
     };
     const poner = (href, n, titulo) => {
-      const a = document.querySelector(`nav.menu a[data-menu="${href}"]`) || document.querySelector(`nav.menu a[href="${href}"]`);
+      const a = document.querySelector(`a[data-menu="${href}"]`);
       if (!a) return;
-      a.dataset.menu = href;
+      a.dataset.n = n || 0;
       // con algo pendiente, el enlace lleva directamente a donde está
       a.href = n && href === '/recursos.html' ? '/recursos.html?tipo=calendario' : href;
       marcar(a, n, titulo);
@@ -225,6 +269,12 @@
     const nLog = (p.mat_revisar || 0) + (p.mat_recibir || 0) + (p.mat_comprar || 0);
     poner('/logistica.html', nLog, [p.mat_revisar && `${p.mat_revisar} material(es) por revisar en stock`,
       p.mat_comprar && `${p.mat_comprar} por pedir`, p.mat_recibir && `${p.mat_recibir} pedido(s) por recibir`].filter(Boolean).join('\n'));
+    // en cada grupo del menú, la suma de lo pendiente de sus pantallas
+    document.querySelectorAll('nav.menu .menu-grupo').forEach((g) => {
+      const n = [...g.querySelectorAll('a[data-menu]')].reduce((t, a) => t + Number(a.dataset.n || 0), 0);
+      const sp = g.querySelector('.menu-g-num');
+      sp.replaceChildren(...(n ? [el('span', { class: 'menu-num' }, String(n))] : []));
+    });
   }
 
   /* ---------- Avance y rendimiento (mismo aspecto en todas las pantallas) ---------- */
