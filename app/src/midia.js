@@ -148,7 +148,7 @@ function montar(app, asyncH) {
       query(`SELECT tipo FROM ausencias WHERE recurso_id = $1 AND $2 BETWEEN desde AND hasta AND hora_desde IS NULL`, [recursoId, fecha]),
     ]);
     // lo que necesita para cada trabajo: materiales y herramientas asignados a la tarea
-    const llevar = await require('./material').deTareas(tramos.map((x) => x.tarea_id));
+    const llevar = await require('./material').deTareas(tramos.map((x) => x.tarea_id), recursoId);
     for (const x of tramos) x.llevar = llevar.get(x.tarea_id) || null;
     res.json({
       fecha, hoy, editable: ed.ok, no_editable: ed.ok ? null : ed.motivo,
@@ -156,6 +156,26 @@ function montar(app, asyncH) {
       tramos, extra, enviado: env[0]?.enviado_en || null, manana, tareas, ausente: aus[0]?.tipo || null,
       motivos: MOTIVOS, no_productivo: NO_PRODUCTIVO,
     });
+  }));
+
+  // Marcar / desmarcar: material recibido o herramienta preparada (de una tarea suya)
+  app.put('/api/mi-dia/llevar', soloSuyo, asyncH(async (req, res) => {
+    const recursoId = recursoDe(req);
+    const b = req.body || {};
+    const tipo = b.tipo === 'herramienta' ? 'herramienta' : b.tipo === 'material' ? 'material' : null;
+    const id = Number(b.id);
+    if (!tipo || !id) throw fallo(400, 'Falta qué marcar');
+    const { rows } = await query(
+      `SELECT 1 FROM ${tipo === 'material' ? 'tarea_material' : 'tarea_herramienta'} i
+         JOIN tramos x ON x.tarea_id = i.tarea_id JOIN tramo_asignaciones a ON a.tramo_id = x.id AND a.recurso_id = $2
+        WHERE i.id = $1 LIMIT 1`, [id, recursoId]);
+    if (!rows.length) throw fallo(404, 'Eso no es de un trabajo tuyo');
+    if (b.hecho) {
+      await query(`INSERT INTO llevar_check (recurso_id, tipo, item_id) VALUES ($1,$2,$3) ON CONFLICT DO NOTHING`, [recursoId, tipo, id]);
+    } else {
+      await query('DELETE FROM llevar_check WHERE recurso_id = $1 AND tipo = $2 AND item_id = $3', [recursoId, tipo, id]);
+    }
+    res.json({ ok: true });
   }));
 
   // Lo que pasó en uno de sus tramos: { estado: hecho|parcial|no, desde?, hasta?, terminada?, motivo?, notas? }

@@ -1676,7 +1676,6 @@ details.pin-rol > summary::after { content: '▾'; position: absolute; right: 8p
 .md-ll-lista { list-style: none; margin: 4px 0 0; padding: 0; display: grid; gap: 4px; }
 .md-ll-lista li { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; font-size: 14px; padding: 3px 0; border-bottom: 1px dashed var(--linea); }
 .md-ll-lista li:last-child { border-bottom: 0; }
-.md-ll-lista.herr li::before { content: '🔧'; margin-right: 2px; }
 .md-ll-lista.herr li { justify-content: flex-start; }
 .md-ll-desc { min-width: 0; overflow-wrap: anywhere; }
 .md-ll-est { flex: none; font-size: 12px; padding: 1px 7px; border-radius: 99px; white-space: nowrap; }
@@ -1698,3 +1697,9 @@ details.pin-rol > summary::after { content: '▾'; position: absolute; right: 8p
 .det-llevar li .md-ll-est { font-size: 11px; }
 .det-llevar li { display: block; }
 .det-llevar li .md-ll-est { display: inline-block; margin-left: 6px; white-space: normal; }
+
+.md-llevar.todo { border-color: var(--verde); }
+.md-ll-check { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; cursor: pointer; padding: 4px 0; }
+.md-ll-check input { width: 22px; height: 22px; flex: none; margin: 0; accent-color: var(--verde); }
+.md-ll-lista li { align-items: center; }
+.md-ll-lista li.hecho .md-ll-desc { color: var(--suave); text-decoration: line-through; text-decoration-color: var(--verde); }

@@ -614,7 +614,11 @@ API: `/api/catalogo-llevar` · `/api/partidas/:id/escandallo` (+ `/enviar`) · `
   de llegada posterior a un día ya planificado de una tarea que usa ese material.
 - **Mi día** (app del operario): en cada trabajo, bloque **🧰 Necesitas** con los materiales
   (cantidad, ✔ en almacén / 🚚 llega … / ✗ falta / ? sin revisar; ⚠ en rojo si llega después de ese día)
-  y las herramientas 🔧.
+  y las herramientas 🔧. Cada operario **marca con una casilla** el material que ha recibido y las
+  herramientas que va preparando (contador «recibido 2/3 · preparadas 1/2»; «todo listo ✔» al
+  completarlo). Las marcas son de cada persona (tabla `llevar_check`; `PUT /api/mi-dia/llevar`
+  `{tipo: material|herramienta, id, hecho}`) y en el detalle de la tarea del tablero se ve
+  «✔ recibido: Juan Robles» / «✔ preparada: …».
 
 ## API
 

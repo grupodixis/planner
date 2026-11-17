@@ -119,22 +119,37 @@
   };
   const cantTxt = (n, u) => (n ? `${String(Math.round(n * 1000) / 1000).replace('.', ',')}${u ? ` ${u}` : ''}` : '');
   const diaTxt = (f) => new Date(`${f}T12:00:00`).toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' });
+  // marcar: material recibido / herramienta preparada (cada operario lo suyo)
+  async function marcar(tipo, item, hecho, caja) {
+    caja.disabled = true;
+    try { await api('PUT', '/api/mi-dia/llevar', { tipo, id: item.id, hecho }); item.mio = hecho; pintar(); }
+    catch (e) { toast(e.message, true); caja.checked = !hecho; caja.disabled = false; }
+  }
   function bloqueLlevar(L, dia) {
     if (!L || (!L.materiales.length && !L.herramientas.length)) return null;
-    const falta = L.materiales.filter((m) => m.estado !== 'disponible').length;
-    return el('div', { class: `md-llevar${falta ? ' con-falta' : ''}` },
+    const falta = L.materiales.filter((m) => m.estado !== 'disponible' && !m.mio).length;
+    const recib = L.materiales.filter((m) => m.mio).length;
+    const prep = L.herramientas.filter((h) => h.mio).length;
+    const todo = recib === L.materiales.length && prep === L.herramientas.length;
+    const fila = (tipo, item, desc, est) => {
+      const caja = el('input', { type: 'checkbox', checked: item.mio, onchange: (ev) => marcar(tipo, item, ev.target.checked, ev.target),
+        'aria-label': `${tipo === 'material' ? 'Recibido' : 'Preparada'}: ${item.descripcion}` });
+      return el('li', { class: item.mio ? 'hecho' : '' }, el('label', { class: 'md-ll-check' }, caja, el('span', { class: 'md-ll-desc' }, ...desc)), est);
+    };
+    return el('div', { class: `md-llevar${todo ? ' todo' : falta ? ' con-falta' : ''}` },
       el('div', { class: 'md-ll-tit' }, '🧰 Necesitas',
-        falta ? el('span', { class: 'md-ll-aviso' }, ` · ${falta} material${falta > 1 ? 'es' : ''} aún no disponible${falta > 1 ? 's' : ''}`) : el('span', { class: 'md-ll-okt' }, ' · todo el material está en almacén')),
+        todo ? el('span', { class: 'md-ll-okt' }, ' · todo listo ✔')
+          : falta ? el('span', { class: 'md-ll-aviso' }, ` · ${falta} material${falta > 1 ? 'es' : ''} aún no disponible${falta > 1 ? 's' : ''}`) : null),
+      L.materiales.length ? el('div', { class: 'md-ll-sub' }, `Material · recibido ${recib}/${L.materiales.length}`) : null,
       L.materiales.length ? el('ul', { class: 'md-ll-lista' }, L.materiales.map((m) => {
         const tarde = m.estado === 'pedido' && m.fecha_prevista && m.fecha_prevista > dia;
-        const [cl, txt] = tarde ? ['falta', ''] : EST_MAT[m.estado] || ['', ''];
-        return el('li', {},
-          el('span', { class: 'md-ll-desc' }, el('b', {}, cantTxt(m.cantidad, m.unidad)), ` ${m.descripcion}`),
-          el('span', { class: `md-ll-est ${cl}` }, m.estado === 'pedido' && m.fecha_prevista ? `${tarde ? '⚠' : '🚚'} llega ${diaTxt(m.fecha_prevista)}` : txt));
+        const [cl, txt] = m.mio ? ['ok', '✔ recibido'] : tarde ? ['falta', ''] : EST_MAT[m.estado] || ['', ''];
+        return fila('material', m, [el('b', {}, cantTxt(m.cantidad, m.unidad)), ` ${m.descripcion}`],
+          el('span', { class: `md-ll-est ${cl}` }, !m.mio && m.estado === 'pedido' && m.fecha_prevista ? `${tarde ? '⚠' : '🚚'} llega ${diaTxt(m.fecha_prevista)}` : txt));
       })) : null,
-      L.herramientas.length ? el('div', { class: 'md-ll-sub' }, 'Herramientas') : null,
-      L.herramientas.length ? el('ul', { class: 'md-ll-lista herr' }, L.herramientas.map((h) => el('li', {},
-        el('span', { class: 'md-ll-desc' }, h.cantidad > 1 ? el('b', {}, `${cantTxt(h.cantidad)}× `) : null, h.descripcion)))) : null);
+      L.herramientas.length ? el('div', { class: 'md-ll-sub' }, `Herramientas · preparadas ${prep}/${L.herramientas.length}`) : null,
+      L.herramientas.length ? el('ul', { class: 'md-ll-lista herr' }, L.herramientas.map((h) =>
+        fila('herramienta', h, ['🔧 ', h.cantidad > 1 ? el('b', {}, `${cantTxt(h.cantidad)}× `) : null, h.descripcion], null))) : null);
   }
 
   function tarjeta(t) {

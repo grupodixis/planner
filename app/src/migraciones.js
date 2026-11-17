@@ -685,6 +685,13 @@ const MIGRACIONES = [
      creado_por   INT REFERENCES usuarios(id) ON DELETE SET NULL
    )`,
   `CREATE UNIQUE INDEX IF NOT EXISTS tarea_herramienta_unica ON tarea_herramienta (tarea_id, lower(descripcion))`,
+  // Mi día: cada operario marca el material que ha recibido y las herramientas que ha preparado
+  `CREATE TABLE IF NOT EXISTS llevar_check (
+     recurso_id INT NOT NULL REFERENCES recursos(id) ON DELETE CASCADE,
+     tipo TEXT NOT NULL CHECK (tipo IN ('material', 'herramienta')),
+     item_id INT NOT NULL,
+     marcado_en TIMESTAMPTZ NOT NULL DEFAULT now(),
+     PRIMARY KEY (recurso_id, tipo, item_id))`,
   `INSERT INTO roles (clave, nombre, descripcion, permisos, sistema, orden) VALUES
      ('tecnico', 'Técnico', 'Define el escandallo de las partidas', '{escandallo,informes}', FALSE, 6),
      ('logistica', 'Logística', 'Revisa el stock y recibe el material', '{logistica}', FALSE, 7),

@@ -382,27 +382,36 @@ function montar(app, asyncH) {
 // Lo que lleva cada tarea (tablero y Mi día): tareaId → { materiales, herramientas, estado, llega }
 //  estado = el peor de sus materiales (por_pedir > sin_revisar > pedido > disponible); llega = la última fecha prevista de lo pedido
 const PESO = { por_pedir: 4, sin_revisar: 3, pedido: 2, disponible: 1 };
-async function deTareas(ids) {
+async function deTareas(ids, recursoId = null) {
   const out = new Map();
   ids = [...new Set((ids || []).map(Number).filter(Boolean))];
   if (!ids.length) return out;
   const [{ rows: mats }, { rows: herr }] = await Promise.all([
-    query(`SELECT m.tarea_id, m.cantidad::float, e.descripcion, e.unidad, e.stock::float, e.compra, e.cantidad::float AS total,
+    query(`SELECT m.id, m.tarea_id, m.cantidad::float, e.descripcion, e.unidad, e.stock::float, e.compra, e.cantidad::float AS total,
                   e.fecha_prevista, pr.nombre AS proveedor, e.recibido_en
              FROM tarea_material m JOIN partida_escandallo e ON e.id = m.escandallo_id LEFT JOIN proveedores pr ON pr.id = e.proveedor_id
             WHERE m.tarea_id = ANY($1::int[]) ORDER BY e.orden, e.id`, [ids]),
-    query(`SELECT tarea_id, descripcion, cantidad::float FROM tarea_herramienta WHERE tarea_id = ANY($1::int[]) ORDER BY id`, [ids]),
+    query(`SELECT id, tarea_id, descripcion, cantidad::float FROM tarea_herramienta WHERE tarea_id = ANY($1::int[]) ORDER BY id`, [ids]),
   ]);
+  // quién ha marcado cada cosa (material recibido / herramienta preparada)
+  const { rows: ck } = await query(
+    `SELECT c.tipo, c.item_id, c.recurso_id, r.nombre FROM llevar_check c JOIN recursos r ON r.id = c.recurso_id
+      WHERE (c.tipo = 'material' AND c.item_id = ANY($1::int[])) OR (c.tipo = 'herramienta' AND c.item_id = ANY($2::int[]))
+      ORDER BY c.marcado_en`, [mats.map((m) => m.id), herr.map((h) => h.id)]);
+  const marcas = new Map();
+  for (const c of ck) { const k = `${c.tipo}:${c.item_id}`; if (!marcas.has(k)) marcas.set(k, []); marcas.get(k).push(c); }
+  const quien = (tipo, id) => (marcas.get(`${tipo}:${id}`) || []).map((c) => c.nombre);
+  const mio = (tipo, id) => !!recursoId && (marcas.get(`${tipo}:${id}`) || []).some((c) => c.recurso_id === recursoId);
   const de = (id) => { if (!out.has(id)) out.set(id, { materiales: [], herramientas: [], estado: null, llega: null }); return out.get(id); };
   for (const m of mats) {
     const x = de(m.tarea_id);
     const est = estado({ stock: m.stock, cantidad: m.total, compra: m.compra });
-    x.materiales.push({ descripcion: m.descripcion, cantidad: m.cantidad, unidad: m.unidad, estado: est,
+    x.materiales.push({ id: m.id, recibido_por: quien('material', m.id), mio: mio('material', m.id), descripcion: m.descripcion, cantidad: m.cantidad, unidad: m.unidad, estado: est,
       fecha_prevista: est === 'pedido' ? m.fecha_prevista : null, proveedor: est === 'pedido' ? m.proveedor : null });
     if (!x.estado || PESO[est] > PESO[x.estado]) x.estado = est;
     if (est === 'pedido' && m.fecha_prevista && (!x.llega || m.fecha_prevista > x.llega)) x.llega = m.fecha_prevista;
   }
-  for (const h of herr) de(h.tarea_id).herramientas.push({ descripcion: h.descripcion, cantidad: h.cantidad });
+  for (const h of herr) de(h.tarea_id).herramientas.push({ id: h.id, preparado_por: quien('herramienta', h.id), mio: mio('herramienta', h.id), descripcion: h.descripcion, cantidad: h.cantidad });
   return out;
 }
 
