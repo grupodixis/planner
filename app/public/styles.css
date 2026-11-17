@@ -1665,3 +1665,36 @@ details.pin-rol > summary::after { content: '▾'; position: absolute; right: 8p
 .pin-rol-op:hover { background: var(--linea); }
 .pin-rol-menu label.pin-rol-op { display: flex; flex-direction: row; justify-content: flex-start; text-align: left; margin: 0; font-weight: normal; }
 .pin-rol-menu label.pin-rol-op input { width: auto; margin: 0; flex: none; }
+
+/* Mi día: lo que necesita para cada trabajo */
+.md-llevar { margin: 8px 0 4px; padding: 8px 10px; border: 1px solid var(--borde); border-radius: 8px; background: var(--panel); }
+.md-llevar.con-falta { border-color: var(--naranja); }
+.md-ll-tit { font-weight: 600; font-size: 14px; }
+.md-ll-aviso { color: var(--naranja); font-weight: 500; font-size: 13px; }
+.md-ll-okt { color: var(--verde); font-weight: 500; font-size: 13px; }
+.md-ll-sub { margin-top: 6px; font-size: 12px; color: var(--suave); text-transform: uppercase; letter-spacing: .04em; }
+.md-ll-lista { list-style: none; margin: 4px 0 0; padding: 0; display: grid; gap: 4px; }
+.md-ll-lista li { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; font-size: 14px; padding: 3px 0; border-bottom: 1px dashed var(--linea); }
+.md-ll-lista li:last-child { border-bottom: 0; }
+.md-ll-lista.herr li::before { content: '🔧'; margin-right: 2px; }
+.md-ll-lista.herr li { justify-content: flex-start; }
+.md-ll-desc { min-width: 0; overflow-wrap: anywhere; }
+.md-ll-est { flex: none; font-size: 12px; padding: 1px 7px; border-radius: 99px; white-space: nowrap; }
+.md-ll-est.ok { color: var(--verde); background: var(--verde-bg); }
+.md-ll-est.pedido { color: var(--azul); background: var(--azul-bg); }
+.md-ll-est.falta { color: var(--rojo); background: var(--rojo-bg); }
+.md-ll-est.revisar { color: var(--suave); background: var(--linea); }
+
+/* Tablero: icono de material de la tarea */
+.mat-ico { display: inline-block; font-size: 11px; line-height: 1; padding: 1px 4px; border-radius: 4px; margin-right: 4px; white-space: nowrap; vertical-align: 1px; font-weight: 600; }
+.mat-ico.disponible { background: var(--verde-bg); color: var(--verde); }
+.mat-ico.pedido { background: var(--azul-bg); color: var(--azul); }
+.mat-ico.por_pedir { background: var(--naranja-bg); color: var(--naranja); }
+.mat-ico.sin_revisar { background: var(--linea); color: var(--suave); }
+.mat-ico.herr { background: var(--linea); color: var(--texto); }
+.mat-ico.tarde { background: var(--rojo-bg); color: var(--rojo); outline: 1px solid var(--rojo); }
+.det-llevar ul { margin: 2px 0 0; padding-left: 0; list-style: none; display: grid; gap: 3px; }
+.det-llevar li { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; }
+.det-llevar li .md-ll-est { font-size: 11px; }
+.det-llevar li { display: block; }
+.det-llevar li .md-ll-est { display: inline-block; margin-left: 6px; white-space: normal; }

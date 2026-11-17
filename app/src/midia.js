@@ -147,6 +147,9 @@ function montar(app, asyncH) {
               ORDER BY o.codigo, t.orden_en_of, t.id`, [recursoId]),
       query(`SELECT tipo FROM ausencias WHERE recurso_id = $1 AND $2 BETWEEN desde AND hasta AND hora_desde IS NULL`, [recursoId, fecha]),
     ]);
+    // lo que necesita para cada trabajo: materiales y herramientas asignados a la tarea
+    const llevar = await require('./material').deTareas(tramos.map((x) => x.tarea_id));
+    for (const x of tramos) x.llevar = llevar.get(x.tarea_id) || null;
     res.json({
       fecha, hoy, editable: ed.ok, no_editable: ed.ok ? null : ed.motivo,
       recurso: rec[0], comun: req.usuario.via === 'pin_comun',

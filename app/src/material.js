@@ -203,6 +203,20 @@ function montar(app, asyncH) {
         cuerpo: `${cant(l.falta, l.unidad)}${l.proveedor ? ` a ${l.proveedor}` : ''}${l.fecha_prevista ? `, llega el ${ddmm(l.fecha_prevista)}` : ''} · ${l.proyecto_codigo} ${l.partida_nombre}`,
         url: '/logistica.html?vista=recibir', tag: `pedido-${l.partida_id}`,
       });
+      // si llega después del día en que está planificada alguna tarea que lo usa, que lo sepa quien planifica
+      if (l.fecha_prevista) {
+        const { rows: tt } = await query(
+          `SELECT min(x.fecha) AS fecha, string_agg(DISTINCT o.codigo || ' ' || t.nombre, ', ') AS tareas
+             FROM tarea_material m JOIN tramos x ON x.tarea_id = m.tarea_id JOIN tareas t ON t.id = m.tarea_id JOIN ordenes o ON o.id = t.orden_id
+            WHERE m.escandallo_id = $1 AND x.fecha >= CURRENT_DATE AND x.fecha < $2`, [id, l.fecha_prevista]);
+        if (tt[0]?.fecha) {
+          notif.avisarLuego(notif.conPermiso('planificar', 'escandallo'), 'mat_tarde', {
+            titulo: `⚠ Material tarde: ${l.descripcion}`,
+            cuerpo: `Llega el ${ddmm(l.fecha_prevista)} y ${tt[0].tareas} está planificada el ${ddmm(tt[0].fecha)}`,
+            url: `/?fecha=${tt[0].fecha}`, tag: `tarde-${id}`,
+          });
+        }
+      }
       return res.json(l);
     }
     if (b.estado === 'por_pedir') {
@@ -365,6 +379,33 @@ function montar(app, asyncH) {
   }));
 }
 
+// Lo que lleva cada tarea (tablero y Mi día): tareaId → { materiales, herramientas, estado, llega }
+//  estado = el peor de sus materiales (por_pedir > sin_revisar > pedido > disponible); llega = la última fecha prevista de lo pedido
+const PESO = { por_pedir: 4, sin_revisar: 3, pedido: 2, disponible: 1 };
+async function deTareas(ids) {
+  const out = new Map();
+  ids = [...new Set((ids || []).map(Number).filter(Boolean))];
+  if (!ids.length) return out;
+  const [{ rows: mats }, { rows: herr }] = await Promise.all([
+    query(`SELECT m.tarea_id, m.cantidad::float, e.descripcion, e.unidad, e.stock::float, e.compra, e.cantidad::float AS total,
+                  e.fecha_prevista, pr.nombre AS proveedor, e.recibido_en
+             FROM tarea_material m JOIN partida_escandallo e ON e.id = m.escandallo_id LEFT JOIN proveedores pr ON pr.id = e.proveedor_id
+            WHERE m.tarea_id = ANY($1::int[]) ORDER BY e.orden, e.id`, [ids]),
+    query(`SELECT tarea_id, descripcion, cantidad::float FROM tarea_herramienta WHERE tarea_id = ANY($1::int[]) ORDER BY id`, [ids]),
+  ]);
+  const de = (id) => { if (!out.has(id)) out.set(id, { materiales: [], herramientas: [], estado: null, llega: null }); return out.get(id); };
+  for (const m of mats) {
+    const x = de(m.tarea_id);
+    const est = estado({ stock: m.stock, cantidad: m.total, compra: m.compra });
+    x.materiales.push({ descripcion: m.descripcion, cantidad: m.cantidad, unidad: m.unidad, estado: est,
+      fecha_prevista: est === 'pedido' ? m.fecha_prevista : null, proveedor: est === 'pedido' ? m.proveedor : null });
+    if (!x.estado || PESO[est] > PESO[x.estado]) x.estado = est;
+    if (est === 'pedido' && m.fecha_prevista && (!x.llega || m.fecha_prevista > x.llega)) x.llega = m.fecha_prevista;
+  }
+  for (const h of herr) de(h.tarea_id).herramientas.push({ descripcion: h.descripcion, cantidad: h.cantidad });
+  return out;
+}
+
 // cuentas para los avisos del menú
 async function pendientes(u) {
   const out = {};
@@ -381,4 +422,4 @@ async function pendientes(u) {
   return out;
 }
 
-module.exports = { montar, pendientes, estado };
+module.exports = { montar, pendientes, estado, deTareas };

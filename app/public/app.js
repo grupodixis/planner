@@ -545,6 +545,25 @@
   const altoBloque = (tr) => Math.max(BLOQUE_H,
     PAD_B * 2 + FILA_TXT * 2 + Math.max(1, operariosDe(tr).length) * FILA_OP + (otrosRecursos(tr).length ? FILA_OP : 0));
 
+  /* ---------- material y herramientas de la tarea ---------- */
+  const MAT_TXT = { disponible: 'en almacén', pedido: 'pedido', por_pedir: 'falta (sin pedir)', sin_revisar: 'sin revisar por logística' };
+  const cantM = (n, u) => `${String(Math.round(n * 1000) / 1000).replace('.', ',')}${u ? ` ${u}` : ''}`;
+  const matLinea = (m) => `${cantM(m.cantidad, m.unidad)} ${m.descripcion} — ${m.estado === 'pedido' && m.fecha_prevista ? `pedido${m.proveedor ? ` a ${m.proveedor}` : ''}, llega el ${ddmm(m.fecha_prevista)}` : MAT_TXT[m.estado]}`;
+  function textoLlevar(L) {
+    return [L.materiales.length ? `Material:\n· ${L.materiales.map(matLinea).join('\n· ')}` : null,
+      L.herramientas.length ? `Herramientas:\n· ${L.herramientas.map((h) => `${h.cantidad > 1 ? `${cantM(h.cantidad)}× ` : ''}${h.descripcion}`).join('\n· ')}` : null].filter(Boolean).join('\n');
+  }
+  // icono 🧰 con el estado del material; «fecha» = día del tramo (si llega después, en rojo)
+  function iconoMat(t, fecha = null) {
+    const L = t.llevar;
+    if (!L || (!L.materiales.length && !L.herramientas.length)) return null;
+    if (!L.materiales.length) return el('span', { class: 'mat-ico herr', title: textoLlevar(L) }, '🔧');
+    const tarde = fecha && L.llega && L.llega > fecha;
+    const txt = tarde ? `🧰 llega ${ddmm(L.llega)}`
+      : { disponible: '🧰 ✔', pedido: `🧰 ${L.llega ? ddmm(L.llega) : 'pedido'}`, por_pedir: '🧰 falta', sin_revisar: '🧰 ?' }[L.estado];
+    return el('span', { class: `mat-ico ${tarde ? 'tarde' : L.estado}`, title: (tarde ? `⚠ El material llega el ${ddmm(L.llega)}, después de este día\n` : '') + textoLlevar(L) }, txt);
+  }
+
   function bloque(tr) {
     const t = tarea(tr.tarea_id);
     const ini = Math.max(tr.hora_inicio, H_INI());
@@ -585,7 +604,7 @@
       },
       ondragend: finArrastre,
     },
-      el('div', { class: 'tit' }, marcaCierre(tr), `${t.orden_codigo} · ${t.orden_titulo}`),
+      el('div', { class: 'tit' }, marcaCierre(tr), iconoMat(t, tr.fecha), `${t.orden_codigo} · ${t.orden_titulo}`),
       el('div', { class: 'sub' }, `${t.nombre} · ${durTxt(tr.duracion_h)}${parte}`),
     );
     b.style.setProperty('--c', t.orden_color);
@@ -1021,8 +1040,8 @@
       ondragend: finArrastre,
     },
       compacto
-        ? el('span', { class: 'ct-tit' }, marcaCierre(tr), el('span', { class: 'ct-hora' }, hhmm(ini)), ` ${t.nombre}`)
-        : el('span', { class: 'ct-tit dos' }, marcaCierre(tr), el('span', { class: 'ct-ot' }, t.orden_codigo), ` ${t.nombre}`),
+        ? el('span', { class: 'ct-tit' }, marcaCierre(tr), iconoMat(t, tr.fecha), el('span', { class: 'ct-hora' }, hhmm(ini)), ` ${t.nombre}`)
+        : el('span', { class: 'ct-tit dos' }, marcaCierre(tr), iconoMat(t, tr.fecha), el('span', { class: 'ct-ot' }, t.orden_codigo), ` ${t.nombre}`),
       compacto ? null : el('span', { class: 'ct-sub' }, `${hhmm(ini)}–${hhmm(fin)} · ${durTxt(fin - ini)}`),
       compacto ? null : el('span', { class: 'ct-sub' }, estado.vista === 'operarios' && r !== null ? area : gente || 'sin operarios'),
     );
@@ -1326,6 +1345,7 @@
     },
       el('span', { class: 'tc-nom' }, t.nombre),
       el('span', { class: 'tc-der' },
+        iconoMat(t, t.tramos.length ? t.tramos.reduce((a, x) => (x.fecha < a ? x.fecha : a), t.tramos[0].fecha) : null),
         t.operarios_req > 1 ? el('span', { class: 'tc-ops', title: `${t.operarios_req} operarios a la vez` }, `×${t.operarios_req}`) : null,
         (t.dependencias || []).length ? el('span', { class: 'tc-dep', title: `Va después de: ${t.dependencias.map((d) => d.nombre).join(', ')}` }, '⤷') : null,
         el('span', { class: 'hora' }, estadoTxt)),
@@ -1421,6 +1441,15 @@
           el('span', { class: d.estado === 'hecha' || terminada ? 'dep-ok' : 'dep-pend' },
             d.estado === 'hecha' ? ' · hecha' : !d.fin ? ' · sin planificar' : terminada ? ` · acaba ${libre}` : ` · planificada en parte (hasta ${libre})`));
       }))) : null,
+      t.llevar?.materiales.length ? el('dt', {}, 'Material') : null,
+      t.llevar?.materiales.length ? el('dd', { class: 'det-llevar' }, el('ul', {}, t.llevar.materiales.map((m) => {
+        const tarde = tr && m.fecha_prevista && m.fecha_prevista > tr.fecha;
+        return el('li', {}, el('span', {}, el('b', {}, cantM(m.cantidad, m.unidad)), ` ${m.descripcion}`),
+          el('span', { class: `md-ll-est ${tarde ? 'falta' : { disponible: 'ok', pedido: 'pedido', por_pedir: 'falta', sin_revisar: 'revisar' }[m.estado]}` },
+            m.estado === 'pedido' ? `${tarde ? '⚠ ' : '🚚 '}${m.fecha_prevista ? `llega ${ddmm(m.fecha_prevista)}` : 'pedido, sin fecha'}${m.proveedor ? ` · ${m.proveedor}` : ''}` : MAT_TXT[m.estado]));
+      }))) : null,
+      t.llevar?.herramientas.length ? el('dt', {}, 'Herramientas') : null,
+      t.llevar?.herramientas.length ? el('dd', { class: 'det-llevar' }, t.llevar.herramientas.map((h) => `${h.cantidad > 1 ? `${cantM(h.cantidad)}× ` : ''}${h.descripcion}`).join(' · ')) : null,
       t.notas ? el('dt', {}, 'Notas') : null,
       t.notas ? el('dd', { class: 'notas' }, t.notas) : null,
       t.condiciones_pendientes?.length ? el('dt', {}, 'Condiciones') : null,

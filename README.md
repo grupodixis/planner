@@ -602,6 +602,20 @@ API: `/api/catalogo-llevar` · `/api/partidas/:id/escandallo` (+ `/enviar`) · `
 · `/api/tareas/:id/materiales` · `/api/tarea-material/:id` · `/api/tareas/:id/herramientas` ·
 `/api/tarea-herramienta/:id` · `/api/tareas/:id/llevar` · `/api/material/circuito`.
 
+**Lo ven en el tablero y en Mi día**
+- **Tablero**: cada tarea con material o herramientas lleva un icono en su bloque, en las fichas de
+  semana/mes y en «Por planificar»: 🧰 ✔ (todo en almacén), 🧰 24/11 (pedido, llega ese día),
+  🧰 falta (sin pedir), 🧰 ? (sin revisar), 🔧 (solo herramientas). En **rojo «llega dd/mm»** si llega
+  después del día del tramo. Al pasar el ratón, la lista; en el detalle de la tarea, «Material» (con
+  estado, proveedor y fecha de llegada) y «Herramientas».
+- **Avisos del tablero**: «el material llega el dd/mm» (rojo) si llega después del día planificado,
+  y «falta material sin pedir» (leve). Solo días de hoy en adelante y tramos sin cerrar.
+- **Aviso al móvil** (`mat_tarde`) a quien planifica y al técnico cuando compras marca una fecha
+  de llegada posterior a un día ya planificado de una tarea que usa ese material.
+- **Mi día** (app del operario): en cada trabajo, bloque **🧰 Necesitas** con los materiales
+  (cantidad, ✔ en almacén / 🚚 llega … / ✗ falta / ? sin revisar; ⚠ en rojo si llega después de ese día)
+  y las herramientas 🔧.
+
 ## API
 
 | Método | Ruta | Uso |

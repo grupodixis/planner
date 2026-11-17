@@ -8,6 +8,7 @@ const auth = require('./auth');
 const { jornada } = require('./config');
 const { calcularConflictos } = require('./conflictos');
 const avance = require('./avance');
+const material = require('./material');
 const { ausenciasEnRango, festivosEnRango, ausenciasPorDia, textoAusencia } = require('./ausencias');
 
 const FECHA_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -228,6 +229,29 @@ module.exports = function montar(app, asyncH) {
     const conflictos = [...porDia].flatMap(([f, lista]) =>
       calcularConflictos(lista, jornada, tiposDisponibles, exclusivas,
         { ausencias: ausDia.get(f), festivo: festivoDe.get(f), fecha: f }).map((c) => ({ ...c, fecha: f })));
+
+    // Material y herramientas de cada tarea (icono 🧰) y avisos si el material no llega a tiempo
+    const llevar = await material.deTareas(tareas.rows.map((t) => t.id));
+    for (const t of tareas.rows) t.llevar = llevar.get(t.id) || null;
+    const hoyM = new Date().toLocaleString('sv-SE', { timeZone: 'Europe/Madrid' }).slice(0, 10);
+    const dm = (f) => `${f.slice(8, 10)}/${f.slice(5, 7)}`;
+    const corta = (ls) => ls.slice(0, 3).map((m) => m.descripcion).join(', ') + (ls.length > 3 ? ` y ${ls.length - 3} más` : '');
+    for (const tr of tramos.rows) {
+      const t = porTarea.get(tr.tarea_id);
+      const L = t?.llevar;
+      if (!L || tr.cierre || t.estado === 'hecha' || tr.fecha < hoyM) continue;
+      const tarde = L.materiales.filter((m) => m.estado === 'pedido' && m.fecha_prevista && m.fecha_prevista > tr.fecha);
+      const sinPedir = L.materiales.filter((m) => m.estado === 'por_pedir');
+      if (tarde.length) {
+        const ult = tarde.reduce((a2, m) => (m.fecha_prevista > a2 ? m.fecha_prevista : a2), tarde[0].fecha_prevista);
+        conflictos.push({ tipo: 'material', ids: [tr.id], fecha: tr.fecha,
+          mensaje: `${t.orden_codigo} ${t.nombre}: el material llega el ${dm(ult)} (${corta(tarde)})` });
+      }
+      if (sinPedir.length) {
+        conflictos.push({ tipo: 'material', ids: [tr.id], fecha: tr.fecha, leve: true,
+          mensaje: `${t.orden_codigo} ${t.nombre}: falta material sin pedir (${corta(sinPedir)})` });
+      }
+    }
 
     // avance y rendimiento de las OTs y proyectos que aparecen en «Por planificar»
     const ordenIds = [...new Set(tareas.rows.map((t) => t.orden_id))];

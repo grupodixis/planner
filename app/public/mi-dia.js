@@ -110,6 +110,33 @@
         : 'Cuando lo tengas todo, envíalo al encargado.';
   }
 
+  // Lo que necesita para este trabajo: materiales (con su estado) y herramientas
+  const EST_MAT = {
+    disponible: ['ok', '✔ en almacén'],
+    pedido: ['pedido', '🚚 pedido'],
+    por_pedir: ['falta', '✗ falta'],
+    sin_revisar: ['revisar', '? sin revisar'],
+  };
+  const cantTxt = (n, u) => (n ? `${String(Math.round(n * 1000) / 1000).replace('.', ',')}${u ? ` ${u}` : ''}` : '');
+  const diaTxt = (f) => new Date(`${f}T12:00:00`).toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' });
+  function bloqueLlevar(L, dia) {
+    if (!L || (!L.materiales.length && !L.herramientas.length)) return null;
+    const falta = L.materiales.filter((m) => m.estado !== 'disponible').length;
+    return el('div', { class: `md-llevar${falta ? ' con-falta' : ''}` },
+      el('div', { class: 'md-ll-tit' }, '🧰 Necesitas',
+        falta ? el('span', { class: 'md-ll-aviso' }, ` · ${falta} material${falta > 1 ? 'es' : ''} aún no disponible${falta > 1 ? 's' : ''}`) : el('span', { class: 'md-ll-okt' }, ' · todo el material está en almacén')),
+      L.materiales.length ? el('ul', { class: 'md-ll-lista' }, L.materiales.map((m) => {
+        const tarde = m.estado === 'pedido' && m.fecha_prevista && m.fecha_prevista > dia;
+        const [cl, txt] = tarde ? ['falta', ''] : EST_MAT[m.estado] || ['', ''];
+        return el('li', {},
+          el('span', { class: 'md-ll-desc' }, el('b', {}, cantTxt(m.cantidad, m.unidad)), ` ${m.descripcion}`),
+          el('span', { class: `md-ll-est ${cl}` }, m.estado === 'pedido' && m.fecha_prevista ? `${tarde ? '⚠' : '🚚'} llega ${diaTxt(m.fecha_prevista)}` : txt));
+      })) : null,
+      L.herramientas.length ? el('div', { class: 'md-ll-sub' }, 'Herramientas') : null,
+      L.herramientas.length ? el('ul', { class: 'md-ll-lista herr' }, L.herramientas.map((h) => el('li', {},
+        el('span', { class: 'md-ll-desc' }, h.cantidad > 1 ? el('b', {}, `${cantTxt(h.cantidad)}× `) : null, h.descripcion)))) : null);
+  }
+
   function tarjeta(t) {
     const x = t.declaracion;
     const cerrado = !!t.cierre;
@@ -134,6 +161,7 @@
       t.companeros.length || t.equipos.length ? el('div', { class: 'md-t-con' },
         t.companeros.length ? `con ${t.companeros.join(', ')}` : null,
         t.equipos.length ? el('span', {}, `${t.companeros.length ? ' · ' : ''}${t.equipos.join(', ')}`) : null) : null,
+      bloqueLlevar(t.llevar, estado.d.fecha),
       t.tarea_notas ? el('details', { class: 'md-t-notas' }, el('summary', {}, 'Notas de la tarea'), el('p', {}, t.tarea_notas)) : null,
       cerrado ? el('p', { class: 'md-ok' }, '✔ Confirmado por el encargado') : null,
       estado.d.fecha === estado.d.hoy ? el('button', { type: 'button', class: 'md-inc-link', onclick: () => window.midiaMas.incidencia(t.id) }, '＋ Capturar algo de este trabajo') : null,
