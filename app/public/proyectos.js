@@ -287,6 +287,12 @@
     ul.replaceChildren(...grupos.flatMap(({ pa, ots }) => [
       el('li', { class: 'grupo-partida' },
         el('span', { class: 'gp-nom' }, nombrePartida(pa), pa?.baja_presupuesto ? el('span', { class: 'baja-txt' }, ' · ya no está en el presupuesto') : null),
+        pa ? el('span', { class: 'gp-mat' },
+          el('button', { type: 'button', class: 'ghost mini', title: 'Escandallo: materiales de la partida (técnico)',
+            onclick: () => window.s360mat.escandallo({ partida: pa, alCerrar: cargarOTs }) }, '📋 Escandallo', pa.n_escandallo ? el('span', { class: 'llv-n' }, String(pa.n_escandallo)) : null),
+          el('a', { class: 'boton ghost mini', href: `/asignar.html?partida=${pa.id}`,
+            title: pa.sin_asignar ? `${pa.sin_asignar} material(es) del escandallo sin asignar a tareas` : 'Asignar materiales y herramientas a las tareas' },
+          '🧩 Asignar', pa.sin_asignar ? el('span', { class: 'llv-n aviso' }, `⚠ ${pa.sin_asignar}`) : null)) : null,
         el('span', { class: 'gp-sub' }, [
           `${ots.length} OT`,
           pa?.horas ? `${durTxt(pa.horas_planificadas)}/${durTxt(pa.horas)}` : null,
@@ -350,12 +356,7 @@
     $('#form-tarea').hidden = !editar || o.estado === 'cerrada';
     const primeraFecha = o.lista_tareas.map((t) => t.primera_fecha).filter(Boolean).sort()[0];
     $('#ot-tablero').href = primeraFecha ? `/?fecha=${primeraFecha}` : '/';
-    const nl = o.n_llevar || { material: 0, herramienta: 0 };
-    const etiqueta = (b, txt, n) => b.replaceChildren(txt, n ? el('span', { class: 'llv-n' }, String(n)) : '');
-    etiqueta($('#ot-mat'), '🧱 Materiales', nl.material);
-    etiqueta($('#ot-herr'), '🔧 Herramientas', nl.herramienta);
-    $('#ot-mat').onclick = () => window.s360llevar.abrir({ ot: o, tipo: 'material', alCerrar: refrescarOT });
-    $('#ot-herr').onclick = () => window.s360llevar.abrir({ ot: o, tipo: 'herramienta', alCerrar: refrescarOT });
+
 
     const guardar = (k) => async (v) => {
       await api('PATCH', `/api/ordenes/${o.id}`, { [k]: v });
@@ -451,9 +452,9 @@
     const nLlevar = (t.n_material || 0) + (t.n_herramienta || 0);
     const llevar = nLlevar ? el('button', {
       type: 'button', class: `t-llevar${nLlevar ? '' : ' vacia'}`,
-      title: nLlevar ? `Llevar: ${t.n_material} material(es) · ${t.n_herramienta} herramienta(s)` : 'Sin materiales ni herramientas (se añaden con los botones de la OT)',
+      title: `Llevar: ${t.n_material} material(es) · ${t.n_herramienta} herramienta(s)`,
       'aria-label': nLlevar ? `Materiales y herramientas de ${t.nombre}: ${nLlevar}` : `Añadir materiales y herramientas a ${t.nombre}`,
-      onclick: () => window.s360llevar.verTarea({ tarea: t, ot: estado.ot, alCerrar: refrescarOT }),
+      onclick: () => window.s360mat.verTarea({ tarea: t }),
     }, '🧰', nLlevar ? el('span', { class: 't-llevar-n' }, String(nLlevar)) : null) : null;
     const depsEl = deps.length ? el(editar ? 'button' : 'span', {
         type: editar ? 'button' : null, class: `t-deps${editar ? ' editable' : ''}`,

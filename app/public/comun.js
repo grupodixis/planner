@@ -110,10 +110,11 @@
     if (u.solo_mi_dia && location.pathname !== '/mi-dia.html') { location.replace('/mi-dia.html'); return; }
     pintarNombre();
     const menu = document.querySelector('nav.menu');
-    const enlaces = [['/parte.html', 'Parte', 'planificar'], ['/bandeja.html', 'Bandeja', 'planificar'], ['/informes.html', 'Informes', 'informes'],
+    const enlaces = [['/parte.html', 'Parte', 'planificar'], ['/bandeja.html', 'Bandeja', 'planificar'],
+      ['/logistica.html', 'Logística', ['logistica', 'compras', 'escandallo']], ['/informes.html', 'Informes', 'informes'],
       ['/usuarios.html', 'Usuarios', 'usuarios'], ['/capturar.html', '＋ Capturar', null]];
     for (const [href, txt, permiso] of enlaces) {
-      if (!menu || (permiso && !tiene(permiso)) || menu.querySelector(`a[href="${href}"]`)) continue;
+      if (!menu || (permiso && ![].concat(permiso).some((p) => tiene(p))) || menu.querySelector(`a[href="${href}"]`)) continue;
       const a = el('a', { href }, txt);
       if (location.pathname === href) a.setAttribute('aria-current', 'page');
       menu.append(a);
@@ -220,6 +221,9 @@
     poner('/bandeja.html', p.bandeja || 0, `${p.bandeja} captura(s) por clasificar`);
     // los asuntos que me han asignado (aunque no planifique): en «＋ Capturar» › Mis asuntos
     poner('/capturar.html', p.mis_asuntos || 0, `${p.mis_asuntos} asunto(s) a tu cargo`);
+    const nLog = (p.mat_revisar || 0) + (p.mat_recibir || 0) + (p.mat_comprar || 0);
+    poner('/logistica.html', nLog, [p.mat_revisar && `${p.mat_revisar} material(es) por revisar en stock`,
+      p.mat_comprar && `${p.mat_comprar} por pedir`, p.mat_recibir && `${p.mat_recibir} pedido(s) por recibir`].filter(Boolean).join('\n'));
   }
 
   /* ---------- Avance y rendimiento (mismo aspecto en todas las pantallas) ---------- */

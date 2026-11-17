@@ -388,6 +388,7 @@ function montar(app, asyncH) {
         `SELECT count(DISTINCT a.id)::int AS n FROM ausencias a JOIN archivos f ON f.ref_tipo = 'ausencia' AND f.ref_id = a.id
           WHERE a.tipo = 'falta' AND a.justificante = 'pendiente'`)).rows[0].n;
     }
+    Object.assign(out, await require('./material').pendientes(u));
     res.json(out);
   }));
 }

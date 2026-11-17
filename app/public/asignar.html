@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <meta name="theme-color" content="#141414">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-title" content="s360">
+  <title>s360 · Asignar material</title>
+  <link rel="stylesheet" href="styles.css?v=202611171131">
+</head>
+<body class="bandeja-pant asignar-pant">
+  <header class="top">
+    <h1>s360_planificacion <span>· asignar material</span></h1>
+    <nav class="menu" aria-label="Pantallas">
+      <a href="/">Tablero</a>
+      <a href="/proyectos.html">Proyectos</a>
+      <a href="/recursos.html">Recursos</a>
+    </nav>
+    <div class="usuario"><span id="usuario-nombre"></span> <button id="salir" class="ghost">Salir</button></div>
+  </header>
+
+
+  <main class="asg-main">
+    <div class="asg-cab">
+      <div>
+        <a id="volver" class="ayuda" href="/proyectos.html">← Proyectos</a>
+        <h2 id="tit">Asignación de materiales y herramientas</h2>
+        <p class="ayuda" id="sub"></p>
+      </div>
+      <button type="button" class="ghost" id="btn-escandallo">📋 Escandallo</button>
+    </div>
+    <div class="llv-tabs" role="tablist">
+      <button type="button" role="tab" class="llv-tab" data-tab="material" id="tab-mat">🧱 Materiales</button>
+      <button type="button" role="tab" class="llv-tab" data-tab="herramienta" id="tab-herr">🔧 Herramientas</button>
+    </div>
+    <div class="asg-dos">
+      <section class="asg-col" id="izq" aria-label="Para asignar"></section>
+      <section class="asg-col" id="der" aria-label="OTs y tareas de la partida"></section>
+    </div>
+  </main>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <script src="pwa.js?v=202611171131"></script>
+  <script src="comun.js?v=202611171131"></script>
+  <script src="material-ui.js?v=202611171131"></script>
+  <script src="asignar.js?v=202611171131"></script>
+</body>
+</html>

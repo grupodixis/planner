@@ -227,7 +227,8 @@ require('./gestion')(app, asyncH);
 require('./recursos')(app, asyncH);
 require('./importar')(app, asyncH);
 require('./semillero')(app, asyncH);
-require('./llevar')(app, asyncH);   // materiales y herramientas de cada tarea
+require('./catalogo').montar(app, asyncH);   // catálogo de materiales y herramientas
+require('./material').montar(app, asyncH);   // escandallo, asignación a tareas, stock y compras
 
 /* ---------- Historial ---------- */
 
@@ -261,6 +262,6 @@ const PORT = Number(process.env.PORT || 3000);
   await esperarBD();
   await migrar();
   await auth.asegurarAdmin();
-  await require('./llevar').sembrar().catch((e) => console.error('Catálogo base:', e.message));
+  await require('./catalogo').sembrar().catch((e) => console.error('Catálogo base:', e.message));
   app.listen(PORT, () => console.log(`s360_planificacion escuchando en :${PORT}`));
 })().catch((e) => { console.error(e); process.exit(1); });

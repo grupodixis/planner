@@ -18,6 +18,10 @@ const TIPOS = {
   ausencias: { txt: 'Un operario avisa de que no viene o llega tarde', para: (u) => auth.tiene(u, 'planificar') },
   vac_pendiente: { txt: 'Peticiones de vacaciones que esperan mi paso', para: (u) => auth.tiene(u, 'vacaciones_ops') || auth.tiene(u, 'vacaciones_rrhh') },
   asuntos: { txt: 'Asuntos asignados a mí o que vencen mañana', para: (u) => !u.solo_mi_dia },
+  mat_revisar: { txt: 'Escandallo nuevo o cambiado: revisar stock', para: (u) => auth.tiene(u, 'logistica') },
+  mat_comprar: { txt: 'Material que falta y hay que pedir', para: (u) => auth.tiene(u, 'compras') },
+  mat_pedido: { txt: 'Material pedido al proveedor (cuándo llega)', para: (u) => auth.tiene(u, 'logistica') || auth.tiene(u, 'escandallo') },
+  mat_recibido: { txt: 'Ya ha llegado el material de mis tareas', para: () => true },
 };
 const SILENCIO = { desde: 21, hasta: 7 };
 const URGENTES = ['averia', 'seguridad'];

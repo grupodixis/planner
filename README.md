@@ -559,28 +559,38 @@ vez. Al confirmar se importa todo de una vez (o nada).
   planificación. Lo que ya no está en el archivo se borra si no tiene nada planificado; si lo
   tiene, se conserva marcado «ya no está en el presupuesto».
 
-## Materiales y herramientas (lista de la OT con catálogo)
+## Material: escandallo, asignación, stock y compras
 
-- **Dónde:** en Proyectos → OT, botones **🧱 Materiales** y **🔧 Herramientas** (con el número
-  de líneas). Abren la lista de la OT con una pestaña para cada cosa.
-- **Cada línea:** qué (con sugerencias del catálogo), cantidad (total de la OT), unidad, **en qué
-  tareas** (una o varias de la OT) y nota.
-- **Con teclado:** escribir → ↑/↓ y Enter elige la sugerencia → Tab: cantidad, unidad, tareas
-  (teclas 1–9 o Espacio; `*` todas), nota → Enter añade la línea y deja el cursor en la siguiente
-  (que propone las mismas tareas). Alt+M / Alt+H cambian de pestaña; Ctrl+Supr quita la línea.
-- **Catálogo:** ~3000 entradas base (tubos de acero, galvanizado, inox; perfiles laminados,
-  angulares, pletinas, macizos, correas; chapas; rejillas y mallas; aluminio; paneles; vidrio;
-  tornillería DIN, anclajes (Dynabolt, químicos), elevación y amarre; herrajes y automatismos;
-  tapones; soldadura y gases; abrasivos, brocas y fresas; pinturas (Titan, Oxirón…), sellado,
-  obra, maderas, eléctrico, EPI; y herramientas de corte, taladro, soldadura, medición, montaje,
-  elevación, acceso, pintura, energía y vehículos). Se genera con
-  `app/src/catalogo/generar.py` → `catalogo-base.json` y se carga solo al arrancar si cambia.
-  Lo que no está se añade desde la propia sugerencia («＋ Añadir … al catálogo»). La búsqueda no
-  distingue acentos, «×»/«x» ni coma/punto, y pone primero lo más usado.
-- **En la tarea:** el icono 🧰 (con número) muestra lo que lleva esa tarea; desde ahí se puede ir
-  a editar la lista de la OT. Siguiente paso: que el operario lo vea en Mi día.
-- API: `GET|POST /api/catalogo-llevar` · `GET|POST /api/ordenes/:id/llevar` ·
-  `PATCH|DELETE /api/llevar/:id` · `GET /api/tareas/:id/llevar`.
+Circuito entre Dto. técnico, operaciones, logística y compras, con avisos al móvil en cada paso.
+
+1. **Escandallo de la partida** (técnico · permiso `escandallo`): en Proyectos, debajo de cada
+   partida, **📋 Escandallo**. Lista rápida con teclado y sugerencias del catálogo: material,
+   cantidad total, unidad, nota y su estado. **📦 Enviar a logística** → aviso a logística.
+2. **Asignación** (operaciones · `planificar`/`proyectos`): **🧩 Asignar** en la partida (con ⚠ si
+   queda material sin asignar). Pantalla `asignar.html?partida=…`:
+   - *Materiales*: a la izquierda el escandallo («quedan X de Y»); a la derecha las OTs de la
+     partida en acordeón con sus tareas. Arrastrar el material a la tarea (o pulsar material y
+     luego tarea) → pregunta cuánto (propone lo que queda). Se puede repartir entre tareas.
+   - *Herramientas*: catálogo con filtro y casillas; pulsar una tarea y **Agregar a la tarea**.
+3. **Logística** (`logistica`, p. ej. Sergio): menú **Logística** → *Revisar stock*: «No hay»,
+   «Hay todo» o «Hay N». Lo que falta pasa a *Por pedir* → aviso a compras.
+4. **Compras** (`compras`): *Por pedir* → proveedor + fecha prevista → **Pedido** → aviso a
+   logística y al técnico.
+5. **Recepción** (logística): *Pedido · por recibir* → **✔ Recibido** → aviso a los operarios con
+   plan en las tareas que usan ese material (de hoy en adelante) y al técnico.
+
+En cada tarea, el icono 🧰 muestra sus materiales (con su estado) y herramientas. El menú
+Logística lleva un número con lo pendiente de cada uno. Roles nuevos: **Técnico**, **Logística**,
+**Compras** (los permisos se pueden dar también a otros roles, p. ej. `logistica` a Operaciones
+para que Adrián reciba material urgente).
+
+**Catálogo**: ~3000 materiales y herramientas habituales (`app/src/catalogo/generar.py` →
+`catalogo-base.json`, se carga al arrancar si cambia); se amplía desde la propia sugerencia.
+
+API: `/api/catalogo-llevar` · `/api/partidas/:id/escandallo` (+ `/enviar`) · `/api/escandallo/:id`
+(`PATCH`/`DELETE`, `PUT …/stock`, `PUT …/compra`, `PUT …/recibir`) · `/api/partidas/:id/asignacion`
+· `/api/tareas/:id/materiales` · `/api/tarea-material/:id` · `/api/tareas/:id/herramientas` ·
+`/api/tarea-herramienta/:id` · `/api/tareas/:id/llevar` · `/api/material/circuito`.
 
 ## API
 

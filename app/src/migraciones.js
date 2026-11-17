@@ -591,10 +591,9 @@ const MIGRACIONES = [
   `DROP TABLE IF EXISTS materiales`,
   `ALTER TABLE ordenes DROP COLUMN IF EXISTS bom_en`,
   `ALTER TABLE ordenes DROP COLUMN IF EXISTS bom_por`,
-  `UPDATE roles SET permisos = array_remove(array_remove(array_remove(permisos, 'materiales'), 'almacen'), 'compras')
-    WHERE permisos && ARRAY['materiales','almacen','compras']`,
-  `DELETE FROM roles r WHERE r.clave IN ('tecnico', 'almacen', 'compras')
-     AND NOT EXISTS (SELECT 1 FROM usuarios u WHERE u.rol = r.clave)`,
+  `UPDATE roles SET permisos = array_remove(array_remove(permisos, 'materiales'), 'almacen')
+    WHERE permisos && ARRAY['materiales','almacen']`,
+  `DELETE FROM roles r WHERE r.clave = 'almacen' AND NOT EXISTS (SELECT 1 FROM usuarios u WHERE u.rol = r.clave)`,
   `CREATE TABLE IF NOT EXISTS proveedores (
      id           SERIAL PRIMARY KEY,
      nombre       TEXT NOT NULL,
@@ -627,37 +626,69 @@ const MIGRACIONES = [
      creado_por  INT REFERENCES usuarios(id) ON DELETE SET NULL
    )`,
   `CREATE UNIQUE INDEX IF NOT EXISTS catalogo_nombre_idx ON catalogo (tipo, lower(nombre))`,
-  `CREATE TABLE IF NOT EXISTS ot_llevar (
+  `DROP TABLE IF EXISTS ot_llevar_tareas`,
+  `DROP TABLE IF EXISTS ot_llevar`,
+  `DROP TABLE IF EXISTS tarea_llevar`,
+
+  // 2026-11 · Circuito de material:
+  //   Técnico (Sofía) define el ESCANDALLO de la partida → Logística (Sergio) dice qué hay en stock →
+  //   lo que falta lo pide Compras → Logística lo recibe → aviso a los operarios de la tarea.
+  //   Operaciones (Adrián) ASIGNA el material del escandallo y las herramientas a las tareas de las OTs.
+  `CREATE TABLE IF NOT EXISTS partida_escandallo (
+     id             SERIAL PRIMARY KEY,
+     partida_id     INT NOT NULL REFERENCES partidas(id) ON DELETE CASCADE,
+     catalogo_id    INT REFERENCES catalogo(id) ON DELETE SET NULL,
+     descripcion    TEXT NOT NULL,
+     cantidad       NUMERIC(12,3) NOT NULL CHECK (cantidad > 0),
+     unidad         TEXT,
+     nota           TEXT,
+     orden          INT NOT NULL DEFAULT 0,
+     creado         TIMESTAMPTZ NOT NULL DEFAULT now(),
+     creado_por     INT REFERENCES usuarios(id) ON DELETE SET NULL,
+     -- logística: cuánto hay en stock (NULL = sin revisar)
+     stock          NUMERIC(12,3),
+     stock_por      INT REFERENCES usuarios(id) ON DELETE SET NULL,
+     stock_en       TIMESTAMPTZ,
+     -- compra de lo que falta: por_pedir → pedido → recibido
+     compra         TEXT CHECK (compra IN ('por_pedir', 'pedido', 'recibido')),
+     proveedor_id   INT REFERENCES proveedores(id) ON DELETE SET NULL,
+     fecha_prevista DATE,
+     pedido_por     INT REFERENCES usuarios(id) ON DELETE SET NULL,
+     pedido_en      TIMESTAMPTZ,
+     recibido_por   INT REFERENCES usuarios(id) ON DELETE SET NULL,
+     recibido_en    TIMESTAMPTZ,
+     nota_logistica TEXT
+   )`,
+  `CREATE INDEX IF NOT EXISTS partida_escandallo_idx ON partida_escandallo (partida_id, orden)`,
+  `ALTER TABLE partidas ADD COLUMN IF NOT EXISTS escandallo_enviado TIMESTAMPTZ`,
+  `CREATE TABLE IF NOT EXISTS tarea_material (
+     id             SERIAL PRIMARY KEY,
+     escandallo_id  INT NOT NULL REFERENCES partida_escandallo(id) ON DELETE CASCADE,
+     tarea_id       INT NOT NULL REFERENCES tareas(id) ON DELETE CASCADE,
+     cantidad       NUMERIC(12,3) NOT NULL CHECK (cantidad > 0),
+     creado         TIMESTAMPTZ NOT NULL DEFAULT now(),
+     creado_por     INT REFERENCES usuarios(id) ON DELETE SET NULL,
+     UNIQUE (escandallo_id, tarea_id)
+   )`,
+  `CREATE INDEX IF NOT EXISTS tarea_material_tarea_idx ON tarea_material (tarea_id)`,
+  `CREATE TABLE IF NOT EXISTS tarea_herramienta (
      id           SERIAL PRIMARY KEY,
-     orden_id     INT NOT NULL REFERENCES ordenes(id) ON DELETE CASCADE,
-     tipo         TEXT NOT NULL CHECK (tipo IN ('material', 'herramienta')),
+     tarea_id     INT NOT NULL REFERENCES tareas(id) ON DELETE CASCADE,
      catalogo_id  INT REFERENCES catalogo(id) ON DELETE SET NULL,
      descripcion  TEXT NOT NULL,
      cantidad     NUMERIC(12,3),
-     unidad       TEXT,
      nota         TEXT,
-     orden        INT NOT NULL DEFAULT 0,
      creado       TIMESTAMPTZ NOT NULL DEFAULT now(),
      creado_por   INT REFERENCES usuarios(id) ON DELETE SET NULL
    )`,
-  `CREATE INDEX IF NOT EXISTS ot_llevar_orden_idx ON ot_llevar (orden_id, tipo, orden)`,
-  `CREATE TABLE IF NOT EXISTS ot_llevar_tareas (
-     llevar_id  INT NOT NULL REFERENCES ot_llevar(id) ON DELETE CASCADE,
-     tarea_id   INT NOT NULL REFERENCES tareas(id) ON DELETE CASCADE,
-     PRIMARY KEY (llevar_id, tarea_id)
-   )`,
-  `CREATE INDEX IF NOT EXISTS ot_llevar_tareas_tarea_idx ON ot_llevar_tareas (tarea_id)`,
-  // la lista por tarea de la primera versión pasa a la lista de su OT
-  `DO $$ BEGIN
-     IF to_regclass('tarea_llevar') IS NOT NULL THEN
-       CREATE TEMP TABLE _mig ON COMMIT DROP AS
-         SELECT l.*, t.orden_id, nextval('ot_llevar_id_seq') AS nuevo FROM tarea_llevar l JOIN tareas t ON t.id = l.tarea_id;
-       INSERT INTO ot_llevar (id, orden_id, tipo, descripcion, cantidad, unidad, nota, orden, creado, creado_por)
-         SELECT nuevo, orden_id, tipo, descripcion, cantidad, unidad, nota, orden, creado, creado_por FROM _mig;
-       INSERT INTO ot_llevar_tareas (llevar_id, tarea_id) SELECT nuevo, tarea_id FROM _mig;
-       DROP TABLE tarea_llevar;
-     END IF;
-   END $$`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS tarea_herramienta_unica ON tarea_herramienta (tarea_id, lower(descripcion))`,
+  `INSERT INTO roles (clave, nombre, descripcion, permisos, sistema, orden) VALUES
+     ('tecnico', 'Técnico', 'Define el escandallo de las partidas', '{escandallo,informes}', FALSE, 6),
+     ('logistica', 'Logística', 'Revisa el stock y recibe el material', '{logistica}', FALSE, 7),
+     ('compras', 'Compras', 'Pide a proveedores lo que falta', '{compras}', FALSE, 8)
+   ON CONFLICT (clave) DO NOTHING`,
+  `UPDATE roles SET permisos = permisos || ARRAY['escandallo','logistica','compras']
+    WHERE clave = 'admin' AND NOT ('escandallo' = ANY(permisos))`,
 ];
 
 async function migrar() {
