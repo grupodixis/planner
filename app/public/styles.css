@@ -1930,3 +1930,7 @@ dialog.dlg-req[open] { display: flex; }
 .areas-pant { padding: 0 20px 20px; }
 .areas-pant .panel { padding: 16px 18px; }
 .tabla-areas-caja { overflow-x: auto; }
+.log-num { width: 130px; }
+.stk-alb-fila { display: grid; grid-template-columns: 1fr auto; gap: 8px; }
+.stk-alb { font-size: 16px; padding: 10px; }
+.stk-alb-fila .stk-foto { white-space: nowrap; }

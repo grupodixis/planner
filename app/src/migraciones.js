@@ -689,6 +689,9 @@ const MIGRACIONES = [
   // Lo que se planifica en el área lo lleva solo (requisitos cumplidos, detalle, Mi día)
   `ALTER TABLE lineas ADD COLUMN IF NOT EXISTS equipamiento TEXT[] NOT NULL DEFAULT '{}'`,
   `ALTER TABLE recursos ADD COLUMN IF NOT EXISTS fijo_area BOOLEAN NOT NULL DEFAULT FALSE`,
+  // Nº de pedido al proveedor (al marcar «pedido») y nº de albarán (al recibir)
+  `ALTER TABLE partida_escandallo ADD COLUMN IF NOT EXISTS num_pedido TEXT`,
+  `ALTER TABLE partida_escandallo ADD COLUMN IF NOT EXISTS num_albaran TEXT`,
   // Incidencias del material (llegó una parte, dañado, equivocado, no llegó…): comentario + fotos
   `CREATE TABLE IF NOT EXISTS escandallo_incidencias (
      id SERIAL PRIMARY KEY,

@@ -68,8 +68,8 @@
         l.nota ? ` · ${l.nota}` : ''),
       (l.compra === 'pedido' || l.compra === 'recibido' || l.stock_por || l.nota_logistica) ? el('div', { class: 'log-l2 ayuda' },
         [l.stock_por && `Revisado por ${l.stock_por}`,
-          l.compra === 'pedido' && `Pedido${l.proveedor ? ` a ${l.proveedor}` : ''}${l.fecha_prevista ? `, llega el ${fecha(l.fecha_prevista)}` : ''}${l.pedido_por ? ` (${l.pedido_por})` : ''}`,
-          l.compra === 'recibido' && `Recibido${l.recibido_por ? ` por ${l.recibido_por}` : ''}${l.recibido_en ? ` el ${fecha(l.recibido_en)}` : ''}`,
+          l.compra === 'pedido' && `Pedido${l.num_pedido ? ` nº ${l.num_pedido}` : ''}${l.proveedor ? ` a ${l.proveedor}` : ''}${l.fecha_prevista ? `, llega el ${fecha(l.fecha_prevista)}` : ''}${l.pedido_por ? ` (${l.pedido_por})` : ''}`,
+          l.compra === 'recibido' && `Recibido${l.recibido_por ? ` por ${l.recibido_por}` : ''}${l.recibido_en ? ` el ${fecha(l.recibido_en)}` : ''}${l.num_pedido ? ` · pedido nº ${l.num_pedido}` : ''}${l.num_albaran ? ` · albarán nº ${l.num_albaran}` : ''}`,
           l.nota_logistica && `Nota: ${l.nota_logistica}`].filter(Boolean).join(' · ')) : null,
       // incidencias (desde el móvil: llegó una parte, dañado…): se ven hasta que alguien las da por resueltas
       (l.incidencias || []).length ? el('ul', { class: 'log-incs' }, l.incidencias.map((i) => el('li', { class: i.resuelta_en ? 'resuelta' : '' },
@@ -88,6 +88,19 @@
     const hecho = async (url, cuerpo, msg) => {
       try { await api('PUT', url, cuerpo); toast(msg); await cargar(); } catch (e) { toast(e.message, true); }
     };
+    // documento (pedido / albarán) en PDF o foto: se sube al elegirlo y se enlaza al guardar
+    const adjDoc = (txt) => {
+      const st = { ids: [] };
+      const nombre = el('span', { class: 'ayuda' });
+      const inp = el('input', { type: 'file', accept: 'image/*,application/pdf', hidden: true, onchange: async () => {
+        const f = inp.files[0];
+        if (!f) return;
+        try { toast('Subiendo…'); st.ids = [await window.s360.subirArchivo(f)]; nombre.textContent = ` ${f.name}`; toast('Listo: se guarda al confirmar'); }
+        catch (e) { toast(e.message, true); }
+      } });
+      st.nodo = el('label', { class: 'boton ghost mini', title: `Adjuntar el ${txt} (PDF o foto)` }, `📎 Adjuntar ${txt}`, inp, nombre);
+      return st;
+    };
     // logística: stock (también para corregir)
     if (puede.logistica && (l.estado === 'sin_revisar' || l.estado === 'por_pedir' || (l.estado === 'disponible' && l.compra !== 'recibido'))) {
       const inp = el('input', { inputmode: 'decimal', value: l.stock != null ? cant(l.stock) : '', placeholder: '¿cuánto?', 'aria-label': `Cuánto hay de ${l.descripcion}` });
@@ -103,19 +116,29 @@
       const prov = el('select', { 'aria-label': 'Proveedor' }, el('option', { value: '' }, 'Proveedor…'),
         d.proveedores.map((p) => el('option', { value: p.id }, p.nombre)));
       const f = el('input', { type: 'date', 'aria-label': 'Llega el', min: hoy });
+      const num = el('input', { placeholder: 'Nº pedido', maxlength: 60, class: 'log-num', 'aria-label': 'Número de pedido o referencia del proveedor' });
+      const doc = adjDoc('pedido');
       out.push(el('div', { class: 'log-acc' },
-        prov, el('label', { class: 'ayuda' }, 'llega ', f),
-        el('button', { type: 'button', class: 'primario', onclick: () => hecho(`/api/escandallo/${l.id}/compra`, { estado: 'pedido', proveedor_id: prov.value || null, fecha_prevista: f.value || null }, 'Marcado como pedido; avisado a logística y técnico') }, '🛒 Pedido')));
+        prov, el('label', { class: 'ayuda' }, 'llega ', f), num, doc.nodo,
+        el('button', { type: 'button', class: 'primario', onclick: () => hecho(`/api/escandallo/${l.id}/compra`, { estado: 'pedido', proveedor_id: prov.value || null, fecha_prevista: f.value || null, num_pedido: num.value, archivos: doc.ids }, 'Marcado como pedido; avisado a logística y técnico') }, '🛒 Pedido')));
     }
     if (puede.compras && l.estado === 'pedido') {
-      out.push(el('div', { class: 'log-acc' }, el('button', { type: 'button', class: 'ghost mini', onclick: () => hecho(`/api/escandallo/${l.id}/compra`, { estado: 'por_pedir' }, 'Vuelve a «por pedir»') }, 'Deshacer pedido')));
+      // corregir o poner después el nº de pedido
+      const num = el('input', { value: l.num_pedido || '', placeholder: 'Nº pedido', maxlength: 60, class: 'log-num', 'aria-label': 'Número de pedido',
+        onchange: () => hecho(`/api/escandallo/${l.id}/documentos`, { num_pedido: num.value }, 'Nº de pedido guardado') });
+      out.push(el('div', { class: 'log-acc' }, num, el('button', { type: 'button', class: 'ghost mini', onclick: () => hecho(`/api/escandallo/${l.id}/compra`, { estado: 'por_pedir' }, 'Vuelve a «por pedir»') }, 'Deshacer pedido')));
     }
     // logística: recibir
     if (puede.logistica && (l.estado === 'pedido' || (l.estado === 'por_pedir' && vista === 'recibir'))) {
-      out.push(el('div', { class: 'log-acc' }, el('button', { type: 'button', class: 'primario', onclick: () => hecho(`/api/escandallo/${l.id}/recibir`, {}, 'Recibido; avisado a los operarios de la tarea') }, '✔ Recibido')));
+      const alb = el('input', { placeholder: 'Nº albarán', maxlength: 60, class: 'log-num', 'aria-label': 'Número de albarán del proveedor' });
+      const doc = adjDoc('albarán');
+      out.push(el('div', { class: 'log-acc' }, alb, doc.nodo,
+        el('button', { type: 'button', class: 'primario', onclick: () => hecho(`/api/escandallo/${l.id}/recibir`, { num_albaran: alb.value, archivos: doc.ids }, 'Recibido; avisado a los operarios de la tarea') }, '✔ Recibido')));
     }
     if (puede.logistica && l.compra === 'recibido') {
-      out.push(el('div', { class: 'log-acc' }, el('button', { type: 'button', class: 'ghost mini', onclick: () => hecho(`/api/escandallo/${l.id}/recibir`, { deshacer: true }, 'Deshecho: vuelve a «pedido»') }, 'Deshacer recepción')));
+      const alb = el('input', { value: l.num_albaran || '', placeholder: 'Nº albarán', maxlength: 60, class: 'log-num', 'aria-label': 'Número de albarán',
+        onchange: () => hecho(`/api/escandallo/${l.id}/documentos`, { num_albaran: alb.value }, 'Nº de albarán guardado') });
+      out.push(el('div', { class: 'log-acc' }, alb, el('button', { type: 'button', class: 'ghost mini', onclick: () => hecho(`/api/escandallo/${l.id}/recibir`, { deshacer: true }, 'Deshecho: vuelve a «pedido»') }, 'Deshacer recepción')));
     }
     return out.length ? out : null;
   }

@@ -402,6 +402,10 @@ punto naranja en el botón avisa si le faltan datos del perfil.
 material** con lo pendiente. Tarjetas grandes por material (cantidad, para cuándo, tareas): «✗ No hay»,
 «✔ Hay todo» o «Hay N»; foto con la cámara; y «✔ Ha llegado» en lo pedido (`mi-dia-stock.js`, mismas
 APIs que Logística). Pedir a proveedores sigue en el ordenador (Logística y compras).
+**Nº de pedido y albarán**: al marcar «🛒 Pedido» compras puede poner el **nº de pedido** y adjuntar el
+pedido (PDF o foto); al recibir (ordenador o móvil) logística pone el **nº de albarán** y la foto del
+albarán. Se ven en la línea («Pedido nº … · albarán nº …») y se pueden corregir después
+(`partida_escandallo.num_pedido / num_albaran`, `PUT /api/escandallo/:id/documentos`).
 Botón **⚠ Incidencia** (en Recibir junto a «Ha llegado», y en Revisar stock): comentario + fotos con la
 cámara; se guarda en `escandallo_incidencias` (las fotos van a la línea), avisa a compras y al técnico
 (`mat_incidencia`) y en Logística y compras se ve en naranja hasta que alguien pulsa «✔ Resuelta»

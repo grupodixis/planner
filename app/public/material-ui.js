@@ -124,7 +124,7 @@
     const caja = el('div', { class: 'mat-adj' });
     const pintar = () => {
       const fotos = l.archivos || [];
-      caja.replaceChildren(
+      caja.replaceChildren(...[
         fotos.length || (l.enlaces || []).length ? el('div', { class: 'mat-adj-lista' },
           fotos.map((a) => el('span', { class: 'mat-adj-item' }, window.s360.adjuntos([a]),
             op.subir && (window.s360.tiene('escandallo') || a.creado_por === window.s360.usuario?.()?.id) ? el('button', { type: 'button', class: 'mat-adj-x', title: 'Quitar', 'aria-label': `Quitar ${a.nombre || 'archivo'}`, onclick: async () => {
@@ -136,7 +136,7 @@
             op.enlaces ? el('button', { type: 'button', class: 'mat-adj-x', title: 'Quitar enlace', 'aria-label': 'Quitar enlace', onclick: () => guardarEnlaces(l.enlaces.filter((_, j) => j !== k)) }, '✕') : null))) : null,
         op.subir || op.enlaces ? el('div', { class: 'mat-adj-acc' },
           op.subir ? botonSubir() : null,
-          op.enlaces ? formEnlace() : null) : null);
+          op.enlaces ? formEnlace() : null) : null].filter(Boolean));
     };
     const botonSubir = () => {
       // en el móvil, «image/*» deja elegir cámara o galería

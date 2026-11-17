@@ -84,7 +84,7 @@
       el('b', {}, `${cant(l.cantidad)} ${l.unidad || ''}`),
       l.fecha_necesaria ? el('span', { class: tarde ? 'stk-tarde' : '' }, ` · para el ${dia(l.fecha_necesaria)}`) : ' · sin planificar',
       l.tareas.length ? el('div', { class: 'stk-tareas' }, l.tareas.map((t) => `${t.ot} ${t.tarea}`).join(' · ')) : null,
-      vista === 'recibir' ? el('div', { class: 'stk-ped' }, `Pedido${l.proveedor ? ` a ${l.proveedor}` : ''}${l.fecha_prevista ? ` · llega el ${dia(l.fecha_prevista)}` : ''}${l.falta ? ` · faltan ${cant(l.falta)}` : ''}`) : null,
+      vista === 'recibir' ? el('div', { class: 'stk-ped' }, `Pedido${l.num_pedido ? ` nº ${l.num_pedido}` : ''}${l.proveedor ? ` a ${l.proveedor}` : ''}${l.fecha_prevista ? ` · llega el ${dia(l.fecha_prevista)}` : ''}${l.falta ? ` · faltan ${cant(l.falta)}` : ''}`) : null,
       l.nota ? el('div', { class: 'ayuda' }, l.nota) : null,
     ];
     // fotos: las del técnico se ven; aquí se añaden con la cámara
@@ -113,9 +113,21 @@
             hecho(`/api/escandallo/${l.id}/stock`, { stock: inp.value }, 'Apuntado');
           } }, 'Guardar')));
     } else {
+      // nº de albarán y foto del albarán (opcionales) antes de dar por recibido
+      const alb = el('input', { placeholder: 'Nº de albarán (opcional)', maxlength: 60, class: 'stk-alb', 'aria-label': 'Número de albarán' });
+      const albFoto = { ids: [] };
+      const albNombre = el('span', { class: 'ayuda' });
       acciones = el('div', { class: 'stk-acc' },
+        el('div', { class: 'stk-alb-fila' }, alb,
+          el('label', { class: 'boton ghost stk-foto' }, '📷 Albarán', albNombre,
+            el('input', { type: 'file', accept: 'image/*', capture: 'environment', hidden: true, onchange: async (ev) => {
+              const f = ev.target.files[0];
+              if (!f) return;
+              try { toast('Subiendo foto del albarán…'); albFoto.ids = [await window.s360.subirArchivo(f)]; albNombre.textContent = ' ✔'; toast('Foto lista'); }
+              catch (e) { toast(e.message, true); }
+            } }))),
         el('div', { class: 'stk-recibir' },
-          el('button', { type: 'button', class: 'stk-si stk-grande', onclick: () => hecho(`/api/escandallo/${l.id}/recibir`, {}, 'Recibido: avisados los operarios') }, '✔ Ha llegado'),
+          el('button', { type: 'button', class: 'stk-si stk-grande', onclick: () => hecho(`/api/escandallo/${l.id}/recibir`, { num_albaran: alb.value, archivos: albFoto.ids }, 'Recibido: avisados los operarios') }, '✔ Ha llegado'),
           botonIncidencia(l)));
     }
     if (vista === 'revisar') acciones.append(botonIncidencia(l, true));

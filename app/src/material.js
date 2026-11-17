@@ -32,6 +32,7 @@ function estado(l) {
 const SQL_LINEAS = `
   SELECT e.id, e.partida_id, e.catalogo_id, e.descripcion, e.cantidad::float, e.unidad, e.nota, e.orden,
          e.enlaces, e.stock::float, e.stock_en, e.compra, e.proveedor_id, e.fecha_prevista, e.pedido_en, e.recibido_en, e.nota_logistica,
+         e.num_pedido, e.num_albaran,
          pa.codigo AS partida_codigo, pa.nombre AS partida_nombre, pa.escandallo_enviado, pa.proyecto_id,
          p.codigo AS proyecto_codigo, p.nombre AS proyecto_nombre,
          pr.nombre AS proveedor, us.nombre AS stock_por, up.nombre AS pedido_por, ur.nombre AS recibido_por,
@@ -201,8 +202,10 @@ function montar(app, asyncH) {
       const fecha = b.fecha_prevista && /^\d{4}-\d{2}-\d{2}$/.test(b.fecha_prevista) ? b.fecha_prevista : null;
       await query(
         `UPDATE partida_escandallo SET compra = 'pedido', proveedor_id = $2, fecha_prevista = $3, pedido_por = $4, pedido_en = now(),
-                nota_logistica = COALESCE($5, nota_logistica) WHERE id = $1`,
-        [id, b.proveedor_id ? Number(b.proveedor_id) : null, fecha, req.usuario.id, 'nota' in b ? texto(b.nota, 300) : null]);
+                nota_logistica = COALESCE($5, nota_logistica), num_pedido = COALESCE($6, num_pedido) WHERE id = $1`,
+        [id, b.proveedor_id ? Number(b.proveedor_id) : null, fecha, req.usuario.id, 'nota' in b ? texto(b.nota, 300) : null, texto(b.num_pedido, 60)]);
+      // el pedido en PDF o foto, si lo adjuntan
+      if (Array.isArray(b.archivos) && b.archivos.length) await tx((c) => archivos.enlazar(c, b.archivos, 'escandallo', id, req.usuario.id));
       const l = await linea(id);
       notif.avisarLuego(notif.conPermiso('logistica', 'escandallo'), 'mat_pedido', {
         titulo: `Pedido: ${l.descripcion}`,
@@ -244,7 +247,11 @@ function montar(app, asyncH) {
       return res.json(await linea(id));
     }
     if (!['pedido', 'por_pedir'].includes(l0.compra)) throw fallo(400, 'Este material no está pendiente de llegar');
-    await query(`UPDATE partida_escandallo SET compra = 'recibido', recibido_por = $2, recibido_en = now() WHERE id = $1`, [id, req.usuario.id]);
+    const b = req.body || {};
+    await query(`UPDATE partida_escandallo SET compra = 'recibido', recibido_por = $2, recibido_en = now(), num_albaran = COALESCE($3, num_albaran) WHERE id = $1`,
+      [id, req.usuario.id, texto(b.num_albaran, 60)]);
+    // el albarán en foto o PDF, si lo adjuntan
+    if (Array.isArray(b.archivos) && b.archivos.length) await tx((c) => archivos.enlazar(c, b.archivos, 'escandallo', id, req.usuario.id));
     const l = await linea(id);
     const tareas = l.tareas.map((t) => `«${t.tarea}»`).join(', ');
     notif.avisarLuego(interesadosRecepcion(id), 'mat_recibido', {
@@ -253,6 +260,17 @@ function montar(app, asyncH) {
       url: '/mi-dia.html', tag: `recibido-${id}`,
     });
     res.json(l);
+  }));
+
+  // Corregir después el nº de pedido o de albarán: { num_pedido?, num_albaran? }
+  app.put('/api/escandallo/:id/documentos', auth.permiso('logistica', 'compras'), asyncH(async (req, res) => {
+    const id = Number(req.params.id);
+    const b = req.body || {};
+    if (!(await linea(id))) throw fallo(404, 'Línea no encontrada');
+    const cols = ['num_pedido', 'num_albaran'].filter((k) => k in b);
+    if (!cols.length) throw fallo(400, 'Nada que cambiar');
+    await query(`UPDATE partida_escandallo SET ${cols.map((k, i) => `${k} = $${i + 2}`).join(', ')} WHERE id = $1`, [id, ...cols.map((k) => texto(b[k], 60))]);
+    res.json(await linea(id));
   }));
 
   /* ---------- Fotos y PDF del material (técnico y logística) ---------- */
