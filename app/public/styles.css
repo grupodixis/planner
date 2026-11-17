@@ -1611,8 +1611,21 @@ body.arrastrando .asg-tarea { outline: 1px dashed #2c4a6c; outline-offset: -3px;
 .log-filtros { display: flex; gap: 8px; flex-wrap: wrap; margin: 10px 0; }
 .log-filtros input, .log-filtros select { background: #1f1f1f; border: 1px solid var(--borde); border-radius: 8px; padding: 6px 8px; color: var(--texto); }
 .log-filtros input { flex: 1 1 240px; }
-.log-partida { margin: 16px 0; }
-.log-partida h3 { font-size: 15px; margin: 0; display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.log-filtros select { flex: 1 1 240px; min-width: 0; max-width: 100%; }
+.log-partida { margin: 8px 0; border: 1px solid var(--borde); border-radius: var(--radio); background: var(--panel); }
+.log-partida > summary { list-style: none; cursor: pointer; display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; padding: 10px 12px 10px 34px; position: relative; border-radius: 10px; }
+.log-partida > summary::-webkit-details-marker { display: none; }
+.log-partida > summary::before { content: '▸'; position: absolute; left: 12px; top: 11px; transition: transform .15s; opacity: .7; }
+.log-partida[open] > summary::before { transform: rotate(90deg); }
+.log-partida > summary:hover { background: rgba(127,127,127,.08); }
+.log-partida > summary:focus-visible { outline: 2px solid var(--azul); outline-offset: 2px; }
+.log-sum-tit { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1 1 320px; }
+.log-sum-tit b { font-size: 15px; }
+.log-sum-info { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.log-sum-info .neg { color: var(--rojo); }
+.log-partida-cuerpo { padding: 0 10px 10px; }
+.log-acc-barra { display: flex; align-items: center; justify-content: flex-end; gap: 8px; margin: 8px 0 4px; }
+.log-acc-barra .ayuda { margin-right: auto; }
 .log-proy { margin: 0 0 6px; }
 .log-linea { border: 1px solid var(--borde); border-radius: 11px; padding: 9px 11px; margin-bottom: 7px; display: grid; gap: 4px; background: #161616; }
 .log-linea.est-por_pedir { border-left: 4px solid #8a5a1a; }

@@ -17,6 +17,9 @@
   ];
   const norm = (s) => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
   const fecha = (f) => (f ? new Date(`${String(f).slice(0, 10)}T12:00:00`).toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' }) : '');
+  let abiertas = {};
+  try { abiertas = JSON.parse(localStorage.getItem('log-acordeon') || '{}') || {}; } catch { abiertas = {}; }
+  const guardarAbiertas = () => { try { localStorage.setItem('log-acordeon', JSON.stringify(abiertas)); } catch { /* sin almacenamiento */ } };
   const hoy = new Date().toLocaleString('sv-SE', { timeZone: 'Europe/Madrid' }).slice(0, 10);
 
   async function cargar() {
@@ -43,14 +46,36 @@
     const grupos = new Map();
     for (const l of ls) { if (!grupos.has(l.partida_id)) grupos.set(l.partida_id, []); grupos.get(l.partida_id).push(l); }
     const orden = [...grupos.values()].sort((a, b) => String(a[0].fecha_necesaria || '9').localeCompare(String(b[0].fecha_necesaria || '9')));
-    $('#lista').replaceChildren(...(orden.length ? orden.map((g) => {
+    // acordeón por partida: se recuerda qué está abierto; con una sola partida (o buscando) va abierta
+    const forzar = orden.length === 1 || !!txt || !!pa;
+    const abierta = (id) => forzar || abiertas[id] === true;
+    const grupoEl = (g) => {
       const l0 = g[0];
-      return el('section', { class: 'log-partida' },
-        el('h3', {}, el('span', {}, `${l0.proyecto_codigo} · ${l0.partida_codigo ? `${l0.partida_codigo} · ` : ''}${l0.partida_nombre}`),
-          el('span', { class: 'ayuda' }, l0.fecha_necesaria ? ` hace falta ${fecha(l0.fecha_necesaria)}` : ' sin planificar')),
-        el('p', { class: 'ayuda log-proy' }, l0.proyecto_nombre),
-        ...g.map(tarjeta));
-    }) : [el('p', { class: 'vacio-grande' }, vista === 'revisar' ? 'Nada por revisar.' : vista === 'comprar' ? 'Nada por pedir.' : vista === 'recibir' ? 'Nada pendiente de llegar.' : 'Nada.')]));
+      const nTarde = g.filter((l) => l.fecha_necesaria && l.fecha_necesaria < hoy && l.estado !== 'disponible').length;
+      const nFalta = g.filter((l) => l.falta).length;
+      const det = el('details', { class: 'log-partida' },
+        el('summary', {},
+          el('span', { class: 'log-sum-tit' },
+            el('b', {}, `${l0.proyecto_codigo} · ${l0.partida_codigo ? `${l0.partida_codigo} · ` : ''}${l0.partida_nombre}`),
+            el('small', { class: 'ayuda' }, l0.proyecto_nombre)),
+          el('span', { class: 'log-sum-info' },
+            el('span', { class: 'llv-n' }, `${g.length} ${g.length === 1 ? 'línea' : 'líneas'}`),
+            nFalta ? el('span', { class: 'llv-n aviso' }, `${nFalta} con falta`) : null,
+            nTarde ? el('span', { class: 'llv-n aviso neg' }, `${nTarde} tarde`) : null,
+            el('span', { class: 'ayuda' }, l0.fecha_necesaria ? `hace falta ${fecha(l0.fecha_necesaria)}` : 'sin planificar'))),
+        el('div', { class: 'log-partida-cuerpo' }, ...g.map(tarjeta)));
+      det.open = abierta(l0.partida_id);
+      det.addEventListener('toggle', () => { if (forzar) return; abiertas[l0.partida_id] = det.open; guardarAbiertas(); });
+      return det;
+    };
+    const todas = (v) => { for (const g of orden) abiertas[g[0].partida_id] = v; guardarAbiertas(); pintar(); };
+    $('#lista').replaceChildren(...(orden.length ? [
+      orden.length > 1 && !forzar ? el('div', { class: 'log-acc-barra' },
+        el('span', { class: 'ayuda' }, `${orden.length} partidas`),
+        el('button', { type: 'button', class: 'ghost', onclick: () => todas(true) }, 'Abrir todas'),
+        el('button', { type: 'button', class: 'ghost', onclick: () => todas(false) }, 'Cerrar todas')) : null,
+      ...orden.map(grupoEl)].filter(Boolean)
+      : [el('p', { class: 'vacio-grande' }, vista === 'revisar' ? 'Nada por revisar.' : vista === 'comprar' ? 'Nada por pedir.' : vista === 'recibir' ? 'Nada pendiente de llegar.' : 'Nada.')]));
   }
 
   function tarjeta(l) {
