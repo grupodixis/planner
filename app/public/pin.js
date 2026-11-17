@@ -47,8 +47,8 @@
     if (pin.length < 4) return;
     enviando = true;
     try {
-      await api('POST', '/api/pin/entrar', { usuario_id: persona.id, pin });
-      location.replace('/mi-dia.html');
+      const r = await api('POST', '/api/pin/entrar', { usuario_id: persona.id, pin });
+      location.replace(r.destino || '/mi-dia.html');
     } catch (e) {
       pin = ''; pintarPuntos();
       $('#err').textContent = e.message;

@@ -258,6 +258,12 @@
       return;
     }
     $('#salir').onclick = salir;
+    // quien tiene otro rol además (Logística, Operaciones…) vuelve a sus pantallas desde aquí
+    const otros = (yo.permisos || []).filter((k) => k !== 'mi_dia');
+    if (otros.length) {
+      $('#mis-pantallas').hidden = false;
+      $('#mis-pantallas').href = otros.includes('planificar') ? '/' : otros.some((k) => ['logistica', 'compras', 'escandallo'].includes(k)) ? '/logistica.html' : '/proyectos.html';
+    }
     window.s360pwa?.boton($('#instalar'));
     const fq = new URLSearchParams(location.search).get('fecha');
     if (/^\d{4}-\d{2}-\d{2}$/.test(fq || '')) estado.fecha = fq;

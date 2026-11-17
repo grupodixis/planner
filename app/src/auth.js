@@ -84,7 +84,9 @@ async function requiereSesion(req, res, next) {
         WHERE s.token = $1 AND s.expira > now() AND u.activo`, [token]);
     if (!rows.length) return res.status(401).json({ error: 'Sesión caducada' });
     req.usuario = rows[0];
-    req.usuario.solo_mi_dia = soloMiDia(rows[0]);
+    // quien entra con PIN siempre puede apuntar su día (Mi día), tenga el rol que tenga
+    if (String(rows[0].via || '').startsWith('pin') && !req.usuario.permisos.includes('mi_dia')) req.usuario.permisos = [...req.usuario.permisos, 'mi_dia'];
+    req.usuario.solo_mi_dia = soloMiDia(req.usuario);
     next();
   } catch (e) { next(e); }
 }

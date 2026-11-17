@@ -194,6 +194,7 @@
     }
   }
 
+  let rolesPin = [];
   function filaPin(o) {
     const conPin = o.tiene_pin && o.activo !== false;
     const input = el('input', { inputmode: 'numeric', maxlength: 4, placeholder: '4 cifras', 'aria-label': `PIN de ${o.nombre}`, class: 'pin-input' });
@@ -207,8 +208,12 @@
     const movil = !conPin ? '—'
       : o.tiene_movil ? `autorizado${o.movil_uso ? ` · usado ${hace(o.movil_uso)}` : ''}`
         : o.alta_pendiente ? 'enlace enviado, sin abrir' : 'no';
+    const rolSel = conPin ? el('select', { 'aria-label': `Rol de ${o.nombre}`, class: 'pin-rol',
+      onchange: async (ev) => { if (await guardar('PUT', `/api/pin/${o.recurso_id}/rol`, { rol: ev.target.value }, `Rol de ${o.nombre} cambiado: entra con su PIN y ya lo tiene`)) cargarPin(); } },
+    rolesPin.map((r) => el('option', { value: r.clave, selected: r.clave === o.rol }, r.nombre))) : el('span', { class: 'suave' }, '—');
     return el('tr', {},
       el('td', {}, o.nombre),
+      el('td', {}, rolSel),
       el('td', {}, conPin ? el('span', { class: 'est-ok' }, '✓ tiene PIN') : el('span', { class: 'suave' }, 'sin acceso'), ' ', editor),
       el('td', { class: 'suave' }, movil),
       el('td', { class: 'acciones' },
@@ -240,8 +245,9 @@
 
   async function cargarPin() {
     const d = await api('GET', '/api/pin');
+    rolesPin = d.roles || [];
     $('#lista-pin').replaceChildren(...(d.operarios.length ? d.operarios.map(filaPin)
-      : [el('tr', {}, el('td', { colspan: 4, class: 'ayuda' }, 'No hay operarios activos en Recursos.'))]));
+      : [el('tr', {}, el('td', { colspan: 5, class: 'ayuda' }, 'No hay operarios activos en Recursos.'))]));
     $('#lista-disp').replaceChildren(...(d.dispositivos.length ? d.dispositivos.map((x) => el('li', {},
       el('span', {}, el('b', {}, x.nombre), x.id === d.este_dispositivo ? el('span', { class: 'chip-este' }, 'este') : null),
       el('span', { class: 'suave' }, x.tipo === 'comun' ? 'tablet común' : `móvil de ${x.persona}`, ` · usado ${hace(x.ultimo_uso)}`),

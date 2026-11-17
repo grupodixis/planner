@@ -65,7 +65,18 @@ async function nuevoDispositivo(c, res, { nombre, tipo, usuarioId = null, por = 
   return rows[0].id;
 }
 
-// Operarios que pueden entrar con PIN (usuario operario activo, con PIN, solo «mi_dia»)
+// Personas que pueden entrar con PIN: usuario activo con PIN y un rol sin gestión de usuarios
+// (el PIN es la autorización: cada uno entra con los permisos de su rol; para administrar, email y contraseña)
+const rolValidoPin = (permisos) => !(permisos || []).includes('usuarios');
+// a dónde va cada uno al entrar con PIN
+function destino(permisos) {
+  const p = permisos || [];
+  if (p.every((k) => k === 'mi_dia')) return '/mi-dia.html';
+  if (p.includes('planificar')) return '/';
+  if (p.includes('logistica') || p.includes('compras') || p.includes('escandallo')) return '/logistica.html';
+  if (p.includes('proyectos')) return '/proyectos.html';
+  return '/mi-dia.html';
+}
 const SQL_OPERARIOS_PIN = `
   SELECT u.id, u.nombre, u.recurso_id, u.pin_hash, COALESCE(r.permisos, '{}') AS permisos
     FROM usuarios u JOIN roles r ON r.clave = u.rol JOIN recursos re ON re.id = u.recurso_id AND re.activo
@@ -81,7 +92,7 @@ function publico(app, asyncH) {
       `${SQL_OPERARIOS_PIN} ${d.tipo === 'personal' ? 'AND u.id = $1' : ''} ORDER BY u.nombre`, d.tipo === 'personal' ? [d.usuario_id] : []);
     res.json({
       nombre: d.nombre, tipo: d.tipo,
-      personas: rows.filter((u) => auth.soloMiDia(u)).map((u) => ({ id: u.id, nombre: u.nombre })),
+      personas: rows.filter((u) => rolValidoPin(u.permisos)).map((u) => ({ id: u.id, nombre: u.nombre })),
     });
   }));
 
@@ -96,7 +107,7 @@ function publico(app, asyncH) {
     if (min) throw fallo(429, `Demasiados intentos. Prueba dentro de ${min} min o avisa al encargado.`);
     const { rows } = await query(`${SQL_OPERARIOS_PIN} AND u.id = $1`, [usuarioId]);
     const u = rows[0];
-    if (!u || !auth.soloMiDia(u) || !PIN_RE.test(pin) || !verificarPin(pin, u.pin_hash)) {
+    if (!u || !rolValidoPin(u.permisos) || !PIN_RE.test(pin) || !verificarPin(pin, u.pin_hash)) {
       // el dispositivo cuenta como «ip» para el bloqueo largo (20 fallos)
       auth.anotarFallo(`pin:u:${usuarioId}`, `ip:pin-disp-${d.id}`);
       throw fallo(401, 'PIN incorrecto');
@@ -105,7 +116,7 @@ function publico(app, asyncH) {
     const comun = d.tipo === 'comun';
     await auth.crearSesion(res, u.id, { duracionMs: comun ? SESION_COMUN_MS : SESION_PERSONAL_MS, via: comun ? 'pin_comun' : 'pin_personal' });
     await query('UPDATE dispositivos SET ultimo_uso = now() WHERE id = $1', [d.id]);
-    res.json({ ok: true, comun });
+    res.json({ ok: true, comun, destino: destino(u.permisos) });
   }));
 
   // Abrir en el móvil el enlace de alta: el móvil queda autorizado para ese operario
@@ -132,7 +143,7 @@ function gestion(app, asyncH) {
 
   app.get('/api/pin', admin, asyncH(async (req, res) => {
     const [{ rows: operarios }, { rows: dispositivos }] = await Promise.all([
-      query(`SELECT re.id AS recurso_id, re.nombre, u.id AS usuario_id, (u.pin_hash IS NOT NULL) AS tiene_pin, u.activo,
+      query(`SELECT re.id AS recurso_id, re.nombre, u.id AS usuario_id, (u.pin_hash IS NOT NULL) AS tiene_pin, u.activo, u.rol,
                     u.ultimo_acceso,
                     (SELECT max(d.ultimo_uso) FROM dispositivos d WHERE d.usuario_id = u.id AND d.activo) AS movil_uso,
                     EXISTS (SELECT 1 FROM dispositivos d WHERE d.usuario_id = u.id AND d.activo) AS tiene_movil,
@@ -146,7 +157,8 @@ function gestion(app, asyncH) {
               WHERE d.activo ORDER BY d.tipo, d.nombre`),
     ]);
     const este = await dispositivoDe(req);
-    res.json({ operarios, dispositivos, este_dispositivo: este?.id || null });
+    const { rows: roles } = await query(`SELECT clave, nombre FROM roles WHERE NOT ('usuarios' = ANY(permisos)) ORDER BY orden, nombre`);
+    res.json({ operarios, dispositivos, roles, este_dispositivo: este?.id || null });
   }));
 
   // Poner o cambiar el PIN de un operario (crea su usuario «operario» si no lo tiene)
@@ -171,6 +183,20 @@ function gestion(app, asyncH) {
     });
     auth.anotarAcierto(`pin:u:${out.usuario_id}`);   // desbloquea si estaba bloqueado
     res.json({ ok: true, ...out });
+  }));
+
+  // Rol de quien entra con PIN (Operario por defecto; p. ej. Logística para Sergio)
+  app.put('/api/pin/:recursoId/rol', admin, asyncH(async (req, res) => {
+    const recursoId = Number(req.params.recursoId);
+    const rol = String(req.body?.rol || '');
+    const { rows: r } = await query('SELECT clave, permisos FROM roles WHERE clave = $1', [rol]);
+    if (!r.length) throw fallo(400, 'Rol no válido');
+    if (!rolValidoPin(r[0].permisos)) throw fallo(400, 'Ese rol administra usuarios: tiene que entrar con email y contraseña');
+    const { rowCount } = await query('UPDATE usuarios SET rol = $2 WHERE recurso_id = $1 AND pin_hash IS NOT NULL', [recursoId, rol]);
+    if (!rowCount) throw fallo(400, 'Ponle primero un PIN');
+    // con el rol nuevo, que vuelva a entrar
+    await query('DELETE FROM sesiones WHERE usuario_id IN (SELECT id FROM usuarios WHERE recurso_id = $1 AND pin_hash IS NOT NULL)', [recursoId]);
+    res.json({ ok: true });
   }));
 
   // Quitar el acceso con PIN (el usuario se desactiva; su historial se conserva)

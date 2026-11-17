@@ -11,7 +11,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
   <meta name="apple-mobile-web-app-title" content="s360">
   <title>s360 · Usuarios</title>
-  <link rel="stylesheet" href="styles.css?v=202611171202">
+  <link rel="stylesheet" href="styles.css?v=202611171213">
 </head>
 <body>
   <header class="top">
@@ -46,11 +46,11 @@
     </section>
 
     <section class="panel" aria-labelledby="tit-pin">
-      <div class="cab-panel"><h2 id="tit-pin">Operarios: entrada con PIN (Mi día)</h2></div>
-      <p class="ayuda">Cada operario apunta su día con un PIN de 4 cifras, desde su móvil o desde la tablet del taller. Solo ve y apunta lo suyo; el encargado lo confirma en el Parte. El PIN solo funciona en los dispositivos autorizados de abajo.</p>
+      <div class="cab-panel"><h2 id="tit-pin">Personas: entrada con PIN</h2></div>
+      <p class="ayuda">Cada persona entra con un PIN de 4 cifras desde su móvil o desde la tablet del taller, con los permisos de su <b>rol</b>. Con el rol Operario solo ve y apunta su día (el encargado lo confirma en el Parte); con otro rol (p. ej. Logística, Técnico, Operaciones) entra además a sus pantallas, y siempre puede apuntar su día. El PIN solo funciona en los dispositivos autorizados de abajo. Los roles que administran usuarios entran con email y contraseña.</p>
       <div class="tabla-scroll">
         <table class="tabla-usuarios tabla-pin">
-          <thead><tr><th>Operario</th><th>PIN</th><th>Su móvil</th><th></th></tr></thead>
+          <thead><tr><th>Persona</th><th>Rol</th><th>PIN</th><th>Su móvil</th><th></th></tr></thead>
           <tbody id="lista-pin"></tbody>
         </table>
       </div>
@@ -89,8 +89,8 @@
   </dialog>
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
-  <script src="pwa.js?v=202611171202"></script>
-  <script src="comun.js?v=202611171202"></script>
-  <script src="usuarios.js?v=202611171202"></script>
+  <script src="pwa.js?v=202611171213"></script>
+  <script src="comun.js?v=202611171213"></script>
+  <script src="usuarios.js?v=202611171213"></script>
 </body>
 </html>

@@ -110,7 +110,7 @@
     if (u.solo_mi_dia && location.pathname !== '/mi-dia.html') { location.replace('/mi-dia.html'); return; }
     pintarNombre();
     const menu = document.querySelector('nav.menu');
-    const enlaces = [['/parte.html', 'Parte', 'planificar'], ['/bandeja.html', 'Bandeja', 'planificar'],
+    const enlaces = [['/mi-dia.html', 'Mi día', 'mi_dia'], ['/parte.html', 'Parte', 'planificar'], ['/bandeja.html', 'Bandeja', 'planificar'],
       ['/logistica.html', 'Logística', ['logistica', 'compras', 'escandallo']], ['/informes.html', 'Informes', 'informes'],
       ['/usuarios.html', 'Usuarios', 'usuarios'], ['/capturar.html', '＋ Capturar', null]];
     for (const [href, txt, permiso] of enlaces) {
