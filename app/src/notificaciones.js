@@ -98,7 +98,7 @@ function avisarLuego(ids, tipo, msg) {
 /* ---------- a quién ---------- */
 async function conPermiso(...permisos) {
   const { rows } = await query(
-    `SELECT u.id FROM usuarios u JOIN roles r ON r.clave = u.rol WHERE u.activo AND r.permisos && $1::text[]`, [permisos]);
+    `SELECT u.id FROM usuarios u WHERE u.activo AND ${require('./auth').SQL_PERMISOS} && $1::text[]`, [permisos]);
   return rows.map((r) => r.id);
 }
 async function deRecurso(recursoId) {

@@ -195,6 +195,31 @@
   }
 
   let rolesPin = [];
+  // varios roles a la vez: desplegable con casillas; se guarda al cerrarlo si ha cambiado
+  function selectorRoles(o) {
+    const actuales = [o.rol, ...(o.roles_extra || [])].filter(Boolean);
+    const nombre = (k) => rolesPin.find((r) => r.clave === k)?.nombre || k;
+    const resumen = el('summary', { 'aria-label': `Roles de ${o.nombre}` }, actuales.map(nombre).join(' + ') || '—');
+    const casillas = rolesPin.map((r) => el('label', { class: 'pin-rol-op' },
+      el('input', { type: 'checkbox', value: r.clave, checked: actuales.includes(r.clave) }), ` ${r.nombre}`));
+    const elegidos = () => casillas.map((l) => l.firstChild).filter((c) => c.checked).map((c) => c.value);
+    const det = el('details', { class: 'pin-rol' }, resumen, el('div', { class: 'pin-rol-menu' }, ...casillas));
+    // el primero marcado de los que ya tenía sigue siendo el principal
+    const ordenar = (ks) => [...actuales.filter((k) => ks.includes(k)), ...ks.filter((k) => !actuales.includes(k))];
+    det.addEventListener('change', () => { resumen.textContent = elegidos().map(nombre).join(' + ') || 'elige al menos uno'; });
+    det.addEventListener('toggle', async () => {
+      if (det.open) return;
+      const ks = ordenar(elegidos());
+      if (!ks.length) { toast('Elige al menos un rol', true); det.open = true; return; }
+      if (ks.length === actuales.length && ks.every((k) => actuales.includes(k))) return;
+      if (await guardar('PUT', `/api/pin/${o.recurso_id}/rol`, { roles: ks }, `Roles de ${o.nombre} cambiados: entra con su PIN y ya los tiene`)) cargarPin();
+    });
+    return det;
+  }
+  // cerrar el desplegable de roles al pulsar fuera (y así se guarda)
+  document.addEventListener('click', (ev) => {
+    document.querySelectorAll('details.pin-rol[open]').forEach((d) => { if (!d.contains(ev.target)) d.open = false; });
+  });
   function filaPin(o) {
     const conPin = o.tiene_pin && o.activo !== false;
     const input = el('input', { inputmode: 'numeric', maxlength: 4, placeholder: '4 cifras', 'aria-label': `PIN de ${o.nombre}`, class: 'pin-input' });
@@ -208,9 +233,7 @@
     const movil = !conPin ? '—'
       : o.tiene_movil ? `autorizado${o.movil_uso ? ` · usado ${hace(o.movil_uso)}` : ''}`
         : o.alta_pendiente ? 'enlace enviado, sin abrir' : 'no';
-    const rolSel = conPin ? el('select', { 'aria-label': `Rol de ${o.nombre}`, class: 'pin-rol',
-      onchange: async (ev) => { if (await guardar('PUT', `/api/pin/${o.recurso_id}/rol`, { rol: ev.target.value }, `Rol de ${o.nombre} cambiado: entra con su PIN y ya lo tiene`)) cargarPin(); } },
-    rolesPin.map((r) => el('option', { value: r.clave, selected: r.clave === o.rol }, r.nombre))) : el('span', { class: 'suave' }, '—');
+    const rolSel = conPin ? selectorRoles(o) : el('span', { class: 'suave' }, '—');
     return el('tr', {},
       el('td', {}, o.nombre),
       el('td', {}, rolSel),

@@ -18,6 +18,8 @@ const PERMISOS = {
   compras: 'Compras: pedir a proveedores lo que falta',
   mi_dia: 'Apuntar su propio día (Mi día). Solo, sin otros permisos: no ve nada más',
 };
+// Permisos de un usuario «u»: los de su rol más los de sus roles añadidos (varios roles)
+const SQL_PERMISOS = `ARRAY(SELECT DISTINCT p FROM roles rr, unnest(rr.permisos) p WHERE rr.clave = u.rol OR rr.clave = ANY(u.roles_extra))`;
 // Quien solo tiene «mi_dia» únicamente ve su pantalla Mi día (ni tablero, ni costes, ni lo de otros)
 const soloMiDia = (u) => !!u && (u.permisos || []).includes('mi_dia') && (u.permisos || []).every((k) => k === 'mi_dia');
 
@@ -79,7 +81,7 @@ async function requiereSesion(req, res, next) {
     const token = leerCookie(req, COOKIE);
     if (!token) return res.status(401).json({ error: 'No autenticado' });
     const { rows } = await query(
-      `SELECT u.id, u.email, u.nombre, u.rol, u.recurso_id, r.nombre AS rol_nombre, COALESCE(r.permisos, '{}') AS permisos, s.via
+      `SELECT u.id, u.email, u.nombre, u.rol, u.recurso_id, r.nombre AS rol_nombre, u.roles_extra, ${SQL_PERMISOS} AS permisos, s.via
          FROM sesiones s JOIN usuarios u ON u.id = s.usuario_id LEFT JOIN roles r ON r.clave = u.rol
         WHERE s.token = $1 AND s.expira > now() AND u.activo`, [token]);
     if (!rows.length) return res.status(401).json({ error: 'Sesión caducada' });
@@ -143,6 +145,6 @@ async function asegurarAdmin() {
 }
 
 module.exports = {
-  PERMISOS, soloMiDia, leerCookie, hashPassword, verificarPassword, validarPassword, crearSesion, cerrarSesion, tokenActual,
+  PERMISOS, SQL_PERMISOS, soloMiDia, leerCookie, hashPassword, verificarPassword, validarPassword, crearSesion, cerrarSesion, tokenActual,
   requiereSesion, permiso, tiene, puedeEditar, asegurarAdmin, bloqueado, anotarFallo, anotarAcierto,
 };

@@ -575,6 +575,7 @@ const MIGRACIONES = [
    )`,
   // qué avisos quiere cada uno y sus horas de silencio (NULL = los de por defecto)
   `ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS avisos JSONB`,
+  `ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS roles_extra TEXT[] NOT NULL DEFAULT '{}'`,
   // memoria de los avisos programados (firma del plan, último resumen, recordatorios enviados)
   `CREATE TABLE IF NOT EXISTS push_estado (clave TEXT PRIMARY KEY, valor TEXT, actualizado TIMESTAMPTZ NOT NULL DEFAULT now())`,
   `CREATE TABLE IF NOT EXISTS dias_enviados (

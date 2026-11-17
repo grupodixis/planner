@@ -337,7 +337,8 @@ lo revisa y confirma siempre en el Parte.
 - **Acceso** (Usuarios › «Personas: entrada con PIN»): se le pone un **PIN de 4 cifras** (no
   vale 0000, 1234…; botón 🎲 para uno al azar). Se crea un usuario con el rol **Operario**
   (permiso «mi_dia» solo): no ve el tablero, ni costes, ni lo de los demás.
-- **El PIN es la autorización**: en la misma tabla, la columna **Rol** cambia lo que puede hacer
+- **El PIN es la autorización**: en la misma tabla, la columna **Rol** (desplegable con casillas:
+  **uno o varios roles**, se suman sus permisos; se guarda al cerrarlo) cambia lo que puede hacer
   esa persona (Logística, Técnico, Compras, Operaciones…; no se ofrecen roles con permiso
   «usuarios», que siguen entrando con email). Al entrar con PIN va a su pantalla (Logística →
   Logística, Técnico/Operaciones → Proyectos, Operario → Mi día) y siempre puede apuntar su día
@@ -629,7 +630,7 @@ API: `/api/catalogo-llevar` · `/api/partidas/:id/escandallo` (+ `/enviar`) · `
 | POST | `/api/pin/entrar` · `/api/pin/alta-movil` | (sin sesión) `{usuario_id, pin}` · `{token}` autorizar el móvil con el enlace |
 | GET | `/api/pin` | operarios con/sin PIN y dispositivos autorizados (permiso «usuarios») |
 | PUT · DELETE | `/api/pin/:recursoId` | `{pin}` poner o cambiar el PIN · quitar el acceso |
-| PUT | `/api/pin/:recursoId/rol` | `{rol}` cambiar el rol de quien entra con PIN |
+| PUT | `/api/pin/:recursoId/rol` | `{roles: [...]}` roles de quien entra con PIN (el primero es el principal; el resto en `usuarios.roles_extra`) |
 | POST | `/api/pin/:recursoId/enlace-movil` | enlace de un solo uso para su móvil |
 | POST · DELETE | `/api/pin/dispositivos` · `/api/pin/dispositivos/:id` | `{nombre}` autorizar este navegador como tablet común · desautorizar |
 | GET | `/api/mi-dia?fecha=` | (operario) sus tramos con lo apuntado, trabajo no planificado, lo siguiente |

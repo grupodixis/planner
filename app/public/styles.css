@@ -1654,3 +1654,14 @@ label.boton { display: inline-block; color: var(--texto); border: 1px solid var(
 .log-main .llv-tabs::-webkit-scrollbar { display: none; }
 .log-main .llv-tab { white-space: nowrap; flex: none; }
 @media (max-width: 640px) { .log-main .llv-tab { padding: 7px 10px; font-size: 13.5px; } }
+
+/* Usuarios › PIN: varios roles */
+details.pin-rol { position: relative; display: inline-block; }
+details.pin-rol > summary { list-style: none; cursor: pointer; padding: 4px 26px 4px 8px; border: 1px solid var(--borde); border-radius: 6px; background: var(--panel); white-space: nowrap; position: relative; min-width: 120px; }
+details.pin-rol > summary::-webkit-details-marker { display: none; }
+details.pin-rol > summary::after { content: '▾'; position: absolute; right: 8px; top: 50%; transform: translateY(-50%); opacity: .6; }
+.pin-rol-menu { position: absolute; z-index: 30; top: calc(100% + 4px); left: 0; min-width: 200px; background: var(--panel); border: 1px solid var(--borde); border-radius: 8px; box-shadow: 0 6px 20px rgba(0,0,0,.5); padding: 6px; display: grid; gap: 2px; }
+.pin-rol-op { display: flex; align-items: center; gap: 6px; padding: 5px 6px; border-radius: 5px; cursor: pointer; white-space: nowrap; }
+.pin-rol-op:hover { background: var(--linea); }
+.pin-rol-menu label.pin-rol-op { display: flex; flex-direction: row; justify-content: flex-start; text-align: left; margin: 0; font-weight: normal; }
+.pin-rol-menu label.pin-rol-op input { width: auto; margin: 0; flex: none; }

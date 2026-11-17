@@ -78,8 +78,8 @@ function destino(permisos) {
   return '/mi-dia.html';
 }
 const SQL_OPERARIOS_PIN = `
-  SELECT u.id, u.nombre, u.recurso_id, u.pin_hash, COALESCE(r.permisos, '{}') AS permisos
-    FROM usuarios u JOIN roles r ON r.clave = u.rol JOIN recursos re ON re.id = u.recurso_id AND re.activo
+  SELECT u.id, u.nombre, u.recurso_id, u.pin_hash, ${auth.SQL_PERMISOS} AS permisos
+    FROM usuarios u JOIN recursos re ON re.id = u.recurso_id AND re.activo
    WHERE u.activo AND u.pin_hash IS NOT NULL`;
 
 /* ---------- Público (sin sesión) ---------- */
@@ -143,7 +143,7 @@ function gestion(app, asyncH) {
 
   app.get('/api/pin', admin, asyncH(async (req, res) => {
     const [{ rows: operarios }, { rows: dispositivos }] = await Promise.all([
-      query(`SELECT re.id AS recurso_id, re.nombre, u.id AS usuario_id, (u.pin_hash IS NOT NULL) AS tiene_pin, u.activo, u.rol,
+      query(`SELECT re.id AS recurso_id, re.nombre, u.id AS usuario_id, (u.pin_hash IS NOT NULL) AS tiene_pin, u.activo, u.rol, u.roles_extra,
                     u.ultimo_acceso,
                     (SELECT max(d.ultimo_uso) FROM dispositivos d WHERE d.usuario_id = u.id AND d.activo) AS movil_uso,
                     EXISTS (SELECT 1 FROM dispositivos d WHERE d.usuario_id = u.id AND d.activo) AS tiene_movil,
@@ -185,14 +185,16 @@ function gestion(app, asyncH) {
     res.json({ ok: true, ...out });
   }));
 
-  // Rol de quien entra con PIN (Operario por defecto; p. ej. Logística para Sergio)
+  // Roles de quien entra con PIN (uno o varios; Operario por defecto; p. ej. Logística + Compras)
   app.put('/api/pin/:recursoId/rol', admin, asyncH(async (req, res) => {
     const recursoId = Number(req.params.recursoId);
-    const rol = String(req.body?.rol || '');
-    const { rows: r } = await query('SELECT clave, permisos FROM roles WHERE clave = $1', [rol]);
-    if (!r.length) throw fallo(400, 'Rol no válido');
-    if (!rolValidoPin(r[0].permisos)) throw fallo(400, 'Ese rol administra usuarios: tiene que entrar con email y contraseña');
-    const { rowCount } = await query('UPDATE usuarios SET rol = $2 WHERE recurso_id = $1 AND pin_hash IS NOT NULL', [recursoId, rol]);
+    const pedidos = [...new Set((Array.isArray(req.body?.roles) ? req.body.roles : [req.body?.rol]).map((x) => String(x || '')).filter(Boolean))];
+    if (!pedidos.length) throw fallo(400, 'Elige al menos un rol');
+    const { rows: r } = await query('SELECT clave, permisos FROM roles WHERE clave = ANY($1::text[])', [pedidos]);
+    if (r.length !== pedidos.length) throw fallo(400, 'Rol no válido');
+    if (r.some((x) => !rolValidoPin(x.permisos))) throw fallo(400, 'Ese rol administra usuarios: tiene que entrar con email y contraseña');
+    const { rowCount } = await query('UPDATE usuarios SET rol = $2, roles_extra = $3 WHERE recurso_id = $1 AND pin_hash IS NOT NULL',
+      [recursoId, pedidos[0], pedidos.slice(1)]);
     if (!rowCount) throw fallo(400, 'Ponle primero un PIN');
     // con el rol nuevo, que vuelva a entrar
     await query('DELETE FROM sesiones WHERE usuario_id IN (SELECT id FROM usuarios WHERE recurso_id = $1 AND pin_hash IS NOT NULL)', [recursoId]);
