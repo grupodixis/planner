@@ -559,19 +559,28 @@ vez. Al confirmar se importa todo de una vez (o nada).
   planificación. Lo que ya no está en el archivo se borra si no tiene nada planificado; si lo
   tiene, se conserva marcado «ya no está en el presupuesto».
 
-## Materiales y herramientas de la tarea (🧰)
+## Materiales y herramientas (lista de la OT con catálogo)
 
-Lo mínimo, para empezar por lo simple: cada tarea puede tener la lista de lo que hay que
-llevar. En **Proyectos → OT**, debajo del nombre de cada tarea, el icono 🧰 (gris si no hay
-nada; con un número si tiene líneas) abre la lista: **material** o **herramienta**, qué es,
-cantidad, unidad y nota. Se añade, se corrige y se quita; nada más.
-
-Siguientes pasos, uno a uno y solo cuando el anterior se use: que el operario lo vea en
-**Mi día** («Llevar», con casilla de cargado) → pegar varias líneas / copiar de otra tarea →
-«hay / hay que pedir» → pedidos a proveedores → recepción. (Los proveedores de Notion ya están
-guardados en la base de datos, sin pantalla todavía.)
-
-API: `GET|POST /api/tareas/:id/llevar` · `PATCH|DELETE /api/llevar/:id`.
+- **Dónde:** en Proyectos → OT, botones **🧱 Materiales** y **🔧 Herramientas** (con el número
+  de líneas). Abren la lista de la OT con una pestaña para cada cosa.
+- **Cada línea:** qué (con sugerencias del catálogo), cantidad (total de la OT), unidad, **en qué
+  tareas** (una o varias de la OT) y nota.
+- **Con teclado:** escribir → ↑/↓ y Enter elige la sugerencia → Tab: cantidad, unidad, tareas
+  (teclas 1–9 o Espacio; `*` todas), nota → Enter añade la línea y deja el cursor en la siguiente
+  (que propone las mismas tareas). Alt+M / Alt+H cambian de pestaña; Ctrl+Supr quita la línea.
+- **Catálogo:** ~3000 entradas base (tubos de acero, galvanizado, inox; perfiles laminados,
+  angulares, pletinas, macizos, correas; chapas; rejillas y mallas; aluminio; paneles; vidrio;
+  tornillería DIN, anclajes (Dynabolt, químicos), elevación y amarre; herrajes y automatismos;
+  tapones; soldadura y gases; abrasivos, brocas y fresas; pinturas (Titan, Oxirón…), sellado,
+  obra, maderas, eléctrico, EPI; y herramientas de corte, taladro, soldadura, medición, montaje,
+  elevación, acceso, pintura, energía y vehículos). Se genera con
+  `app/src/catalogo/generar.py` → `catalogo-base.json` y se carga solo al arrancar si cambia.
+  Lo que no está se añade desde la propia sugerencia («＋ Añadir … al catálogo»). La búsqueda no
+  distingue acentos, «×»/«x» ni coma/punto, y pone primero lo más usado.
+- **En la tarea:** el icono 🧰 (con número) muestra lo que lleva esa tarea; desde ahí se puede ir
+  a editar la lista de la OT. Siguiente paso: que el operario lo vea en Mi día.
+- API: `GET|POST /api/catalogo-llevar` · `GET|POST /api/ordenes/:id/llevar` ·
+  `PATCH|DELETE /api/llevar/:id` · `GET /api/tareas/:id/llevar`.
 
 ## API
 

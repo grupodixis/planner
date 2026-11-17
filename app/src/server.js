@@ -261,5 +261,6 @@ const PORT = Number(process.env.PORT || 3000);
   await esperarBD();
   await migrar();
   await auth.asegurarAdmin();
+  await require('./llevar').sembrar().catch((e) => console.error('Catálogo base:', e.message));
   app.listen(PORT, () => console.log(`s360_planificacion escuchando en :${PORT}`));
 })().catch((e) => { console.error(e); process.exit(1); });

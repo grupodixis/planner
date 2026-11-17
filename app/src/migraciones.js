@@ -612,11 +612,26 @@ const MIGRACIONES = [
      creado       TIMESTAMPTZ NOT NULL DEFAULT now()
    )`,
 
-  // 2026-11 · Lo mínimo: qué materiales y herramientas hacen falta para cada tarea
-  `CREATE TABLE IF NOT EXISTS tarea_llevar (
+  // 2026-11 · Materiales y herramientas: catálogo (con sugerencias) y lista por OT, cada línea en
+  // una o varias tareas de la OT
+  `CREATE TABLE IF NOT EXISTS catalogo (
+     id          SERIAL PRIMARY KEY,
+     tipo        TEXT NOT NULL CHECK (tipo IN ('material', 'herramienta')),
+     familia     TEXT NOT NULL DEFAULT 'Otros',
+     nombre      TEXT NOT NULL,
+     unidad      TEXT,
+     detalle     TEXT,
+     origen      TEXT NOT NULL DEFAULT 'usuario' CHECK (origen IN ('base', 'usuario')),
+     activo      BOOLEAN NOT NULL DEFAULT TRUE,
+     creado      TIMESTAMPTZ NOT NULL DEFAULT now(),
+     creado_por  INT REFERENCES usuarios(id) ON DELETE SET NULL
+   )`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS catalogo_nombre_idx ON catalogo (tipo, lower(nombre))`,
+  `CREATE TABLE IF NOT EXISTS ot_llevar (
      id           SERIAL PRIMARY KEY,
-     tarea_id     INT NOT NULL REFERENCES tareas(id) ON DELETE CASCADE,
-     tipo         TEXT NOT NULL DEFAULT 'material' CHECK (tipo IN ('material', 'herramienta')),
+     orden_id     INT NOT NULL REFERENCES ordenes(id) ON DELETE CASCADE,
+     tipo         TEXT NOT NULL CHECK (tipo IN ('material', 'herramienta')),
+     catalogo_id  INT REFERENCES catalogo(id) ON DELETE SET NULL,
      descripcion  TEXT NOT NULL,
      cantidad     NUMERIC(12,3),
      unidad       TEXT,
@@ -625,7 +640,24 @@ const MIGRACIONES = [
      creado       TIMESTAMPTZ NOT NULL DEFAULT now(),
      creado_por   INT REFERENCES usuarios(id) ON DELETE SET NULL
    )`,
-  `CREATE INDEX IF NOT EXISTS tarea_llevar_tarea_idx ON tarea_llevar (tarea_id, orden)`,
+  `CREATE INDEX IF NOT EXISTS ot_llevar_orden_idx ON ot_llevar (orden_id, tipo, orden)`,
+  `CREATE TABLE IF NOT EXISTS ot_llevar_tareas (
+     llevar_id  INT NOT NULL REFERENCES ot_llevar(id) ON DELETE CASCADE,
+     tarea_id   INT NOT NULL REFERENCES tareas(id) ON DELETE CASCADE,
+     PRIMARY KEY (llevar_id, tarea_id)
+   )`,
+  `CREATE INDEX IF NOT EXISTS ot_llevar_tareas_tarea_idx ON ot_llevar_tareas (tarea_id)`,
+  // la lista por tarea de la primera versión pasa a la lista de su OT
+  `DO $$ BEGIN
+     IF to_regclass('tarea_llevar') IS NOT NULL THEN
+       CREATE TEMP TABLE _mig ON COMMIT DROP AS
+         SELECT l.*, t.orden_id, nextval('ot_llevar_id_seq') AS nuevo FROM tarea_llevar l JOIN tareas t ON t.id = l.tarea_id;
+       INSERT INTO ot_llevar (id, orden_id, tipo, descripcion, cantidad, unidad, nota, orden, creado, creado_por)
+         SELECT nuevo, orden_id, tipo, descripcion, cantidad, unidad, nota, orden, creado, creado_por FROM _mig;
+       INSERT INTO ot_llevar_tareas (llevar_id, tarea_id) SELECT nuevo, tarea_id FROM _mig;
+       DROP TABLE tarea_llevar;
+     END IF;
+   END $$`,
 ];
 
 async function migrar() {
