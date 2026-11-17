@@ -370,10 +370,18 @@ La categoría (Oficial 1ª, 2º…) se queda en la ficha del operario para el co
 
 ## Operarios: Mi día con PIN
 
+**El móvil es para confirmar y reportar; redactar y planificar, en el ordenador.** Entrar con PIN
+lleva siempre a Mi día.
+
 **Navegación**: barra inferior con *Mi día*, un **botón central «Menú»** y *Capturar*. El menú (hoja que
-sube desde abajo) tiene todo: Mi día, Mi mes, Capturar, Vacaciones, Avisar, **Mi perfil**, **Mis
-capacidades**, Avisos al móvil (no en la tablet común), Cambiar mi PIN, Mis pantallas (si tiene otro
-rol) y Salir. Un punto naranja en el botón avisa si le faltan datos del perfil.
+sube desde abajo) tiene, para todos: Mi día, Mi mes, Capturar, Vacaciones, Avisar, **Mi perfil** (con
+«Cambiar mi PIN» dentro), **Mis capacidades**, Avisos al móvil (no en la tablet común) y Salir. Un
+punto naranja en el botón avisa si le faltan datos del perfil.
+
+**Logística en el móvil** (con permiso «logistica»): en el menú, **📦 Revisar stock** y **🚚 Recibir
+material** con lo pendiente. Tarjetas grandes por material (cantidad, para cuándo, tareas): «✗ No hay»,
+«✔ Hay todo» o «Hay N»; foto con la cámara; y «✔ Ha llegado» en lo pedido (`mi-dia-stock.js`, mismas
+APIs que Logística). Pedir a proveedores sigue en el ordenador (Logística y compras).
 
 **Mi perfil** (`GET/PUT /api/mi-dia/perfil`): teléfono, email, DNI/NIE, nacimiento, dirección, C.P.,
 localidad, nº Seguridad Social, contacto de emergencia (nombre y teléfono), carnet, tallas de ropa y

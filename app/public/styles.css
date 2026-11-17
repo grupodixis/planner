@@ -1868,3 +1868,29 @@ dialog.dlg-req[open] { display: flex; }
 .dreq-pie { display: flex; align-items: center; gap: 10px; border-top: 1px solid var(--linea); padding-top: 10px; }
 .dreq-esp { flex: 1; }
 @media (max-width: 760px) { .dreq-dos { grid-template-columns: 1fr; } .dreq-nav { display: flex; overflow-x: auto; } .dreq-nav-b { white-space: nowrap; } }
+
+/* Mi día · Material (logística en el móvil) */
+.stk-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 6px; }
+.stk-tabs button { padding: 12px 6px; border-radius: 12px; border: 1px solid var(--borde); background: var(--panel); color: var(--suave); font-size: 15px; font-weight: 600; display: flex; justify-content: center; align-items: center; gap: 6px; }
+.stk-tabs button.activo { color: var(--texto); border-color: var(--azul); background: var(--azul-bg); }
+.stk-n { min-width: 22px; padding: 0 6px; border-radius: 99px; background: var(--naranja); color: #111; font-size: 12px; font-weight: 700; }
+.stk-ayuda { margin: 4px 0; }
+.stk-partida { margin: 16px 0 6px; font-size: 13px; color: var(--suave); text-transform: uppercase; letter-spacing: .03em; }
+.stk-card { border: 1px solid var(--borde); border-radius: 14px; padding: 12px; margin-bottom: 10px; background: var(--panel); display: grid; gap: 8px; }
+.stk-desc { font-size: 17px; font-weight: 600; line-height: 1.25; }
+.stk-info { font-size: 14px; color: var(--suave); }
+.stk-info b { color: var(--texto); font-size: 16px; }
+.stk-tarde { color: var(--rojo); }
+.stk-tareas, .stk-ped { margin-top: 3px; font-size: 13px; }
+.stk-ped { color: var(--azul); }
+.stk-fotos { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.stk-foto { padding: 8px 12px; }
+.stk-acc { display: grid; gap: 8px; }
+.stk-dos { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.stk-dos button, .stk-grande { padding: 14px 6px; font-size: 16px; font-weight: 600; border-radius: 12px; }
+.stk-no { background: var(--rojo-bg); color: var(--rojo); border: 1px solid var(--rojo); }
+.stk-si { background: var(--verde-bg); color: var(--verde); border: 1px solid var(--verde); }
+.stk-grande { width: 100%; }
+.stk-parte { display: flex; align-items: center; gap: 6px; font-size: 15px; }
+.stk-cuanto { width: 90px; font-size: 16px; padding: 10px; text-align: center; }
+.stk-parte .primario { margin-left: auto; padding: 10px 14px; }

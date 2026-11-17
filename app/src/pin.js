@@ -68,15 +68,10 @@ async function nuevoDispositivo(c, res, { nombre, tipo, usuarioId = null, por = 
 // Personas que pueden entrar con PIN: usuario activo con PIN y un rol sin gestión de usuarios
 // (el PIN es la autorización: cada uno entra con los permisos de su rol; para administrar, email y contraseña)
 const rolValidoPin = (permisos) => !(permisos || []).includes('usuarios');
-// a dónde va cada uno al entrar con PIN
-function destino(permisos) {
-  const p = permisos || [];
-  if (p.every((k) => k === 'mi_dia')) return '/mi-dia.html';
-  if (p.includes('planificar')) return '/';
-  if (p.includes('logistica') || p.includes('compras') || p.includes('escandallo')) return '/logistica.html';
-  if (p.includes('proyectos')) return '/proyectos.html';
-  return '/mi-dia.html';
-}
+// Con PIN (móvil o tablet del taller) siempre a Mi día: el móvil es para confirmar y reportar
+// (lo de logística que se confirma —revisar stock, recibir— está dentro de su menú).
+// Redactar y planificar se hace en el ordenador, entrando con email.
+function destino() { return '/mi-dia.html'; }
 const SQL_OPERARIOS_PIN = `
   SELECT u.id, u.nombre, u.recurso_id, u.pin_hash, ${auth.SQL_PERMISOS} AS permisos
     FROM usuarios u JOIN recursos re ON re.id = u.recurso_id AND re.activo

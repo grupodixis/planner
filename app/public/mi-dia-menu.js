@@ -30,6 +30,7 @@
   const norm = (s) => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 
   let faltanPerfil = [];
+  const cuentaTxt = (n, txt) => (n ? `${n} ${txt}` : 'Nada pendiente');
   let ctx = { comun: false, misPantallas: null };
 
   /* ---------- menú ---------- */
@@ -43,15 +44,17 @@
       ['🙋', 'Avisar', ir('avisar'), 'No vengo, llego tarde, justificantes'],
       ['👤', 'Mi perfil', ir('perfil'), faltanPerfil.length ? `Faltan ${faltanPerfil.length} dato(s)` : 'Tus datos', !!faltanPerfil.length],
       ['🧠', 'Mis capacidades', ir('caps'), 'Lo que sabes hacer'],
+      // logística: confirmar desde el móvil (pedir a proveedores se hace en el ordenador)
+      ctx.logistica ? ['📦', 'Revisar stock', () => { cerrar(); window.midiaStock.ver('revisar'); }, cuentaTxt(ctx.cuentas?.revisar, 'por revisar'), !!ctx.cuentas?.revisar] : null,
+      ctx.logistica ? ['🚚', 'Recibir material', () => { cerrar(); window.midiaStock.ver('recibir'); }, cuentaTxt(ctx.cuentas?.recibir, 'por llegar'), !!ctx.cuentas?.recibir] : null,
       ctx.comun ? null : ['🔔', 'Avisos al móvil', () => { cerrar(); window.s360pwa?.ajustes(); }],
-      ['🔑', 'Cambiar mi PIN', () => { cerrar(); window.midiaMas.cambiarPin(); }],
-      ctx.misPantallas ? ['🗂️', 'Mis pantallas', () => { location.href = ctx.misPantallas; }, 'Logística, proyectos…'] : null,
       ['🚪', 'Salir', () => { cerrar(); $('#salir').click(); }],
     ].filter(Boolean);
   }
   function abrir() {
     const vista = window.midiaMas.vista();
     const mapa = { 'Mi día': 'dia', 'Mi mes': 'mes', Capturar: 'capturar', Vacaciones: 'vac', Avisar: 'avisar', 'Mi perfil': 'perfil', 'Mis capacidades': 'caps' };
+    if (ctx.logistica) ctx.cuentas = window.midiaStock?.cuentasYa() || null;
     $('#md-menu-grid').replaceChildren(...opciones().map(([ico, txt, fn, sub, aviso]) => el('button', {
       type: 'button', class: `md-menu-op${mapa[txt] === vista ? ' actual' : ''}${aviso ? ' aviso' : ''}`, onclick: fn,
     }, el('span', { class: 'md-menu-ico', 'aria-hidden': 'true' }, ico), el('b', {}, txt), sub ? el('small', {}, sub) : null)));
@@ -82,7 +85,11 @@
         p.faltan.length ? el('p', { class: 'md-aviso' }, `Te faltan: ${p.faltan.join(', ')}. Rellénalo cuando puedas.`)
           : el('p', { class: 'ayuda' }, 'Tus datos están completos. Si algo cambia, actualízalo aquí.'),
         el('p', { class: 'ayuda' }, 'Solo los ve la empresa (RRHH y encargados). Los que llevan * son los importantes.'),
-        f));
+        f),
+      el('section', { class: 'md-bloque' },
+        el('h2', {}, 'Mi PIN'),
+        el('p', { class: 'ayuda' }, 'El número de 4 cifras con el que entras.'),
+        el('button', { type: 'button', class: 'ghost md-grande', onclick: () => window.midiaMas.cambiarPin() }, '🔑 Cambiar mi PIN')));
   }
 
   /* ---------- Mis capacidades ---------- */

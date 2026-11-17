@@ -39,10 +39,10 @@
   const est = { vista: 'dia', mes: null, g: null, ctx: null, ausMotivo: null, incTipo: null };
 
   /* ---------- pestañas ---------- */
-  const TITULOS = { mes: 'Mi mes', vac: 'Vacaciones', avisar: 'Avisar', capturar: 'Capturar', perfil: 'Mi perfil', caps: 'Mis capacidades' };
+  const TITULOS = { mes: 'Mi mes', vac: 'Vacaciones', avisar: 'Avisar', capturar: 'Capturar', perfil: 'Mi perfil', caps: 'Mis capacidades', stock: 'Material' };
   function mostrar(vista) {
     est.vista = vista;
-    for (const v of ['dia', 'mes', 'vac', 'avisar', 'capturar', 'perfil', 'caps']) $(`#v-${v}`).hidden = v !== vista;
+    for (const v of ['dia', 'mes', 'vac', 'avisar', 'capturar', 'perfil', 'caps', 'stock']) $(`#v-${v}`).hidden = v !== vista;
     document.querySelectorAll('.md-tabs button').forEach((b) => {
       if (b.dataset.vista === vista) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
     });
@@ -52,6 +52,7 @@
     window.scrollTo(0, 0);
     if (vista === 'mes') cargarMes().catch((e) => toast(e.message, true));
     if (vista === 'perfil' || vista === 'caps') window.midiaMenu?.cargar(vista).catch((e) => toast(e.message, true));
+    if (vista === 'stock') window.midiaStock?.cargar().catch((e) => toast(e.message, true));
     if (vista === 'vac' || vista === 'avisar') cargarGestiones().catch((e) => toast(e.message, true));
     if (vista === 'capturar') {
       if (!est.captura) est.captura = window.Captura.montar($('#v-capturar'), { toast });
@@ -272,5 +273,5 @@
   }
 
   window.midiaMas = { iniciar, mostrar, incidencia, cambiarPin, vista: () => est.vista,
-    recargar: () => (est.vista === 'mes' ? cargarMes() : ['dia', 'perfil', 'caps'].includes(est.vista) ? null : est.vista === 'capturar' ? est.captura?.recargar() : cargarGestiones()) };
+    recargar: () => (est.vista === 'mes' ? cargarMes() : ['dia', 'perfil', 'caps'].includes(est.vista) ? null : est.vista === 'stock' ? window.midiaStock?.cargar() : est.vista === 'capturar' ? est.captura?.recargar() : cargarGestiones()) };
 })();
