@@ -334,9 +334,14 @@ Mismas reglas en todas las pantallas (`app/src/avance.js`):
 Cada operario apunta su día desde su móvil o desde una tablet común del taller; el encargado
 lo revisa y confirma siempre en el Parte.
 
-- **Acceso** (Usuarios › «Operarios: entrada con PIN»): se le pone un **PIN de 4 cifras** (no
+- **Acceso** (Usuarios › «Personas: entrada con PIN»): se le pone un **PIN de 4 cifras** (no
   vale 0000, 1234…; botón 🎲 para uno al azar). Se crea un usuario con el rol **Operario**
   (permiso «mi_dia» solo): no ve el tablero, ni costes, ni lo de los demás.
+- **El PIN es la autorización**: en la misma tabla, la columna **Rol** cambia lo que puede hacer
+  esa persona (Logística, Técnico, Compras, Operaciones…; no se ofrecen roles con permiso
+  «usuarios», que siguen entrando con email). Al entrar con PIN va a su pantalla (Logística →
+  Logística, Técnico/Operaciones → Proyectos, Operario → Mi día) y siempre puede apuntar su día
+  en Mi día (botón ☰ para volver a sus pantallas). Cambiar el rol cierra sus sesiones.
 - El PIN **solo funciona en dispositivos autorizados**:
   - **Tablet común**: quien administra usuarios entra en ella, pulsa «Autorizar este navegador
     como tablet común» y sale. Allí se elige quién eres y se teclea el PIN. La sesión dura
@@ -624,6 +629,7 @@ API: `/api/catalogo-llevar` · `/api/partidas/:id/escandallo` (+ `/enviar`) · `
 | POST | `/api/pin/entrar` · `/api/pin/alta-movil` | (sin sesión) `{usuario_id, pin}` · `{token}` autorizar el móvil con el enlace |
 | GET | `/api/pin` | operarios con/sin PIN y dispositivos autorizados (permiso «usuarios») |
 | PUT · DELETE | `/api/pin/:recursoId` | `{pin}` poner o cambiar el PIN · quitar el acceso |
+| PUT | `/api/pin/:recursoId/rol` | `{rol}` cambiar el rol de quien entra con PIN |
 | POST | `/api/pin/:recursoId/enlace-movil` | enlace de un solo uso para su móvil |
 | POST · DELETE | `/api/pin/dispositivos` · `/api/pin/dispositivos/:id` | `{nombre}` autorizar este navegador como tablet común · desautorizar |
 | GET | `/api/mi-dia?fecha=` | (operario) sus tramos con lo apuntado, trabajo no planificado, lo siguiente |
