@@ -80,7 +80,9 @@ function montar(app, asyncH) {
     const [{ rows: capacidades }, { rows: personas }] = await Promise.all([
       query(`SELECT k.id, k.familia, k.nombre, k.orden,
                     COALESCE((SELECT json_agg(rc.recurso_id) FROM recurso_capacidades rc JOIN recursos r ON r.id = rc.recurso_id AND r.activo
-                               WHERE rc.capacidad_id = k.id), '[]') AS personas,
+                               WHERE rc.capacidad_id = k.id AND rc.estado = 'validada'), '[]') AS personas,
+                    COALESCE((SELECT json_agg(rc.recurso_id) FROM recurso_capacidades rc JOIN recursos r ON r.id = rc.recurso_id AND r.activo
+                               WHERE rc.capacidad_id = k.id AND rc.estado = 'propuesta'), '[]') AS propuestas,
                     (SELECT count(*)::int FROM tarea_capacidades q WHERE q.capacidad_id = k.id) AS tareas
                FROM capacidades k ORDER BY k.orden, lower(k.nombre)`),
       query(`SELECT r.id, r.nombre, r.vinculo, r.empresa,
@@ -135,13 +137,16 @@ function montar(app, asyncH) {
     res.json({ ok: true });
   }));
 
-  // Marcar / desmarcar que una persona sabe hacer algo
+  // Marcar / desmarcar que una persona sabe hacer algo (lo que marca el supervisor queda validado;
+  // si era una propuesta del operario, marcarla = validarla y desmarcarla = rechazarla)
   app.put('/api/capacidades/:id/personas/:recursoId', editar, asyncH(async (req, res) => {
     const id = Number(req.params.id);
     const recursoId = Number(req.params.recursoId);
     if (req.body?.sabe) {
-      await query(`INSERT INTO recurso_capacidades (recurso_id, capacidad_id)
-                   SELECT $1, $2 WHERE EXISTS (SELECT 1 FROM recursos WHERE id = $1 AND tipo = 'operario') ON CONFLICT DO NOTHING`, [recursoId, id]);
+      await query(`INSERT INTO recurso_capacidades (recurso_id, capacidad_id, estado, validada_por, validada_en)
+                   SELECT $1, $2, 'validada', $3, now() WHERE EXISTS (SELECT 1 FROM recursos WHERE id = $1 AND tipo = 'operario')
+                   ON CONFLICT (recurso_id, capacidad_id) DO UPDATE SET estado = 'validada', validada_por = $3, validada_en = now()`,
+      [recursoId, id, req.usuario.id]);
     } else {
       await query('DELETE FROM recurso_capacidades WHERE recurso_id = $1 AND capacidad_id = $2', [recursoId, id]);
     }
@@ -161,4 +166,10 @@ function leer(v) {
   });
 }
 
-module.exports = { montar, sembrar, leer };
+// propuestas de los operarios por validar (contador del menú)
+async function porValidar() {
+  const { rows } = await query(`SELECT count(*)::int AS n FROM recurso_capacidades rc JOIN recursos r ON r.id = rc.recurso_id AND r.activo WHERE rc.estado = 'propuesta'`);
+  return rows[0].n;
+}
+
+module.exports = { montar, sembrar, leer, porValidar };

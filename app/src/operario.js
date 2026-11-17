@@ -389,6 +389,7 @@ function montar(app, asyncH) {
           WHERE a.tipo = 'falta' AND a.justificante = 'pendiente'`)).rows[0].n;
     }
     Object.assign(out, await require('./material').pendientes(u));
+    if (auth.tiene(u, 'recursos')) out.cap_validar = await require('./capacidades').porValidar();
     res.json(out);
   }));
 }

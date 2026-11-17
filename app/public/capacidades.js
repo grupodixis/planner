@@ -25,7 +25,7 @@
   const q = new URLSearchParams(location.search);
 
   let d = null, editar = false;
-  let vista = q.get('persona') ? 'persona' : 'capacidad';
+  let vista = q.get('vista') || (q.get('persona') ? 'persona' : 'capacidad');
   let capSel = Number(q.get('capacidad')) || null;
   let perSel = Number(q.get('persona')) || null;
   let filtro = '';
@@ -45,20 +45,28 @@
     return m;
   };
   const sabe = (k, pid) => k.personas.includes(pid);
+  const propone = (k, pid) => (k.propuestas || []).includes(pid);
+  const nPropuestas = () => d.capacidades.reduce((n, k) => n + (k.propuestas || []).length, 0);
 
   function pintar() {
-    $('#tabs').replaceChildren(...[['capacidad', 'Por capacidad'], ['persona', 'Por persona']].map(([k, txt]) => el('button', {
+    const nP = nPropuestas();
+    if (vista === 'validar' && !nP) vista = 'capacidad';
+    $('#tabs').replaceChildren(...[nP ? ['validar', 'Por validar', nP] : null, ['capacidad', 'Por capacidad'], ['persona', 'Por persona']].filter(Boolean).map(([k, txt, n]) => el('button', {
       type: 'button', role: 'tab', class: 'llv-tab', 'aria-selected': String(vista === k),
       onclick: () => { vista = k; filtro = ''; pintar(); },
-    }, txt)));
-    if (vista === 'capacidad') { pintarListaCapacidades(); pintarCapacidad(); } else { pintarListaPersonas(); pintarPersona(); }
+    }, txt, n ? el('span', { class: 'llv-n aviso' }, String(n)) : null)));
+    $('.cap-dos').classList.toggle('una', vista === 'validar');
+    if (vista === 'validar') { $('#izq').replaceChildren(); pintarValidar(); }
+    else if (vista === 'capacidad') { pintarListaCapacidades(); pintarCapacidad(); } else { pintarListaPersonas(); pintarPersona(); }
   }
 
   async function marcar(k, pid, valor) {
     try {
       await api('PUT', `/api/capacidades/${k.id}/personas/${pid}`, { sabe: valor });
-      if (valor) k.personas.push(pid); else k.personas = k.personas.filter((x) => x !== pid);
+      k.propuestas = (k.propuestas || []).filter((x) => x !== pid);
+      if (valor) { if (!k.personas.includes(pid)) k.personas.push(pid); } else k.personas = k.personas.filter((x) => x !== pid);
       pintar();
+      window.s360.refrescarPendientes?.();
     } catch (e) { toast(e.message, true); await cargar(); }
   }
 
@@ -69,6 +77,36 @@
       const n = $('.cap-buscar'); n.focus(); n.setSelectionRange(n.value.length, n.value.length);
     });
     return b;
+  }
+
+  // casilla de «sabe»: si es una propuesta del operario, se ve en ámbar con Validar / Rechazar
+  function filaPersona(k, p, texto) {
+    const prop = propone(k, p.id);
+    return el('div', { class: `cap-per${sabe(k, p.id) ? ' si' : ''}${prop ? ' prop' : ''}` },
+      el('label', { class: 'cap-per-l' },
+        el('input', { type: 'checkbox', checked: sabe(k, p.id), disabled: !editar, onchange: (ev) => marcar(k, p.id, ev.target.checked) }),
+        el('span', {}, ...texto)),
+      prop ? el('span', { class: 'cap-prop' }, el('span', { class: 'ayuda' }, 'dice que sabe'),
+        editar ? el('button', { type: 'button', class: 'primario mini', onclick: () => marcar(k, p.id, true) }, '✓ Validar') : null,
+        editar ? el('button', { type: 'button', class: 'ghost mini', onclick: () => marcar(k, p.id, false) }, '✗') : null) : null);
+  }
+
+  /* ---------- Por validar: lo que los operarios dicen que saben hacer ---------- */
+  function pintarValidar() {
+    const porPersona = new Map();
+    for (const k of d.capacidades) for (const pid of k.propuestas || []) { if (!porPersona.has(pid)) porPersona.set(pid, []); porPersona.get(pid).push(k); }
+    $('#der').replaceChildren(
+      el('p', { class: 'ayuda' }, 'Lo que cada operario ha marcado en «Mis capacidades» desde su móvil. Hasta que lo valides no cuenta en el tablero.'),
+      ...[...porPersona].map(([pid, ks]) => {
+        const p = d.personas.find((x) => x.id === pid) || { id: pid, nombre: `#${pid}` };
+        return el('section', { class: 'cap-val' },
+          el('div', { class: 'cap-cab' }, el('h3', {}, p.nombre), p.categoria ? el('span', { class: 'ayuda' }, p.categoria) : null,
+            editar ? el('button', { type: 'button', class: 'primario mini', onclick: async () => {
+              for (const k of ks) await marcar(k, pid, true); // eslint-disable-line no-await-in-loop
+              toast(`Validadas ${ks.length} de ${p.nombre}`);
+            } }, `✓ Validar las ${ks.length}`) : null),
+          el('div', { class: 'cap-personas' }, ks.map((k) => filaPersona(k, p, [k.nombre, el('span', { class: 'ayuda' }, ` · ${k.familia}`)]))));
+      }));
   }
 
   /* ---------- Por capacidad ---------- */
@@ -95,7 +133,8 @@
           el('span', {}, plegada ? '▸ ' : '▾ ', fam), el('span', { class: 'ayuda' }, String(ks.length))),
           plegada ? null : ks.map((k) => el('button', {
             type: 'button', class: `cap-item${k.id === capSel ? ' sel' : ''}`, onclick: () => { capSel = k.id; history.replaceState(null, '', `?capacidad=${k.id}`); pintar(); },
-          }, el('span', {}, k.nombre), el('span', { class: `cap-n${k.personas.length ? '' : ' cero'}`, title: `${k.personas.length} persona(s) la saben` }, String(k.personas.length)))),
+          }, el('span', {}, k.nombre, (k.propuestas || []).length ? el('span', { class: 'cap-n prop', title: 'Por validar' }, ` +${k.propuestas.length}`) : null),
+          el('span', { class: `cap-n${k.personas.length ? '' : ' cero'}`, title: `${k.personas.length} persona(s) la saben` }, String(k.personas.length)))),
           plegada || !editar ? null : nueva(fam));
       })),
       editar ? el('div', { class: 'cap-pie' }, (() => {
@@ -135,21 +174,21 @@
           try { await api('DELETE', `/api/capacidades/${k.id}`); capSel = null; toast('Capacidad quitada'); await cargar(); } catch (e) { toast(e.message, true); }
         } }, 'Quitar') : null),
       el('p', { class: 'ayuda' }, `${n ? `${n} persona${n > 1 ? 's' : ''} la ${n > 1 ? 'saben' : 'sabe'} hacer` : 'Nadie la tiene marcada todavía'}${k.tareas ? ` · la piden ${k.tareas} tarea(s)` : ''}. Marca quién sabe hacerlo:`),
-      el('div', { class: 'cap-personas' }, d.personas.map((p) => el('label', { class: `cap-per${sabe(k, p.id) ? ' si' : ''}` },
-        el('input', { type: 'checkbox', checked: sabe(k, p.id), disabled: !editar, onchange: (ev) => marcar(k, p.id, ev.target.checked) }),
-        el('span', {}, p.nombre, p.categoria ? el('span', { class: 'ayuda' }, ` · ${p.categoria}`) : null,
-          p.vinculo === 'subcontratado' ? el('span', { class: 'ayuda' }, ' · sub') : null)))));
+      el('div', { class: 'cap-personas' }, d.personas.map((p) => filaPersona(k, p, [p.nombre, p.categoria ? el('span', { class: 'ayuda' }, ` · ${p.categoria}`) : null,
+        p.vinculo === 'subcontratado' ? el('span', { class: 'ayuda' }, ' · sub') : null]))));
   }
 
   /* ---------- Por persona ---------- */
   function pintarListaPersonas() {
     const f = norm(filtro);
     const cuenta = (p) => d.capacidades.filter((k) => sabe(k, p.id)).length;
+    const nProp = (p) => d.capacidades.filter((k) => propone(k, p.id)).length;
     $('#izq').replaceChildren(
       buscador('🔎 Buscar persona…'),
       el('div', { class: 'cap-lista' }, d.personas.filter((p) => !f || norm(`${p.nombre} ${p.categoria}`).includes(f)).map((p) => el('button', {
         type: 'button', class: `cap-item${p.id === perSel ? ' sel' : ''}`, onclick: () => { perSel = p.id; history.replaceState(null, '', `?persona=${p.id}`); pintar(); },
-      }, el('span', {}, p.nombre, p.categoria ? el('span', { class: 'ayuda' }, ` · ${p.categoria}`) : null),
+      }, el('span', {}, p.nombre, p.categoria ? el('span', { class: 'ayuda' }, ` · ${p.categoria}`) : null,
+        nProp(p) ? el('span', { class: 'cap-n prop', title: 'Por validar' }, ` +${nProp(p)}`) : null),
       el('span', { class: `cap-n${cuenta(p) ? '' : ' cero'}` }, String(cuenta(p)))))));
   }
 
@@ -169,9 +208,7 @@
         const vis = ks.filter((k) => !f || norm(`${k.nombre} ${fam}`).includes(f));
         if (!vis.length) return null;
         return el('div', { class: 'cap-grupo' }, el('h4', {}, fam, el('span', { class: 'ayuda' }, ` ${ks.filter((k) => sabe(k, p.id)).length}/${ks.length}`)),
-          vis.map((k) => el('label', { class: `cap-per${sabe(k, p.id) ? ' si' : ''}` },
-            el('input', { type: 'checkbox', checked: sabe(k, p.id), disabled: !editar, onchange: (ev) => marcar(k, p.id, ev.target.checked) }),
-            el('span', {}, k.nombre))));
+          vis.map((k) => filaPersona(k, p, [k.nombre])));
       })));
   }
 

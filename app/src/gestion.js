@@ -57,7 +57,7 @@ module.exports = function montar(app, asyncH) {
       query('SELECT id, clave, nombre FROM departamentos ORDER BY orden, nombre'),
       query(`SELECT k.id, k.familia, k.nombre,
                     (SELECT count(*)::int FROM recurso_capacidades rc JOIN recursos r ON r.id = rc.recurso_id AND r.activo
-                      WHERE rc.capacidad_id = k.id) AS personas
+                      WHERE rc.capacidad_id = k.id AND rc.estado = 'validada') AS personas
                FROM capacidades k ORDER BY k.orden, lower(k.nombre)`),
     ]);
     res.json({ areas: areas.rows, recursos: recursos.rows, tipos: tipos.rows, departamentos: departamentos.rows,

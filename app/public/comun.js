@@ -221,6 +221,7 @@
     poner('/bandeja.html', p.bandeja || 0, `${p.bandeja} captura(s) por clasificar`);
     // los asuntos que me han asignado (aunque no planifique): en «＋ Capturar» › Mis asuntos
     poner('/capturar.html', p.mis_asuntos || 0, `${p.mis_asuntos} asunto(s) a tu cargo`);
+    poner('/capacidades.html', p.cap_validar || 0, `${p.cap_validar} capacidad(es) que dicen saber los operarios, por validar`);
     const nLog = (p.mat_revisar || 0) + (p.mat_recibir || 0) + (p.mat_comprar || 0);
     poner('/logistica.html', nLog, [p.mat_revisar && `${p.mat_revisar} material(es) por revisar en stock`,
       p.mat_comprar && `${p.mat_comprar} por pedir`, p.mat_recibir && `${p.mat_recibir} pedido(s) por recibir`].filter(Boolean).join('\n'));

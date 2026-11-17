@@ -39,10 +39,10 @@
   const est = { vista: 'dia', mes: null, g: null, ctx: null, ausMotivo: null, incTipo: null };
 
   /* ---------- pestañas ---------- */
-  const TITULOS = { mes: 'Mi mes', vac: 'Vacaciones', avisar: 'Avisar', capturar: 'Capturar' };
+  const TITULOS = { mes: 'Mi mes', vac: 'Vacaciones', avisar: 'Avisar', capturar: 'Capturar', perfil: 'Mi perfil', caps: 'Mis capacidades' };
   function mostrar(vista) {
     est.vista = vista;
-    for (const v of ['dia', 'mes', 'vac', 'avisar', 'capturar']) $(`#v-${v}`).hidden = v !== vista;
+    for (const v of ['dia', 'mes', 'vac', 'avisar', 'capturar', 'perfil', 'caps']) $(`#v-${v}`).hidden = v !== vista;
     document.querySelectorAll('.md-tabs button').forEach((b) => {
       if (b.dataset.vista === vista) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
     });
@@ -51,6 +51,7 @@
     $('#titulo-vista').textContent = TITULOS[vista] || '';
     window.scrollTo(0, 0);
     if (vista === 'mes') cargarMes().catch((e) => toast(e.message, true));
+    if (vista === 'perfil' || vista === 'caps') window.midiaMenu?.cargar(vista).catch((e) => toast(e.message, true));
     if (vista === 'vac' || vista === 'avisar') cargarGestiones().catch((e) => toast(e.message, true));
     if (vista === 'capturar') {
       if (!est.captura) est.captura = window.Captura.montar($('#v-capturar'), { toast });
@@ -221,7 +222,7 @@
   /* ---------- arranque ---------- */
   function iniciar(ctx) {
     est.ctx = ctx;
-    document.querySelectorAll('.md-tabs button').forEach((b) => { b.onclick = () => mostrar(b.dataset.vista); });
+    document.querySelectorAll('.md-tabs button[data-vista]').forEach((b) => { b.onclick = () => mostrar(b.dataset.vista); });
     $('#cambiar-pin').onclick = cambiarPin;
     $('#mes-ant').onclick = () => { est.mes = sumarMes(est.mes, -1); cargarMes().catch((e) => toast(e.message, true)); };
     $('#mes-sig').onclick = () => { est.mes = sumarMes(est.mes, 1); cargarMes().catch((e) => toast(e.message, true)); };
@@ -270,5 +271,6 @@
     est.captura.elegirTramo(tramoId);
   }
 
-  window.midiaMas = { iniciar, mostrar, incidencia, vista: () => est.vista, recargar: () => (est.vista === 'mes' ? cargarMes() : est.vista === 'dia' ? null : est.vista === 'capturar' ? est.captura?.recargar() : cargarGestiones()) };
+  window.midiaMas = { iniciar, mostrar, incidencia, cambiarPin, vista: () => est.vista,
+    recargar: () => (est.vista === 'mes' ? cargarMes() : ['dia', 'perfil', 'caps'].includes(est.vista) ? null : est.vista === 'capturar' ? est.captura?.recargar() : cargarGestiones()) };
 })();

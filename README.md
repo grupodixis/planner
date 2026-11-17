@@ -345,6 +345,11 @@ La categoría (Oficial 1ª, 2º…) se queda en la ficha del operario para el co
 - **Tablero**: aviso «necesita 2 que sepan … (X no la tiene)»; leve si nadie la tiene marcada. «Solucionar»
   propone a quien la sabe. Al seleccionar una tarea se marca ✓ a quien cumple; el tooltip del recurso
   dice «Sabe: …».
+- **Lo propone el operario, lo valida el supervisor**: en Mi día › Menú › *Mis capacidades* el operario
+  marca lo que sabe hacer; queda «⏳ pendiente» (`recurso_capacidades.estado = 'propuesta'`) y solo
+  cuenta en el tablero cuando alguien con permiso «recursos» lo valida (pestaña **Por validar** del
+  panel, con contador en el menú y aviso al móvil `cap_propuesta`). Lo validado ya no lo puede quitar
+  él. Lo que marca el supervisor directamente queda validado.
 - **Lista inicial y conversión** (una vez, `ajustes.capacidades_semilla`): ~79 capacidades. Los oficios
   que eran saber hacer pasaron a capacidad, en las tareas que los pedían y en las personas que los
   tenían: Oficial 1ª Soldador → Soldadura MIG/MAG; Oficial de aluminio → Ensamblado de ventanas y
@@ -353,6 +358,16 @@ La categoría (Oficial 1ª, 2º…) se queda en la ficha del operario para el co
   siguen como categoría.
 
 ## Operarios: Mi día con PIN
+
+**Navegación**: barra inferior con *Mi día*, un **botón central «Menú»** y *Capturar*. El menú (hoja que
+sube desde abajo) tiene todo: Mi día, Mi mes, Capturar, Vacaciones, Avisar, **Mi perfil**, **Mis
+capacidades**, Avisos al móvil (no en la tablet común), Cambiar mi PIN, Mis pantallas (si tiene otro
+rol) y Salir. Un punto naranja en el botón avisa si le faltan datos del perfil.
+
+**Mi perfil** (`GET/PUT /api/mi-dia/perfil`): teléfono, email, DNI/NIE, nacimiento, dirección, C.P.,
+localidad, nº Seguridad Social, contacto de emergencia (nombre y teléfono), carnet, tallas de ropa y
+calzado (`recursos.perfil` JSONB; teléfono y email en sus columnas). Los marcados * son importantes.
+Se ven en la ficha del operario en Recursos solo para quien tiene «recursos», «usuarios» o RRHH.
 
 Cada operario apunta su día desde su móvil o desde una tablet común del taller; el encargado
 lo revisa y confirma siempre en el Parte.

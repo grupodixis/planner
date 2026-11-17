@@ -328,6 +328,7 @@
       recargarDia: () => cargar().catch(() => {}),
     });
     await cargar();
+    window.midiaMenu?.iniciar({ comun: !!estado.d.comun, misPantallas: $('#mis-pantallas').hidden ? null : $('#mis-pantallas').getAttribute('href') });
     if (estado.d.comun) vigilarInactividad();
     // avisos al móvil: solo en el móvil de cada uno (en la tablet común no tiene sentido)
     if (estado.d.comun) $('#ajustes-avisos').hidden = true;

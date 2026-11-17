@@ -20,6 +20,7 @@ const TIPOS = {
   asuntos: { txt: 'Asuntos asignados a mí o que vencen mañana', para: (u) => !u.solo_mi_dia },
   mat_revisar: { txt: 'Escandallo nuevo o cambiado: revisar stock', para: (u) => auth.tiene(u, 'logistica') },
   mat_comprar: { txt: 'Material que falta y hay que pedir', para: (u) => auth.tiene(u, 'compras') },
+  cap_propuesta: { txt: 'Un operario dice qué sabe hacer (capacidades por validar)', para: (u) => auth.tiene(u, 'recursos') },
   mat_tarde: { txt: 'Material que llega después del día planificado de la tarea', para: (u) => auth.tiene(u, 'planificar') || auth.tiene(u, 'escandallo') },
   mat_pedido: { txt: 'Material pedido al proveedor (cuándo llega)', para: (u) => auth.tiene(u, 'logistica') || auth.tiene(u, 'escandallo') },
   mat_recibido: { txt: 'Ya ha llegado el material de mis tareas', para: () => true },

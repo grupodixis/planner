@@ -1750,3 +1750,53 @@ details.pin-rol > summary::after { content: '▾'; position: absolute; right: 8p
 .cap-grupo { display: grid; gap: 4px; align-content: start; }
 .cap-grupo h4 { margin: 4px 0; }
 @media (max-width: 800px) { .cap-dos { grid-template-columns: 1fr; } #izq.cap-col { position: static; max-height: 45vh; } }
+.cap-dos.una { grid-template-columns: 1fr; }
+.cap-dos.una #izq { display: none; }
+.cap-per { justify-content: space-between; flex-wrap: wrap; }
+.cap-per-l { display: flex; align-items: center; gap: 8px; cursor: pointer; flex: 1; min-width: 0; }
+.cap-per.prop { border-color: var(--naranja); background: var(--naranja-bg); }
+.cap-prop { display: inline-flex; align-items: center; gap: 4px; }
+.cap-n.prop { background: var(--naranja-bg); color: var(--naranja); margin-left: 4px; }
+.cap-val { margin-bottom: 16px; }
+
+/* Mi día: barra con botón central de menú */
+.midia-pant .md-cab-acc #ajustes-avisos, .midia-pant .md-cab-acc #cambiar-pin, .midia-pant .md-cab-acc #mis-pantallas { display: none !important; }
+.md-tabs.md-tabs3 { grid-template-columns: 1fr 1fr 1fr; }
+.md-menu-btn { position: relative; }
+.md-tabs .md-menu-btn span { display: inline-grid; place-items: center; width: 52px; height: 52px; margin-top: -26px; border-radius: 50%;
+  background: var(--azul); color: #fff; font-size: 24px; box-shadow: 0 3px 12px rgba(0,0,0,.5); border: 3px solid var(--bg); }
+.md-tabs .md-menu-btn { color: var(--texto); }
+#md-menu-punto { position: absolute; top: -20px; left: calc(50% + 14px); width: 12px; height: 12px; border-radius: 50%; background: var(--naranja); border: 2px solid var(--bg); }
+dialog.md-menu { margin: auto 0 0; width: 100%; max-width: none; border: 0; border-radius: 18px 18px 0 0; background: var(--panel); color: var(--texto);
+  padding: 8px 14px calc(18px + env(safe-area-inset-bottom)); box-shadow: 0 -8px 30px rgba(0,0,0,.5); }
+dialog.md-menu::backdrop { background: rgba(0,0,0,.55); }
+.md-menu-asa { width: 44px; height: 5px; border-radius: 3px; background: var(--borde); margin: 2px auto 12px; }
+.md-menu-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; max-width: 560px; margin: 0 auto; }
+.md-menu-op { display: grid; justify-items: center; align-content: start; gap: 3px; padding: 12px 4px; border-radius: 14px; border: 1px solid var(--linea); background: var(--bg); color: var(--texto); text-align: center; }
+.md-menu-op b { font-size: 13px; font-weight: 600; }
+.md-menu-op small { font-size: 11px; color: var(--suave); line-height: 1.2; }
+.md-menu-op.actual { border-color: var(--azul); }
+.md-menu-op.aviso { border-color: var(--naranja); }
+.md-menu-op.aviso small { color: var(--naranja); }
+.md-menu-ico { font-size: 26px; line-height: 1.1; }
+/* Mi perfil */
+.md-perfil { display: grid; gap: 10px; }
+.md-campo { display: grid; gap: 4px; font-size: 13px; color: var(--suave); }
+.md-campo input { font-size: 16px; padding: 10px; }
+.md-campo.falta input { border-color: var(--naranja); }
+.md-oblig { color: var(--naranja); font-style: normal; }
+/* Mis capacidades */
+.md-caps-buscar { width: 100%; margin: 6px 0 8px; font-size: 16px; }
+.md-caps-fam h3 { font-size: 14px; margin: 14px 0 4px; color: var(--suave); text-transform: uppercase; letter-spacing: .04em; }
+.md-caps-res { display: flex; gap: 6px; flex-wrap: wrap; }
+.ficha-perfil { display: grid; gap: 6px; }
+.perfil-dl { display: grid; grid-template-columns: max-content 1fr; gap: 3px 12px; margin: 0; font-size: 14px; }
+.perfil-dl dt { color: var(--suave); }
+.perfil-dl dd { margin: 0; }
+.ficha-perfil { display: grid; gap: 6px; }
+.perfil-dl { display: grid; grid-template-columns: max-content 1fr; gap: 3px 12px; margin: 0; font-size: 14px; }
+.perfil-dl dt { color: var(--suave); }
+.perfil-dl dd { margin: 0; }
+.cap-per.prop { flex-direction: column; align-items: stretch; gap: 4px; }
+.cap-per.prop .cap-prop { display: flex; justify-content: flex-end; align-items: center; gap: 6px; }
+.cap-val .cap-personas { grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); }

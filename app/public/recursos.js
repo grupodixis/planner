@@ -296,6 +296,22 @@
           },
         }, 'Pasar a Operarios'))] : []));
 
+    // Operario: lo que ha rellenado en «Mi perfil» y lo que sabe hacer
+    $('#campos').append(...(r.tipo === 'operario' && r.perfil ? [(() => {
+      const P = [['dni', 'DNI / NIE'], ['nacimiento', 'Nacimiento'], ['direccion', 'Dirección'], ['cp', 'C.P.'], ['localidad', 'Localidad'], ['nss', 'Nº S. Social'],
+        ['emergencia_nombre', 'Emergencia'], ['emergencia_tel', 'Tel. emergencia'], ['carnet', 'Carnet'], ['talla_ropa', 'Talla ropa'], ['talla_calzado', 'Talla calzado']];
+      const hay = P.filter(([k]) => r.perfil[k]);
+      const val = (r.capacidades || []).filter((c) => c.estado === 'validada');
+      const prop = (r.capacidades || []).filter((c) => c.estado === 'propuesta');
+      return el('div', { class: 'campo c4 ficha-perfil' },
+        el('span', { class: 'etq' }, 'Datos personales ', el('span', { class: 'ayuda' }, '(los rellena él en Mi día › Mi perfil)')),
+        hay.length ? el('dl', { class: 'perfil-dl' }, hay.flatMap(([k, e]) => [el('dt', {}, e), el('dd', {}, k === 'nacimiento' ? r.perfil[k].split('-').reverse().join('/') : r.perfil[k])]))
+          : el('p', { class: 'ayuda' }, 'Todavía no ha rellenado nada.'),
+        el('span', { class: 'etq' }, 'Capacidades ', el('a', { href: `/capacidades.html?persona=${r.id}` }, 'editar')),
+        el('p', {}, val.length ? val.map((c) => c.nombre).join(' · ') : el('span', { class: 'ayuda' }, 'Ninguna validada'),
+          prop.length ? el('span', { class: 'cap-n prop' }, ` +${prop.length} por validar`) : null));
+    })()] : []));
+
     $('#uso').replaceChildren(
       el('dt', {}, 'Próximas 2 semanas'), el('dd', {}, r.horas_14d ? `${durTxt(r.horas_14d)} asignadas` : 'nada asignado'),
       el('dt', {}, 'Próxima asignación'), el('dd', {}, r.proximo ? el('a', { href: `/?fecha=${r.proximo}` }, fechaCorta(r.proximo)) : '—'),

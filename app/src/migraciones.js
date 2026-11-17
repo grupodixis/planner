@@ -715,6 +715,13 @@ const MIGRACIONES = [
      recurso_id INT NOT NULL REFERENCES recursos(id) ON DELETE CASCADE,
      capacidad_id INT NOT NULL REFERENCES capacidades(id) ON DELETE CASCADE,
      PRIMARY KEY (recurso_id, capacidad_id))`,
+  // lo que el operario dice que sabe hacer (desde Mi día) queda «propuesta» hasta que un supervisor la valida
+  `ALTER TABLE recurso_capacidades ADD COLUMN IF NOT EXISTS estado TEXT NOT NULL DEFAULT 'validada'`,
+  `ALTER TABLE recurso_capacidades ADD COLUMN IF NOT EXISTS propuesta_en TIMESTAMPTZ`,
+  `ALTER TABLE recurso_capacidades ADD COLUMN IF NOT EXISTS validada_por INT REFERENCES usuarios(id) ON DELETE SET NULL`,
+  `ALTER TABLE recurso_capacidades ADD COLUMN IF NOT EXISTS validada_en TIMESTAMPTZ`,
+  // Mi perfil: datos personales que rellena el propio operario (DNI, dirección, contacto de emergencia, tallas…)
+  `ALTER TABLE recursos ADD COLUMN IF NOT EXISTS perfil JSONB NOT NULL DEFAULT '{}'`,
   `CREATE TABLE IF NOT EXISTS tarea_capacidades (
      tarea_id INT NOT NULL REFERENCES tareas(id) ON DELETE CASCADE,
      capacidad_id INT NOT NULL REFERENCES capacidades(id) ON DELETE CASCADE,

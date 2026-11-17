@@ -132,6 +132,14 @@ module.exports = function montar(app, asyncH) {
          FROM recursos r LEFT JOIN lineas l ON l.id = r.linea_id
          ${where}
         ORDER BY r.activo DESC, r.nombre`, vals);
+    // datos personales (Mi perfil) y capacidades: solo para quien gestiona recursos o RRHH
+    const verPerfil = ['recursos', 'usuarios', 'vacaciones_rrhh'].some((k) => auth.tiene(req.usuario, k));
+    const { rows: caps } = verPerfil ? await query(
+      `SELECT rc.recurso_id, k.nombre, rc.estado FROM recurso_capacidades rc JOIN capacidades k ON k.id = rc.capacidad_id ORDER BY k.orden`) : { rows: [] };
+    for (const r of rows) {
+      if (!verPerfil) delete r.perfil;
+      else r.capacidades = caps.filter((c) => c.recurso_id === r.id).map((c) => ({ nombre: c.nombre, estado: c.estado }));
+    }
     res.json(rows);
   }));
 

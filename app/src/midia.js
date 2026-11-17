@@ -6,6 +6,7 @@
 const { query, tx } = require('./db');
 const auth = require('./auth');
 const { MOTIVOS, NO_PRODUCTIVO } = require('./partes');
+const notif = require('./notificaciones');
 
 const FECHA_RE = /^\d{4}-\d{2}-\d{2}$/;
 const fallo = (status, msg) => Object.assign(new Error(msg), { status });
@@ -101,6 +102,23 @@ async function reabrirTramo(c, tramoId) {
   await c.query(`UPDATE declaraciones SET resuelto = NULL, resuelto_en = NULL, resuelto_por = NULL WHERE tramo_id = $1`, [tramoId]);
 }
 
+// Datos de «Mi perfil». «importante»: si falta, se le recuerda en el menú
+const CAMPOS_PERFIL = [
+  { k: 'telefono', e: 'Teléfono', tipo: 'tel', importante: true, max: 40 },
+  { k: 'email', e: 'Email', tipo: 'email', max: 120 },
+  { k: 'dni', e: 'DNI / NIE', importante: true, max: 20 },
+  { k: 'nacimiento', e: 'Fecha de nacimiento', tipo: 'date' },
+  { k: 'direccion', e: 'Dirección', importante: true, max: 200 },
+  { k: 'cp', e: 'Código postal', max: 10 },
+  { k: 'localidad', e: 'Localidad', importante: true, max: 80 },
+  { k: 'nss', e: 'Nº de la Seguridad Social', max: 20 },
+  { k: 'emergencia_nombre', e: 'Contacto de emergencia (nombre)', importante: true, max: 120 },
+  { k: 'emergencia_tel', e: 'Contacto de emergencia (teléfono)', tipo: 'tel', importante: true, max: 40 },
+  { k: 'carnet', e: 'Carnet de conducir (B, C…)', max: 40 },
+  { k: 'talla_ropa', e: 'Talla de ropa', max: 10 },
+  { k: 'talla_calzado', e: 'Talla de calzado', max: 10 },
+];
+
 function montar(app, asyncH) {
   const soloSuyo = auth.permiso('mi_dia');
 
@@ -164,6 +182,70 @@ function montar(app, asyncH) {
       tramos, extra, enviado: env[0]?.enviado_en || null, manana, tareas, ausente: aus[0]?.tipo || null,
       motivos: MOTIVOS, no_productivo: NO_PRODUCTIVO,
     });
+  }));
+
+  /* ---------- Mi perfil: datos personales (los rellena el propio operario) ---------- */
+  app.get('/api/mi-dia/perfil', soloSuyo, asyncH(async (req, res) => {
+    const { rows } = await query('SELECT id, nombre, telefono, email, perfil FROM recursos WHERE id = $1', [recursoDe(req)]);
+    if (!rows.length) throw fallo(404, 'No encuentro tu ficha');
+    const r = rows[0];
+    const datos = { ...r.perfil, telefono: r.telefono || '', email: r.email || '' };
+    const faltan = CAMPOS_PERFIL.filter((c) => c.importante && !String(datos[c.k] || '').trim()).map((c) => c.e);
+    res.json({ nombre: r.nombre, campos: CAMPOS_PERFIL, datos, faltan });
+  }));
+
+  app.put('/api/mi-dia/perfil', soloSuyo, asyncH(async (req, res) => {
+    const id = recursoDe(req);
+    const b = req.body || {};
+    const { rows } = await query('SELECT perfil FROM recursos WHERE id = $1', [id]);
+    if (!rows.length) throw fallo(404, 'No encuentro tu ficha');
+    const perfil = { ...rows[0].perfil };
+    for (const c of CAMPOS_PERFIL) {
+      if (!(c.k in b) || c.k === 'telefono' || c.k === 'email') continue;
+      const v = String(b[c.k] ?? '').trim().slice(0, c.max || 120);
+      if (c.tipo === 'date' && v && !FECHA_RE.test(v)) throw fallo(400, `${c.e}: fecha no válida`);
+      if (v) perfil[c.k] = v; else delete perfil[c.k];
+    }
+    const tel = 'telefono' in b ? String(b.telefono || '').trim().slice(0, 40) || null : undefined;
+    const mail = 'email' in b ? String(b.email || '').trim().slice(0, 120) || null : undefined;
+    if (mail && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(mail)) throw fallo(400, 'El email no parece válido');
+    await query(`UPDATE recursos SET perfil = $2${tel !== undefined ? ', telefono = $3' : ''}${mail !== undefined ? `, email = $${tel !== undefined ? 4 : 3}` : ''} WHERE id = $1`,
+      [id, perfil, ...(tel !== undefined ? [tel] : []), ...(mail !== undefined ? [mail] : [])]);
+    res.json({ ok: true });
+  }));
+
+  /* ---------- Mis capacidades: lo que dice que sabe hacer; el supervisor lo valida ---------- */
+  app.get('/api/mi-dia/capacidades', soloSuyo, asyncH(async (req, res) => {
+    const { rows } = await query(
+      `SELECT k.id, k.familia, k.nombre, rc.estado
+         FROM capacidades k LEFT JOIN recurso_capacidades rc ON rc.capacidad_id = k.id AND rc.recurso_id = $1
+        ORDER BY k.orden, lower(k.nombre)`, [recursoDe(req)]);
+    res.json(rows);
+  }));
+
+  app.put('/api/mi-dia/capacidades/:id', soloSuyo, asyncH(async (req, res) => {
+    const id = recursoDe(req);
+    const capId = Number(req.params.id);
+    const { rows: ya } = await query('SELECT estado FROM recurso_capacidades WHERE recurso_id = $1 AND capacidad_id = $2', [id, capId]);
+    if (req.body?.sabe) {
+      if (ya.length) return res.json({ ok: true, estado: ya[0].estado });
+      const { rowCount } = await query(
+        `INSERT INTO recurso_capacidades (recurso_id, capacidad_id, estado, propuesta_en)
+         SELECT $1, id, 'propuesta', now() FROM capacidades WHERE id = $2 ON CONFLICT DO NOTHING`, [id, capId]);
+      if (!rowCount) throw fallo(404, 'Esa capacidad ya no existe');
+      // a quien valida (permiso «recursos»), agrupado por persona
+      const { rows: q } = await query(
+        `SELECT r.nombre, count(*)::int AS n FROM recurso_capacidades rc JOIN recursos r ON r.id = rc.recurso_id
+          WHERE rc.recurso_id = $1 AND rc.estado = 'propuesta' GROUP BY r.nombre`, [id]);
+      notif.avisarLuego(notif.conPermiso('recursos'), 'cap_propuesta', {
+        titulo: `${q[0]?.nombre || 'Un operario'}: ${q[0]?.n || 1} capacidad(es) por validar`,
+        cuerpo: 'Dice que sabe hacerlo. Revísalo en Capacidades.', url: `/capacidades.html?persona=${id}`, tag: `cap-${id}`,
+      });
+      return res.json({ ok: true, estado: 'propuesta' });
+    }
+    if (ya[0]?.estado === 'validada') throw fallo(409, 'Esta ya la validó tu encargado: para quitarla, díselo a él');
+    await query(`DELETE FROM recurso_capacidades WHERE recurso_id = $1 AND capacidad_id = $2 AND estado = 'propuesta'`, [id, capId]);
+    res.json({ ok: true, estado: null });
   }));
 
   // Marcar / desmarcar: material recibido o herramienta preparada (de una tarea suya)

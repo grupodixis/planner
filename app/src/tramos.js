@@ -116,7 +116,7 @@ const SQL_TRAMOS_DIA = `
                      'hasta', COALESCE(a.hasta, tr.hora_inicio + tr.duracion_h),
                      'propia', a.desde IS NOT NULL,
                      'tipos', COALESCE((SELECT json_agg(rt.tipo_recurso_id) FROM recurso_tipos rt WHERE rt.recurso_id = r.id), '[]'),
-                     'capacidades', COALESCE((SELECT json_agg(rc.capacidad_id) FROM recurso_capacidades rc WHERE rc.recurso_id = r.id), '[]'))
+                     'capacidades', COALESCE((SELECT json_agg(rc.capacidad_id) FROM recurso_capacidades rc WHERE rc.recurso_id = r.id AND rc.estado = 'validada'), '[]'))
                      ORDER BY r.tipo, r.nombre)
                      FROM tramo_asignaciones a JOIN recursos r ON r.id = a.recurso_id
                     WHERE a.tramo_id = tr.id), '[]') AS asignados
@@ -191,9 +191,9 @@ module.exports = function montar(app, asyncH) {
       // Recursos activos + los dados de baja que aún tienen algo asignado en el rango
       query(`SELECT id, tipo, nombre, categoria, activo, vinculo, empresa, linea_id, departamento_id,
                     COALESCE((SELECT json_agg(rt.tipo_recurso_id) FROM recurso_tipos rt WHERE rt.recurso_id = r.id), '[]') AS tipos,
-                    COALESCE((SELECT json_agg(rc.capacidad_id) FROM recurso_capacidades rc WHERE rc.recurso_id = r.id), '[]') AS capacidades,
+                    COALESCE((SELECT json_agg(rc.capacidad_id) FROM recurso_capacidades rc WHERE rc.recurso_id = r.id AND rc.estado = 'validada'), '[]') AS capacidades,
                     (SELECT string_agg(k.nombre, ', ' ORDER BY k.orden) FROM recurso_capacidades rc JOIN capacidades k ON k.id = rc.capacidad_id
-                      WHERE rc.recurso_id = r.id) AS capacidades_txt,
+                      WHERE rc.recurso_id = r.id AND rc.estado = 'validada') AS capacidades_txt,
                     (SELECT string_agg(ti.nombre, ', ' ORDER BY lower(ti.nombre)) FROM recurso_tipos rt
                        JOIN tipos_recurso ti ON ti.id = rt.tipo_recurso_id WHERE rt.recurso_id = r.id) AS tipos_txt
                FROM recursos r

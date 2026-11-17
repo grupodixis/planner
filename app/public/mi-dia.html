@@ -11,7 +11,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
   <meta name="apple-mobile-web-app-title" content="s360">
   <title>s360 · Mi día</title>
-  <link rel="stylesheet" href="styles.css?v=202611171352">
+  <link rel="stylesheet" href="styles.css?v=202611171455">
 </head>
 <body class="midia-pant">
   <header class="md-cab">
@@ -142,19 +142,27 @@
   <!-- Capturar: a la bandeja -->
   <main class="md-main" id="v-capturar" hidden></main>
 
-  <nav class="md-tabs" aria-label="Secciones">
+  <!-- Mi perfil -->
+  <main class="md-main" id="v-perfil" hidden></main>
+  <!-- Mis capacidades -->
+  <main class="md-main" id="v-caps" hidden></main>
+  <!-- Barra inferior: Mi día · Menú (todo) · Capturar -->
+  <nav class="md-tabs md-tabs3" aria-label="Secciones">
     <button type="button" data-vista="dia" aria-current="page"><span aria-hidden="true">📋</span>Mi día</button>
-    <button type="button" data-vista="mes"><span aria-hidden="true">📅</span>Mi mes</button>
-    <button type="button" data-vista="capturar" class="md-tab-capturar"><span aria-hidden="true">＋</span>Capturar</button>
-    <button type="button" data-vista="vac"><span aria-hidden="true">🌴</span>Vacaciones</button>
-    <button type="button" data-vista="avisar"><span aria-hidden="true">🙋</span>Avisar</button>
+    <button type="button" id="md-menu-btn" class="md-menu-btn" aria-haspopup="dialog" aria-label="Menú"><span aria-hidden="true">☰</span><i id="md-menu-punto" hidden></i>Menú</button>
+    <button type="button" data-vista="capturar"><span aria-hidden="true">＋</span>Capturar</button>
   </nav>
+  <dialog id="md-menu" class="md-menu" aria-label="Menú">
+    <div class="md-menu-asa" aria-hidden="true"></div>
+    <div class="md-menu-grid" id="md-menu-grid"></div>
+  </dialog>
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
-  <script src="pwa.js?v=202611171352"></script>
-  <script src="comun.js?v=202611171352"></script>
-  <script src="captura.js?v=202611171352"></script>
-  <script src="mi-dia-mas.js?v=202611171352"></script>
-  <script src="mi-dia.js?v=202611171352"></script>
+  <script src="pwa.js?v=202611171455"></script>
+  <script src="comun.js?v=202611171455"></script>
+  <script src="captura.js?v=202611171455"></script>
+  <script src="mi-dia-mas.js?v=202611171455"></script>
+  <script src="mi-dia-menu.js?v=202611171455"></script>
+  <script src="mi-dia.js?v=202611171455"></script>
 </body>
 </html>
