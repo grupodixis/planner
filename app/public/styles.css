@@ -1923,3 +1923,7 @@ dialog.dlg-req[open] { display: flex; }
 .recursos-pant .alta { flex-wrap: wrap; }
 .recursos-pant .alta select:not([hidden]) { flex: 1 1 100%; }
 .recursos-pant .alta input[name=nombre] { flex: 1 1 140px; min-width: 0; }
+.lista-sel .tipo-fam { margin: 8px 2px 2px; font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: var(--suave); list-style: none; }
+.dreq-uso { margin-left: 6px; font-size: 11px; padding: 0 6px; border-radius: 99px; background: var(--linea); color: var(--suave); white-space: nowrap; }
+.dreq-uso.obra { background: var(--naranja-bg); color: var(--naranja); }
+.dreq-uso.ambos { background: var(--azul-bg); color: var(--azul); }

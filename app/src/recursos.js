@@ -74,7 +74,7 @@ module.exports = function montar(app, asyncH) {
                          WHERE rt.tipo_recurso_id = t.id), '[]') AS recursos,
               (SELECT count(*)::int FROM tarea_requisitos_tipo q WHERE q.tipo_recurso_id = t.id) AS tareas
          FROM tipos_recurso t ${where}
-        ORDER BY t.clase, lower(t.nombre)`, vals);
+        ORDER BY t.clase, t.familia NULLS LAST, lower(t.nombre)`, vals);
     res.json(rows);
   }));
 
@@ -83,14 +83,28 @@ module.exports = function montar(app, asyncH) {
     if (!TIPOS.includes(b.clase)) throw fallo(400, 'Clase no válida');
     const nombre = String(b.nombre || '').trim().replace(/\s+/g, ' ');
     if (!nombre || nombre.length > 60) throw fallo(400, 'El nombre es obligatorio (máx. 60)');
-    const { rows } = await query('INSERT INTO tipos_recurso (clase, nombre) VALUES ($1,$2) RETURNING *', [b.clase, nombre]);
+    const familia = String(b.familia || '').trim().slice(0, 60) || null;
+    const { rows } = await query('INSERT INTO tipos_recurso (clase, nombre, familia) VALUES ($1,$2,$3) RETURNING *', [b.clase, nombre, familia]);
     res.status(201).json(rows[0]);
   }));
 
+  // { nombre?, familia?, uso? (taller | obra | ambos) }
   app.patch('/api/tipos-recurso/:id', auth.permiso('recursos'), asyncH(async (req, res) => {
-    const nombre = String(req.body?.nombre || '').trim().replace(/\s+/g, ' ');
-    if (!nombre || nombre.length > 60) throw fallo(400, 'El nombre es obligatorio (máx. 60)');
-    const { rows } = await query('UPDATE tipos_recurso SET nombre = $2 WHERE id = $1 RETURNING *', [Number(req.params.id), nombre]);
+    const b = req.body || {};
+    const cambios = {};
+    if ('nombre' in b) {
+      cambios.nombre = String(b.nombre || '').trim().replace(/\s+/g, ' ');
+      if (!cambios.nombre || cambios.nombre.length > 60) throw fallo(400, 'El nombre es obligatorio (máx. 60)');
+    }
+    if ('familia' in b) cambios.familia = String(b.familia || '').trim().slice(0, 60) || null;
+    if ('uso' in b) {
+      cambios.uso = b.uso || null;
+      if (cambios.uso && !['taller', 'obra', 'ambos'].includes(cambios.uso)) throw fallo(400, 'Uso no válido');
+    }
+    const cols = Object.keys(cambios);
+    if (!cols.length) throw fallo(400, 'Nada que cambiar');
+    const { rows } = await query(`UPDATE tipos_recurso SET ${cols.map((k, i) => `${k} = $${i + 2}`).join(', ')} WHERE id = $1 RETURNING *`,
+      [Number(req.params.id), ...cols.map((k) => cambios[k])]);
     if (!rows.length) throw fallo(404, 'Tipo no encontrado');
     res.json(rows[0]);
   }));

@@ -92,6 +92,7 @@
   TIPOS.calendario = { titulo: 'Vacaciones y festivos', calendario: true };
   const CLASE_TXT = { operario: 'Categoría de operario', maquina: 'Tipo de máquina', subcontrata: 'Tipo de subcontrata / alquiler' };
   const CLASE_PLURAL = { operario: 'Categorías de operario', maquina: 'Tipos de máquina', subcontrata: 'Subcontratas / alquileres' };
+  const USO_TXT = { taller: 'taller', obra: 'obra', ambos: 'taller y obra' };
   const CLASE_AYUDA = {
     maquina: 'Una tarea puede pedir el tipo («un Taladro magnético») y en el tablero se asigna cuál; avisa si se piden más de los que hay. Si la máquina está fija en un área, va sola con lo que se planifique allí.',
     subcontrata: 'Una tarea puede pedirlo («Grúa») y queda pendiente de confirmar en el tablero.',
@@ -543,17 +544,20 @@
     const q = $('#buscar').value.trim().toLowerCase();
     const lista = estado.lista.filter((t) => !q || t.nombre.toLowerCase().includes(q));
     const grupos = ['maquina', 'subcontrata', 'operario'].map((c) => [c, lista.filter((t) => t.clase === c)]);
+    let famAnt = null;
     $('#lista').replaceChildren(...(lista.length ? grupos.flatMap(([c, ts]) => (ts.length ? [
       el('li', { class: 'grupo-partida' }, el('span', { class: 'gp-nom' }, CLASE_PLURAL[c]), el('span', { class: 'gp-sub' }, String(ts.length))),
-      ...ts.map((t) => el('li', {}, el('button', {
+      // las máquinas, por familia (soldadura, corte, fijación…)
+      ...ts.flatMap((t) => [c === 'maquina' && (t.familia || 'Sin familia') !== famAnt ? el('li', { class: 'tipo-fam' }, (famAnt = t.familia || 'Sin familia')) : null, el('li', {}, el('button', {
         class: `item${t.id === estado.sel ? ' sel' : ''}`, 'aria-current': t.id === estado.sel ? 'true' : false,
         onclick: () => { estado.sel = t.id; pintarLista(); pintarFicha(); guardarURL(); },
       },
         el('span', { class: 'item-tit' }, t.nombre),
         el('span', { class: 'item-sub' }, [
           t.recursos.length ? `${t.recursos.filter((r) => r.activo).length} dado(s) de alta` : 'ninguno dado de alta',
+          USO_TXT[t.uso] || null,
           t.tareas ? `lo piden ${t.tareas} tarea(s)` : null,
-        ].filter(Boolean).join(' · '))))),
+        ].filter(Boolean).join(' · '))))].filter(Boolean)),
     ] : [])) : [el('li', { class: 'ayuda' }, q ? 'Nada coincide con la búsqueda.' : 'Todavía no hay tipos. Crea el primero arriba.')]));
   }
 
@@ -576,12 +580,17 @@
       catch (e) { toast(e.message, true); }
     };
     const guardar = async (k, v) => {
-      await api('PATCH', `/api/tipos-recurso/${t.id}`, { nombre: v });
+      await api('PATCH', `/api/tipos-recurso/${t.id}`, { [k]: v });
       await cargar();
     };
+    const familias = [...new Set(estado.lista.filter((x) => x.clase === 'maquina' && x.familia).map((x) => x.familia))].sort();
     $('#campos').replaceChildren(
       campo({ k: 'nombre', e: 'Nombre', ancho: 'c2', obligatorio: true, max: 60 }, t.nombre, guardar),
       el('div', { class: 'campo c2' }, el('span', { class: 'etq' }, 'Clase'), el('div', { class: 'valor' }, CLASE_TXT[t.clase])),
+      ...(t.clase === 'maquina' ? [
+        campo({ k: 'familia', e: 'Familia (naturaleza)', ancho: 'c2', max: 60, sugerencias: familias, placeholder: 'Soldadura, Corte y mecanizado…' }, t.familia, guardar),
+        campo({ k: 'uso', e: 'Uso', ancho: 'c2', opciones: { '': '—', taller: 'Taller', obra: 'Obra', ambos: 'Taller y obra (portátil)' } }, t.uso, guardar),
+      ] : []),
       el('p', { class: 'ayuda c4 tipo-ayuda' }, CLASE_AYUDA[t.clase] || '',
         t.clase === 'operario' ? [' ', el('a', { href: '/capacidades.html' }, 'Ir a Capacidades')] : null),
     );
@@ -647,7 +656,8 @@
 
   function prepararSemillero() {
     const esAdmin = window.s360.tiene('recursos');
-    $('#btn-semillero').hidden = !esAdmin;
+    // el semillero (carga inicial de recursos) ya no se ofrece en pantalla: los recursos ya están dados de alta
+    $('#btn-semillero').hidden = true;
     if (!esAdmin) return;
     const dlg = $('#dlg-semillero');
     $('#btn-semillero').onclick = () => {

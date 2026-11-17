@@ -333,8 +333,8 @@ Mismas reglas en todas las pantallas (`app/src/avance.js`):
 
 Agrupado (`comun.js › GRUPOS`), cada grupo con desplegable (al pasar el ratón o pulsar) y la suma de
 lo pendiente de sus pantallas: **Planificación** (Tablero, Parte del día, Bandeja, Mi día) ·
-**Proyectos** (Proyectos y OTs, Logística y compras) · **Personas** (Recursos, Capacidades, Usuarios y
-accesos) · **Informes**. Solo salen las pantallas que permite el rol; un grupo con una sola pantalla
+**Proyectos** (Proyectos y OTs, Logística y compras) · **Recursos** (Operarios, máquinas y subcontratas,
+Capacidades, Usuarios y accesos) · **Informes**. Solo salen las pantallas que permite el rol; un grupo con una sola pantalla
 es un enlace directo. **＋ Capturar** va como botón junto al usuario.
 
 ## Recursos (pantalla)
@@ -345,6 +345,12 @@ datos a la izquierda; uso y ausencias a la derecha.
 - Operario: «Categoría / puesto» (Oficial 1ª, 2º, Encargado…) solo agrupa en el tablero; lo que sabe
   hacer y lo que piden las tareas va en Capacidades. Debajo, sus datos personales (Mi perfil) y sus
   capacidades (validadas y por validar).
+- Tipos de máquina con **familia** (naturaleza: Soldadura, Corte y mecanizado, Fijación y montaje,
+  Elevación y acceso, Vehículos y transporte, Medición, Pintura, Oficina técnica) y **uso** (taller, obra,
+  taller y obra). La lista de Tipos y el cuadro de requisitos las agrupan por familia. Se quitó el tipo
+  comodín «Equipo portátil para obra» (las tareas que lo pedían piden ahora el equipo concreto; script en
+  `app/src/datos/2026-11-17-quitar-equipo-portatil.sql`).
+- Ya no se ofrece «Cargar semillero…» en pantalla (los recursos ya están dados de alta).
 - Máquina: «Área / ubicación» y **«¿Se mueve?»** (Se mueve / Fija en esa área = `recursos.fijo_area`,
   lo mismo que Áreas de trabajo › Equipo fijo).
 - Ficha de un tipo: explicación de para qué sirve según su clase; sin bloque de ausencias.

@@ -493,12 +493,19 @@
       }
       for (const [clase, titulo, ico] of CLASES) {
         if (!ver(clase)) continue;
-        const lista = tipos.filter((ti) => ti.clase === clase && (!q || normR(ti.nombre).includes(q)));
+        const lista = tipos.filter((ti) => ti.clase === clase && (!q || normR(`${ti.nombre} ${ti.familia || ''}`).includes(q)));
         if (!lista.length) continue;
+        const filaTipo = (ti) => casilla(sel.tipo.has(ti.id), (v) => { if (v) sel.tipo.set(ti.id, 1); else sel.tipo.delete(ti.id); pintar(); },
+          [ti.nombre, ti.uso ? el('span', { class: `dreq-uso ${ti.uso}` }, { taller: 'taller', obra: 'obra', ambos: 'taller y obra' }[ti.uso]) : null],
+          cuenta(ti.recursos, 'ninguno', 'de alta'), sel.tipo.has(ti.id) ? cantidad(sel.tipo, ti.id, ti.nombre) : null);
+        // las máquinas, por familia (soldadura, corte, fijación…), como las capacidades
+        const fams = new Map();
+        if (clase === 'maquina') for (const ti of lista) { const f = ti.familia || 'Otras'; if (!fams.has(f)) fams.set(f, []); fams.get(f).push(ti); }
         bloques.push(el('section', { class: 'dreq-sec' },
           el('h3', {}, `${ico} ${titulo}`, clase === 'maquina' ? el('span', { class: 'ayuda' }, ' · en el tablero se asigna cuál') : null),
-          el('div', { class: 'dreq-grid' }, lista.map((ti) => casilla(sel.tipo.has(ti.id), (v) => { if (v) sel.tipo.set(ti.id, 1); else sel.tipo.delete(ti.id); pintar(); }, ti.nombre,
-            cuenta(ti.recursos, 'ninguno', 'de alta'), sel.tipo.has(ti.id) ? cantidad(sel.tipo, ti.id, ti.nombre) : null)))));
+          clase === 'maquina'
+            ? el('div', { class: 'dreq-fams' }, [...fams].map(([fam, ts]) => el('div', { class: 'dreq-fam' }, el('h4', {}, fam), ts.map(filaTipo))))
+            : el('div', { class: 'dreq-grid' }, lista.map(filaTipo))));
       }
       if (ver('rec')) {
         const lista = recursosReq.filter((r) => !q || normR(r.nombre).includes(q));

@@ -50,10 +50,10 @@ module.exports = function montar(app, asyncH) {
               WHERE l.activo AND (l.tipo <> 'obra' OR p.estado = 'activo')
               ORDER BY (l.tipo = 'obra'), d.orden NULLS LAST, l.orden, l.nombre`),
       query('SELECT id, tipo, nombre FROM recursos WHERE activo ORDER BY tipo, nombre'),
-      query(`SELECT t.id, t.clase, t.nombre,
+      query(`SELECT t.id, t.clase, t.nombre, t.familia, t.uso,
                     (SELECT count(*)::int FROM recurso_tipos rt JOIN recursos r ON r.id = rt.recurso_id AND r.activo
                       WHERE rt.tipo_recurso_id = t.id) AS recursos
-               FROM tipos_recurso t ORDER BY t.clase, lower(t.nombre)`),
+               FROM tipos_recurso t ORDER BY t.clase, t.familia NULLS LAST, lower(t.nombre)`),
       query('SELECT id, clave, nombre FROM departamentos ORDER BY orden, nombre'),
       query(`SELECT k.id, k.familia, k.nombre,
                     (SELECT count(*)::int FROM recurso_capacidades rc JOIN recursos r ON r.id = rc.recurso_id AND r.activo

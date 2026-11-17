@@ -110,7 +110,7 @@
       ['/bandeja.html', 'Bandeja', 'planificar', 'Capturas por clasificar'], ['/mi-dia.html', 'Mi día', 'mi_dia', 'Apuntar mi propio día']]],
     ['Proyectos', [['/proyectos.html', 'Proyectos y OTs', null, 'Partidas, OTs, tareas, escandallo e importación'],
       ['/logistica.html', 'Logística y compras', ['logistica', 'compras', 'escandallo'], 'Stock, pedidos y recepción de material']]],
-    ['Personas', [['/recursos.html', 'Recursos', null, 'Operarios, máquinas, subcontratas, vacaciones'],
+    ['Recursos', [['/recursos.html', 'Operarios, máquinas y subcontratas', null, 'Fichas, vacaciones y festivos, tipos'],
       ['/capacidades.html', 'Capacidades', ['recursos', 'planificar'], 'Lo que sabe hacer cada uno'], ['/usuarios.html', 'Usuarios y accesos', 'usuarios', 'Cuentas, roles y PIN']]],
     ['Informes', [['/informes.html', 'Informes', 'informes', 'Horas, costes y resultados']]],
   ];

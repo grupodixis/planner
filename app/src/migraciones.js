@@ -712,6 +712,22 @@ const MIGRACIONES = [
      item_id INT NOT NULL,
      marcado_en TIMESTAMPTZ NOT NULL DEFAULT now(),
      PRIMARY KEY (recurso_id, tipo, item_id))`,
+  // Tipos de máquina por naturaleza (familia) y uso (taller / obra / taller y obra): sustituye al tipo comodín
+  // «Equipo portátil para obra». Se rellena una vez por nombre; luego se edita en Recursos › Tipos.
+  `ALTER TABLE tipos_recurso ADD COLUMN IF NOT EXISTS familia TEXT`,
+  `ALTER TABLE tipos_recurso ADD COLUMN IF NOT EXISTS uso TEXT`,
+  `UPDATE tipos_recurso t SET familia = m.familia, uso = COALESCE(t.uso, m.uso) FROM (VALUES
+     ('soldadora mig/mag', 'Soldadura', 'ambos'), ('soldadora mma (electrodo)', 'Soldadura', 'ambos'), ('soldadora tig', 'Soldadura', 'taller'),
+     ('soldadora láser', 'Soldadura', 'taller'),
+     ('sierra semi automatica', 'Corte y mecanizado', 'taller'), ('cortadora de disco (aluminio)', 'Corte y mecanizado', 'taller'),
+     ('fresadora de cerraduras', 'Corte y mecanizado', 'taller'), ('punzonadora de lamas y troqueles', 'Corte y mecanizado', 'taller'),
+     ('taladro magnético', 'Fijación y montaje', 'ambos'), ('llave de impacto', 'Fijación y montaje', 'ambos'),
+     ('remachadora', 'Fijación y montaje', 'ambos'), ('remachadora de tuercas', 'Fijación y montaje', 'ambos'),
+     ('andamio', 'Elevación y acceso', 'obra'), ('carretilla elevadora (toro)', 'Elevación y acceso', 'taller'),
+     ('camión', 'Vehículos y transporte', 'ambos'), ('furgón / furgoneta', 'Vehículos y transporte', 'ambos'),
+     ('kit de medición', 'Medición', 'ambos'), ('equipo de pintura (airless / pistola)', 'Pintura', 'taller'),
+     ('impresora 3d', 'Oficina técnica', 'taller')
+   ) AS m(nombre, familia, uso) WHERE t.clase = 'maquina' AND t.familia IS NULL AND lower(t.nombre) = m.nombre`,
   // Capacidades (saber hacer) de las personas: lo que pide una tarea es una capacidad, no una categoría
   `CREATE TABLE IF NOT EXISTS capacidades (
      id SERIAL PRIMARY KEY,
