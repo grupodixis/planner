@@ -664,18 +664,24 @@ compositor los use.
 
 ## Ayuda: «?», recorridos y novedades
 
-- **«?»** arriba a la derecha (en las pantallas que ya tienen ayuda; de momento *Material de las
-  partidas*): panel con para qué sirve la pantalla, **recorridos guiados**, un **vídeo corto**
-  (se amplía al pulsarlo), el **esquema del circuito** y los pasos típicos según el rol.
+- **«?»** arriba a la derecha en todas las pantallas (en Mi día, **Menú › Ayuda**): panel con para
+  qué sirve la pantalla, **recorridos guiados** de su rol, un **vídeo corto** (se amplía al pulsarlo;
+  tablero, proyectos/importar, logística y Mi día), el **esquema del circuito**, pasos típicos y
+  «Qué significa…».
 - **Recorridos «hazlo conmigo»**: oscurecen la pantalla y resaltan un elemento cada vez. En los
-  pasos marcados «lo haces tú» el recorrido espera a que la persona pulse o escriba de verdad; los
-  pasos que cambiarían datos solo se enseñan (el resaltado no deja pulsarlos). La primera vez se
-  ofrece el recorrido de su rol; si un recorrido cambia (sube su `version`), se vuelve a ofrecer.
+  pasos «lo haces tú» el recorrido espera a que la persona pulse o escriba de verdad (solo cosas que
+  no cambian datos: pestañas, abrir, buscar); los pasos que cambiarían datos solo se enseñan (el
+  resaltado no deja pulsarlos). La primera vez se ofrece el recorrido de su rol; si un recorrido
+  cambia (sube su `version`), se vuelve a ofrecer. Lo que no está en pantalla se salta.
 - **Novedades**: al entrar tras una actualización, una ventana con lo nuevo que afecta a sus permisos.
-- Textos en `app/public/ayuda-textos.js`; motor en `app/public/ayuda.js`. Las pantallas solo marcan
-  sus elementos con `data-ayuda="…"`. Lo visto se guarda en el navegador.
-- **Regla**: cada funcionalidad nueva añade su ayuda, su paso de recorrido si hace falta y su línea
-  en `novedades`. Los vídeos se graban con `herramientas/ayuda/` sobre la copia de prueba.
+- Textos en `app/public/ayuda-textos.js`; motor en `app/public/ayuda.js`. Los pasos apuntan a
+  `data-ayuda="…"` o a ids estables. Lo visto se guarda en el navegador.
+- **Comprobación**: `herramientas/ayuda/comprobar.js` recorre todos los recorridos en la copia de
+  prueba y avisa si algún paso ya no encuentra su elemento (`opcional: true` = depende de los datos).
+- **Vídeos**: `herramientas/ayuda/grabar.js [logistica|tablero|proyectos|midia]` los vuelve a grabar
+  sobre la copia de prueba (¡cambia datos, nunca contra producción!) y los deja en `app/public/ayuda/`.
+- **Regla**: cada funcionalidad nueva añade su ayuda, su paso de recorrido si hace falta, su línea
+  en `novedades`, y pasa `comprobar.js`; si cambia una pantalla con vídeo, se vuelve a grabar.
 
 ## Material: escandallo, asignación, stock y compras
 

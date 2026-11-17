@@ -15,8 +15,9 @@
     return n;
   };
   const T = () => window.S360_AYUDA || { pantallas: {}, novedades: [] };
-  const pantalla = () => T().pantallas[location.pathname] || null;
-  const puede = (p) => !p || [].concat(p).some((x) => window.s360?.tiene?.(x));
+  const pantalla = () => T().pantallas[location.pathname === '/index.html' ? '/' : location.pathname] || null;
+  let permisos = null; // Mi día pasa los suyos (no usa la cabecera común)
+  const puede = (p) => !p || [].concat(p).some((x) => (permisos ? permisos.includes(x) : window.s360?.tiene?.(x)));
 
   // lo visto se guarda en este navegador (si no se puede, se vuelve a ofrecer: no pasa nada)
   const CLAVE = 's360-ayuda';
@@ -120,9 +121,13 @@
     const n = await buscar(p);
     if (!tour || tour.i !== i) return;
     // lo que no está en pantalla (o ya está hecho) se salta
-    if ((p.sel && !n) || (n && p.saltar_si && p.saltar_si(n))) { paso(i + 1); return; }
+    if ((p.sel && !n) || (n && p.saltar_si && p.saltar_si(n))) {
+      // para la comprobación automática (herramientas/ayuda/comprobar.js)
+      (window.__ayudaSaltos ||= []).push({ tour: tour.r.id, paso: i + 1, motivo: n ? 'ya-hecho' : 'no-esta', opcional: !!p.opcional, sel: p.sel });
+      paso(i + 1); return;
+    }
     tour.objetivo = n;
-    if (n) n.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    if (n) n.scrollIntoView({ block: n.getBoundingClientRect().height > innerHeight * 0.6 ? 'start' : 'center', behavior: 'smooth' });
     const espera = n ? p.esperar || null : null;
     const sig = () => paso(i + 1);
     if (espera === 'click') {
@@ -171,7 +176,8 @@
       return;
     }
     const r = objetivo.getBoundingClientRect();
-    const x = Math.max(0, r.left - M), y = Math.max(0, r.top - M), w = Math.min(W - x, r.width + 2 * M), h = r.height + 2 * M;
+    // lo que es más alto que la pantalla se recorta a lo visible
+    const x = Math.max(0, r.left - M), y = Math.max(2, r.top - M), w = Math.min(W - x, r.width + 2 * M), h = Math.max(0, Math.min(H - 2, r.bottom + M) - y);
     v[0].style.cssText = `left:0;top:0;width:${W}px;height:${y}px`;
     v[1].style.cssText = `left:${x + w}px;top:${y}px;width:${Math.max(0, W - x - w)}px;height:${h}px`;
     v[2].style.cssText = `left:0;top:${y + h}px;width:${W}px;height:${Math.max(0, H - y - h)}px`;
@@ -240,9 +246,10 @@
   }
 
   /* ---------------- Arranque ---------------- */
-  async function iniciar() {
+  async function iniciar(op = {}) {
+    if (op.permisos) permisos = op.permisos;
     const salir = document.getElementById('salir');
-    if (pantalla() && salir && !document.getElementById('btn-ayuda')) {
+    if (!op.sinBoton && pantalla() && salir && !document.getElementById('btn-ayuda')) {
       const b = el('button', { type: 'button', class: 'ghost btn-ayuda', id: 'btn-ayuda', title: 'Ayuda de esta pantalla', 'aria-label': 'Ayuda', onclick: () => (panel ? cerrarPanel() : abrirPanel()) }, '?');
       (document.getElementById('btn-avisos') || salir).before(b, ' ');
     }
