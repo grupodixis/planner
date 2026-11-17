@@ -337,6 +337,19 @@ lo pendiente de sus pantallas: **Planificación** (Tablero, Parte del día, Band
 accesos) · **Informes**. Solo salen las pantallas que permite el rol; un grupo con una sola pantalla
 es un enlace directo. **＋ Capturar** va como botón junto al usuario.
 
+## Recursos (pantalla)
+
+Pestañas: Operarios · Maquinaria · Subcontratas y alquileres · Vacaciones y festivos · *Capacidades ↗*
+(otra pantalla) · **⚙ Tipos** (catálogo, a la derecha). Ficha en dos columnas en pantallas anchas:
+datos a la izquierda; uso y ausencias a la derecha.
+- Operario: «Categoría / puesto» (Oficial 1ª, 2º, Encargado…) solo agrupa en el tablero; lo que sabe
+  hacer y lo que piden las tareas va en Capacidades. Debajo, sus datos personales (Mi perfil) y sus
+  capacidades (validadas y por validar).
+- Máquina: «Área / ubicación» y **«¿Se mueve?»** (Se mueve / Fija en esa área = `recursos.fijo_area`,
+  lo mismo que Áreas de trabajo › Equipo fijo).
+- Ficha de un tipo: explicación de para qué sirve según su clase; sin bloque de ausencias.
+- Bandeja › clasificar como tarea: pide «Sabe hacer» (capacidad), ya no oficio.
+
 ## Capacidades (saber hacer)
 
 Lo que pide una tarea es **saber hacer algo** («2 que sepan soldar MIG/MAG»), no una categoría.

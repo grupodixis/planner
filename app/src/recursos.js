@@ -27,6 +27,7 @@ function leer(b, parcial) {
     }
   }
   if (!parcial || 'linea_id' in b) r.linea_id = b.linea_id ? Number(b.linea_id) : null;
+  if ('fijo_area' in b) r.fijo_area = b.fijo_area === true || b.fijo_area === 'true';
   if ('departamento_id' in b) r.departamento_id = b.departamento_id ? Number(b.departamento_id) : null;
   if ('activo' in b) r.activo = !!b.activo;
   if ('dias_vacaciones' in b) {

@@ -66,7 +66,7 @@ async function avisosVacaciones(recursoId, desde, hasta, excluirSolicitud = 0) {
   ]);
   const out = [];
   if (trabajo.length) out.push(`Tiene ${trabajo.length} trabajo(s) planificado(s) esos días`);
-  for (const c of comp) out.push(`${c.nombre} (mismo oficio) ${c.que === 'pedidas' ? 'también ha pedido' : 'está de vacaciones'} esos días`);
+  for (const c of comp) out.push(`${c.nombre} (misma categoría) ${c.que === 'pedidas' ? 'también ha pedido' : 'está de vacaciones'} esos días`);
   return out;
 }
 

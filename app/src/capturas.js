@@ -161,7 +161,8 @@ function montar(app, asyncH) {
   app.get('/api/capturas/opciones-clasificar', clasifica, asyncH(async (req, res) => {
     const [{ rows: usuarios }, { rows: oficios }, { rows: areas }] = await Promise.all([
       query(`SELECT u.id, u.nombre FROM usuarios u WHERE u.activo AND u.email IS NOT NULL ORDER BY u.nombre`),
-      query(`SELECT id, nombre FROM tipos_recurso WHERE clase = 'operario' ORDER BY nombre`),
+      // lo que pide la tarea es saber hacer algo (capacidad), no una categoría
+      query(`SELECT id, nombre, familia FROM capacidades ORDER BY orden, lower(nombre)`),
       query(`SELECT id, nombre FROM lineas WHERE activo AND tipo <> 'obra' ORDER BY orden NULLS LAST, nombre`),
     ]);
     res.json({ usuarios, oficios, areas });
@@ -197,9 +198,10 @@ function montar(app, asyncH) {
           `INSERT INTO tareas (orden_id, nombre, duracion_h, operarios_req, linea_id, notas, orden_en_of, actualizado_por)
            VALUES ($1,$2,$3,$4,$5,$6, COALESCE((SELECT max(orden_en_of) FROM tareas WHERE orden_id = $1), 0) + 1, $7) RETURNING id`,
           [s.ordenId, nombre, dur, ops, t.linea_id ? Number(t.linea_id) : null, notas.slice(0, 2000), req.usuario.id]);
-        if (t.oficio_id && ops > 0) {
-          await c.query('INSERT INTO tarea_requisitos_tipo (tarea_id, tipo_recurso_id, cantidad) VALUES ($1,$2,$3) ON CONFLICT DO NOTHING',
-            [tr[0].id, Number(t.oficio_id), ops]);
+        const capId = Number(t.capacidad_id || t.oficio_id) || null;
+        if (capId && ops > 0) {
+          await c.query('INSERT INTO tarea_capacidades (tarea_id, capacidad_id, cantidad) SELECT $1, id, $3 FROM capacidades WHERE id = $2 ON CONFLICT DO NOTHING',
+            [tr[0].id, capId, ops]);
         }
         await c.query('INSERT INTO historial (usuario_id, tarea_id, accion, detalle) VALUES ($1,$2,$3,$4)',
           [req.usuario.id, tr[0].id, 'crear', JSON.stringify({ desde_captura: id })]);

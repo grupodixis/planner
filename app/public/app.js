@@ -235,7 +235,7 @@
     // Acordeones: clase (Operarios / Maquinaria / Subcontratas) › categoría (oficio, tipo de máquina…)
     const soloLibres = leerPref('rec_libres', '0') === '1';
     $('#rec-libres').checked = soloLibres;
-    const CLASES = [['operario', 'Operarios', 'Sin oficio'], ['maquina', 'Maquinaria propia', 'Sin tipo'], ['subcontrata', 'Subcontratas / alquiler', 'Sin tipo']];
+    const CLASES = [['operario', 'Operarios', 'Sin categoría'], ['maquina', 'Maquinaria propia', 'Sin tipo'], ['subcontrata', 'Subcontratas / alquiler', 'Sin tipo']];
     const fila = (r) => {
       const h = +(uso.get(r.id) || 0).toFixed(1);
       const fuera = ausHoy(r);
@@ -1622,10 +1622,10 @@
         const caps = t.capacidades || [];
         const tieneOficio = (r) => oficios.some((q) => (r.tipos || []).includes(q.id)) || caps.some((q) => (r.capacidades || []).includes(q.id));
         const ocupante = activos('operario').some((r) => suPuesto(r) && !yaEn.has(r.id));
-        return caja(el('p', { class: 'ayuda' }, `Faltan ${c.falta} operario(s)${ocupante ? ' · primero quien tiene aquí su puesto' : ''}${oficios.length ? ` · luego los de ${oficios.map((q) => q.nombre).join(', ')}` : ''}:`),
+        return caja(el('p', { class: 'ayuda' }, `Faltan ${c.falta} operario(s)${ocupante ? ' · primero quien tiene aquí su puesto' : ''}${oficios.length || caps.length ? ` · luego quien sabe ${[...oficios, ...caps].map((q) => q.nombre).join(', ')}` : ''}:`),
           candidatos(activos('operario').filter((r) => !yaEn.has(r.id)), tr, {
             asignar,
-            motivo: (r) => [suPuesto(r) ? 'su puesto' : null, tieneOficio(r) ? 'tiene el oficio' : null].filter(Boolean).join(' · '),
+            motivo: (r) => [suPuesto(r) ? 'su puesto' : null, tieneOficio(r) ? 'sabe hacerlo' : null].filter(Boolean).join(' · '),
             prefiere: (r) => (suPuesto(r) ? 2 : 0) + (tieneOficio(r) ? 1 : 0),
           }));
       }
@@ -1658,7 +1658,7 @@
         const mismos = activos(r.tipo).filter((x) => x.id !== r.id && !yaEn.has(x.id)
           && (!(r.tipos || []).length || (x.tipos || []).some((id) => r.tipos.includes(id))));
         return caja(
-          el('p', { class: 'ayuda' }, `Pasar lo de ${r.nombre} a otro${(r.tipos || []).length ? ' del mismo oficio / tipo' : ''}:`),
+          el('p', { class: 'ayuda' }, `Pasar lo de ${r.nombre} a otro${(r.tipos || []).length ? ' de la misma categoría / tipo' : ''}:`),
           candidatos(mismos, tr, {
             boton: 'Cambiar',
             asignar: (x) => accion(() => api('PATCH', `/api/tramos/${tr.id}/asignaciones/${r.id}`, { recurso_id: x.id }), `${r.nombre} → ${x.nombre}`),

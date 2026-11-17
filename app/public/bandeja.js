@@ -103,7 +103,7 @@
     const tNombre = el('input', { maxlength: 120, value: (c.texto || '').split('\n')[0].slice(0, 120), placeholder: 'Nombre de la tarea', 'aria-label': 'Nombre de la tarea' });
     const tHoras = el('input', { type: 'number', min: 0.5, step: 0.5, value: 1, 'aria-label': 'Horas' });
     const tOps = el('input', { type: 'number', min: 0, step: 1, value: 1, 'aria-label': 'Operarios' });
-    const tOficio = sel([['', 'Oficio (opcional)'], ...cl.oficios.map((o) => [o.id, o.nombre])], '', 'Oficio');
+    const tOficio = sel([['', 'Sabe hacer (opcional)'], ...cl.oficios.map((o) => [o.id, o.nombre])], '', 'Qué tiene que saber hacer');
     const tArea = sel([['', 'Área (opcional)'], ...cl.areas.map((a) => [a.id, a.nombre])], '', 'Área');
     // asunto
     const aResp = sel([['', '¿Quién se encarga?'], ...cl.usuarios.map((u) => [u.id, u.nombre])], '', 'Responsable');
@@ -125,7 +125,7 @@
       const r = await api('POST', `/api/capturas/${c.id}/clasificar`, {
         destino, proyecto_id: Number(selProy.value) || null, orden_id: Number(selOT.value) || null, categoria: selCat.value || null, nota: nota.value,
         prioridad: destino === 'asunto' ? aPrio.value : 'normal', responsable_id: Number(aResp.value) || null, fecha_limite: aFecha.value || null,
-        tarea: { nombre: tNombre.value, duracion_h: Number(tHoras.value), operarios_req: Number(tOps.value), oficio_id: Number(tOficio.value) || null, linea_id: Number(tArea.value) || null },
+        tarea: { nombre: tNombre.value, duracion_h: Number(tHoras.value), operarios_req: Number(tOps.value), capacidad_id: Number(tOficio.value) || null, linea_id: Number(tArea.value) || null },
       });
       est.abierta = null;
       return r.estado === 'tarea' ? 'Tarea creada: ya está en «Por planificar»' : r.estado === 'asunto' ? 'Asunto asignado' : r.estado === 'info' ? 'Guardado como información' : 'Descartado';

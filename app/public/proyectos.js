@@ -718,7 +718,7 @@
 
   /* ---------- importar proyecto del compositor (diálogo) ---------- */
   const imp = { archivo: null, nombre: '', resoluciones: {}, informe: null, ocupado: false };
-  const CLASE_TXT = { area: 'Área', area_tipo: 'Área de obra', tipo: { operario: 'Oficio', maquina: 'Tipo de máquina', subcontrata: 'Subcontrata / alquiler' }, recurso: 'Recurso concreto' };
+  const CLASE_TXT = { area: 'Área', area_tipo: 'Área de obra', tipo: { operario: 'Categoría', maquina: 'Tipo de máquina', subcontrata: 'Subcontrata / alquiler' }, recurso: 'Recurso concreto' };
   const ESTADO_RES = { recordado: ['recordado', 'Asociación recordada de una importación anterior'], parecido: ['parecido', 'Se parece a uno que ya existe: compruébalo'], falta: ['nuevo', 'No existe en el planificador'], varias: ['varias', 'Hay varias áreas de ese tipo: elige una'], elegido: ['elegido', 'Lo has elegido en esta vista previa'] };
   const CAMPO_TXT = { nombre: 'nombre', titulo: 'título', duracion_h: 'horas', operarios_req: 'operarios', linea_id: 'área', notas: 'notas', descripcion: 'descripción', prioridad: 'prioridad', fecha_entrega: 'entrega', codigo: 'código', tipos: 'requisitos', recursos: 'recursos concretos', dependencias: 'dependencias', ot: 'OT', orden: 'posición', extra: 'datos extra', cliente: 'cliente', obra: 'obra', partida_id: 'partida', color: 'color' };
 

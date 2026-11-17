@@ -48,7 +48,7 @@
         { k: 'codigo', e: 'Nº empleado', ancho: 'c1', max: 30 },
         { k: 'vinculo', e: 'Vínculo', ancho: 'c1', opciones: { plantilla: 'Plantilla', subcontratado: 'Subcontratado' } },
         { k: 'empresa', e: 'Empresa (o autónomo)', ancho: 'c2', max: 120, si: (r) => r.vinculo === 'subcontratado' },
-        { k: 'tipos', e: 'Oficios / roles', ancho: 'c4', tipos: true, ayuda: 'Una tarea puede pedir un oficio («2 × Soldador»): avisa si los asignados no lo tienen' },
+        { k: 'tipos', e: 'Categoría / puesto', ancho: 'c4', tipos: true, ayuda: 'Oficial 1ª, 2º, Encargado… Sirve para agruparlo en el tablero. Lo que sabe hacer va en Capacidades' },
         { k: 'telefono', e: 'Teléfono', ancho: 'c1', max: 40, tipo: 'tel' },
         { k: 'email', e: 'Email', ancho: 'c2', max: 120, tipo: 'email' },
         { k: 'coste_hora', e: 'Coste €/h', ancho: 'c1', tipo: 'number' },
@@ -65,9 +65,11 @@
         { k: 'codigo', e: 'Nº / matrícula', ancho: 'c1', max: 30 },
         { k: 'tipos', e: 'Tipo de máquina', ancho: 'c4', tipos: true, ayuda: 'Las tareas pueden pedir el tipo («una Soldadora MIG») y vale cualquier máquina de ese tipo' },
         { k: 'departamento_id', e: 'Departamento', ancho: 'c2', departamentos: true },
-        { k: 'linea_id', e: 'Ubicación habitual', ancho: 'c2', areas: true },
+        { k: 'linea_id', e: 'Área / ubicación', ancho: 'c2', areas: true },
+        { k: 'fijo_area', e: '¿Se mueve?', ancho: 'c1', opciones: { '': 'Se mueve (se asigna en cada tramo)', true: 'Fija en esa área' },
+          ayuda: 'Fija: va sola con lo que se planifique en su área (sierra, plegadora, cabina…)' },
         { k: 'coste_hora', e: 'Coste €/h', ancho: 'c1', tipo: 'number' },
-        { k: 'notas', e: 'Notas (mantenimiento, capacidades…)', ancho: 'c4', max: 2000, filas: 3 },
+        { k: 'notas', e: 'Notas (mantenimiento, revisiones…)', ancho: 'c4', max: 2000, filas: 3 },
       ],
     },
     subcontrata: {
@@ -88,8 +90,13 @@
   // Pestaña de catálogo de tipos (no es una clase de recurso)
   TIPOS.tipos = { titulo: 'Tipos de recurso', singular: 'tipo', alta: 'Nombre del tipo (p. ej. Soldadora MIG)', catalogo: true };
   TIPOS.calendario = { titulo: 'Vacaciones y festivos', calendario: true };
-  const CLASE_TXT = { operario: 'Oficio de operario', maquina: 'Tipo de máquina', subcontrata: 'Tipo de subcontrata / alquiler' };
-  const CLASE_PLURAL = { operario: 'Oficios', maquina: 'Tipos de máquina', subcontrata: 'Subcontratas / alquileres' };
+  const CLASE_TXT = { operario: 'Categoría de operario', maquina: 'Tipo de máquina', subcontrata: 'Tipo de subcontrata / alquiler' };
+  const CLASE_PLURAL = { operario: 'Categorías de operario', maquina: 'Tipos de máquina', subcontrata: 'Subcontratas / alquileres' };
+  const CLASE_AYUDA = {
+    maquina: 'Una tarea puede pedir el tipo («un Taladro magnético») y en el tablero se asigna cuál; avisa si se piden más de los que hay. Si la máquina está fija en un área, va sola con lo que se planifique allí.',
+    subcontrata: 'Una tarea puede pedirlo («Grúa») y queda pendiente de confirmar en el tablero.',
+    operario: 'Para agrupar a los operarios en el tablero (Oficial 1ª, 2º, Encargado…). Lo que cada uno sabe hacer —y lo que piden las tareas— va en Capacidades.',
+  };
 
   const q0 = new URLSearchParams(location.search);
   const estado = {
@@ -282,11 +289,11 @@
     $('#campos').replaceChildren(...T.campos.filter((def) => !def.si || def.si(r)).map((def) => campo(def, r[def.k], guardar, r)),
       // Una persona dada de alta como subcontrata que en realidad trabaja de operario
       ...(r.tipo === 'subcontrata' && editar ? [el('div', { class: 'campo c4 pasar-operario' },
-        el('span', { class: 'ayuda' }, '¿Es una persona que trabaja como operario (pintor, montador…)? Como operario subcontratado cuenta en los operarios de las tareas, puede tener oficio y suma horas-persona.'),
+        el('span', { class: 'ayuda' }, '¿Es una persona que trabaja como operario (pintor, montador…)? Como operario subcontratado cuenta en los operarios de las tareas, puede tener capacidades y suma horas-persona.'),
         el('button', {
           type: 'button', class: 'ghost',
           onclick: async () => {
-            if (!confirm(`¿Pasar «${r.nombre}» a Operarios como subcontratado? Sus tipos de subcontrata se quitan; luego le pones su oficio.`)) return;
+            if (!confirm(`¿Pasar «${r.nombre}» a Operarios como subcontratado? Sus tipos de subcontrata se quitan; luego le marcas sus capacidades.`)) return;
             try {
               await api('PATCH', `/api/recursos/${r.id}`, { tipo: 'operario', vinculo: 'subcontratado', categoria: null });
               toast(`${r.nombre} pasa a Operarios (subcontratado)`);
@@ -318,6 +325,8 @@
       el('dt', {}, 'Última asignación'), el('dd', {}, r.ultimo ? fechaCorta(r.ultimo) : '—'),
       el('dt', {}, 'Historial'), el('dd', {}, `${r.usos} tramo(s)${r.requerido ? ` · requerido en ${r.requerido} tarea(s)` : ''}`),
     );
+    $('#ausencias-titulo').parentElement.hidden = false;
+    $('#ausencias').hidden = false;
     pintarAusencias(r).catch((e) => toast(e.message, true));
   }
 
@@ -573,7 +582,12 @@
     $('#campos').replaceChildren(
       campo({ k: 'nombre', e: 'Nombre', ancho: 'c2', obligatorio: true, max: 60 }, t.nombre, guardar),
       el('div', { class: 'campo c2' }, el('span', { class: 'etq' }, 'Clase'), el('div', { class: 'valor' }, CLASE_TXT[t.clase])),
+      el('p', { class: 'ayuda c4 tipo-ayuda' }, CLASE_AYUDA[t.clase] || '',
+        t.clase === 'operario' ? [' ', el('a', { href: '/capacidades.html' }, 'Ir a Capacidades')] : null),
     );
+    // un tipo no tiene vacaciones ni averías: eso va en cada recurso
+    $('#ausencias-titulo').parentElement.hidden = true;
+    $('#ausencias').hidden = true;
     $('#uso').replaceChildren(
       el('dt', {}, 'Recursos de este tipo'), el('dd', {}, t.recursos.length
         ? t.recursos.map((r, i) => [i ? ', ' : '', el('a', { href: `/recursos.html?tipo=${t.clase}&id=${r.id}` }, r.nombre + (r.activo ? '' : ' (de baja)'))])

@@ -1909,3 +1909,17 @@ dialog.dlg-req[open] { display: flex; }
 .log-incs { list-style: none; margin: 6px 0; padding: 0; display: grid; gap: 4px; }
 .log-incs li { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 8px; background: var(--naranja-bg); color: var(--naranja); }
 .log-incs li.resuelta { background: transparent; color: var(--suave); }
+
+/* Recursos: ficha en dos columnas (datos | uso y ausencias) y pestañas */
+@media (min-width: 1300px) {
+  .ficha-dos { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(320px, 1fr); gap: 28px; align-items: start; }
+  .ficha-der > .cab-panel.sep:first-child { margin-top: 0; padding-top: 0; border-top: 0; }
+}
+.pestanas .tab-enlace { align-self: center; padding: 8px 14px; color: var(--azul); text-decoration: none; font-size: 14px; }
+.pestanas .tab-enlace:hover { text-decoration: underline; }
+.pestanas .tab-catalogo { margin-left: auto; }
+.tipo-ayuda { grid-column: 1 / -1; margin: 4px 0 0; }
+.tab-catalogo ~ .btn-semillero { margin-left: 8px; }
+.recursos-pant .alta { flex-wrap: wrap; }
+.recursos-pant .alta select:not([hidden]) { flex: 1 1 100%; }
+.recursos-pant .alta input[name=nombre] { flex: 1 1 140px; min-width: 0; }
