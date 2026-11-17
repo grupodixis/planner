@@ -71,6 +71,8 @@
           l.compra === 'pedido' && `Pedido${l.proveedor ? ` a ${l.proveedor}` : ''}${l.fecha_prevista ? `, llega el ${fecha(l.fecha_prevista)}` : ''}${l.pedido_por ? ` (${l.pedido_por})` : ''}`,
           l.compra === 'recibido' && `Recibido${l.recibido_por ? ` por ${l.recibido_por}` : ''}${l.recibido_en ? ` el ${fecha(l.recibido_en)}` : ''}`,
           l.nota_logistica && `Nota: ${l.nota_logistica}`].filter(Boolean).join(' · ')) : null,
+      // fotos y enlaces: los del técnico se ven; logística puede añadir fotos con la cámara o de la galería
+      window.s360mat.adjuntosLinea(l, { subir: puede.logistica || puede.compras, camara: true }),
       acciones(l));
   }
 

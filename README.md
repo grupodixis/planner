@@ -579,6 +579,10 @@ Circuito entre Dto. técnico, operaciones, logística y compras, con avisos al m
 5. **Recepción** (logística): *Pedido · por recibir* → **✔ Recibido** → aviso a los operarios con
    plan en las tareas que usan ese material (de hoy en adelante) y al técnico.
 
+**Fotos, PDF y enlaces** de cada material: en el escandallo, botón 📎 de la línea (subir foto/PDF
+desde el ordenador o pegar un enlace); en Logística, **📷 Foto** en cada material (en el móvil
+deja elegir cámara o galería). Cada uno quita lo suyo; el técnico, cualquiera.
+
 En cada tarea, el icono 🧰 muestra sus materiales (con su estado) y herramientas. El menú
 Logística lleva un número con lo pendiente de cada uno. Roles nuevos: **Técnico**, **Logística**,
 **Compras** (los permisos se pueden dar también a otros roles, p. ej. `logistica` a Operaciones

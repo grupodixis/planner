@@ -35,11 +35,11 @@ async function enlazar(c, ids, refTipo, refId, usuarioId) {
 async function de(refTipo, ids) {
   if (!ids.length) return new Map();
   const { rows } = await query(
-    `SELECT id, ref_id, tipo, nombre, bytes FROM archivos WHERE ref_tipo = $1 AND ref_id = ANY($2) ORDER BY id`, [refTipo, ids]);
+    `SELECT id, ref_id, tipo, nombre, bytes, creado_por FROM archivos WHERE ref_tipo = $1 AND ref_id = ANY($2) ORDER BY id`, [refTipo, ids]);
   const m = new Map();
   for (const r of rows) {
     if (!m.has(r.ref_id)) m.set(r.ref_id, []);
-    m.get(r.ref_id).push({ id: r.id, tipo: r.tipo, nombre: r.nombre, bytes: r.bytes });
+    m.get(r.ref_id).push({ id: r.id, tipo: r.tipo, nombre: r.nombre, bytes: r.bytes, creado_por: r.creado_por });
   }
   return m;
 }

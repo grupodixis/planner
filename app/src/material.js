@@ -8,6 +8,7 @@ const { query, tx } = require('./db');
 const auth = require('./auth');
 const notif = require('./notificaciones');
 const catalogo = require('./catalogo');
+const archivos = require('./archivos');
 
 const fallo = (status, msg) => Object.assign(new Error(msg), { status });
 const texto = (v, max) => String(v ?? '').trim().slice(0, max) || null;
@@ -30,7 +31,7 @@ function estado(l) {
 
 const SQL_LINEAS = `
   SELECT e.id, e.partida_id, e.catalogo_id, e.descripcion, e.cantidad::float, e.unidad, e.nota, e.orden,
-         e.stock::float, e.stock_en, e.compra, e.proveedor_id, e.fecha_prevista, e.pedido_en, e.recibido_en, e.nota_logistica,
+         e.enlaces, e.stock::float, e.stock_en, e.compra, e.proveedor_id, e.fecha_prevista, e.pedido_en, e.recibido_en, e.nota_logistica,
          pa.codigo AS partida_codigo, pa.nombre AS partida_nombre, pa.escandallo_enviado, pa.proyecto_id,
          p.codigo AS proyecto_codigo, p.nombre AS proyecto_nombre,
          pr.nombre AS proveedor, us.nombre AS stock_por, up.nombre AS pedido_por, ur.nombre AS recibido_por,
@@ -52,7 +53,9 @@ const SQL_LINEAS = `
 
 async function lineas(where, params) {
   const { rows } = await query(`${SQL_LINEAS} WHERE ${where} ORDER BY p.codigo, pa.orden, pa.id, e.orden, e.id`, params);
+  const arch = await archivos.de('escandallo', rows.map((l) => l.id));
   for (const l of rows) {
+    l.archivos = arch.get(l.id) || [];
     l.estado = estado(l);
     l.falta = l.stock == null ? null : Math.max(0, Math.round((l.cantidad - l.stock) * 1000) / 1000);
   }
@@ -117,6 +120,10 @@ function montar(app, asyncH) {
     if ('cantidad' in b) { o.cantidad = numero(b.cantidad); if (o.cantidad == null) throw fallo(400, 'Falta la cantidad'); }
     if ('unidad' in b) o.unidad = texto(b.unidad, 20);
     if ('nota' in b) o.nota = texto(b.nota, 300);
+    if ('enlaces' in b) {
+      o.enlaces = (Array.isArray(b.enlaces) ? b.enlaces : []).map((x) => String(x || '').trim()).filter(Boolean).slice(0, 10);
+      for (const u of o.enlaces) if (!/^https?:\/\/\S+$/i.test(u) || u.length > 1000) throw fallo(400, `Enlace no válido: ${u.slice(0, 60)}`);
+    }
     const cols = Object.keys(o);
     if (!cols.length) throw fallo(400, 'Nada que cambiar');
     const { rowCount } = await query(`UPDATE partida_escandallo SET ${cols.map((k, i) => `${k} = $${i + 2}`).join(', ')} WHERE id = $1`, [id, ...cols.map((k) => o[k])]);
@@ -131,6 +138,7 @@ function montar(app, asyncH) {
   }));
 
   app.delete('/api/escandallo/:id', pEscandallo, asyncH(async (req, res) => {
+    await query(`DELETE FROM archivos WHERE ref_tipo = 'escandallo' AND ref_id = $1`, [Number(req.params.id)]);
     await query('DELETE FROM partida_escandallo WHERE id = $1', [Number(req.params.id)]);
     res.json({ ok: true });
   }));
@@ -225,6 +233,25 @@ function montar(app, asyncH) {
       url: '/mi-dia.html', tag: `recibido-${id}`,
     });
     res.json(l);
+  }));
+
+  /* ---------- Fotos y PDF del material (técnico y logística) ---------- */
+  const pArchivos = auth.permiso('escandallo', 'logistica', 'compras');
+  app.post('/api/escandallo/:id/archivos', pArchivos, asyncH(async (req, res) => {
+    const id = Number(req.params.id);
+    if (!(await linea(id))) throw fallo(404, 'Línea no encontrada');
+    const n = await tx((c) => archivos.enlazar(c, (req.body || {}).ids, 'escandallo', id, req.usuario.id));
+    if (!n) throw fallo(400, 'No se ha podido adjuntar');
+    res.status(201).json(await linea(id));
+  }));
+  app.delete('/api/escandallo/:id/archivos/:archivo', pArchivos, asyncH(async (req, res) => {
+    const id = Number(req.params.id);
+    // cada uno quita lo suyo; el técnico, cualquiera
+    const { rowCount } = await query(
+      `DELETE FROM archivos WHERE id = $1 AND ref_tipo = 'escandallo' AND ref_id = $2 AND (creado_por = $3 OR $4)`,
+      [Number(req.params.archivo), id, req.usuario.id, auth.tiene(req.usuario, 'escandallo')]);
+    if (!rowCount) throw fallo(403, 'Solo puedes quitar las fotos que has subido tú');
+    res.json(await linea(id));
   }));
 
   /* ---------- Pantalla de logística y compras ---------- */

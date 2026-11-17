@@ -1628,3 +1628,29 @@ body.arrastrando .asg-tarea { outline: 1px dashed #2c4a6c; outline-offset: -3px;
 .log-acc input, .log-acc select { background: #1f1f1f; border: 1px solid var(--borde); border-radius: 8px; padding: 6px 8px; color: var(--texto); }
 .log-hay input { width: 5.5em; text-align: right; }
 .asg-mat-nom { flex: 1; }
+
+/* ---------- Fotos, PDF y enlaces del material ---------- */
+.dlg-escandallo .esc-fila { grid-template-columns: 28px minmax(220px, 3fr) 70px 64px minmax(120px, 1.6fr) 44px 104px 32px; }
+.esc-clip { padding: 2px 6px; opacity: .55; }
+.esc-clip.con, .esc-clip[aria-expanded="true"] { opacity: 1; }
+.esc-adj { margin: 0 0 6px 34px; padding: 8px 10px; border: 1px dashed var(--borde); border-radius: 9px; background: #151515; }
+.mat-adj:empty { display: none; }
+.mat-adj-lista { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.mat-adj-item { position: relative; display: inline-block; }
+.mat-adj-item .adjuntos img { width: 72px; height: 72px; object-fit: cover; border-radius: 8px; border: 1px solid var(--borde); display: block; }
+.mat-adj-item .adjuntos a { text-decoration: none; }
+.mat-adj-x { position: absolute; top: -6px; right: -6px; width: 20px; height: 20px; border-radius: 50%; border: 1px solid var(--borde); background: #222; color: #ddd; font-size: 11px; line-height: 16px; padding: 0; cursor: pointer; }
+.mat-adj-enlace { position: relative; display: inline-flex; align-items: center; gap: 4px; border: 1px solid var(--borde); border-radius: 99px; padding: 2px 10px; font-size: 12.5px; }
+.mat-adj-enlace .mat-adj-x { position: static; width: 18px; height: 18px; line-height: 14px; }
+.mat-adj-acc { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 6px; }
+.mat-adj-subir { cursor: pointer; }
+.mat-adj-form { display: inline-flex; gap: 6px; flex: 1 1 260px; }
+.mat-adj-form input { flex: 1; min-width: 0; background: #1f1f1f; border: 1px solid var(--borde); border-radius: 7px; padding: 4px 7px; color: var(--texto); }
+.log-linea .mat-adj-acc { margin-top: 0; }
+.log-linea .mat-adj-subir { padding: 7px 12px; border-radius: 9px; font-size: 14px; }
+label.boton { display: inline-block; color: var(--texto); border: 1px solid var(--borde); border-radius: 8px; padding: 4px 10px; }
+/* pestañas de logística en el móvil: se deslizan */
+.log-main .llv-tabs { overflow-x: auto; flex-wrap: nowrap; scrollbar-width: none; }
+.log-main .llv-tabs::-webkit-scrollbar { display: none; }
+.log-main .llv-tab { white-space: nowrap; flex: none; }
+@media (max-width: 640px) { .log-main .llv-tab { padding: 7px 10px; font-size: 13.5px; } }

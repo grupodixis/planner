@@ -661,6 +661,8 @@ const MIGRACIONES = [
    )`,
   `CREATE INDEX IF NOT EXISTS partida_escandallo_idx ON partida_escandallo (partida_id, orden)`,
   `ALTER TABLE partidas ADD COLUMN IF NOT EXISTS escandallo_enviado TIMESTAMPTZ`,
+  // enlaces (web del fabricante, ficha técnica…) del material; las fotos y PDF van en «archivos» (ref_tipo = 'escandallo')
+  `ALTER TABLE partida_escandallo ADD COLUMN IF NOT EXISTS enlaces TEXT[] NOT NULL DEFAULT '{}'`,
   `CREATE TABLE IF NOT EXISTS tarea_material (
      id             SERIAL PRIMARY KEY,
      escandallo_id  INT NOT NULL REFERENCES partida_escandallo(id) ON DELETE CASCADE,

@@ -117,12 +117,70 @@
     });
   }
 
+  /* ---------- Fotos, PDF y enlaces de un material ---------- */
+  // devuelve un bloque con miniaturas y enlaces; con permiso, botones para subir foto/archivo y añadir enlace.
+  // op: { subir, enlaces, camara, alCambiar(lineaNueva) }
+  function adjuntosLinea(l, op = {}) {
+    const caja = el('div', { class: 'mat-adj' });
+    const pintar = () => {
+      const fotos = l.archivos || [];
+      caja.replaceChildren(
+        fotos.length || (l.enlaces || []).length ? el('div', { class: 'mat-adj-lista' },
+          fotos.map((a) => el('span', { class: 'mat-adj-item' }, window.s360.adjuntos([a]),
+            op.subir && (window.s360.tiene('escandallo') || a.creado_por === window.s360.usuario?.()?.id) ? el('button', { type: 'button', class: 'mat-adj-x', title: 'Quitar', 'aria-label': `Quitar ${a.nombre || 'archivo'}`, onclick: async () => {
+              if (!confirm('¿Quitar este archivo?')) return;
+              try { Object.assign(l, await api('DELETE', `/api/escandallo/${l.id}/archivos/${a.id}`)); pintar(); op.alCambiar?.(l); } catch (e) { toast(e.message, true); }
+            } }, '✕') : null)),
+          (l.enlaces || []).map((u, k) => el('span', { class: 'mat-adj-enlace' },
+            el('a', { href: u, target: '_blank', rel: 'noopener noreferrer', title: u }, `🔗 ${u.replace(/^https?:\/\/(www\.)?/i, '').slice(0, 40)}`),
+            op.enlaces ? el('button', { type: 'button', class: 'mat-adj-x', title: 'Quitar enlace', 'aria-label': 'Quitar enlace', onclick: () => guardarEnlaces(l.enlaces.filter((_, j) => j !== k)) }, '✕') : null))) : null,
+        op.subir || op.enlaces ? el('div', { class: 'mat-adj-acc' },
+          op.subir ? botonSubir() : null,
+          op.enlaces ? formEnlace() : null) : null);
+    };
+    const botonSubir = () => {
+      // en el móvil, «image/*» deja elegir cámara o galería
+      const inp = el('input', { type: 'file', accept: op.camara ? 'image/*' : 'image/*,application/pdf', multiple: '', hidden: true });
+      inp.addEventListener('change', async () => {
+        const files = [...inp.files];
+        if (!files.length) return;
+        try {
+          toast('Subiendo…');
+          const ids = [];
+          for (const f of files) ids.push(await window.s360.subirArchivo(f));
+          Object.assign(l, await api('POST', `/api/escandallo/${l.id}/archivos`, { ids }));
+          toast(files.length > 1 ? `${files.length} archivos subidos` : 'Subido');
+          pintar(); op.alCambiar?.(l);
+        } catch (e) { toast(e.message, true); }
+        inp.value = '';
+      });
+      return el('label', { class: 'boton ghost mini mat-adj-subir' }, op.camara ? '📷 Foto' : '📎 Foto / PDF', inp);
+    };
+    const guardarEnlaces = async (lista) => {
+      try { Object.assign(l, await api('PATCH', `/api/escandallo/${l.id}`, { enlaces: lista })); pintar(); op.alCambiar?.(l); } catch (e) { toast(e.message, true); }
+    };
+    const formEnlace = () => {
+      const i = el('input', { type: 'url', placeholder: 'Pegar enlace (https://…)', 'aria-label': 'Enlace' });
+      const añadir = () => {
+        let u = i.value.trim();
+        if (!u) return;
+        if (!/^https?:\/\//i.test(u)) u = `https://${u}`;
+        guardarEnlaces([...(l.enlaces || []), u]);
+      };
+      i.addEventListener('keydown', (ev) => { if (ev.key === 'Enter') { ev.preventDefault(); añadir(); } });
+      return el('span', { class: 'mat-adj-form' }, i, el('button', { type: 'button', class: 'ghost mini', onclick: añadir }, '🔗 Añadir'));
+    };
+    pintar();
+    return caja;
+  }
+
   /* ---------- Escandallo de la partida ---------- */
   async function escandallo({ partida, alCerrar }) {
     let d;
     try { d = await api('GET', `/api/partidas/${partida.id}/escandallo`); } catch (e) { return toast(e.message, true); }
     const editar = window.s360.tiene('escandallo');
     let cambiado = false;
+    const abiertos = new Set();   // líneas con los adjuntos desplegados
     const dlg = el('dialog', { class: 'dlg-llevar-ot dlg-escandallo', 'aria-labelledby': 'esc-tit' });
     const cuerpo = el('div', { class: 'llv-cuerpo' });
     const pie = el('div', { class: 'esc-pie' });
@@ -165,12 +223,19 @@
       };
       for (const inp of [cantI, ud, nota]) inp.addEventListener('keydown', (ev) => { if (ev.key === 'Enter') { ev.preventDefault(); if (nueva) crear(); else inp.blur(); } });
       if (!editar) for (const x of [desc, cantI, ud, nota]) x.readOnly = true;
+      const nAdj = nueva ? 0 : (l.archivos || []).length + (l.enlaces || []).length;
+      const clip = nueva ? el('span') : el('button', { type: 'button', class: `ghost mini esc-clip${nAdj ? ' con' : ''}`, tabindex: '-1',
+        title: 'Fotos, PDF y enlaces del material', 'aria-expanded': String(abiertos.has(l.id)),
+        onclick: () => { abiertos.has(l.id) ? abiertos.delete(l.id) : abiertos.add(l.id); pintar(); } }, '📎', nAdj ? el('span', { class: 'llv-n' }, String(nAdj)) : null);
       const f = el('div', { class: `llv-fila esc-fila${nueva ? ' nueva' : ''}`, role: 'row' },
-        el('span', { class: 'llv-num' }, nueva ? '＋' : String(i + 1)), desc, cantI, ud, nota,
+        el('span', { class: 'llv-num' }, nueva ? '＋' : String(i + 1)), desc, cantI, ud, nota, clip,
         nueva ? el('span') : chipEstado(l),
         editar ? (nueva ? el('button', { type: 'button', class: 'primario mini', tabindex: '-1', title: 'Añadir (Enter)', onclick: crear }, '＋')
           : el('button', { type: 'button', class: 'ghost mini borrar', tabindex: '-1', 'aria-label': `Quitar ${l.descripcion}`, title: 'Quitar (Ctrl+Supr)', onclick: () => quitar(l) }, '✕')) : el('span'));
       if (!nueva && editar) f.addEventListener('keydown', (ev) => { if (ev.ctrlKey && ev.key === 'Delete') { ev.preventDefault(); quitar(l); } });
+      if (!nueva && abiertos.has(l.id)) {
+        return [f, el('div', { class: 'esc-adj' }, adjuntosLinea(l, { subir: editar, enlaces: editar, alCambiar: () => { cambiado = true; } }))];
+      }
       return f;
     }
     const quitar = async (l) => {
@@ -194,8 +259,8 @@
     }
     function pintar() {
       cuerpo.replaceChildren(
-        el('div', { class: 'llv-fila esc-fila llv-cab', role: 'row' }, ['#', 'Material', 'Cant.', 'Ud', 'Nota', 'Estado', ''].map((t) => el('span', {}, t))),
-        ...d.lineas.map((l, i) => fila(l, i)),
+        el('div', { class: 'llv-fila esc-fila llv-cab', role: 'row' }, ['#', 'Material', 'Cant.', 'Ud', 'Nota', '', 'Estado', ''].map((t) => el('span', {}, t))),
+        ...d.lineas.flatMap((l, i) => [].concat(fila(l, i))),
         ...(editar ? [fila(null)] : []),
         ...(!d.lineas.length && !editar ? [el('p', { class: 'ayuda' }, 'Escandallo vacío.')] : []));
       pintarPie();
@@ -241,5 +306,5 @@
     dlg.showModal();
   }
 
-  window.s360mat = { autocompletar, escandallo, verTarea, ESTADOS, chipEstado, tituloEstado, cant, ddmm, el, toast };
+  window.s360mat = { adjuntosLinea, autocompletar, escandallo, verTarea, ESTADOS, chipEstado, tituloEstado, cant, ddmm, el, toast };
 })();

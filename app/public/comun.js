@@ -308,5 +308,5 @@
   }
 
   window.s360 = { iniciar, tiene, api, preguntar, preguntarTramosSobrantes, alCambiar, chipAvance, tituloAvance, claseRend,
-    subirArchivo, adjuntos, refrescarPendientes };
+    subirArchivo, adjuntos, refrescarPendientes, usuario: () => usuario };
 })();
