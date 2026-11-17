@@ -158,7 +158,7 @@
         "materiales": [
           { "ref_externa": "PRES-2026-0061/02/M10", "descripcion": "Tornillo hexagonal DIN 933 M16×50 8.8 galvanizado en caliente", "cantidad": 24, "unidad": "ud" },
           { "ref_externa": "PRES-2026-0061/02/M11", "descripcion": "Arandela plana DIN 125 M16 galvanizada en caliente", "cantidad": 48, "unidad": "ud" },
-          { "ref_externa": "PRES-2026-0061/02/M12", "descripcion": "Cartucho de anclaje químico epoxi 410 ml", "cantidad": 4, "unidad": "ud", "nota": "Con 16 varillas M16×190" }
+          { "ref_externa": "PRES-2026-0061/02/M12", "descripcion": "Cartucho de anclaje químico epoxi 410 ml", "catalogo": "Resina química de anclaje (cartucho 410 ml)", "cantidad": 4, "unidad": "ud", "nota": "Con 16 varillas M16×190" }
         ],
         "ots": [
           {

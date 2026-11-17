@@ -95,7 +95,7 @@ app/src/archivos.js       fotos y PDF (en la base de datos), audio y vídeo (en 
 app/src/notificaciones.js avisos al móvil (push) y avisos programados
 app/src/capturas.js       bandeja de capturas: capturar y clasificar (tarea / asunto / información)
 app/src/eventos.js        avisos en vivo entre pantallas (Server-Sent Events)
-app/src/importar.js       importación de proyectos del compositor (s360-import/1)
+app/src/importar.js       importación de proyectos del compositor (s360-import/2 y /1) y catálogo
 app/src/migraciones.js    cambios de esquema que se aplican solos al arrancar
 app/public/               frontend sin compilación: index (tablero), proyectos, recursos, usuarios,
                           parte, informes, pin (entrar con PIN) y mi-dia (operarios)
@@ -628,27 +628,38 @@ tiene historial). El compositor usa los mismos nombres, y sus nombres antiguos e
 
 ## Importación de proyectos
 
-El compositor de proyectos exporta un archivo `.s360.json` (formato `s360-import/1`) con el
-proyecto, sus partidas, OTs y tareas con horas estimadas. Especificación, JSON Schema y ejemplo
-en [`docs/importacion/`](docs/importacion/README.md).
+El compositor de proyectos exporta un archivo `.s360.json` (formato **`s360-import/2`**; el `/1`
+sigue valiendo) con el proyecto, sus partidas, OTs y tareas. Especificación, JSON Schema, ejemplo
+completo y copia del catálogo en [`docs/importacion/`](docs/importacion/README.md).
 
 **Proyectos y OTs → «Importar…»**: se arrastra el archivo y sale una **vista previa** (no cambia
-nada): qué se crea o actualiza, avisos, y una tabla con los **nombres que no coinciden** con lo
-que hay en el planificador (áreas, oficios, tipos de máquina, recursos). Para cada uno se elige
-crearlo, usar uno que ya existe o no asignarlo; lo que se asocia se **recuerda** para la próxima
-vez. Al confirmar se importa todo de una vez (o nada).
+nada): qué se crea o actualiza (proyecto, OTs, tareas, material, lo que piden, desgloses), avisos,
+y una tabla con los **nombres que no coinciden** con lo que hay en el planificador (áreas,
+capacidades, tipos de máquina, subcontratas, recursos). Para cada uno se elige crearlo, usar uno
+que ya existe o no asignarlo; lo que se asocia se **recuerda** para la próxima vez. Al confirmar se
+importa todo de una vez (o nada).
 
-- `requiere` por **tipo de recurso** con cantidad; `oficio` + `operarios` → requisito «2 × Soldador».
-- Áreas por nombre o por tipo; lo que es de **obra** («Montaje en Obra», `area_tipo: "obra"`) va
-  al área «Obra · ‹obra del proyecto›», que se crea sola.
-- **Dependencias** (`despues_de`, con `espera_h` de secado/curado): se ven en el detalle de la
-  tarea y el tablero avisa (leve) si un tramo empieza antes de que termine la tarea previa.
-- **Condiciones previas** del proyecto (pago, RAL, pilares…): casillas en la ficha del proyecto;
-  las pendientes se ven en la lista de proyectos y en las OTs del tablero.
-- **Notas** de cada tarea: en la tabla de tareas (editables) y en el detalle del tablero.
-- **Reimportar** el mismo proyecto (mismo `ref_externa`) actualiza sin duplicar y conserva la
-  planificación. Lo que ya no está en el archivo se borra si no tiene nada planificado; si lo
-  tiene, se conserva marcado «ya no está en el presupuesto».
+Lo que trae cada tarea (v2):
+- `horas` (duración) × `operarios` y su **desglose de tiempos** (concepto, fase, cantidad ×
+  rendimiento = horas-persona); el desglose se ve en el detalle de la tarea y avisa si no cuadra.
+- **Capacidades** que piden (sustituyen al oficio), **equipos** y **subcontratas** por tipo con
+  cantidad, **herramientas de mano** y el **material** de la partida que consume (por `ref`).
+- Área por nombre (sus máquinas fijas van solas) o por tipo; `area_tipo: "obra"` va al área
+  «Obra · ‹obra del proyecto›», que se crea sola.
+- **Dependencias** (`despues_de`, con `espera_h` de secado/curado) y **condiciones previas**.
+
+Cada partida trae su **escandallo** (`materiales`, con `ref_externa` estable); con
+`enviar_a_logistica: true` se envía directamente a logística (aviso para revisar stock).
+
+**Reimportar** el mismo proyecto (mismo `ref_externa`) actualiza sin duplicar y conserva la
+planificación, asignaciones, stock y pedidos. Lo que ya no está en el archivo se borra si no tiene
+nada hecho; si lo tiene (tramos, o material revisado/pedido), se conserva marcado «fuera de
+presupuesto». Si cambia la cantidad de un material que logística ya revisó, avisa. Las herramientas
+y material añadidos a mano en el planificador se conservan.
+
+`GET /api/importar/catalogo` devuelve los nombres exactos (áreas con su equipo fijo, capacidades,
+equipos por familia y uso, subcontratas, categorías, materiales y herramientas) para que el
+compositor los use.
 
 ## Material: escandallo, asignación, stock y compras
 
@@ -812,6 +823,7 @@ API: `/api/catalogo-llevar` · `/api/partidas/:id/escandallo` (+ `/enviar`) · `
 | POST | `/api/importar?simular=1` | vista previa de una importación (archivo o `{archivo, resoluciones}`) |
 | POST | `/api/importar` | importar (transacción; devuelve el informe y el id del proyecto) |
 | GET | `/api/importaciones` | historial (`?proyecto_id=`) |
+| GET | `/api/importar/catalogo` | nombres exactos para el compositor (`s360-catalogo/1`) |
 | POST | `/api/proyectos/:id/condiciones` | `{texto}` añadir condición previa |
 | GET · PUT | `/api/tareas/:id/dependencias` | tareas que pueden ir antes (mismo proyecto; las que harían un círculo, marcadas) · `{dependencias: [{id, espera_h}]}` |
 | PATCH · DELETE | `/api/condiciones/:id` | `{cumplida, texto}` · quitar |
