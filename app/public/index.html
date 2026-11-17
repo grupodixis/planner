@@ -11,7 +11,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
   <meta name="apple-mobile-web-app-title" content="s360">
   <title>s360 · Tablero de planificación</title>
-  <link rel="stylesheet" href="styles.css?v=202611171605">
+  <link rel="stylesheet" href="styles.css?v=202611171612">
 </head>
 <body>
   <header class="top">
@@ -104,25 +104,7 @@
       <h2 id="dlg-areas-tit">Áreas de trabajo</h2>
       <button class="ghost" id="dlg-areas-cerrar" aria-label="Cerrar">✕</button>
     </div>
-    <p class="ayuda">Áreas fijas: cada una es una fila del calendario (una zona del taller, la cabina de pintura, la oficina técnica…). Los cambios se guardan al salir de cada campo.
-      <b>Las obras no van aquí</b>: se crean en la ficha de su proyecto y salen solas del tablero cuando el proyecto se cierra.</p>
-    <form id="form-area" class="form-area">
-      <input name="nombre" placeholder="Nombre (p. ej. Cabina de pintura)" required maxlength="80">
-      <select name="departamento_id" aria-label="Departamento"></select>
-      <select name="tipo" aria-label="Tipo"></select>
-      <label class="chk" title="Un solo trabajo a la vez (puesto, máquina fija)"><input type="checkbox" name="exclusiva"> 1 a la vez</label>
-      <input name="ubicacion" placeholder="Ubicación (opcional)" maxlength="200">
-      <button type="submit">Añadir área</button>
-    </form>
-    <table class="tabla-areas">
-      <thead><tr><th>Orden</th><th>Nombre</th><th>Departamento</th><th>Tipo</th><th>Ubicación</th><th title="Máquinas y elementos que están fijos en el área: van con lo que se planifique allí">Equipo fijo</th><th title="Un solo trabajo a la vez: avisa si coinciden dos">1 a la vez</th><th>Activa</th><th></th></tr></thead>
-      <tbody id="areas-tbody"></tbody>
-    </table>
-    <details id="obras-sueltas" class="obras-sueltas" hidden>
-      <summary></summary>
-      <p class="ayuda">Obras que se han quedado sin proyecto (por ejemplo, porque se borró). No salen en el tablero. Si vuelves a importar o crear su proyecto se enlazan solas.</p>
-      <ul id="obras-sueltas-lista"></ul>
-    </details>
+    <div id="areas-raiz"></div>
   </dialog>
 
   <dialog id="dlg-empujar" aria-labelledby="dlg-empujar-tit">
@@ -136,9 +118,10 @@
   </dialog>
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
-  <script src="pwa.js?v=202611171605"></script>
-  <script src="comun.js?v=202611171605"></script>
-  <script src="ordenar.js?v=202611171605"></script>
-  <script src="app.js?v=202611171605"></script>
+  <script src="pwa.js?v=202611171612"></script>
+  <script src="comun.js?v=202611171612"></script>
+  <script src="ordenar.js?v=202611171612"></script>
+  <script src="areas-ui.js?v=202611171612"></script>
+  <script src="app.js?v=202611171612"></script>
 </body>
 </html>

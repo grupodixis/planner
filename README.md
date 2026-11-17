@@ -334,12 +334,13 @@ Mismas reglas en todas las pantallas (`app/src/avance.js`):
 Agrupado (`comun.js › GRUPOS`), cada grupo con desplegable (al pasar el ratón o pulsar) y la suma de
 lo pendiente de sus pantallas: **Planificación** (Tablero, Parte del día, Bandeja, Mi día) ·
 **Proyectos** (Proyectos y OTs, Logística y compras) · **Recursos** (Operarios, máquinas y subcontratas,
-Capacidades, Usuarios y accesos) · **Informes**. Solo salen las pantallas que permite el rol; un grupo con una sola pantalla
+Áreas de trabajo, Capacidades, Usuarios y accesos) · **Informes**. Solo salen las pantallas que permite el rol; un grupo con una sola pantalla
 es un enlace directo. **＋ Capturar** va como botón junto al usuario.
 
 ## Recursos (pantalla)
 
-Pestañas: Operarios · Maquinaria · Subcontratas y alquileres · Vacaciones y festivos · *Capacidades ↗*
+Pestañas: Operarios · Maquinaria · Subcontratas y alquileres · Vacaciones y festivos · **Áreas de trabajo**
+(misma gestión que el botón del tablero, en `areas-ui.js`; también en el menú Recursos) · *Capacidades ↗*
 (otra pantalla) · **⚙ Tipos** (catálogo, a la derecha). Ficha en dos columnas en pantallas anchas:
 datos a la izquierda; uso y ausencias a la derecha.
 - Operario: «Categoría / puesto» (Oficial 1ª, 2º, Encargado…) solo agrupa en el tablero; lo que sabe

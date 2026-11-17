@@ -90,6 +90,8 @@
   // Pestaña de catálogo de tipos (no es una clase de recurso)
   TIPOS.tipos = { titulo: 'Tipos de recurso', singular: 'tipo', alta: 'Nombre del tipo (p. ej. Soldadora MIG)', catalogo: true };
   TIPOS.calendario = { titulo: 'Vacaciones y festivos', calendario: true };
+  TIPOS.areas = { titulo: 'Áreas de trabajo', areas: true };
+  let areasUI = null;
   const CLASE_TXT = { operario: 'Categoría de operario', maquina: 'Tipo de máquina', subcontrata: 'Tipo de subcontrata / alquiler' };
   const CLASE_PLURAL = { operario: 'Categorías de operario', maquina: 'Tipos de máquina', subcontrata: 'Subcontratas / alquileres' };
   const USO_TXT = { taller: 'taller', obra: 'obra', ambos: 'taller y obra' };
@@ -181,15 +183,22 @@
   /* ---------- lista ---------- */
   async function cargar() {
     const cal = !!TIPOS[estado.tipo].calendario;
-    $('#panel-recursos').hidden = cal;
+    const areas = !!TIPOS[estado.tipo].areas;
+    $('#panel-recursos').hidden = cal || areas;
     $('#panel-calendario').hidden = !cal;
-    if (cal) {
+    $('#panel-areas').hidden = !areas;
+    if (cal || areas) {
       document.querySelectorAll('[role=tab]').forEach((b) => {
         const activo = b.dataset.tipo === estado.tipo;
         b.setAttribute('aria-selected', activo ? 'true' : 'false');
         b.tabIndex = activo ? 0 : -1;
       });
       guardarURL();
+      if (areas) {
+        if (!areasUI) areasUI = window.s360areas.montar($('#areas-raiz'));
+        else await areasUI.recargar();
+        return;
+      }
       return pintarCalendarioLaboral();
     }
     estado.tipos = await api('GET', '/api/tipos-recurso');

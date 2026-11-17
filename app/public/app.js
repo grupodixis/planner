@@ -2025,137 +2025,17 @@
     d.querySelector('.aus-botones button')?.focus();
   }
 
-  /* ---------- áreas de trabajo ---------- */
+  /* ---------- áreas de trabajo (la gestión está en areas-ui.js; también en Recursos › Áreas de trabajo) ---------- */
+  let areasUI = null;
   async function abrirAreas() {
     const dlg = $('#dlg-areas');
-    $('#form-area').hidden = !puedeAreas();
-    await pintarAreas();
+    if (!areasUI) areasUI = window.s360areas.montar($('#areas-raiz'), { alCambiar: () => cargar() });
+    else await areasUI.recargar();
     if (!dlg.open) dlg.showModal();
   }
-
-  let areaEquipoAbierta = null, focoEquipoTexto = false;   // área con el editor de equipo fijo abierto (sigue abierto al guardar)
-  async function pintarAreas() {
-    const { tipos, areas, departamentos = [], maquinas = [], obras_sin_proyecto: sueltas = [] } = await api('GET', '/api/areas');
-    const editar = puedeAreas();
-    const opciones = (sel) => tipos.map((t) => el('option', { value: t, selected: t === sel }, TIPO_TXT[t] || t));
-    const opcDep = (sel) => [el('option', { value: '' }, '—'), ...departamentos.map((d) => el('option', { value: d.id, selected: d.id === sel }, d.nombre.replace(/^Departamento (de |)/, '')))];
-    $('#form-area select[name=tipo]').replaceChildren(...opciones('taller'));
-    $('#form-area select[name=departamento_id]').replaceChildren(...opcDep(null));
-
-    const activas = areas.filter((a) => a.activo).map((a) => a.id);
-    const guardar = (a, campo) => async (ev) => {
-      let valor = ev.target.type === 'checkbox' ? ev.target.checked : ev.target.value;
-      if (campo === 'departamento_id') valor = valor ? Number(valor) : null;
-      if (valor === (a[campo] ?? '')) return;
-      try {
-        await api('PATCH', `/api/areas/${a.id}`, { [campo]: valor });
-        a[campo] = valor;
-        toast('Área guardada');
-        if (campo === 'activo') await pintarAreas();
-        cargar();
-      } catch (e) { toast(e.message, true); ev.target.value = a[campo] ?? ''; }
-    };
-
-    // equipo fijo del área: máquinas (recursos) que están allí y otros elementos (carpa, compresor…)
-    const nombreArea = (id) => areas.find((x) => x.id === id)?.nombre || '';
-    const equipoTxt = (a) => [...a.maquinas.map((m) => m.nombre), ...(a.equipamiento || [])];
-    function editorEquipo(a, fila, foco = true) {
-      const sig = fila.nextElementSibling;
-      if (sig?.classList.contains('area-equipo-ed')) { sig.remove(); areaEquipoAbierta = null; return; }
-      areaEquipoAbierta = a.id;
-      const fijas = new Set(a.maquinas.map((m) => m.id));
-      const elems = [...(a.equipamiento || [])];
-      const guardarMaq = async () => {
-        try { await api('PUT', `/api/areas/${a.id}/maquinas`, { ids: [...fijas] }); toast('Equipo del área guardado'); await pintarAreas(); cargar(); }
-        catch (e) { toast(e.message, true); }
-      };
-      const guardarElems = async () => {
-        focoEquipoTexto = true;
-        try { await api('PATCH', `/api/areas/${a.id}`, { equipamiento: elems }); toast('Equipo del área guardado'); await pintarAreas(); cargar(); }
-        catch (e) { toast(e.message, true); }
-      };
-      const nuevo = el('input', { placeholder: 'Otro elemento fijo (p. ej. carpa, compresor)… ↵', maxlength: 120, 'aria-label': 'Añadir elemento fijo',
-        onkeydown: (ev) => { if (ev.key === 'Enter' && ev.target.value.trim()) { ev.preventDefault(); elems.push(ev.target.value.trim()); guardarElems(); } } });
-      const ed = el('tr', { class: 'area-equipo-ed' }, el('td', { colspan: 9 },
-        el('div', { class: 'aeq' },
-          el('div', {}, el('h4', {}, `Máquinas fijas en ${a.nombre}`),
-            el('p', { class: 'ayuda' }, 'Lo que se planifique en esta área las lleva solas: cumplen lo que pida la tarea y salen en Mi día.'),
-            el('div', { class: 'aeq-maq' }, maquinas.length ? maquinas.map((m) => el('label', { class: 'chk' },
-              el('input', { type: 'checkbox', checked: fijas.has(m.id), onchange: (ev) => { if (ev.target.checked) fijas.add(m.id); else fijas.delete(m.id); guardarMaq(); } }),
-              ` ${m.nombre}`, m.fijo_area && m.linea_id !== a.id ? el('span', { class: 'ayuda' }, ` (fija en ${nombreArea(m.linea_id)})`) : null))
-              : el('p', { class: 'ayuda' }, 'No hay máquinas dadas de alta en Recursos.'))),
-          el('div', {}, el('h4', {}, 'Otros elementos fijos'),
-            el('div', { class: 'aeq-elems' }, elems.map((x, i) => el('span', { class: 'aeq-chip' }, x,
-              el('button', { type: 'button', class: 'ghost mini', 'aria-label': `Quitar ${x}`, onclick: () => { elems.splice(i, 1); guardarElems(); } }, '✕')))),
-            nuevo))));
-      fila.after(ed);
-      if (foco) nuevo.focus();
-    }
-
-    $('#areas-tbody').replaceChildren(...areas.map((a) => el('tr', { class: a.activo ? '' : 'inactiva', ...(editar && a.activo ? { 'data-id': a.id } : {}) },
-      el('td', { class: 'ord' }, editar && a.activo ? asaOrden(a.nombre) : ''),
-      el('td', {}, el('input', { value: a.nombre, 'aria-label': 'Nombre', maxlength: 80, disabled: !editar, onchange: guardar(a, 'nombre') })),
-      el('td', {}, el('select', { 'aria-label': 'Departamento', disabled: !editar, onchange: guardar(a, 'departamento_id') }, opcDep(a.departamento_id))),
-      el('td', {}, el('select', { 'aria-label': 'Tipo', disabled: !editar, onchange: guardar(a, 'tipo') }, opciones(a.tipo))),
-      el('td', {}, el('input', { value: a.ubicacion || '', 'aria-label': 'Ubicación', maxlength: 200, disabled: !editar, placeholder: '—', onchange: guardar(a, 'ubicacion') })),
-      el('td', { class: 'area-equipo' }, el('button', {
-        type: 'button', class: 'ghost mini', disabled: !editar && !equipoTxt(a).length, title: equipoTxt(a).join('\n') || 'Sin equipo fijo',
-        onclick: (ev) => editar && editorEquipo(a, ev.target.closest('tr')),
-      }, equipoTxt(a).length ? `⚙ ${equipoTxt(a).length}` : (editar ? '＋' : '—')),
-      equipoTxt(a).length ? el('span', { class: 'ayuda aeq-res' }, ` ${equipoTxt(a).join(', ')}`) : null),
-      el('td', { class: 'centro' }, el('input', { type: 'checkbox', checked: a.exclusiva, 'aria-label': 'Un trabajo a la vez', title: 'Un solo trabajo a la vez (puesto de oficina, máquina fija): avisa si coinciden dos', disabled: !editar, onchange: guardar(a, 'exclusiva') })),
-      el('td', { class: 'centro' }, el('input', { type: 'checkbox', checked: a.activo, 'aria-label': 'Activa', disabled: !editar, onchange: guardar(a, 'activo') })),
-      el('td', {}, editar ? el('button', {
-        type: 'button', class: 'ghost borrar',
-        title: a.tareas_abiertas ? `Tiene ${a.tareas_abiertas} tarea(s) abiertas: se desactivará` : 'Borrar área',
-        onclick: async () => {
-          const r = await api('DELETE', `/api/areas/${a.id}`).catch((e) => toast(e.message, true));
-          if (r) toast(r.desactivada ? 'El área tiene tareas: se ha desactivado' : 'Área borrada');
-          await pintarAreas(); cargar();
-        },
-      }, a.tareas_abiertas ? 'Desactivar' : 'Borrar') : ''),
-    )));
-    if (areaEquipoAbierta) {
-      const a = areas.find((x) => x.id === areaEquipoAbierta);
-      const fila = a && [...$('#areas-tbody').children].find((tr) => tr.querySelector('input')?.value === a.nombre);
-      if (fila) { areaEquipoAbierta = null; editorEquipo(a, fila, focoEquipoTexto); } else areaEquipoAbierta = null;
-      focoEquipoTexto = false;
-    }
-    // Obras sin proyecto: apartadas y plegadas, para que no ensucien la lista
-    $('#obras-sueltas').hidden = !sueltas.length;
-    $('#obras-sueltas summary').textContent = `Obras sin proyecto (${sueltas.length})`;
-    $('#obras-sueltas-lista').replaceChildren(...sueltas.map((a) => el('li', {},
-      el('span', {}, a.nombre), a.ubicacion ? el('span', { class: 'ayuda' }, ` · ${a.ubicacion}`) : null,
-      a.usos ? el('span', { class: 'ayuda' }, ` · usada en ${a.usos} tarea(s)/tramo(s)`) : null,
-      editar && !a.usos ? el('button', {
-        type: 'button', class: 'ghost borrar mini',
-        onclick: async () => {
-          const r = await api('DELETE', `/api/areas/${a.id}`).catch((e) => toast(e.message, true));
-          if (r) toast('Obra borrada');
-          await pintarAreas();
-        },
-      }, 'Borrar') : null)));
-    if (editar) {
-      ordenArrastrable($('#areas-tbody'), async (ids) => {
-        try { await api('PUT', '/api/areas/orden', { ids }); toast('Orden guardado'); } catch (e) { toast(e.message, true); }
-        await pintarAreas(); cargar();
-      });
-    }
-  }
-
   function prepararAreas() {
     $('#btn-areas').onclick = abrirAreas;
     $('#dlg-areas-cerrar').onclick = () => $('#dlg-areas').close();
-    $('#form-area').addEventListener('submit', async (ev) => {
-      ev.preventDefault();
-      const fd = new FormData(ev.target);
-      try {
-        await api('POST', '/api/areas', Object.fromEntries(fd));
-        ev.target.reset();
-        toast('Área creada');
-        await pintarAreas(); cargar();
-      } catch (e) { toast(e.message, true); }
-    });
   }
 
   /* ---------- arranque ---------- */

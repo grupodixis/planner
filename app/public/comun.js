@@ -111,10 +111,17 @@
     ['Proyectos', [['/proyectos.html', 'Proyectos y OTs', null, 'Partidas, OTs, tareas, escandallo e importación'],
       ['/logistica.html', 'Logística y compras', ['logistica', 'compras', 'escandallo'], 'Stock, pedidos y recepción de material']]],
     ['Recursos', [['/recursos.html', 'Operarios, máquinas y subcontratas', null, 'Fichas, vacaciones y festivos, tipos'],
+      ['/recursos.html?tipo=areas', 'Áreas de trabajo', null, 'Zonas del taller, puestos, cabina y su equipo fijo'],
       ['/capacidades.html', 'Capacidades', ['recursos', 'planificar'], 'Lo que sabe hacer cada uno'], ['/usuarios.html', 'Usuarios y accesos', 'usuarios', 'Cuentas, roles y PIN']]],
     ['Informes', [['/informes.html', 'Informes', 'informes', 'Horas, costes y resultados']]],
   ];
-  const aqui = (href) => (href === '/' ? ['/', '/index.html'].includes(location.pathname) : location.pathname === href);
+  // pantalla actual (un enlace con «?tipo=…» solo cuenta en esa pestaña)
+  const aqui = (href) => {
+    const [p, qs] = href.split('?');
+    if (!(p === '/' ? ['/', '/index.html'].includes(location.pathname) : location.pathname === p)) return false;
+    const tipo = new URLSearchParams(location.search).get('tipo');
+    return qs ? new URLSearchParams(qs).get('tipo') === tipo : tipo !== 'areas';
+  };
   function pintarMenu(menu) {
     const puede = (p) => !p || [].concat(p).some((k) => tiene(k));
     const cerrarTodo = (salvo) => menu.querySelectorAll('.menu-grupo.abierto').forEach((g) => { if (g !== salvo) g.classList.remove('abierto'); });

@@ -1927,3 +1927,6 @@ dialog.dlg-req[open] { display: flex; }
 .dreq-uso { margin-left: 6px; font-size: 11px; padding: 0 6px; border-radius: 99px; background: var(--linea); color: var(--suave); white-space: nowrap; }
 .dreq-uso.obra { background: var(--naranja-bg); color: var(--naranja); }
 .dreq-uso.ambos { background: var(--azul-bg); color: var(--azul); }
+.areas-pant { padding: 0 20px 20px; }
+.areas-pant .panel { padding: 16px 18px; }
+.tabla-areas-caja { overflow-x: auto; }

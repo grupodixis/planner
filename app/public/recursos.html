@@ -11,7 +11,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
   <meta name="apple-mobile-web-app-title" content="s360">
   <title>s360 · Recursos</title>
-  <link rel="stylesheet" href="styles.css?v=202611171605">
+  <link rel="stylesheet" href="styles.css?v=202611171612">
 </head>
 <body>
   <header class="top">
@@ -29,6 +29,7 @@
     <button role="tab" data-tipo="maquina" id="tab-maquina" aria-controls="panel-recursos">Maquinaria</button>
     <button role="tab" data-tipo="subcontrata" id="tab-subcontrata" aria-controls="panel-recursos">Subcontratas y alquileres</button>
     <button role="tab" data-tipo="calendario" id="tab-calendario" aria-controls="panel-calendario">Vacaciones y festivos</button>
+    <button role="tab" data-tipo="areas" id="tab-areas" aria-controls="panel-areas">Áreas de trabajo</button>
     <a class="tab-enlace" href="/capacidades.html" title="Lo que sabe hacer cada uno (otra pantalla)">Capacidades ↗</a>
     <button role="tab" data-tipo="tipos" id="tab-tipos" aria-controls="panel-recursos" class="tab-catalogo" title="Catálogo: tipos de máquina, de subcontrata y categorías de operario">⚙ Tipos</button>
     <button type="button" id="btn-semillero" class="ghost btn-semillero" hidden title="Cargar el archivo semillero de recursos de la empresa (semillero.json)">Cargar semillero…</button>
@@ -76,6 +77,10 @@
     </section>
   </main>
 
+  <main class="areas-pant" id="panel-areas" role="tabpanel" aria-labelledby="tab-areas" hidden>
+    <section class="panel"><div id="areas-raiz"></div></section>
+  </main>
+
   <main class="calendario-laboral" id="panel-calendario" role="tabpanel" aria-labelledby="tab-calendario" hidden>
     <section class="panel sol-vac" id="sol-vac" hidden>
       <div class="cab-panel"><h2>Peticiones de vacaciones</h2><span class="ayuda" id="sol-vac-ayuda"></span></div>
@@ -120,9 +125,11 @@
   </dialog>
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
-  <script src="pwa.js?v=202611171605"></script>
-  <script src="comun.js?v=202611171605"></script>
-  <script src="recursos.js?v=202611171605"></script>
+  <script src="pwa.js?v=202611171612"></script>
+  <script src="comun.js?v=202611171612"></script>
+  <script src="ordenar.js?v=202611171612"></script>
+  <script src="areas-ui.js?v=202611171612"></script>
+  <script src="recursos.js?v=202611171612"></script>
   <dialog id="dlg-semillero" class="dlg-importar" aria-labelledby="dlg-sem-tit">
     <div class="dlg-cab">
       <h2 id="dlg-sem-tit">Cargar semillero de recursos</h2>
