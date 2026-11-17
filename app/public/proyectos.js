@@ -398,87 +398,148 @@
     pintarTareas();
   }
 
-  // Requisitos de una tarea: tipos de recurso (con cantidad) y recursos concretos
-  const CLASES = [['maquina', 'Tipos de máquina'], ['subcontrata', 'Subcontratas / alquileres'], ['operario', 'Categorías (oficio)']];
-  let reqAbierto = { id: null, filtro: '' };   // el desplegable de requisitos sigue abierto al guardar
-  function selectorRequisitos(t, recursosReq, editar, patch) {
+  // Requisitos de una tarea: capacidades (saber hacer), tipos de recurso (con cantidad) y recursos concretos.
+  // En la tabla, un botón con el resumen; al pulsarlo, un cuadro grande para marcar y guardar de una vez.
+  const CLASES = [['maquina', 'Equipos y máquinas', '⚙'], ['subcontrata', 'Subcontratas y alquileres', '🤝'], ['operario', 'Categorías (oficio)', '👷']];
+  const normR = (x) => String(x || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+  function resumenRequisitos(t, recursosReq) {
     const tipos = estado.catalogo.tipos;
-    const reqTipo = t.requisitos_tipo || [];
-    const reqCap = t.capacidades || [];
     const caps = estado.catalogo.capacidades || [];
-    const guardarCaps = (lista) => patch(t, { capacidades: lista });
-    const filaCap = (k) => {
-      const q = reqCap.find((x) => x.id === k.id);
-      return el('label', { class: 'req-tipo' },
-        el('input', { type: 'checkbox', checked: !!q, disabled: !editar,
-          onchange: (ev) => guardarCaps(ev.target.checked ? [...reqCap, { id: k.id, cantidad: 1 }] : reqCap.filter((x) => x.id !== k.id)) }),
-        ` ${k.nombre}`,
-        q ? el('input', {
-          type: 'number', min: 1, max: 50, value: q.cantidad, class: 'cant', 'aria-label': `Cuántos que sepan ${k.nombre}`, disabled: !editar,
-          title: 'Cuántas personas que lo sepan hacer a la vez', onclick: (ev) => ev.preventDefault(),
-          onchange: (ev) => guardarCaps(reqCap.map((x) => (x.id === k.id ? { ...x, cantidad: Math.max(1, Number(ev.target.value) || 1) } : x))),
-        }) : null,
-        el('span', { class: `rt${k.personas ? '' : ' sin'}`, title: k.personas ? `${k.personas} persona(s) la saben hacer` : 'Nadie la tiene marcada' },
-          k.personas ? String(k.personas) : 'nadie'));
-    };
-    // buscador de capacidades (son muchas): se ven las marcadas y las que coinciden
-    const sigueAbierto = reqAbierto.id === t.id;
-    let filtroCap = sigueAbierto ? reqAbierto.filtro : '';
-    const normC = (x) => String(x || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
-    const cajaCaps = el('div', { class: 'req-caps' });
-    const pintarCaps = () => {
-      const q = normC(filtroCap);
-      const vis = caps.filter((k) => reqCap.some((x) => x.id === k.id) || (q && normC(`${k.nombre} ${k.familia}`).includes(q)));
-      cajaCaps.replaceChildren(...(vis.length ? vis.map(filaCap) : [el('span', { class: 'ayuda' }, q ? 'Ninguna coincide' : 'Escribe para buscar (p. ej. «soldar», «carretilla»)')]));
-    };
-    pintarCaps();
-    const resumen = [
-      ...reqCap.map((q) => { const k = caps.find((x) => x.id === q.id); return k ? `${q.cantidad > 1 ? q.cantidad + '× ' : ''}sabe ${k.nombre}` : null; }),
-      ...reqTipo.map((q) => { const ti = tipos.find((x) => x.id === q.id); return ti ? `${q.cantidad > 1 ? q.cantidad + '× ' : ''}${ti.nombre}` : null; }),
+    return [
+      ...(t.capacidades || []).map((q) => { const k = caps.find((x) => x.id === q.id); return k ? `${q.cantidad > 1 ? q.cantidad + '× ' : ''}sabe ${k.nombre}` : null; }),
+      ...(t.requisitos_tipo || []).map((q) => { const ti = tipos.find((x) => x.id === q.id); return ti ? `${q.cantidad > 1 ? q.cantidad + '× ' : ''}${ti.nombre}` : null; }),
       ...t.requisitos.map((id) => recursosReq.find((r) => r.id === id)?.nombre),
     ].filter(Boolean);
-    const guardarTipos = (lista) => patch(t, { requisitos_tipo: lista });
+  }
+  function selectorRequisitos(t, recursosReq, editar, patch) {
+    const res = resumenRequisitos(t, recursosReq);
+    return el('button', {
+      type: 'button', class: `req-btn${res.length ? '' : ' vacio'}`, title: res.length ? res.join('\n') : 'Sin requisitos',
+      onclick: () => dialogoRequisitos(t, recursosReq, editar, patch),
+    }, res.length ? res.join(', ') : (editar ? '＋ requisitos' : '—'));
+  }
 
-    const filaTipo = (ti) => {
-      const q = reqTipo.find((x) => x.id === ti.id);
-      return el('label', { class: 'req-tipo' },
-        el('input', {
-          type: 'checkbox', checked: !!q, disabled: !editar,
-          onchange: (ev) => guardarTipos(ev.target.checked ? [...reqTipo, { id: ti.id, cantidad: 1 }] : reqTipo.filter((x) => x.id !== ti.id)),
-        }),
-        ` ${ti.nombre}`,
-        q ? el('input', {
-          type: 'number', min: 1, max: 50, value: q.cantidad, class: 'cant', 'aria-label': `Cantidad de ${ti.nombre}`, disabled: !editar,
-          title: 'Cuántos hacen falta a la vez',
-          onclick: (ev) => ev.preventDefault(),
-          onchange: (ev) => guardarTipos(reqTipo.map((x) => (x.id === ti.id ? { ...x, cantidad: Math.max(1, Number(ev.target.value) || 1) } : x))),
-        }) : null,
-        el('span', { class: `rt${ti.recursos ? '' : ' sin'}`, title: ti.recursos ? `${ti.recursos} dado(s) de alta` : 'Ninguno dado de alta todavía' },
-          ti.recursos ? String(ti.recursos) : 'ninguno'));
+  function dialogoRequisitos(t, recursosReq, editar, patch) {
+    const tipos = estado.catalogo.tipos;
+    const caps = estado.catalogo.capacidades || [];
+    // copia de trabajo: se guarda todo junto al pulsar «Guardar»
+    const sel = {
+      cap: new Map((t.capacidades || []).map((q) => [q.id, q.cantidad])),
+      tipo: new Map((t.requisitos_tipo || []).map((q) => [q.id, q.cantidad])),
+      rec: new Set(t.requisitos),
     };
+    let filtro = '';
+    let seccion = 'cap';
+    const d = el('dialog', { class: 'dlg-req', 'aria-label': `Requisitos de ${t.nombre}` });
+    const cuerpo = el('div', { class: 'dreq-cuerpo' });
+    const elegido = el('div', { class: 'dreq-elegido' });
+    const nav = el('nav', { class: 'dreq-nav' });
+    const buscar = el('input', { type: 'search', class: 'dreq-buscar', placeholder: '🔎 Buscar en todo (soldar, carretilla, grúa, oficial…)', 'aria-label': 'Buscar' });
+    buscar.addEventListener('input', () => { filtro = buscar.value; pintar(); });
 
-    const det = el('details', { class: 'req', open: sigueAbierto ? '' : null,
-      ontoggle: (ev) => { if (ev.target.open) reqAbierto = { id: t.id, filtro: filtroCap }; else if (reqAbierto.id === t.id) reqAbierto = { id: null, filtro: '' }; } },
-      el('summary', {}, resumen.length ? resumen.join(', ') : '—'),
-      el('div', { class: 'req-lista' },
-        el('div', { class: 'req-grupo' }, 'Saber hacer (capacidades)'),
-        el('input', { type: 'search', class: 'req-buscar', placeholder: '🔎 Buscar capacidad…', 'aria-label': 'Buscar capacidad', value: filtroCap,
-          oninput: (ev) => { filtroCap = ev.target.value; reqAbierto.filtro = filtroCap; pintarCaps(); } }),
-        cajaCaps,
+    const SECCIONES = [
+      ['cap', 'Saber hacer', '🧠', caps.length],
+      ...CLASES.map(([clase, titulo, ico]) => [clase, titulo, ico, tipos.filter((ti) => ti.clase === clase).length]),
+      ['rec', 'Recurso concreto', '📌', recursosReq.length],
+    ];
+    const nSel = (k) => (k === 'cap' ? sel.cap.size : k === 'rec' ? sel.rec.size : tipos.filter((ti) => ti.clase === k && sel.tipo.has(ti.id)).length);
+
+    const cantidad = (mapa, id, nombre) => el('input', {
+      type: 'number', min: 1, max: 50, value: mapa.get(id), class: 'dreq-cant', disabled: !editar, 'aria-label': `Cuántos: ${nombre}`, title: 'Cuántos a la vez',
+      onclick: (ev) => ev.stopPropagation(),
+      onchange: (ev) => { mapa.set(id, Math.min(50, Math.max(1, Number(ev.target.value) || 1))); pintarElegido(); },
+    });
+    const casilla = (marcado, onCambio, texto, extra, cant) => el('label', { class: `dreq-op${marcado ? ' si' : ''}` },
+      el('input', { type: 'checkbox', checked: marcado, disabled: !editar, onchange: (ev) => onCambio(ev.target.checked) }),
+      el('span', { class: 'dreq-op-txt' }, texto), cant, extra);
+    const cuenta = (n, txt0, txt1) => el('span', { class: `rt${n ? '' : ' sin'}` }, n ? `${n} ${txt1}` : txt0);
+
+    function pintarElegido() {
+      const chips = [
+        ...[...sel.cap].map(([id, n]) => { const k = caps.find((x) => x.id === id); return k && [`🧠 ${n > 1 ? n + '× ' : ''}${k.nombre}`, () => sel.cap.delete(id)]; }),
+        ...[...sel.tipo].map(([id, n]) => { const ti = tipos.find((x) => x.id === id); return ti && [`${CLASES.find((c) => c[0] === ti.clase)?.[2] || ''} ${n > 1 ? n + '× ' : ''}${ti.nombre}`, () => sel.tipo.delete(id)]; }),
+        ...[...sel.rec].map((id) => { const r = recursosReq.find((x) => x.id === id); return r && [`📌 ${r.nombre}`, () => sel.rec.delete(id)]; }),
+      ].filter(Boolean);
+      elegido.replaceChildren(el('span', { class: 'dreq-el-tit' }, chips.length ? `Pide (${chips.length}):` : 'No pide nada todavía. Marca abajo lo que hace falta.'),
+        ...chips.map(([txt, quitar]) => el('span', { class: 'dreq-chip' }, txt,
+          editar ? el('button', { type: 'button', 'aria-label': `Quitar ${txt}`, onclick: () => { quitar(); pintar(); } }, '✕') : null)));
+    }
+
+    function pintar() {
+      pintarElegido();
+      const q = normR(filtro);
+      nav.replaceChildren(...SECCIONES.map(([k, txt, ico]) => el('button', {
+        type: 'button', class: `dreq-nav-b${seccion === k && !q ? ' activo' : ''}`,
+        onclick: () => { seccion = k; filtro = ''; buscar.value = ''; pintar(); cuerpo.scrollTop = 0; },
+      }, el('span', { 'aria-hidden': 'true' }, ico), ` ${txt}`, nSel(k) ? el('span', { class: 'dreq-n' }, String(nSel(k))) : null)));
+      // con texto de búsqueda se busca en todas las secciones; sin él, solo la elegida
+      const ver = (k) => (q ? true : seccion === k);
+      const bloques = [];
+      if (ver('cap')) {
+        const fams = new Map();
+        for (const k of caps) {
+          if (q && !normR(`${k.nombre} ${k.familia}`).includes(q)) continue;
+          if (!fams.has(k.familia)) fams.set(k.familia, []);
+          fams.get(k.familia).push(k);
+        }
+        if (fams.size) {
+          bloques.push(el('section', { class: 'dreq-sec' },
+            el('h3', {}, '🧠 Saber hacer', el('span', { class: 'ayuda' }, ' · cuántas personas que lo sepan hacer a la vez')),
+            el('div', { class: 'dreq-fams' }, [...fams].map(([fam, ks]) => el('div', { class: 'dreq-fam' },
+              el('h4', {}, fam),
+              ks.map((k) => casilla(sel.cap.has(k.id), (v) => { if (v) sel.cap.set(k.id, 1); else sel.cap.delete(k.id); pintar(); }, k.nombre,
+                cuenta(k.personas, 'nadie', k.personas === 1 ? 'persona' : 'personas'), sel.cap.has(k.id) ? cantidad(sel.cap, k.id, k.nombre) : null)))))));
+        }
+      }
+      for (const [clase, titulo, ico] of CLASES) {
+        if (!ver(clase)) continue;
+        const lista = tipos.filter((ti) => ti.clase === clase && (!q || normR(ti.nombre).includes(q)));
+        if (!lista.length) continue;
+        bloques.push(el('section', { class: 'dreq-sec' },
+          el('h3', {}, `${ico} ${titulo}`, clase === 'maquina' ? el('span', { class: 'ayuda' }, ' · en el tablero se asigna cuál') : null),
+          el('div', { class: 'dreq-grid' }, lista.map((ti) => casilla(sel.tipo.has(ti.id), (v) => { if (v) sel.tipo.set(ti.id, 1); else sel.tipo.delete(ti.id); pintar(); }, ti.nombre,
+            cuenta(ti.recursos, 'ninguno', 'de alta'), sel.tipo.has(ti.id) ? cantidad(sel.tipo, ti.id, ti.nombre) : null)))));
+      }
+      if (ver('rec')) {
+        const lista = recursosReq.filter((r) => !q || normR(r.nombre).includes(q));
+        if (lista.length) {
+          bloques.push(el('section', { class: 'dreq-sec' },
+            el('h3', {}, '📌 Recurso concreto', el('span', { class: 'ayuda' }, ' · esa máquina o subcontrata en particular')),
+            el('div', { class: 'dreq-grid' }, lista.map((r) => casilla(sel.rec.has(r.id), (v) => { if (v) sel.rec.add(r.id); else sel.rec.delete(r.id); pintar(); }, r.nombre,
+              el('span', { class: `rt ${r.tipo}` }, r.tipo === 'maquina' ? 'máquina' : 'subcontrata'))))));
+        }
+      }
+      cuerpo.replaceChildren(...(bloques.length ? bloques : [el('p', { class: 'ayuda dreq-vacio' }, q ? `Nada coincide con «${filtro}».` : 'No hay nada dado de alta en esta sección.')]));
+    }
+
+    const cerrar = () => { d.close(); d.remove(); };
+    const guardar = async () => {
+      const cuerpoPatch = {
+        capacidades: [...sel.cap].map(([id, cantidad]) => ({ id, cantidad })),
+        requisitos_tipo: [...sel.tipo].map(([id, cantidad]) => ({ id, cantidad })),
+        requisitos: [...sel.rec],
+      };
+      cerrar();
+      await patch(t, cuerpoPatch);
+    };
+    d.append(
+      el('div', { class: 'dlg-cab' },
+        el('div', {}, el('h2', {}, 'Requisitos de la tarea'), el('p', { class: 'ayuda' }, `${t.nombre}${t.operarios_req ? ` · ${t.operarios_req} operario(s)` : ''}`)),
+        el('button', { type: 'button', class: 'ghost', 'aria-label': 'Cerrar', onclick: cerrar }, '✕')),
+      elegido,
+      el('div', { class: 'dreq-barra' }, buscar),
+      el('div', { class: 'dreq-dos' }, nav, cuerpo),
+      el('div', { class: 'dreq-pie' },
         el('a', { class: 'req-gestionar', href: '/capacidades.html' }, 'Gestionar capacidades…'),
-        CLASES.map(([clase, titulo]) => {
-          const lista = tipos.filter((ti) => ti.clase === clase);
-          return lista.length ? [el('div', { class: 'req-grupo' }, titulo), lista.map(filaTipo)] : null;
-        }),
-        recursosReq.length ? el('div', { class: 'req-grupo' }, 'Recurso concreto') : null,
-        recursosReq.map((r) => el('label', {},
-          el('input', {
-            type: 'checkbox', checked: t.requisitos.includes(r.id), disabled: !editar,
-            onchange: (ev) => patch(t, { requisitos: ev.target.checked ? [...t.requisitos, r.id] : t.requisitos.filter((x) => x !== r.id) }),
-          }),
-          ` ${r.nombre}`, el('span', { class: `rt ${r.tipo}` }, r.tipo === 'maquina' ? 'máquina' : 'subcontrata'))),
-        el('a', { class: 'req-gestionar', href: '/recursos.html?tipo=tipos' }, 'Gestionar tipos de recurso…')));
-    return det;
+        el('a', { class: 'req-gestionar', href: '/recursos.html?tipo=tipos' }, 'Gestionar tipos de recurso…'),
+        el('span', { class: 'dreq-esp' }),
+        el('button', { type: 'button', class: 'ghost', onclick: cerrar }, editar ? 'Cancelar' : 'Cerrar'),
+        editar ? el('button', { type: 'button', class: 'primario', onclick: guardar }, 'Guardar') : null));
+    d.addEventListener('cancel', (ev) => { ev.preventDefault(); cerrar(); });
+    document.body.append(d);
+    pintar();
+    d.showModal();
+    buscar.focus();
   }
 
   // Debajo del nombre: «ya no está en el presupuesto», dependencias y notas

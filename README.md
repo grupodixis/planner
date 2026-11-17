@@ -348,8 +348,11 @@ La categoría (Oficial 1ª, 2º…) se queda en la ficha del operario para el co
     portátiles, Seguridad y formación, Oficina técnica). Se añaden capacidades en cada familia (↵),
     familias nuevas, se renombran, se cambian de familia o se quitan. A la derecha, quién la sabe hacer.
   - *Por persona*: qué sabe hacer cada operario, con casillas por familia y filtro.
-- **Tareas**: en Proyectos › requisitos de la tarea, bloque «Saber hacer (capacidades)» con buscador
-  y cantidad (cuántas personas a la vez). Tablas `capacidades`, `recurso_capacidades`, `tarea_capacidades`.
+- **Tareas**: en Proyectos, la columna «Requiere» es un botón con el resumen; abre el cuadro
+  **Requisitos de la tarea**: arriba lo que pide (chips con ✕), buscador que busca en todo, y a la
+  izquierda las secciones Saber hacer (por familias, en columnas) · Equipos y máquinas · Subcontratas
+  y alquileres · Categorías · Recurso concreto, con cuántos hay de cada uno y cantidad al marcar.
+  Se guarda todo junto con «Guardar». Tablas `capacidades`, `recurso_capacidades`, `tarea_capacidades`.
 - **Tablero**: aviso «necesita 2 que sepan … (X no la tiene)»; leve si nadie la tiene marcada. «Solucionar»
   propone a quien la sabe. Al seleccionar una tarea se marca ✓ a quien cumple; el tooltip del recurso
   dice «Sabe: …».
