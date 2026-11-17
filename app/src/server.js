@@ -196,7 +196,8 @@ app.patch('/api/tareas/:id', auth.permiso('planificar', 'proyectos'), asyncH(asy
   if ('baja_presupuesto' in b) cambios.baja_presupuesto = !!b.baja_presupuesto;
   const requisitos = Array.isArray(b.requisitos) ? b.requisitos.map(Number) : null;
   const requisitosTipo = leerRequisitosTipo(b.requisitos_tipo);
-  if (!Object.keys(cambios).length && !requisitos && !requisitosTipo) return mal('Nada que cambiar');
+  const capacidades = require('./capacidades').leer(b.capacidades);
+  if (!Object.keys(cambios).length && !requisitos && !requisitosTipo && !capacidades) return mal('Nada que cambiar');
 
   const tarea = await tx(async (c) => {
     const { rows: prev } = await c.query('SELECT id FROM tareas WHERE id = $1 FOR UPDATE', [id]);
@@ -220,6 +221,13 @@ app.patch('/api/tareas/:id', auth.permiso('planificar', 'proyectos'), asyncH(asy
           [id, q.id, q.cantidad]);
       }
       cambios.requisitos_tipo = requisitosTipo;
+    }
+    if (capacidades) {
+      await c.query('DELETE FROM tarea_capacidades WHERE tarea_id = $1', [id]);
+      for (const q of capacidades) {
+        await c.query('INSERT INTO tarea_capacidades (tarea_id, capacidad_id, cantidad) VALUES ($1,$2,$3) ON CONFLICT DO NOTHING', [id, q.id, q.cantidad]);
+      }
+      cambios.capacidades = capacidades;
     }
     // dada por hecha antes de tiempo: se quitan los tramos que quedaban (desde mañana) si así se pide
     if (cambios.estado === 'hecha') {
@@ -249,7 +257,8 @@ require('./recursos')(app, asyncH);
 require('./importar')(app, asyncH);
 require('./semillero')(app, asyncH);
 require('./catalogo').montar(app, asyncH);   // catálogo de materiales y herramientas
-require('./material').montar(app, asyncH);   // escandallo, asignación a tareas, stock y compras
+require('./material').montar(app, asyncH);
+require('./capacidades').montar(app, asyncH);   // capacidades (saber hacer) de las personas   // escandallo, asignación a tareas, stock y compras
 
 /* ---------- Historial ---------- */
 
@@ -283,6 +292,7 @@ const PORT = Number(process.env.PORT || 3000);
   await esperarBD();
   await migrar();
   await auth.asegurarAdmin();
+  await require('./capacidades').sembrar().catch((e) => console.error('Capacidades:', e.message));
   await require('./catalogo').sembrar().catch((e) => console.error('Catálogo base:', e.message));
   app.listen(PORT, () => console.log(`s360_planificacion escuchando en :${PORT}`));
 })().catch((e) => { console.error(e); process.exit(1); });

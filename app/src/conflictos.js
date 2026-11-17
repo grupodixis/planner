@@ -59,6 +59,21 @@ function calcularConflictos(tramos, jornada, tiposDisponibles = new Set(), exclu
           mensaje: `${etiqueta(t)} requiere ${que}${tienen ? ` (${tienen} asignado${tienen > 1 ? 's' : ''})` : ' (sin asignar)'}` });
       }
     }
+    // Capacidades («2 que sepan soldar MIG/MAG»): cuántos de los operarios asignados la tienen
+    for (const q of t.capacidades || []) {
+      const ops = t.asignados.filter((r) => r.tipo === 'operario');
+      const tienen = ops.filter((r) => (r.capacidades || []).includes(q.id)).length;
+      if (tienen >= q.cantidad) continue;
+      const que = `${q.cantidad > 1 ? `${q.cantidad} que sepan` : 'alguien que sepa'} «${q.nombre}»`;
+      const sin = ops.filter((r) => !(r.capacidades || []).includes(q.id)).map((r) => r.nombre);
+      if (!(dia.capacidadesConGente || new Set()).has(q.id)) {
+        out.push({ tipo: 'capacidad', ids: [t.id], leve: true, capacidad_id: q.id, sin_gente: true,
+          mensaje: `${etiqueta(t)} necesita ${que} (nadie la tiene marcada en Capacidades)` });
+      } else {
+        out.push({ tipo: 'capacidad', ids: [t.id], capacidad_id: q.id, falta: q.cantidad - tienen,
+          mensaje: `${etiqueta(t)} necesita ${que}${!ops.length ? ' (sin operarios)' : sin.length ? ` (${sin.join(', ')} no la ${sin.length > 1 ? 'tienen' : 'tiene'})` : ''}` });
+      }
+    }
     const fin = t.hora_inicio + t.duracion_h;
     if (fin > jornada.fin) {
       out.push({ tipo: 'jornada', ids: [t.id], lado: 'fin',

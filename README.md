@@ -329,6 +329,29 @@ Mismas reglas en todas las pantallas (`app/src/avance.js`):
   OTs y cada tarea: «real 32 h · 125 %» o «llevas 45 h de 40») y en Informes (columnas Avance y
   Rend., tarjetas).
 
+## Capacidades (saber hacer)
+
+Lo que pide una tarea es **saber hacer algo** («2 que sepan soldar MIG/MAG»), no una categoría.
+La categoría (Oficial 1ª, 2º…) se queda en la ficha del operario para el coste.
+
+- **Panel de Capacidades** (menú «Capacidades», `capacidades.html`; editar con permiso «recursos»):
+  - *Por capacidad*: lista por familias (Soldadura, Herrería y calderería, Carpintería de aluminio y PVC,
+    Pintura y acabados, Montaje en obra, Uso de maquinaria, Elevación/altura/vehículos, Herramientas
+    portátiles, Seguridad y formación, Oficina técnica). Se añaden capacidades en cada familia (↵),
+    familias nuevas, se renombran, se cambian de familia o se quitan. A la derecha, quién la sabe hacer.
+  - *Por persona*: qué sabe hacer cada operario, con casillas por familia y filtro.
+- **Tareas**: en Proyectos › requisitos de la tarea, bloque «Saber hacer (capacidades)» con buscador
+  y cantidad (cuántas personas a la vez). Tablas `capacidades`, `recurso_capacidades`, `tarea_capacidades`.
+- **Tablero**: aviso «necesita 2 que sepan … (X no la tiene)»; leve si nadie la tiene marcada. «Solucionar»
+  propone a quien la sabe. Al seleccionar una tarea se marca ✓ a quien cumple; el tooltip del recurso
+  dice «Sabe: …».
+- **Lista inicial y conversión** (una vez, `ajustes.capacidades_semilla`): ~79 capacidades. Los oficios
+  que eran saber hacer pasaron a capacidad, en las tareas que los pedían y en las personas que los
+  tenían: Oficial 1ª Soldador → Soldadura MIG/MAG; Oficial de aluminio → Ensamblado de ventanas y
+  puertas de aluminio; Pintor → Pintura con pistola aerográfica; Ingeniero / Delineante → Diseño CAD;
+  Oficial Montaje Obra → Montaje de carpintería en obra. Encargado, Oficial 2º/3º y Jefe de proyectos
+  siguen como categoría.
+
 ## Operarios: Mi día con PIN
 
 Cada operario apunta su día desde su móvil o desde una tablet común del taller; el encargado

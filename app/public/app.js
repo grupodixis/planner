@@ -229,7 +229,8 @@
     // Con una tarea o un tramo seleccionado, se marcan los recursos que cumplen sus requisitos
     const tSel = estado.sel ? (estado.sel.tipo === 'tarea' ? tarea(estado.sel.id) : tarea(tramo(estado.sel.id)?.tarea_id)) : null;
     const cumple = (r) => !!tSel && (tSel.requisitos.some((q) => q.id === r.id)
-      || (tSel.requisitos_tipo || []).some((q) => (r.tipos || []).includes(q.id)));
+      || (tSel.requisitos_tipo || []).some((q) => (r.tipos || []).includes(q.id))
+      || (tSel.capacidades || []).some((q) => (r.capacidades || []).includes(q.id)));
 
     // Acordeones: clase (Operarios / Maquinaria / Subcontratas) › categoría (oficio, tipo de máquina…)
     const soloLibres = leerPref('rec_libres', '0') === '1';
@@ -249,7 +250,7 @@
         style: `--uso:${capR ? Math.min(100, (h / capR) * 100) : 0}%`,
         draggable: puedeEditar() && !fuera ? 'true' : 'false',
         'data-buscar': `${r.nombre} ${r.tipos_txt || ''} ${r.empresa || ''}`.toLowerCase(),
-        title: `${r.nombre}${cumple(r) ? '\n✓ Cumple lo que pide la tarea seleccionada' : ''}${r.vinculo === 'subcontratado' ? `\nSubcontratado${r.empresa ? ' (' + r.empresa + ')' : ''}` : ''}${r.tipos_txt ? '\n' + r.tipos_txt : ''}\n${h ? `${durTxt(h)} asignadas ${cuando} de ${durTxt(capR)}` : fuera ? 'No disponible' : `Libre ${cuando}`}${ausTit}${puedeAusencias() ? `\nClic: apuntar ${r.tipo === 'operario' ? 'falta o ausencia' : 'avería o no disponible'}` : ''}`,
+        title: `${r.nombre}${cumple(r) ? '\n✓ Cumple lo que pide la tarea seleccionada' : ''}${r.vinculo === 'subcontratado' ? `\nSubcontratado${r.empresa ? ' (' + r.empresa + ')' : ''}` : ''}${r.tipos_txt ? '\n' + r.tipos_txt : ''}${r.capacidades_txt ? '\nSabe: ' + r.capacidades_txt : ''}\n${h ? `${durTxt(h)} asignadas ${cuando} de ${durTxt(capR)}` : fuera ? 'No disponible' : `Libre ${cuando}`}${ausTit}${puedeAusencias() ? `\nClic: apuntar ${r.tipo === 'operario' ? 'falta o ausencia' : 'avería o no disponible'}` : ''}`,
         ondragstart: (ev) => {
           estado.arrastre = { tipo: 'recurso', id: r.id };
           ev.dataTransfer.setData(MIME_REC, String(r.id));
@@ -1319,6 +1320,7 @@
     const pend = pendientes(t);
     const completa = pend === 0;
     const req = [...(t.requisitos_tipo || []).map((q) => `${q.cantidad > 1 ? q.cantidad + '× ' : ''}${q.nombre}`),
+      ...(t.capacidades || []).map((q) => `${q.cantidad > 1 ? q.cantidad + '× ' : ''}sabe ${q.nombre}`),
       ...t.requisitos.map((r) => r.nombre)].join(', ');
     const sel = estado.sel?.tipo === 'tarea' && estado.sel.id === t.id;
     const arrastrable = puedeEditar() && !completa;
@@ -1424,6 +1426,8 @@
         [t.operarios_req ? `${t.operarios_req} op` : null,
           ...(t.requisitos_tipo || []).map((q) => `${q.cantidad > 1 ? q.cantidad + ' × ' : ''}${q.nombre}`),
           ...t.requisitos.map((r) => r.nombre)].filter(Boolean).join(' + ') || '—'),
+      t.capacidades?.length ? el('dt', {}, 'Saber hacer') : null,
+      t.capacidades?.length ? el('dd', {}, t.capacidades.map((q) => `${q.cantidad > 1 ? `${q.cantidad} × ` : ''}${q.nombre}`).join(' · ')) : null,
       el('dt', {}, 'Planificado'), el('dd', {},
         el('div', {}, `${durTxt(t.horas_planificadas)} de ${durTxt(t.duracion_h)}`,
           pend ? el('b', { class: 'pend' }, ` · quedan ${durTxt(pend)}`)
@@ -1564,7 +1568,7 @@
     const [a, b] = c.ids.map(tramo);
     return a && b && b.hora_inicio < a.hora_inicio ? a.id : c.ids[1];
   }
-  const tieneSolucion = (c) => ['operarios', 'requisito', 'requisito_tipo', 'solape', 'jornada', 'exceso', 'dependencia', 'puesto', 'ausencia'].includes(c.tipo);
+  const tieneSolucion = (c) => ['operarios', 'capacidad', 'requisito', 'requisito_tipo', 'solape', 'jornada', 'exceso', 'dependencia', 'puesto', 'ausencia'].includes(c.tipo);
   const recurso = (id) => estado.datos.recursos.find((r) => r.id === id);
   const activos = (tipo) => estado.datos.recursos.filter((r) => r.activo !== false && (!tipo || r.tipo === tipo));
   // Dónde está ocupado un recurso ese día (sin contar el tramo indicado)
@@ -1615,7 +1619,8 @@
       case 'operarios': {
         const oficios = (t.requisitos_tipo || []).filter((q) => q.clase === 'operario');
         const suPuesto = (r) => r.linea_id && r.linea_id === tr.linea_id;
-        const tieneOficio = (r) => oficios.some((q) => (r.tipos || []).includes(q.id));
+        const caps = t.capacidades || [];
+        const tieneOficio = (r) => oficios.some((q) => (r.tipos || []).includes(q.id)) || caps.some((q) => (r.capacidades || []).includes(q.id));
         const ocupante = activos('operario').some((r) => suPuesto(r) && !yaEn.has(r.id));
         return caja(el('p', { class: 'ayuda' }, `Faltan ${c.falta} operario(s)${ocupante ? ' · primero quien tiene aquí su puesto' : ''}${oficios.length ? ` · luego los de ${oficios.map((q) => q.nombre).join(', ')}` : ''}:`),
           candidatos(activos('operario').filter((r) => !yaEn.has(r.id)), tr, {
@@ -1623,6 +1628,15 @@
             motivo: (r) => [suPuesto(r) ? 'su puesto' : null, tieneOficio(r) ? 'tiene el oficio' : null].filter(Boolean).join(' · '),
             prefiere: (r) => (suPuesto(r) ? 2 : 0) + (tieneOficio(r) ? 1 : 0),
           }));
+      }
+      case 'capacidad': {
+        const nombre = (t.capacidades || []).find((q) => q.id === c.capacidad_id)?.nombre || 'esa capacidad';
+        if (c.sin_gente) {
+          return caja(el('p', { class: 'ayuda' }, `Nadie tiene marcada «${nombre}». Márcasela a quien la sepa hacer en el panel de Capacidades.`),
+            el('a', { class: 'boton ghost', href: `/capacidades.html?capacidad=${c.capacidad_id}` }, 'Abrir Capacidades'));
+        }
+        return caja(el('p', { class: 'ayuda' }, `Saben «${nombre}»${c.falta > 1 ? ` · faltan ${c.falta}` : ''}:`),
+          candidatos(activos('operario').filter((r) => (r.capacidades || []).includes(c.capacidad_id) && !yaEn.has(r.id)), tr, { asignar }));
       }
       case 'requisito_tipo': {
         const nombre = (t.requisitos_tipo || []).find((q) => q.id === c.tipo_recurso_id)?.nombre || 'ese tipo';

@@ -78,6 +78,9 @@ const SQL_TAREAS = `
                                    ORDER BY ti.clase, lower(ti.nombre))
                      FROM tarea_requisitos_tipo q JOIN tipos_recurso ti ON ti.id = q.tipo_recurso_id
                     WHERE q.tarea_id = t.id), '[]') AS requisitos_tipo,
+         COALESCE((SELECT json_agg(json_build_object('id', k.id, 'nombre', k.nombre, 'cantidad', q.cantidad) ORDER BY k.orden, lower(k.nombre))
+                     FROM tarea_capacidades q JOIN capacidades k ON k.id = q.capacidad_id
+                    WHERE q.tarea_id = t.id), '[]') AS capacidades,
          COALESCE((SELECT json_agg(json_build_object('id', x.id, 'fecha', x.fecha, 'hora_inicio', x.hora_inicio,
                                                      'duracion_h', x.duracion_h) ORDER BY x.fecha, x.hora_inicio, x.id)
                      FROM tramos x WHERE x.tarea_id = t.id), '[]') AS tramos,
@@ -112,7 +115,8 @@ const SQL_TRAMOS_DIA = `
                      'desde', COALESCE(a.desde, tr.hora_inicio),
                      'hasta', COALESCE(a.hasta, tr.hora_inicio + tr.duracion_h),
                      'propia', a.desde IS NOT NULL,
-                     'tipos', COALESCE((SELECT json_agg(rt.tipo_recurso_id) FROM recurso_tipos rt WHERE rt.recurso_id = r.id), '[]'))
+                     'tipos', COALESCE((SELECT json_agg(rt.tipo_recurso_id) FROM recurso_tipos rt WHERE rt.recurso_id = r.id), '[]'),
+                     'capacidades', COALESCE((SELECT json_agg(rc.capacidad_id) FROM recurso_capacidades rc WHERE rc.recurso_id = r.id), '[]'))
                      ORDER BY r.tipo, r.nombre)
                      FROM tramo_asignaciones a JOIN recursos r ON r.id = a.recurso_id
                     WHERE a.tramo_id = tr.id), '[]') AS asignados
@@ -187,6 +191,9 @@ module.exports = function montar(app, asyncH) {
       // Recursos activos + los dados de baja que aún tienen algo asignado en el rango
       query(`SELECT id, tipo, nombre, categoria, activo, vinculo, empresa, linea_id, departamento_id,
                     COALESCE((SELECT json_agg(rt.tipo_recurso_id) FROM recurso_tipos rt WHERE rt.recurso_id = r.id), '[]') AS tipos,
+                    COALESCE((SELECT json_agg(rc.capacidad_id) FROM recurso_capacidades rc WHERE rc.recurso_id = r.id), '[]') AS capacidades,
+                    (SELECT string_agg(k.nombre, ', ' ORDER BY k.orden) FROM recurso_capacidades rc JOIN capacidades k ON k.id = rc.capacidad_id
+                      WHERE rc.recurso_id = r.id) AS capacidades_txt,
                     (SELECT string_agg(ti.nombre, ', ' ORDER BY lower(ti.nombre)) FROM recurso_tipos rt
                        JOIN tipos_recurso ti ON ti.id = rt.tipo_recurso_id WHERE rt.recurso_id = r.id) AS tipos_txt
                FROM recursos r
@@ -223,6 +230,8 @@ module.exports = function montar(app, asyncH) {
     const exclusivas = new Map(lineas.rows.filter((l) => l.exclusiva).map((l) => [l.id, l.nombre]));
     // Los conflictos se calculan día a día (un solape solo existe dentro del mismo día)
     const porDia = new Map();
+    // capacidades que tiene al menos una persona activa (si nadie la tiene, el aviso es leve: falta marcarla)
+    const capacidadesConGente = new Set(recursos.rows.filter((r) => r.activo && r.tipo === 'operario').flatMap((r) => r.capacidades));
     const fijasDe = new Map(lineas.rows.map((l) => [l.id, l.maquinas]));
     for (const tr of tramos.rows) {
       // lo ya cerrado en el parte (o de tareas hechas) no genera avisos
@@ -238,7 +247,7 @@ module.exports = function montar(app, asyncH) {
     }
     const conflictos = [...porDia].flatMap(([f, lista]) =>
       calcularConflictos(lista, jornada, tiposDisponibles, exclusivas,
-        { ausencias: ausDia.get(f), festivo: festivoDe.get(f), fecha: f }).map((c) => ({ ...c, fecha: f })));
+        { ausencias: ausDia.get(f), festivo: festivoDe.get(f), fecha: f, capacidadesConGente }).map((c) => ({ ...c, fecha: f })));
 
     // Material y herramientas de cada tarea (icono 🧰) y avisos si el material no llega a tiempo
     const llevar = await material.deTareas(tareas.rows.map((t) => t.id));

@@ -1720,3 +1720,33 @@ details.pin-rol > summary::after { content: '▾'; position: absolute; right: 8p
 .asg-herr.fija { opacity: .6; }
 .asg-chip.eq { border-style: dashed; }
 .asg-nota { margin: 0 0 8px; }
+.req-buscar { width: 100%; margin: 2px 0 4px; }
+.req-caps { display: grid; gap: 2px; max-height: 220px; overflow: auto; }
+
+/* Capacidades */
+.cap-main { max-width: 1200px; margin: 0 auto; padding: 16px; }
+.cap-dos { display: grid; grid-template-columns: minmax(260px, 380px) 1fr; gap: 16px; margin-top: 10px; align-items: start; }
+.cap-col { background: var(--panel); border: 1px solid var(--borde); border-radius: var(--radio); padding: 12px; min-width: 0; }
+#izq.cap-col { position: sticky; top: 8px; max-height: calc(100vh - 160px); overflow: auto; }
+.cap-buscar, .cap-buscar2 { width: 100%; margin-bottom: 8px; }
+.cap-fam { margin-bottom: 6px; }
+.cap-fam-cab { width: 100%; display: flex; justify-content: space-between; background: none; border: 0; padding: 6px 2px; font-weight: 600; color: var(--texto); cursor: pointer; text-align: left; }
+.cap-item { width: 100%; display: flex; justify-content: space-between; align-items: center; gap: 8px; text-align: left; background: none; border: 1px solid transparent; border-radius: 6px; padding: 5px 8px; color: var(--texto); cursor: pointer; }
+.cap-item:hover { background: var(--linea); }
+.cap-item.sel { border-color: var(--azul); background: var(--azul-bg); }
+.cap-n { flex: none; font-size: 12px; padding: 0 7px; border-radius: 99px; background: var(--verde-bg); color: var(--verde); }
+.cap-n.cero { background: var(--linea); color: var(--suave); }
+.cap-nueva { width: 100%; margin: 3px 0 2px; font-size: 13px; }
+.cap-pie { border-top: 1px solid var(--linea); margin-top: 10px; padding-top: 10px; }
+.cap-nfam { display: grid; gap: 6px; }
+.cap-cab { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 6px; }
+.cap-cab h3 { margin: 0; }
+.cap-tit { font-size: 17px; font-weight: 600; flex: 1; min-width: 200px; }
+.cap-personas { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 4px 12px; margin-top: 8px; }
+.cap-per { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 6px; cursor: pointer; border: 1px solid var(--linea); }
+.cap-per.si { border-color: var(--verde); background: var(--verde-bg); }
+.cap-per input { width: 18px; height: 18px; flex: none; margin: 0; accent-color: var(--verde); }
+.cap-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px; }
+.cap-grupo { display: grid; gap: 4px; align-content: start; }
+.cap-grupo h4 { margin: 4px 0; }
+@media (max-width: 800px) { .cap-dos { grid-template-columns: 1fr; } #izq.cap-col { position: static; max-height: 45vh; } }

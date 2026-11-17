@@ -111,7 +111,7 @@
     pintarNombre();
     const menu = document.querySelector('nav.menu');
     const enlaces = [['/mi-dia.html', 'Mi día', 'mi_dia'], ['/parte.html', 'Parte', 'planificar'], ['/bandeja.html', 'Bandeja', 'planificar'],
-      ['/logistica.html', 'Logística', ['logistica', 'compras', 'escandallo']], ['/informes.html', 'Informes', 'informes'],
+      ['/logistica.html', 'Logística', ['logistica', 'compras', 'escandallo']], ['/capacidades.html', 'Capacidades', ['recursos', 'planificar']], ['/informes.html', 'Informes', 'informes'],
       ['/usuarios.html', 'Usuarios', 'usuarios'], ['/capturar.html', '＋ Capturar', null]];
     for (const [href, txt, permiso] of enlaces) {
       if (!menu || (permiso && ![].concat(permiso).some((p) => tiene(p))) || menu.querySelector(`a[href="${href}"]`)) continue;

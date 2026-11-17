@@ -399,11 +399,41 @@
   }
 
   // Requisitos de una tarea: tipos de recurso (con cantidad) y recursos concretos
-  const CLASES = [['maquina', 'Tipos de máquina'], ['subcontrata', 'Subcontratas / alquileres'], ['operario', 'Oficios']];
+  const CLASES = [['maquina', 'Tipos de máquina'], ['subcontrata', 'Subcontratas / alquileres'], ['operario', 'Categorías (oficio)']];
+  let reqAbierto = { id: null, filtro: '' };   // el desplegable de requisitos sigue abierto al guardar
   function selectorRequisitos(t, recursosReq, editar, patch) {
     const tipos = estado.catalogo.tipos;
     const reqTipo = t.requisitos_tipo || [];
+    const reqCap = t.capacidades || [];
+    const caps = estado.catalogo.capacidades || [];
+    const guardarCaps = (lista) => patch(t, { capacidades: lista });
+    const filaCap = (k) => {
+      const q = reqCap.find((x) => x.id === k.id);
+      return el('label', { class: 'req-tipo' },
+        el('input', { type: 'checkbox', checked: !!q, disabled: !editar,
+          onchange: (ev) => guardarCaps(ev.target.checked ? [...reqCap, { id: k.id, cantidad: 1 }] : reqCap.filter((x) => x.id !== k.id)) }),
+        ` ${k.nombre}`,
+        q ? el('input', {
+          type: 'number', min: 1, max: 50, value: q.cantidad, class: 'cant', 'aria-label': `Cuántos que sepan ${k.nombre}`, disabled: !editar,
+          title: 'Cuántas personas que lo sepan hacer a la vez', onclick: (ev) => ev.preventDefault(),
+          onchange: (ev) => guardarCaps(reqCap.map((x) => (x.id === k.id ? { ...x, cantidad: Math.max(1, Number(ev.target.value) || 1) } : x))),
+        }) : null,
+        el('span', { class: `rt${k.personas ? '' : ' sin'}`, title: k.personas ? `${k.personas} persona(s) la saben hacer` : 'Nadie la tiene marcada' },
+          k.personas ? String(k.personas) : 'nadie'));
+    };
+    // buscador de capacidades (son muchas): se ven las marcadas y las que coinciden
+    const sigueAbierto = reqAbierto.id === t.id;
+    let filtroCap = sigueAbierto ? reqAbierto.filtro : '';
+    const normC = (x) => String(x || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+    const cajaCaps = el('div', { class: 'req-caps' });
+    const pintarCaps = () => {
+      const q = normC(filtroCap);
+      const vis = caps.filter((k) => reqCap.some((x) => x.id === k.id) || (q && normC(`${k.nombre} ${k.familia}`).includes(q)));
+      cajaCaps.replaceChildren(...(vis.length ? vis.map(filaCap) : [el('span', { class: 'ayuda' }, q ? 'Ninguna coincide' : 'Escribe para buscar (p. ej. «soldar», «carretilla»)')]));
+    };
+    pintarCaps();
     const resumen = [
+      ...reqCap.map((q) => { const k = caps.find((x) => x.id === q.id); return k ? `${q.cantidad > 1 ? q.cantidad + '× ' : ''}sabe ${k.nombre}` : null; }),
       ...reqTipo.map((q) => { const ti = tipos.find((x) => x.id === q.id); return ti ? `${q.cantidad > 1 ? q.cantidad + '× ' : ''}${ti.nombre}` : null; }),
       ...t.requisitos.map((id) => recursosReq.find((r) => r.id === id)?.nombre),
     ].filter(Boolean);
@@ -427,9 +457,15 @@
           ti.recursos ? String(ti.recursos) : 'ninguno'));
     };
 
-    return el('details', { class: 'req' },
+    const det = el('details', { class: 'req', open: sigueAbierto ? '' : null,
+      ontoggle: (ev) => { if (ev.target.open) reqAbierto = { id: t.id, filtro: filtroCap }; else if (reqAbierto.id === t.id) reqAbierto = { id: null, filtro: '' }; } },
       el('summary', {}, resumen.length ? resumen.join(', ') : '—'),
       el('div', { class: 'req-lista' },
+        el('div', { class: 'req-grupo' }, 'Saber hacer (capacidades)'),
+        el('input', { type: 'search', class: 'req-buscar', placeholder: '🔎 Buscar capacidad…', 'aria-label': 'Buscar capacidad', value: filtroCap,
+          oninput: (ev) => { filtroCap = ev.target.value; reqAbierto.filtro = filtroCap; pintarCaps(); } }),
+        cajaCaps,
+        el('a', { class: 'req-gestionar', href: '/capacidades.html' }, 'Gestionar capacidades…'),
         CLASES.map(([clase, titulo]) => {
           const lista = tipos.filter((ti) => ti.clase === clase);
           return lista.length ? [el('div', { class: 'req-grupo' }, titulo), lista.map(filaTipo)] : null;
@@ -442,6 +478,7 @@
           }),
           ` ${r.nombre}`, el('span', { class: `rt ${r.tipo}` }, r.tipo === 'maquina' ? 'máquina' : 'subcontrata'))),
         el('a', { class: 'req-gestionar', href: '/recursos.html?tipo=tipos' }, 'Gestionar tipos de recurso…')));
+    return det;
   }
 
   // Debajo del nombre: «ya no está en el presupuesto», dependencias y notas

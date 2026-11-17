@@ -44,7 +44,7 @@ async function siguienteCodigo(prefijo) {
 module.exports = function montar(app, asyncH) {
   /* ---------- Catálogo para formularios ---------- */
   app.get('/api/catalogo', asyncH(async (req, res) => {
-    const [areas, recursos, tipos, departamentos] = await Promise.all([
+    const [areas, recursos, tipos, departamentos, capacidades] = await Promise.all([
       query(`SELECT l.id, l.nombre, l.tipo, l.proyecto_id, l.departamento_id, d.nombre AS departamento
                FROM lineas l LEFT JOIN proyectos p ON p.id = l.proyecto_id LEFT JOIN departamentos d ON d.id = l.departamento_id
               WHERE l.activo AND (l.tipo <> 'obra' OR p.estado = 'activo')
@@ -55,8 +55,13 @@ module.exports = function montar(app, asyncH) {
                       WHERE rt.tipo_recurso_id = t.id) AS recursos
                FROM tipos_recurso t ORDER BY t.clase, lower(t.nombre)`),
       query('SELECT id, clave, nombre FROM departamentos ORDER BY orden, nombre'),
+      query(`SELECT k.id, k.familia, k.nombre,
+                    (SELECT count(*)::int FROM recurso_capacidades rc JOIN recursos r ON r.id = rc.recurso_id AND r.activo
+                      WHERE rc.capacidad_id = k.id) AS personas
+               FROM capacidades k ORDER BY k.orden, lower(k.nombre)`),
     ]);
-    res.json({ areas: areas.rows, recursos: recursos.rows, tipos: tipos.rows, departamentos: departamentos.rows, colores: COLORES });
+    res.json({ areas: areas.rows, recursos: recursos.rows, tipos: tipos.rows, departamentos: departamentos.rows,
+      capacidades: capacidades.rows, colores: COLORES });
   }));
 
   /* ---------- Proyectos ---------- */
@@ -343,6 +348,8 @@ module.exports = function montar(app, asyncH) {
               COALESCE((SELECT json_agg(tr.recurso_id) FROM tarea_requisitos tr WHERE tr.tarea_id = t.id), '[]') AS requisitos,
               COALESCE((SELECT json_agg(json_build_object('id', q.tipo_recurso_id, 'cantidad', q.cantidad))
                           FROM tarea_requisitos_tipo q WHERE q.tarea_id = t.id), '[]') AS requisitos_tipo,
+              COALESCE((SELECT json_agg(json_build_object('id', q.capacidad_id, 'cantidad', q.cantidad))
+                          FROM tarea_capacidades q WHERE q.tarea_id = t.id), '[]') AS capacidades,
               (SELECT count(*)::int FROM tarea_material m WHERE m.tarea_id = t.id) AS n_material,
               (SELECT count(*)::int FROM tarea_herramienta h WHERE h.tarea_id = t.id) AS n_herramienta
          FROM tareas t WHERE t.orden_id = $1 ORDER BY t.orden_en_of, t.id`, [id]);

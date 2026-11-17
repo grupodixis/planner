@@ -703,6 +703,23 @@ const MIGRACIONES = [
      item_id INT NOT NULL,
      marcado_en TIMESTAMPTZ NOT NULL DEFAULT now(),
      PRIMARY KEY (recurso_id, tipo, item_id))`,
+  // Capacidades (saber hacer) de las personas: lo que pide una tarea es una capacidad, no una categoría
+  `CREATE TABLE IF NOT EXISTS capacidades (
+     id SERIAL PRIMARY KEY,
+     familia TEXT NOT NULL DEFAULT 'Otras',
+     nombre TEXT NOT NULL,
+     orden INT NOT NULL DEFAULT 0,
+     creado TIMESTAMPTZ NOT NULL DEFAULT now())`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS capacidades_nombre ON capacidades (lower(nombre))`,
+  `CREATE TABLE IF NOT EXISTS recurso_capacidades (
+     recurso_id INT NOT NULL REFERENCES recursos(id) ON DELETE CASCADE,
+     capacidad_id INT NOT NULL REFERENCES capacidades(id) ON DELETE CASCADE,
+     PRIMARY KEY (recurso_id, capacidad_id))`,
+  `CREATE TABLE IF NOT EXISTS tarea_capacidades (
+     tarea_id INT NOT NULL REFERENCES tareas(id) ON DELETE CASCADE,
+     capacidad_id INT NOT NULL REFERENCES capacidades(id) ON DELETE CASCADE,
+     cantidad INT NOT NULL DEFAULT 1 CHECK (cantidad BETWEEN 1 AND 50),
+     PRIMARY KEY (tarea_id, capacidad_id))`,
   `INSERT INTO roles (clave, nombre, descripcion, permisos, sistema, orden) VALUES
      ('tecnico', 'Técnico', 'Define el escandallo de las partidas', '{escandallo,informes}', FALSE, 6),
      ('logistica', 'Logística', 'Revisa el stock y recibe el material', '{logistica}', FALSE, 7),
