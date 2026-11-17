@@ -14,7 +14,7 @@ y lo deja todo listo para trabajar:
 | `README.md` | Esta especificación |
 | `esquema.json` | JSON Schema (draft 2020-12) para validar los archivos antes de exportarlos |
 | `ejemplo.json` | Archivo completo y válido (escalera exterior: 2 partidas, 3 OTs, 10 tareas, 12 materiales) |
-| `catalogo.json` | Nombres exactos que entiende el planificador (áreas, capacidades, equipos, materiales…). Copia del día; la versión viva está en `GET /api/importar/catalogo` |
+| `catalogo.json` · `catalogo.md` | Nombres exactos que entiende el planificador (áreas, capacidades, equipos, materiales…). Copia del día; la versión viva está en `GET /api/importar/catalogo` |
 
 > El planificador valida con una copia de `esquema.json` en `app/src/importacion-esquema.json`:
 > si se cambia uno, hay que copiarlo al otro.
