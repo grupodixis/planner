@@ -689,6 +689,15 @@ const MIGRACIONES = [
   // Lo que se planifica en el área lo lleva solo (requisitos cumplidos, detalle, Mi día)
   `ALTER TABLE lineas ADD COLUMN IF NOT EXISTS equipamiento TEXT[] NOT NULL DEFAULT '{}'`,
   `ALTER TABLE recursos ADD COLUMN IF NOT EXISTS fijo_area BOOLEAN NOT NULL DEFAULT FALSE`,
+  // Incidencias del material (llegó una parte, dañado, equivocado, no llegó…): comentario + fotos
+  `CREATE TABLE IF NOT EXISTS escandallo_incidencias (
+     id SERIAL PRIMARY KEY,
+     escandallo_id INT NOT NULL REFERENCES partida_escandallo(id) ON DELETE CASCADE,
+     texto TEXT NOT NULL,
+     creado_por INT REFERENCES usuarios(id) ON DELETE SET NULL,
+     creado TIMESTAMPTZ NOT NULL DEFAULT now(),
+     resuelta_en TIMESTAMPTZ,
+     resuelta_por INT REFERENCES usuarios(id) ON DELETE SET NULL)`,
   // Mi día: el operario marca que ha cogido cada equipo (máquina) asignado a su tramo
   `CREATE TABLE IF NOT EXISTS equipo_check (
      recurso_id INT NOT NULL REFERENCES recursos(id) ON DELETE CASCADE,

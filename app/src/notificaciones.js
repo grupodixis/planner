@@ -23,6 +23,7 @@ const TIPOS = {
   cap_propuesta: { txt: 'Un operario dice qué sabe hacer (capacidades por validar)', para: (u) => auth.tiene(u, 'recursos') },
   mat_tarde: { txt: 'Material que llega después del día planificado de la tarea', para: (u) => auth.tiene(u, 'planificar') || auth.tiene(u, 'escandallo') },
   mat_pedido: { txt: 'Material pedido al proveedor (cuándo llega)', para: (u) => auth.tiene(u, 'logistica') || auth.tiene(u, 'escandallo') },
+  mat_incidencia: { txt: 'Incidencia con un material (dañado, incompleto, no llegó…)', para: (u) => auth.tiene(u, 'compras') || auth.tiene(u, 'escandallo') },
   mat_recibido: { txt: 'Ya ha llegado el material de mis tareas', para: () => true },
 };
 const SILENCIO = { desde: 21, hasta: 7 };

@@ -382,6 +382,10 @@ punto naranja en el botón avisa si le faltan datos del perfil.
 material** con lo pendiente. Tarjetas grandes por material (cantidad, para cuándo, tareas): «✗ No hay»,
 «✔ Hay todo» o «Hay N»; foto con la cámara; y «✔ Ha llegado» en lo pedido (`mi-dia-stock.js`, mismas
 APIs que Logística). Pedir a proveedores sigue en el ordenador (Logística y compras).
+Botón **⚠ Incidencia** (en Recibir junto a «Ha llegado», y en Revisar stock): comentario + fotos con la
+cámara; se guarda en `escandallo_incidencias` (las fotos van a la línea), avisa a compras y al técnico
+(`mat_incidencia`) y en Logística y compras se ve en naranja hasta que alguien pulsa «✔ Resuelta»
+(`POST /api/escandallo/:id/incidencias`, `PUT /api/escandallo-incidencias/:id/resolver`).
 
 **Mi perfil** (`GET/PUT /api/mi-dia/perfil`): teléfono, email, DNI/NIE, nacimiento, dirección, C.P.,
 localidad, nº Seguridad Social, contacto de emergencia (nombre y teléfono), carnet, tallas de ropa y

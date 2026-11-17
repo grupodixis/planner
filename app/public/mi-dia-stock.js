@@ -34,6 +34,8 @@
   const hoy = () => new Date().toLocaleString('sv-SE', { timeZone: 'Europe/Madrid' }).slice(0, 10);
 
   let d = null, vista = 'revisar', filtro = '', cuentasCache = null;
+  // incidencia que se está escribiendo (sigue abierta aunque se repinte)
+  let inc = null;   // { id, texto, fotos: [{ id, url }] }
   const ESTADO = { revisar: 'sin_revisar', recibir: 'pedido' };
 
   async function cuentas() {
@@ -112,12 +114,61 @@
           } }, 'Guardar')));
     } else {
       acciones = el('div', { class: 'stk-acc' },
-        el('button', { type: 'button', class: 'stk-si stk-grande', onclick: () => hecho(`/api/escandallo/${l.id}/recibir`, {}, 'Recibido: avisados los operarios') }, '✔ Ha llegado'));
+        el('div', { class: 'stk-recibir' },
+          el('button', { type: 'button', class: 'stk-si stk-grande', onclick: () => hecho(`/api/escandallo/${l.id}/recibir`, {}, 'Recibido: avisados los operarios') }, '✔ Ha llegado'),
+          botonIncidencia(l)));
     }
-    return el('article', { class: 'stk-card' },
+    if (vista === 'revisar') acciones.append(botonIncidencia(l, true));
+    const abiertas = (l.incidencias || []).filter((i) => !i.resuelta_en);
+    return el('article', { class: `stk-card${abiertas.length ? ' con-inc' : ''}` },
       el('div', { class: 'stk-desc' }, l.descripcion),
       el('div', { class: 'stk-info' }, ...info),
-      fotos, acciones);
+      abiertas.length ? el('ul', { class: 'stk-incs' }, abiertas.map((i) => el('li', {}, '⚠ ', i.texto,
+        el('span', { class: 'ayuda' }, ` · ${i.por || ''} ${dia(i.creado)}`)))) : null,
+      fotos, acciones,
+      inc && inc.id === l.id ? formIncidencia(l) : null);
+  }
+
+  /* ---------- incidencia: comentario + fotos con la cámara ---------- */
+  function botonIncidencia(l, ancho) {
+    return el('button', { type: 'button', class: `stk-inc${ancho ? ' ancho' : ''}${inc && inc.id === l.id ? ' activo' : ''}`,
+      onclick: () => { inc = inc && inc.id === l.id ? null : { id: l.id, texto: '', fotos: [] }; pintar(); document.querySelector(`#inc-txt-${l.id}`)?.focus(); },
+    }, '⚠ Incidencia');
+  }
+  function formIncidencia(l) {
+    const txt = el('textarea', { id: `inc-txt-${l.id}`, rows: 3, maxlength: 1000, placeholder: 'Qué pasa: llegó una parte, viene dañado, no es lo pedido…', 'aria-label': 'Comentario de la incidencia' });
+    txt.value = inc.texto;
+    txt.addEventListener('input', () => { inc.texto = txt.value; });
+    const enviar = el('button', { type: 'button', class: 'primario stk-grande', onclick: async () => {
+      if (!inc.texto.trim() && !inc.fotos.length) { toast('Escribe qué pasa o saca una foto', true); txt.focus(); return; }
+      enviar.disabled = true;
+      try {
+        await api('POST', `/api/escandallo/${l.id}/incidencias`, { texto: inc.texto, archivos: inc.fotos.map((f) => f.id) });
+        inc.fotos.forEach((f) => URL.revokeObjectURL(f.url));
+        inc = null;
+        toast('Incidencia enviada: avisados compras y el técnico');
+        await cargar();
+      } catch (e) { toast(e.message, true); enviar.disabled = false; }
+    } }, 'Enviar incidencia');
+    return el('div', { class: 'stk-form-inc' },
+      el('b', {}, '⚠ Incidencia'),
+      txt,
+      el('div', { class: 'stk-fotos' },
+        inc.fotos.map((f, i) => el('span', { class: 'stk-mini' }, el('img', { src: f.url, alt: 'foto' }),
+          el('button', { type: 'button', 'aria-label': 'Quitar foto', onclick: () => { URL.revokeObjectURL(f.url); inc.fotos.splice(i, 1); pintar(); } }, '✕'))),
+        el('label', { class: 'boton ghost stk-foto' }, '📷 Sacar foto',
+          el('input', { type: 'file', accept: 'image/*', capture: 'environment', hidden: true, onchange: async (ev) => {
+            const f = ev.target.files[0];
+            if (!f) return;
+            try {
+              toast('Subiendo foto…');
+              const id = await window.s360.subirArchivo(f);
+              inc.fotos.push({ id, url: URL.createObjectURL(f) });
+              toast('Foto lista'); pintar();
+            } catch (e) { toast(e.message, true); }
+          } }))),
+      el('div', { class: 'stk-dos' },
+        el('button', { type: 'button', class: 'ghost', onclick: () => { inc = null; pintar(); } }, 'Cancelar'), enviar));
   }
 
   function iniciar() { cuentas().catch(() => {}); }

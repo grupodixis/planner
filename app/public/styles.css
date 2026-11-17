@@ -1894,3 +1894,18 @@ dialog.dlg-req[open] { display: flex; }
 .stk-parte { display: flex; align-items: center; gap: 6px; font-size: 15px; }
 .stk-cuanto { width: 90px; font-size: 16px; padding: 10px; text-align: center; }
 .stk-parte .primario { margin-left: auto; padding: 10px 14px; }
+/* incidencia del material (móvil) */
+.stk-recibir { display: grid; grid-template-columns: 1fr auto; gap: 8px; }
+.stk-inc { padding: 12px 14px; border-radius: 12px; font-weight: 600; font-size: 15px; background: var(--naranja-bg); color: var(--naranja); border: 1px solid var(--naranja); }
+.stk-inc.ancho { width: 100%; padding: 10px; }
+.stk-inc.activo { background: var(--naranja); color: #111; }
+.stk-card.con-inc { border-color: var(--naranja); }
+.stk-incs { list-style: none; margin: 0; padding: 6px 8px; border-radius: 8px; background: var(--naranja-bg); color: var(--naranja); font-size: 14px; display: grid; gap: 3px; }
+.stk-form-inc { display: grid; gap: 8px; padding: 10px; border: 1px dashed var(--naranja); border-radius: 12px; }
+.stk-form-inc textarea { width: 100%; font-size: 16px; padding: 10px; }
+.stk-mini { position: relative; display: inline-block; }
+.stk-mini img { width: 64px; height: 64px; object-fit: cover; border-radius: 8px; display: block; }
+.stk-mini button { position: absolute; top: -6px; right: -6px; width: 22px; height: 22px; padding: 0; border-radius: 50%; font-size: 11px; }
+.log-incs { list-style: none; margin: 6px 0; padding: 0; display: grid; gap: 4px; }
+.log-incs li { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 8px; background: var(--naranja-bg); color: var(--naranja); }
+.log-incs li.resuelta { background: transparent; color: var(--suave); }

@@ -54,8 +54,14 @@ const SQL_LINEAS = `
 async function lineas(where, params) {
   const { rows } = await query(`${SQL_LINEAS} WHERE ${where} ORDER BY p.codigo, pa.orden, pa.id, e.orden, e.id`, params);
   const arch = await archivos.de('escandallo', rows.map((l) => l.id));
+  const { rows: inc } = rows.length ? await query(
+    `SELECT i.id, i.escandallo_id, i.texto, i.creado, i.resuelta_en, u.nombre AS por, ur.nombre AS resuelta_por
+       FROM escandallo_incidencias i LEFT JOIN usuarios u ON u.id = i.creado_por LEFT JOIN usuarios ur ON ur.id = i.resuelta_por
+      WHERE i.escandallo_id = ANY($1::int[]) AND (i.resuelta_en IS NULL OR i.resuelta_en > now() - interval '7 days')
+      ORDER BY i.creado`, [rows.map((l) => l.id)]) : { rows: [] };
   for (const l of rows) {
     l.archivos = arch.get(l.id) || [];
+    l.incidencias = inc.filter((i) => i.escandallo_id === l.id);
     l.estado = estado(l);
     l.falta = l.stock == null ? null : Math.max(0, Math.round((l.cantidad - l.stock) * 1000) / 1000);
   }
@@ -258,6 +264,32 @@ function montar(app, asyncH) {
     if (!n) throw fallo(400, 'No se ha podido adjuntar');
     res.status(201).json(await linea(id));
   }));
+  // Incidencia del material: { texto, archivos: [ids de fotos ya subidas] } → avisa a compras y al técnico
+  app.post('/api/escandallo/:id/incidencias', pArchivos, asyncH(async (req, res) => {
+    const id = Number(req.params.id);
+    const l0 = await linea(id);
+    if (!l0) throw fallo(404, 'Línea no encontrada');
+    const t = texto((req.body || {}).texto, 1000);
+    const fotos = Array.isArray(req.body?.archivos) ? req.body.archivos : [];
+    if (!t && !fotos.length) throw fallo(400, 'Escribe qué pasa o saca una foto');
+    await tx(async (c) => {
+      await c.query('INSERT INTO escandallo_incidencias (escandallo_id, texto, creado_por) VALUES ($1, $2, $3)', [id, t || '(foto)', req.usuario.id]);
+      if (fotos.length) await archivos.enlazar(c, fotos, 'escandallo', id, req.usuario.id);
+    });
+    notif.avisarLuego(notif.conPermiso('compras', 'escandallo'), 'mat_incidencia', {
+      titulo: `⚠ Incidencia: ${l0.descripcion}`,
+      cuerpo: `${t || 'Con foto'} · ${req.usuario.nombre} · ${l0.proyecto_codigo} ${l0.partida_nombre}`,
+      url: `/logistica.html?vista=todo&partida=${l0.partida_id}`, tag: `inc-${id}`,
+    });
+    res.status(201).json(await linea(id));
+  }));
+  app.put('/api/escandallo-incidencias/:id/resolver', pArchivos, asyncH(async (req, res) => {
+    const deshacer = !!(req.body || {}).deshacer;
+    await query(`UPDATE escandallo_incidencias SET resuelta_en = ${deshacer ? 'NULL' : 'now()'}, resuelta_por = ${deshacer ? 'NULL' : '$2'} WHERE id = $1`,
+      deshacer ? [Number(req.params.id)] : [Number(req.params.id), req.usuario.id]);
+    res.json({ ok: true });
+  }));
+
   app.delete('/api/escandallo/:id/archivos/:archivo', pArchivos, asyncH(async (req, res) => {
     const id = Number(req.params.id);
     // cada uno quita lo suyo; el técnico, cualquiera
