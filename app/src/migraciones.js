@@ -685,6 +685,17 @@ const MIGRACIONES = [
      creado_por   INT REFERENCES usuarios(id) ON DELETE SET NULL
    )`,
   `CREATE UNIQUE INDEX IF NOT EXISTS tarea_herramienta_unica ON tarea_herramienta (tarea_id, lower(descripcion))`,
+  // Equipamiento fijo de un área: máquinas (recursos con «fijo_area») y otros elementos (texto).
+  // Lo que se planifica en el área lo lleva solo (requisitos cumplidos, detalle, Mi día)
+  `ALTER TABLE lineas ADD COLUMN IF NOT EXISTS equipamiento TEXT[] NOT NULL DEFAULT '{}'`,
+  `ALTER TABLE recursos ADD COLUMN IF NOT EXISTS fijo_area BOOLEAN NOT NULL DEFAULT FALSE`,
+  // Mi día: el operario marca que ha cogido cada equipo (máquina) asignado a su tramo
+  `CREATE TABLE IF NOT EXISTS equipo_check (
+     recurso_id INT NOT NULL REFERENCES recursos(id) ON DELETE CASCADE,
+     tramo_id INT NOT NULL REFERENCES tramos(id) ON DELETE CASCADE,
+     maquina_id INT NOT NULL REFERENCES recursos(id) ON DELETE CASCADE,
+     marcado_en TIMESTAMPTZ NOT NULL DEFAULT now(),
+     PRIMARY KEY (recurso_id, tramo_id, maquina_id))`,
   // Mi día: cada operario marca el material que ha recibido y las herramientas que ha preparado
   `CREATE TABLE IF NOT EXISTS llevar_check (
      recurso_id INT NOT NULL REFERENCES recursos(id) ON DELETE CASCADE,

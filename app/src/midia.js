@@ -112,7 +112,7 @@ function montar(app, asyncH) {
     const ed = await editable({ query }, fecha);
     const [{ rows: rec }, { rows: tramos }, { rows: extra }, { rows: env }, { rows: manana }, { rows: tareas }, { rows: aus }] = await Promise.all([
       query('SELECT id, nombre FROM recursos WHERE id = $1', [recursoId]),
-      query(`SELECT x.id, x.tarea_id, x.hora_inicio::float AS hora_inicio, x.duracion_h::float AS duracion_h, x.cierre,
+      query(`SELECT x.id, x.tarea_id, x.linea_id, x.hora_inicio::float AS hora_inicio, x.duracion_h::float AS duracion_h, x.cierre,
                     COALESCE(a.desde, x.hora_inicio)::float AS desde, COALESCE(a.hasta, x.hora_inicio + x.duracion_h)::float AS hasta,
                     l.nombre AS area, t.nombre AS tarea, t.estado AS tarea_estado, t.notas AS tarea_notas,
                     o.codigo AS orden_codigo, o.titulo AS orden_titulo, o.color, p.nombre AS proyecto, p.obra,
@@ -120,6 +120,14 @@ function montar(app, asyncH) {
                                WHERE a2.tramo_id = x.id AND r2.tipo = 'operario' AND r2.id <> $2), '[]') AS companeros,
                     COALESCE((SELECT json_agg(r2.nombre ORDER BY r2.nombre) FROM tramo_asignaciones a2 JOIN recursos r2 ON r2.id = a2.recurso_id
                                WHERE a2.tramo_id = x.id AND r2.tipo <> 'operario'), '[]') AS equipos,
+                    COALESCE((SELECT json_agg(json_build_object('id', r2.id, 'nombre', r2.nombre,
+                               'mio', EXISTS (SELECT 1 FROM equipo_check q WHERE q.recurso_id = $2 AND q.tramo_id = x.id AND q.maquina_id = r2.id))
+                               ORDER BY r2.nombre)
+                               FROM tramo_asignaciones a2 JOIN recursos r2 ON r2.id = a2.recurso_id
+                              WHERE a2.tramo_id = x.id AND r2.tipo = 'maquina' AND NOT (r2.fijo_area AND r2.linea_id IS NOT DISTINCT FROM x.linea_id)), '[]') AS maquinas,
+                    COALESCE(l.equipamiento, '{}') AS area_equipamiento,
+                    COALESCE((SELECT json_agg(r3.nombre ORDER BY r3.nombre) FROM recursos r3
+                               WHERE r3.linea_id = x.linea_id AND r3.fijo_area AND r3.activo), '[]') AS area_maquinas,
                     (SELECT row_to_json(d) FROM (SELECT estado, desde::float, hasta::float, terminada, motivo, notas, resuelto
                        FROM declaraciones WHERE tramo_id = x.id AND recurso_id = $2) d) AS declaracion
                FROM tramos x JOIN tramo_asignaciones a ON a.tramo_id = x.id AND a.recurso_id = $2
@@ -162,8 +170,19 @@ function montar(app, asyncH) {
   app.put('/api/mi-dia/llevar', soloSuyo, asyncH(async (req, res) => {
     const recursoId = recursoDe(req);
     const b = req.body || {};
-    const tipo = b.tipo === 'herramienta' ? 'herramienta' : b.tipo === 'material' ? 'material' : null;
     const id = Number(b.id);
+    // equipo (máquina) asignado a uno de sus tramos: { tipo: 'equipo', tramo_id, id }
+    if (b.tipo === 'equipo') {
+      const tramoId = Number(b.tramo_id);
+      const { rows: ok } = await query(
+        `SELECT 1 FROM tramo_asignaciones a JOIN tramo_asignaciones m ON m.tramo_id = a.tramo_id AND m.recurso_id = $3
+          WHERE a.tramo_id = $1 AND a.recurso_id = $2`, [tramoId, recursoId, id]);
+      if (!ok.length) throw fallo(404, 'Ese equipo no está en un trabajo tuyo');
+      if (b.hecho) await query('INSERT INTO equipo_check (recurso_id, tramo_id, maquina_id) VALUES ($1,$2,$3) ON CONFLICT DO NOTHING', [recursoId, tramoId, id]);
+      else await query('DELETE FROM equipo_check WHERE recurso_id = $1 AND tramo_id = $2 AND maquina_id = $3', [recursoId, tramoId, id]);
+      return res.json({ ok: true });
+    }
+    const tipo = b.tipo === 'herramienta' ? 'herramienta' : b.tipo === 'material' ? 'material' : null;
     if (!tipo || !id) throw fallo(400, 'Falta qué marcar');
     const { rows } = await query(
       `SELECT 1 FROM ${tipo === 'material' ? 'tarea_material' : 'tarea_herramienta'} i

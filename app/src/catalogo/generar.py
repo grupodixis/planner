@@ -588,9 +588,25 @@ HERR = {
                        'Hormigonera', 'Carretilla de obra', 'Pala y pico', 'Hidrolimpiadora', 'Aspirador'],
     'Vehículos': ['Furgoneta', 'Furgoneta grande', 'Camión', 'Remolque', 'Coche'],
 }
+# Lo que NO es herramienta de mano y por tanto no va en la lista de herramientas de la tarea:
+#  · máquinas fijas → son (o están en) un Área de trabajo (sierra de cinta, plegadora, cizalla, columna…)
+#  · equipos de los que hay pocos → son Recursos (máquina) y se controla que no se crucen (taladro magnético,
+#    soldadoras, llaves de impacto, remachadoras de tuercas, generador, compresor…)
+#  · vehículos, grúas, plataformas, carretillas → Recursos o subcontrata
+NO_DE_MANO = {
+    'Sierra de cinta', 'Tronzadora de disco', 'Ingletadora / sierra circular para metal', 'Equipo de corte por plasma', 'Equipo de oxicorte',
+    'Taladro de columna', 'Taladro magnético', 'Martillo demoledor', 'Llave de impacto a batería', 'Remachadora de tuercas', 'Remachadora a batería',
+    'Soldadora MIG/MAG (taller)', 'Soldadora MIG/MAG portátil', 'Soldadora MIG amarilla', 'Soldadora TIG', 'Soldadora de electrodo (inverter)',
+    'Equipo de soldadura de aluminio', 'Esmeriladora de banco', 'Mesa de soldadura con utillaje',
+    'Grúa (servicio externo)', 'Camión grúa', 'Plataforma elevadora de tijera', 'Plataforma elevadora articulada (PEMP)', 'Manipulador telescópico',
+    'Carretilla elevadora', 'Polipasto eléctrico', 'Pórtico / cabria', 'Andamio',
+    'Compresor', 'Equipo airless', 'Cabina de pintura', 'Generador eléctrico', 'Hormigonera',
+}
+HERR.pop('Vehículos')
 for fam, hs in HERR.items():
     for h in hs:
-        H(fam, h)
+        if h not in NO_DE_MANO:
+            H(fam, h)
 
 out = os.path.join(os.path.dirname(__file__), 'catalogo-base.json')
 json.dump(items, open(out, 'w'), ensure_ascii=False, indent=0)

@@ -602,6 +602,22 @@ API: `/api/catalogo-llevar` · `/api/partidas/:id/escandallo` (+ `/enviar`) · `
 · `/api/tareas/:id/materiales` · `/api/tarea-material/:id` · `/api/tareas/:id/herramientas` ·
 `/api/tarea-herramienta/:id` · `/api/tareas/:id/llevar` · `/api/material/circuito`.
 
+**Tres clases de «herramienta»** (no se mezclan)
+1. **Máquina fija → Área de trabajo** (sierra de cinta, plegadora, cizalla, torno, cabina…). En
+   Tablero › Áreas de trabajo, columna **Equipo fijo**: se marcan las máquinas (recursos) que están
+   fijas allí (`recursos.fijo_area`) y se escriben otros elementos fijos (`lineas.equipamiento`: carpa,
+   compresor…). Lo que se planifica en el área **los lleva solo**: las máquinas fijas cumplen lo que
+   pida la tarea (no sale «requiere … sin asignar»), el detalle del tablero muestra «En el área» y Mi
+   día «Ya está en …».
+2. **Equipo del que hay pocos → Recurso máquina** (taladro magnético ×2, soldadoras, llaves de
+   impacto…). En Asignación › Herramientas, bloque **⚙ Equipos (hay pocos)**: se marca el tipo y la
+   tarea queda «requiere …» (`tarea_requisitos_tipo`); en el tablero se asigna cuál y se controla que
+   no se cruce. Los tipos cuyas máquinas son todas fijas de un área salen desactivados («planifica la
+   tarea allí»). En Mi día, las máquinas asignadas al tramo salen con casilla (`equipo_check`).
+3. **Herramienta de mano → lista sencilla** (radial, martillo, sargentos, EPIs…), sin control de
+   cantidad. El catálogo base ya no ofrece como herramienta las máquinas fijas, equipos contados,
+   vehículos, grúas ni plataformas (`NO_DE_MANO` en `generar.py`; al cambiar la base se desactivan).
+
 **Lo ven en el tablero y en Mi día**
 - **Tablero**: cada tarea con material o herramientas lleva un icono en su bloque, en las fichas de
   semana/mes y en «Por planificar»: 🧰 ✔ (todo en almacén), 🧰 24/11 (pedido, llega ese día),

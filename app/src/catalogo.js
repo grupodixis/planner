@@ -49,6 +49,12 @@ async function sembrar() {
      ON CONFLICT (tipo, lower(nombre)) DO UPDATE SET familia = EXCLUDED.familia, unidad = EXCLUDED.unidad, detalle = EXCLUDED.detalle
        WHERE catalogo.origen = 'base'`,
     [items.map((i) => i.tipo), items.map((i) => i.familia), items.map((i) => i.nombre), items.map((i) => i.unidad || null), items.map((i) => i.detalle || null)]);
+  // lo que ha salido de la base (p. ej. máquinas que no son herramienta de mano) deja de ofrecerse
+  await query(
+    `UPDATE catalogo c SET activo = (x.k IS NOT NULL)
+       FROM catalogo c2 LEFT JOIN unnest($1::text[]) AS x(k) ON x.k = c2.tipo || '|' || lower(c2.nombre)
+      WHERE c.id = c2.id AND c.origen = 'base'`,
+    [items.map((i) => `${i.tipo}|${i.nombre.toLowerCase()}`)]);
   await query(`INSERT INTO ajustes (clave, valor) VALUES ('catalogo_base', $1) ON CONFLICT (clave) DO UPDATE SET valor = EXCLUDED.valor`,
     [JSON.stringify({ huella, n: items.length, en: new Date().toISOString() })]);
   cache = null;

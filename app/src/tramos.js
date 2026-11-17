@@ -170,7 +170,11 @@ module.exports = function montar(app, asyncH) {
     const [lineas, recursos, tareas, tramos, ausencias, festivos, cerrados] = await Promise.all([
       // Áreas fijas activas + obras de proyectos activos (al final, por proyecto)
       // + cualquier área que tenga tramos en el rango (para no perder lo planificado)
-      query(`SELECT l.id, l.nombre, l.tipo, l.ubicacion, l.activo, l.proyecto_id, l.exclusiva, l.descripcion,
+      query(`SELECT l.id, l.nombre, l.tipo, l.ubicacion, l.activo, l.proyecto_id, l.exclusiva, l.descripcion, l.equipamiento,
+                    COALESCE((SELECT json_agg(json_build_object('id', r.id, 'nombre', r.nombre, 'tipo', r.tipo,
+                                'tipos', COALESCE((SELECT json_agg(rt.tipo_recurso_id) FROM recurso_tipos rt WHERE rt.recurso_id = r.id), '[]'))
+                                ORDER BY r.nombre)
+                                FROM recursos r WHERE r.linea_id = l.id AND r.fijo_area AND r.activo), '[]') AS maquinas,
                     l.departamento_id, d.nombre AS departamento, d.orden AS departamento_orden,
                     p.codigo AS proyecto_codigo, p.nombre AS proyecto_nombre,
                     (l.tipo = 'obra') AS es_obra,
@@ -219,12 +223,18 @@ module.exports = function montar(app, asyncH) {
     const exclusivas = new Map(lineas.rows.filter((l) => l.exclusiva).map((l) => [l.id, l.nombre]));
     // Los conflictos se calculan día a día (un solape solo existe dentro del mismo día)
     const porDia = new Map();
+    const fijasDe = new Map(lineas.rows.map((l) => [l.id, l.maquinas]));
     for (const tr of tramos.rows) {
       // lo ya cerrado en el parte (o de tareas hechas) no genera avisos
       if (tr.cierre || porTarea.get(tr.tarea_id)?.estado === 'hecha') continue;
       if (!porDia.has(tr.fecha)) porDia.set(tr.fecha, []);
       const t = porTarea.get(tr.tarea_id);
-      porDia.get(tr.fecha).push({ ...t, ...tr, duracion_h_tarea: t?.duracion_h });
+      // las máquinas fijas del área cuentan como asignadas para lo que pide la tarea (p. ej. la sierra de su área)
+      const ids = new Set(tr.asignados.map((r) => r.id));
+      const fijas = (fijasDe.get(tr.linea_id) || []).filter((m) => !ids.has(m.id)
+        && ((t?.requisitos || []).some((q) => q.id === m.id) || (t?.requisitos_tipo || []).some((q) => m.tipos.includes(q.id))))
+        .map((m) => ({ ...m, desde: tr.hora_inicio, hasta: tr.hora_inicio + tr.duracion_h, fija: true }));
+      porDia.get(tr.fecha).push({ ...t, ...tr, asignados: [...tr.asignados, ...fijas], duracion_h_tarea: t?.duracion_h });
     }
     const conflictos = [...porDia].flatMap(([f, lista]) =>
       calcularConflictos(lista, jornada, tiposDisponibles, exclusivas,

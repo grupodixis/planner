@@ -119,21 +119,25 @@
   };
   const cantTxt = (n, u) => (n ? `${String(Math.round(n * 1000) / 1000).replace('.', ',')}${u ? ` ${u}` : ''}` : '');
   const diaTxt = (f) => new Date(`${f}T12:00:00`).toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' });
-  // marcar: material recibido / herramienta preparada (cada operario lo suyo)
-  async function marcar(tipo, item, hecho, caja) {
+  // marcar: material recibido / herramienta preparada / equipo cogido (cada operario lo suyo)
+  async function marcar(tipo, item, hecho, caja, tramoId) {
     caja.disabled = true;
-    try { await api('PUT', '/api/mi-dia/llevar', { tipo, id: item.id, hecho }); item.mio = hecho; pintar(); }
+    try { await api('PUT', '/api/mi-dia/llevar', { tipo, id: item.id, hecho, tramo_id: tramoId }); item.mio = hecho; pintar(); }
     catch (e) { toast(e.message, true); caja.checked = !hecho; caja.disabled = false; }
   }
-  function bloqueLlevar(L, dia) {
-    if (!L || (!L.materiales.length && !L.herramientas.length)) return null;
+  function bloqueLlevar(t, dia) {
+    const L = t.llevar || { materiales: [], herramientas: [] };
+    const maqs = t.maquinas || [];
+    const enArea = [...(t.area_maquinas || []), ...(t.area_equipamiento || [])];
+    if (!L.materiales.length && !L.herramientas.length && !maqs.length && !enArea.length) return null;
     const falta = L.materiales.filter((m) => m.estado !== 'disponible' && !m.mio).length;
     const recib = L.materiales.filter((m) => m.mio).length;
-    const prep = L.herramientas.filter((h) => h.mio).length;
-    const todo = recib === L.materiales.length && prep === L.herramientas.length;
+    const prep = L.herramientas.filter((h) => h.mio).length + maqs.filter((m) => m.mio).length;
+    const nPrep = L.herramientas.length + maqs.length;
+    const todo = recib === L.materiales.length && prep === nPrep && (L.materiales.length + nPrep) > 0;
     const fila = (tipo, item, desc, est) => {
-      const caja = el('input', { type: 'checkbox', checked: item.mio, onchange: (ev) => marcar(tipo, item, ev.target.checked, ev.target),
-        'aria-label': `${tipo === 'material' ? 'Recibido' : 'Preparada'}: ${item.descripcion}` });
+      const caja = el('input', { type: 'checkbox', checked: item.mio, onchange: (ev) => marcar(tipo, item, ev.target.checked, ev.target, t.id),
+        'aria-label': `${tipo === 'material' ? 'Recibido' : 'Preparado'}: ${item.descripcion || item.nombre}` });
       return el('li', { class: item.mio ? 'hecho' : '' }, el('label', { class: 'md-ll-check' }, caja, el('span', { class: 'md-ll-desc' }, ...desc)), est);
     };
     return el('div', { class: `md-llevar${todo ? ' todo' : falta ? ' con-falta' : ''}` },
@@ -147,10 +151,15 @@
         return fila('material', m, [el('b', {}, cantTxt(m.cantidad, m.unidad)), ` ${m.descripcion}`],
           el('span', { class: `md-ll-est ${cl}` }, !m.mio && m.estado === 'pedido' && m.fecha_prevista ? `${tarde ? '⚠' : '🚚'} llega ${diaTxt(m.fecha_prevista)}` : txt));
       })) : null,
-      L.herramientas.length ? el('div', { class: 'md-ll-sub' }, `Herramientas · preparadas ${prep}/${L.herramientas.length}`) : null,
-      L.herramientas.length ? el('ul', { class: 'md-ll-lista herr' }, L.herramientas.map((h) =>
-        fila('herramienta', h, ['🔧 ', h.cantidad > 1 ? el('b', {}, `${cantTxt(h.cantidad)}× `) : null, h.descripcion], null))) : null);
+      nPrep ? el('div', { class: 'md-ll-sub' }, `Herramientas y equipos · preparados ${prep}/${nPrep}`) : null,
+      nPrep ? el('ul', { class: 'md-ll-lista herr' },
+        maqs.map((m) => fila('equipo', m, ['⚙️ ', el('b', {}, m.nombre)], el('span', { class: 'md-ll-est revisar' }, 'equipo'))),
+        L.herramientas.map((h) => fila('herramienta', h, ['🔧 ', h.cantidad > 1 ? el('b', {}, `${cantTxt(h.cantidad)}× `) : null, h.descripcion], null))) : null,
+      enArea.length ? el('div', { class: 'md-ll-area' }, el('b', {}, `Ya está en ${t.area || 'el área'}: `), enArea.join(', ')) : null);
   }
+
+  // lo asignado que no es operario ni máquina (subcontratas…): las máquinas van en «Necesitas»
+  const otrosEquipos = (t) => t.equipos.filter((n) => !(t.maquinas || []).some((m) => m.nombre === n) && !(t.area_maquinas || []).includes(n));
 
   function tarjeta(t) {
     const x = t.declaracion;
@@ -173,10 +182,10 @@
         el('span', { class: 'md-t-hora' }, `${hhmm(t.desde)}–${hhmm(t.hasta)}`),
         el('span', { class: 'md-t-area' }, t.area || '')),
       el('div', { class: 'md-t-tarea' }, el('b', {}, t.orden_codigo), ` ${t.tarea}`),
-      t.companeros.length || t.equipos.length ? el('div', { class: 'md-t-con' },
+      t.companeros.length || otrosEquipos(t).length ? el('div', { class: 'md-t-con' },
         t.companeros.length ? `con ${t.companeros.join(', ')}` : null,
-        t.equipos.length ? el('span', {}, `${t.companeros.length ? ' · ' : ''}${t.equipos.join(', ')}`) : null) : null,
-      bloqueLlevar(t.llevar, estado.d.fecha),
+        otrosEquipos(t).length ? el('span', {}, `${t.companeros.length ? ' · ' : ''}${otrosEquipos(t).join(', ')}`) : null) : null,
+      bloqueLlevar(t, estado.d.fecha),
       t.tarea_notas ? el('details', { class: 'md-t-notas' }, el('summary', {}, 'Notas de la tarea'), el('p', {}, t.tarea_notas)) : null,
       cerrado ? el('p', { class: 'md-ok' }, '✔ Confirmado por el encargado') : null,
       estado.d.fecha === estado.d.hoy ? el('button', { type: 'button', class: 'md-inc-link', onclick: () => window.midiaMas.incidencia(t.id) }, '＋ Capturar algo de este trabajo') : null,

@@ -294,13 +294,25 @@ function montar(app, asyncH) {
     const { rows: herr } = await query(
       `SELECT h.id, h.tarea_id, h.descripcion, h.cantidad::float, h.nota FROM tarea_herramienta h
         WHERE h.tarea_id = ANY($1::int[]) ORDER BY h.id`, [tareas.map((t) => t.id)]);
+    // equipos de los que hay pocos (tipos de máquina): la tarea los pide y en el tablero se asigna uno concreto
+    const { rows: equipos } = await query(
+      `SELECT ti.id, ti.nombre,
+              (SELECT count(*)::int FROM recurso_tipos rt JOIN recursos r ON r.id = rt.recurso_id WHERE rt.tipo_recurso_id = ti.id AND r.activo) AS n,
+              COALESCE((SELECT json_agg(DISTINCT l.nombre) FROM recurso_tipos rt JOIN recursos r ON r.id = rt.recurso_id JOIN lineas l ON l.id = r.linea_id
+                         WHERE rt.tipo_recurso_id = ti.id AND r.activo AND r.fijo_area), '[]') AS fijas_en,
+              (SELECT count(*)::int FROM recurso_tipos rt JOIN recursos r ON r.id = rt.recurso_id WHERE rt.tipo_recurso_id = ti.id AND r.activo AND r.fijo_area) AS n_fijas
+         FROM tipos_recurso ti WHERE ti.clase = 'maquina' ORDER BY lower(ti.nombre)`);
+    const { rows: reqs } = await query(
+      `SELECT q.tarea_id, q.tipo_recurso_id, q.cantidad, ti.nombre FROM tarea_requisitos_tipo q JOIN tipos_recurso ti ON ti.id = q.tipo_recurso_id
+        WHERE ti.clase = 'maquina' AND q.tarea_id = ANY($1::int[]) ORDER BY lower(ti.nombre)`, [tareas.map((t) => t.id)]);
     for (const o of ots) o.tareas = tareas.filter((t) => t.orden_id === o.id);
     for (const t of tareas) {
+      t.equipos = reqs.filter((q) => q.tarea_id === t.id);
       t.materiales = ls.flatMap((l) => l.tareas.filter((x) => x.tarea_id === t.id)
         .map((x) => ({ id: x.id, escandallo_id: l.id, descripcion: l.descripcion, cantidad: x.cantidad, unidad: l.unidad, estado: l.estado })));
       t.herramientas = herr.filter((h) => h.tarea_id === t.id);
     }
-    res.json({ partida: pa, escandallo: ls, ots });
+    res.json({ partida: pa, escandallo: ls, ots, equipos });
   }));
 
   async function comprobarTareaDePartida(tareaId, partidaId) {
@@ -360,6 +372,24 @@ function montar(app, asyncH) {
       if (r.rowCount) { n++; catalogo.usado(Number(it.catalogo_id)); }
     }
     res.status(201).json({ ok: true, añadidas: n });
+  }));
+
+  // Equipos (tipos de máquina) que pide la tarea: { tipo_ids }
+  app.post('/api/tareas/:id/equipos', pAsignar, asyncH(async (req, res) => {
+    const tareaId = Number(req.params.id);
+    const ids = (Array.isArray(req.body?.tipo_ids) ? req.body.tipo_ids : []).map(Number).filter(Boolean);
+    let n = 0;
+    for (const tid of ids) {
+      const r = await query(
+        `INSERT INTO tarea_requisitos_tipo (tarea_id, tipo_recurso_id, cantidad)
+         SELECT $1, id, 1 FROM tipos_recurso WHERE id = $2 AND clase = 'maquina' ON CONFLICT DO NOTHING`, [tareaId, tid]);
+      n += r.rowCount;
+    }
+    res.status(201).json({ ok: true, añadidos: n });
+  }));
+  app.delete('/api/tareas/:id/equipos/:tipoId', pAsignar, asyncH(async (req, res) => {
+    await query('DELETE FROM tarea_requisitos_tipo WHERE tarea_id = $1 AND tipo_recurso_id = $2', [Number(req.params.id), Number(req.params.tipoId)]);
+    res.json({ ok: true });
   }));
 
   app.delete('/api/tarea-herramienta/:id', pAsignar, asyncH(async (req, res) => {

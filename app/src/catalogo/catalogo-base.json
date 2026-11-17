@@ -20008,28 +20008,7 @@
 {
 "tipo": "herramienta",
 "familia": "Corte",
-"nombre": "Sierra de cinta",
-"unidad": "ud",
-"detalle": null
-},
-{
-"tipo": "herramienta",
-"familia": "Corte",
 "nombre": "Sierra de cinta portátil",
-"unidad": "ud",
-"detalle": null
-},
-{
-"tipo": "herramienta",
-"familia": "Corte",
-"nombre": "Tronzadora de disco",
-"unidad": "ud",
-"detalle": null
-},
-{
-"tipo": "herramienta",
-"familia": "Corte",
-"nombre": "Ingletadora / sierra circular para metal",
 "unidad": "ud",
 "detalle": null
 },
@@ -20071,20 +20050,6 @@
 {
 "tipo": "herramienta",
 "familia": "Corte",
-"nombre": "Equipo de corte por plasma",
-"unidad": "ud",
-"detalle": null
-},
-{
-"tipo": "herramienta",
-"familia": "Corte",
-"nombre": "Equipo de oxicorte",
-"unidad": "ud",
-"detalle": null
-},
-{
-"tipo": "herramienta",
-"familia": "Corte",
 "nombre": "Sierra sable",
 "unidad": "ud",
 "detalle": null
@@ -20120,20 +20085,6 @@
 {
 "tipo": "herramienta",
 "familia": "Taladro y roscado",
-"nombre": "Taladro de columna",
-"unidad": "ud",
-"detalle": null
-},
-{
-"tipo": "herramienta",
-"familia": "Taladro y roscado",
-"nombre": "Taladro magnético",
-"unidad": "ud",
-"detalle": null
-},
-{
-"tipo": "herramienta",
-"familia": "Taladro y roscado",
 "nombre": "Taladro percutor",
 "unidad": "ud",
 "detalle": null
@@ -20149,20 +20100,6 @@
 "tipo": "herramienta",
 "familia": "Taladro y roscado",
 "nombre": "Martillo perforador SDS",
-"unidad": "ud",
-"detalle": null
-},
-{
-"tipo": "herramienta",
-"familia": "Taladro y roscado",
-"nombre": "Martillo demoledor",
-"unidad": "ud",
-"detalle": null
-},
-{
-"tipo": "herramienta",
-"familia": "Taladro y roscado",
-"nombre": "Llave de impacto a batería",
 "unidad": "ud",
 "detalle": null
 },
@@ -20190,63 +20127,7 @@
 {
 "tipo": "herramienta",
 "familia": "Taladro y roscado",
-"nombre": "Remachadora de tuercas",
-"unidad": "ud",
-"detalle": null
-},
-{
-"tipo": "herramienta",
-"familia": "Taladro y roscado",
-"nombre": "Remachadora a batería",
-"unidad": "ud",
-"detalle": null
-},
-{
-"tipo": "herramienta",
-"familia": "Taladro y roscado",
 "nombre": "Avellanador / desbarbador",
-"unidad": "ud",
-"detalle": null
-},
-{
-"tipo": "herramienta",
-"familia": "Soldadura",
-"nombre": "Soldadora MIG/MAG (taller)",
-"unidad": "ud",
-"detalle": null
-},
-{
-"tipo": "herramienta",
-"familia": "Soldadura",
-"nombre": "Soldadora MIG/MAG portátil",
-"unidad": "ud",
-"detalle": null
-},
-{
-"tipo": "herramienta",
-"familia": "Soldadura",
-"nombre": "Soldadora MIG amarilla",
-"unidad": "ud",
-"detalle": null
-},
-{
-"tipo": "herramienta",
-"familia": "Soldadura",
-"nombre": "Soldadora TIG",
-"unidad": "ud",
-"detalle": null
-},
-{
-"tipo": "herramienta",
-"familia": "Soldadura",
-"nombre": "Soldadora de electrodo (inverter)",
-"unidad": "ud",
-"detalle": null
-},
-{
-"tipo": "herramienta",
-"familia": "Soldadura",
-"nombre": "Equipo de soldadura de aluminio",
 "unidad": "ud",
 "detalle": null
 },
@@ -20338,13 +20219,6 @@
 "tipo": "herramienta",
 "familia": "Desbaste y acabado",
 "nombre": "Amoladora recta",
-"unidad": "ud",
-"detalle": null
-},
-{
-"tipo": "herramienta",
-"familia": "Desbaste y acabado",
-"nombre": "Esmeriladora de banco",
 "unidad": "ud",
 "detalle": null
 },
@@ -20519,13 +20393,6 @@
 {
 "tipo": "herramienta",
 "familia": "Sujeción y montaje",
-"nombre": "Mesa de soldadura con utillaje",
-"unidad": "ud",
-"detalle": null
-},
-{
-"tipo": "herramienta",
-"familia": "Sujeción y montaje",
 "nombre": "Potro / borriquetas",
 "unidad": "ud",
 "detalle": null
@@ -20673,56 +20540,7 @@
 {
 "tipo": "herramienta",
 "familia": "Elevación y transporte",
-"nombre": "Grúa (servicio externo)",
-"unidad": "ud",
-"detalle": null
-},
-{
-"tipo": "herramienta",
-"familia": "Elevación y transporte",
-"nombre": "Camión grúa",
-"unidad": "ud",
-"detalle": null
-},
-{
-"tipo": "herramienta",
-"familia": "Elevación y transporte",
-"nombre": "Plataforma elevadora de tijera",
-"unidad": "ud",
-"detalle": null
-},
-{
-"tipo": "herramienta",
-"familia": "Elevación y transporte",
-"nombre": "Plataforma elevadora articulada (PEMP)",
-"unidad": "ud",
-"detalle": null
-},
-{
-"tipo": "herramienta",
-"familia": "Elevación y transporte",
-"nombre": "Manipulador telescópico",
-"unidad": "ud",
-"detalle": null
-},
-{
-"tipo": "herramienta",
-"familia": "Elevación y transporte",
-"nombre": "Carretilla elevadora",
-"unidad": "ud",
-"detalle": null
-},
-{
-"tipo": "herramienta",
-"familia": "Elevación y transporte",
 "nombre": "Transpaleta",
-"unidad": "ud",
-"detalle": null
-},
-{
-"tipo": "herramienta",
-"familia": "Elevación y transporte",
-"nombre": "Polipasto eléctrico",
 "unidad": "ud",
 "detalle": null
 },
@@ -20771,13 +20589,6 @@
 {
 "tipo": "herramienta",
 "familia": "Elevación y transporte",
-"nombre": "Pórtico / cabria",
-"unidad": "ud",
-"detalle": null
-},
-{
-"tipo": "herramienta",
-"familia": "Elevación y transporte",
 "nombre": "Carro portaperfiles",
 "unidad": "ud",
 "detalle": null
@@ -20800,13 +20611,6 @@
 "tipo": "herramienta",
 "familia": "Elevación y transporte",
 "nombre": "Patines de carga",
-"unidad": "ud",
-"detalle": null
-},
-{
-"tipo": "herramienta",
-"familia": "Acceso y seguridad",
-"nombre": "Andamio",
 "unidad": "ud",
 "detalle": null
 },
@@ -20883,21 +20687,7 @@
 {
 "tipo": "herramienta",
 "familia": "Pintura",
-"nombre": "Compresor",
-"unidad": "ud",
-"detalle": null
-},
-{
-"tipo": "herramienta",
-"familia": "Pintura",
 "nombre": "Pistola aerográfica",
-"unidad": "ud",
-"detalle": null
-},
-{
-"tipo": "herramienta",
-"familia": "Pintura",
-"nombre": "Equipo airless",
 "unidad": "ud",
 "detalle": null
 },
@@ -20918,13 +20708,6 @@
 {
 "tipo": "herramienta",
 "familia": "Pintura",
-"nombre": "Cabina de pintura",
-"unidad": "ud",
-"detalle": null
-},
-{
-"tipo": "herramienta",
-"familia": "Pintura",
 "nombre": "Rodillos y bandeja",
 "unidad": "ud",
 "detalle": null
@@ -20933,13 +20716,6 @@
 "tipo": "herramienta",
 "familia": "Pintura",
 "nombre": "Brochas (juego)",
-"unidad": "ud",
-"detalle": null
-},
-{
-"tipo": "herramienta",
-"familia": "Energía y obra",
-"nombre": "Generador eléctrico",
 "unidad": "ud",
 "detalle": null
 },
@@ -20961,13 +20737,6 @@
 "tipo": "herramienta",
 "familia": "Energía y obra",
 "nombre": "Focos de trabajo",
-"unidad": "ud",
-"detalle": null
-},
-{
-"tipo": "herramienta",
-"familia": "Energía y obra",
-"nombre": "Hormigonera",
 "unidad": "ud",
 "detalle": null
 },
@@ -20996,41 +20765,6 @@
 "tipo": "herramienta",
 "familia": "Energía y obra",
 "nombre": "Aspirador",
-"unidad": "ud",
-"detalle": null
-},
-{
-"tipo": "herramienta",
-"familia": "Vehículos",
-"nombre": "Furgoneta",
-"unidad": "ud",
-"detalle": null
-},
-{
-"tipo": "herramienta",
-"familia": "Vehículos",
-"nombre": "Furgoneta grande",
-"unidad": "ud",
-"detalle": null
-},
-{
-"tipo": "herramienta",
-"familia": "Vehículos",
-"nombre": "Camión",
-"unidad": "ud",
-"detalle": null
-},
-{
-"tipo": "herramienta",
-"familia": "Vehículos",
-"nombre": "Remolque",
-"unidad": "ud",
-"detalle": null
-},
-{
-"tipo": "herramienta",
-"familia": "Vehículos",
-"nombre": "Coche",
 "unidad": "ud",
 "detalle": null
 }

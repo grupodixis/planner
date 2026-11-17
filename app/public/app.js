@@ -1453,6 +1453,12 @@
       t.llevar?.herramientas.length ? el('dd', { class: 'det-llevar' }, el('ul', {}, t.llevar.herramientas.map((h) => el('li', {},
         el('span', {}, `${h.cantidad > 1 ? `${cantM(h.cantidad)}× ` : ''}${h.descripcion}`),
         h.preparado_por?.length ? el('span', { class: 'md-ll-est ok' }, `✔ preparada: ${h.preparado_por.join(', ')}`) : null)))) : null,
+      ...(() => {
+        // equipamiento fijo del área donde está el tramo: va con la tarea sin asignarlo
+        const ar = tr && estado.datos.lineas.find((l) => l.id === tr.linea_id);
+        const fijo = ar ? [...(ar.maquinas || []).map((m) => m.nombre), ...(ar.equipamiento || [])] : [];
+        return fijo.length ? [el('dt', {}, 'En el área'), el('dd', { class: 'det-llevar' }, fijo.join(' · '))] : [];
+      })(),
       t.notas ? el('dt', {}, 'Notas') : null,
       t.notas ? el('dd', { class: 'notas' }, t.notas) : null,
       t.condiciones_pendientes?.length ? el('dt', {}, 'Condiciones') : null,
@@ -2013,8 +2019,9 @@
     if (!dlg.open) dlg.showModal();
   }
 
+  let areaEquipoAbierta = null, focoEquipoTexto = false;   // área con el editor de equipo fijo abierto (sigue abierto al guardar)
   async function pintarAreas() {
-    const { tipos, areas, departamentos = [], obras_sin_proyecto: sueltas = [] } = await api('GET', '/api/areas');
+    const { tipos, areas, departamentos = [], maquinas = [], obras_sin_proyecto: sueltas = [] } = await api('GET', '/api/areas');
     const editar = puedeAreas();
     const opciones = (sel) => tipos.map((t) => el('option', { value: t, selected: t === sel }, TIPO_TXT[t] || t));
     const opcDep = (sel) => [el('option', { value: '' }, '—'), ...departamentos.map((d) => el('option', { value: d.id, selected: d.id === sel }, d.nombre.replace(/^Departamento (de |)/, '')))];
@@ -2035,12 +2042,53 @@
       } catch (e) { toast(e.message, true); ev.target.value = a[campo] ?? ''; }
     };
 
+    // equipo fijo del área: máquinas (recursos) que están allí y otros elementos (carpa, compresor…)
+    const nombreArea = (id) => areas.find((x) => x.id === id)?.nombre || '';
+    const equipoTxt = (a) => [...a.maquinas.map((m) => m.nombre), ...(a.equipamiento || [])];
+    function editorEquipo(a, fila, foco = true) {
+      const sig = fila.nextElementSibling;
+      if (sig?.classList.contains('area-equipo-ed')) { sig.remove(); areaEquipoAbierta = null; return; }
+      areaEquipoAbierta = a.id;
+      const fijas = new Set(a.maquinas.map((m) => m.id));
+      const elems = [...(a.equipamiento || [])];
+      const guardarMaq = async () => {
+        try { await api('PUT', `/api/areas/${a.id}/maquinas`, { ids: [...fijas] }); toast('Equipo del área guardado'); await pintarAreas(); cargar(); }
+        catch (e) { toast(e.message, true); }
+      };
+      const guardarElems = async () => {
+        focoEquipoTexto = true;
+        try { await api('PATCH', `/api/areas/${a.id}`, { equipamiento: elems }); toast('Equipo del área guardado'); await pintarAreas(); cargar(); }
+        catch (e) { toast(e.message, true); }
+      };
+      const nuevo = el('input', { placeholder: 'Otro elemento fijo (p. ej. carpa, compresor)… ↵', maxlength: 120, 'aria-label': 'Añadir elemento fijo',
+        onkeydown: (ev) => { if (ev.key === 'Enter' && ev.target.value.trim()) { ev.preventDefault(); elems.push(ev.target.value.trim()); guardarElems(); } } });
+      const ed = el('tr', { class: 'area-equipo-ed' }, el('td', { colspan: 9 },
+        el('div', { class: 'aeq' },
+          el('div', {}, el('h4', {}, `Máquinas fijas en ${a.nombre}`),
+            el('p', { class: 'ayuda' }, 'Lo que se planifique en esta área las lleva solas: cumplen lo que pida la tarea y salen en Mi día.'),
+            el('div', { class: 'aeq-maq' }, maquinas.length ? maquinas.map((m) => el('label', { class: 'chk' },
+              el('input', { type: 'checkbox', checked: fijas.has(m.id), onchange: (ev) => { if (ev.target.checked) fijas.add(m.id); else fijas.delete(m.id); guardarMaq(); } }),
+              ` ${m.nombre}`, m.fijo_area && m.linea_id !== a.id ? el('span', { class: 'ayuda' }, ` (fija en ${nombreArea(m.linea_id)})`) : null))
+              : el('p', { class: 'ayuda' }, 'No hay máquinas dadas de alta en Recursos.'))),
+          el('div', {}, el('h4', {}, 'Otros elementos fijos'),
+            el('div', { class: 'aeq-elems' }, elems.map((x, i) => el('span', { class: 'aeq-chip' }, x,
+              el('button', { type: 'button', class: 'ghost mini', 'aria-label': `Quitar ${x}`, onclick: () => { elems.splice(i, 1); guardarElems(); } }, '✕')))),
+            nuevo))));
+      fila.after(ed);
+      if (foco) nuevo.focus();
+    }
+
     $('#areas-tbody').replaceChildren(...areas.map((a) => el('tr', { class: a.activo ? '' : 'inactiva', ...(editar && a.activo ? { 'data-id': a.id } : {}) },
       el('td', { class: 'ord' }, editar && a.activo ? asaOrden(a.nombre) : ''),
       el('td', {}, el('input', { value: a.nombre, 'aria-label': 'Nombre', maxlength: 80, disabled: !editar, onchange: guardar(a, 'nombre') })),
       el('td', {}, el('select', { 'aria-label': 'Departamento', disabled: !editar, onchange: guardar(a, 'departamento_id') }, opcDep(a.departamento_id))),
       el('td', {}, el('select', { 'aria-label': 'Tipo', disabled: !editar, onchange: guardar(a, 'tipo') }, opciones(a.tipo))),
       el('td', {}, el('input', { value: a.ubicacion || '', 'aria-label': 'Ubicación', maxlength: 200, disabled: !editar, placeholder: '—', onchange: guardar(a, 'ubicacion') })),
+      el('td', { class: 'area-equipo' }, el('button', {
+        type: 'button', class: 'ghost mini', disabled: !editar && !equipoTxt(a).length, title: equipoTxt(a).join('\n') || 'Sin equipo fijo',
+        onclick: (ev) => editar && editorEquipo(a, ev.target.closest('tr')),
+      }, equipoTxt(a).length ? `⚙ ${equipoTxt(a).length}` : (editar ? '＋' : '—')),
+      equipoTxt(a).length ? el('span', { class: 'ayuda aeq-res' }, ` ${equipoTxt(a).join(', ')}`) : null),
       el('td', { class: 'centro' }, el('input', { type: 'checkbox', checked: a.exclusiva, 'aria-label': 'Un trabajo a la vez', title: 'Un solo trabajo a la vez (puesto de oficina, máquina fija): avisa si coinciden dos', disabled: !editar, onchange: guardar(a, 'exclusiva') })),
       el('td', { class: 'centro' }, el('input', { type: 'checkbox', checked: a.activo, 'aria-label': 'Activa', disabled: !editar, onchange: guardar(a, 'activo') })),
       el('td', {}, editar ? el('button', {
@@ -2053,6 +2101,12 @@
         },
       }, a.tareas_abiertas ? 'Desactivar' : 'Borrar') : ''),
     )));
+    if (areaEquipoAbierta) {
+      const a = areas.find((x) => x.id === areaEquipoAbierta);
+      const fila = a && [...$('#areas-tbody').children].find((tr) => tr.querySelector('input')?.value === a.nombre);
+      if (fila) { areaEquipoAbierta = null; editorEquipo(a, fila, focoEquipoTexto); } else areaEquipoAbierta = null;
+      focoEquipoTexto = false;
+    }
     // Obras sin proyecto: apartadas y plegadas, para que no ensucien la lista
     $('#obras-sueltas').hidden = !sueltas.length;
     $('#obras-sueltas summary').textContent = `Obras sin proyecto (${sueltas.length})`;

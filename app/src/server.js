@@ -63,6 +63,11 @@ function leerArea(b, parcial) {
   if ('exclusiva' in b) out.exclusiva = !!b.exclusiva;
   if ('activo' in b) out.activo = !!b.activo;
   if ('orden' in b) out.orden = Number(b.orden) || 0;
+  // otros elementos fijos del área (carpa, compresor…), en texto
+  if ('equipamiento' in b) {
+    out.equipamiento = [...new Set((Array.isArray(b.equipamiento) ? b.equipamiento : [])
+      .map((x) => String(x || '').trim().slice(0, 120)).filter(Boolean))].slice(0, 40);
+  }
   return out;
 }
 
@@ -70,7 +75,9 @@ function leerArea(b, parcial) {
 // aquí solo se listan aparte las que se han quedado sin proyecto.
 app.get('/api/areas', asyncH(async (req, res) => {
   const { rows } = await query(
-    `SELECT l.id, l.nombre, l.tipo, l.ubicacion, l.orden, l.activo, l.proyecto_id, l.departamento_id, l.exclusiva, l.descripcion,
+    `SELECT l.id, l.nombre, l.tipo, l.ubicacion, l.orden, l.activo, l.proyecto_id, l.departamento_id, l.exclusiva, l.descripcion, l.equipamiento,
+            COALESCE((SELECT json_agg(json_build_object('id', r.id, 'nombre', r.nombre) ORDER BY r.nombre)
+                        FROM recursos r WHERE r.linea_id = l.id AND r.fijo_area AND r.activo), '[]') AS maquinas,
             (SELECT count(*)::int FROM tareas t WHERE t.linea_id = l.id AND t.estado <> 'hecha')
           + (SELECT count(*)::int FROM tramos x WHERE x.linea_id = l.id AND x.fecha >= CURRENT_DATE) AS tareas_abiertas,
             (SELECT count(*)::int FROM tareas t WHERE t.linea_id = l.id)
@@ -79,8 +86,11 @@ app.get('/api/areas', asyncH(async (req, res) => {
       WHERE l.tipo <> 'obra' OR l.proyecto_id IS NULL
       ORDER BY l.activo DESC, d.orden NULLS LAST, l.orden, l.nombre`);
   const { rows: departamentos } = await query('SELECT id, clave, nombre FROM departamentos ORDER BY orden, nombre');
+  // máquinas que se pueden dejar fijas en un área
+  const { rows: maquinas } = await query(
+    `SELECT r.id, r.nombre, r.linea_id, r.fijo_area FROM recursos r WHERE r.activo AND r.tipo = 'maquina' ORDER BY r.nombre`);
   res.json({
-    departamentos,
+    departamentos, maquinas,
     tipos: TIPOS_AREA.filter((t) => t !== 'obra'),
     areas: rows.filter((a) => a.tipo !== 'obra'),
     obras_sin_proyecto: rows.filter((a) => a.tipo === 'obra'),
@@ -114,6 +124,17 @@ app.patch('/api/areas/:id', auth.permiso('recursos'), asyncH(async (req, res) =>
     [Number(req.params.id), ...cols.map((k) => a[k])]);
   if (!rows.length) return res.status(404).json({ error: 'Área no encontrada' });
   res.json(rows[0]);
+}));
+
+// Máquinas fijas del área: { ids } (las que estaban y ya no, dejan de ser fijas)
+app.put('/api/areas/:id/maquinas', auth.permiso('recursos'), asyncH(async (req, res) => {
+  const id = Number(req.params.id);
+  const ids = Array.isArray(req.body?.ids) ? req.body.ids.map(Number).filter(Boolean) : [];
+  await tx(async (c) => {
+    await c.query('UPDATE recursos SET fijo_area = FALSE WHERE linea_id = $1 AND fijo_area AND NOT (id = ANY($2::int[]))', [id, ids]);
+    if (ids.length) await c.query(`UPDATE recursos SET fijo_area = TRUE, linea_id = $1 WHERE id = ANY($2::int[]) AND tipo = 'maquina'`, [id, ids]);
+  });
+  res.json({ ok: true });
 }));
 
 // Reordenar: recibe la lista de ids en el orden deseado

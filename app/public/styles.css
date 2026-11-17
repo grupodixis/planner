@@ -1703,3 +1703,20 @@ details.pin-rol > summary::after { content: '▾'; position: absolute; right: 8p
 .md-ll-check input { width: 22px; height: 22px; flex: none; margin: 0; accent-color: var(--verde); }
 .md-ll-lista li { align-items: center; }
 .md-ll-lista li.hecho .md-ll-desc { color: var(--suave); text-decoration: line-through; text-decoration-color: var(--verde); }
+.md-ll-area { margin-top: 8px; font-size: 13px; color: var(--suave); }
+.md-ll-area b { color: var(--texto); font-weight: 600; }
+/* Áreas de trabajo: equipo fijo */
+.area-equipo { max-width: 260px; }
+.aeq-res { display: inline-block; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: middle; }
+.area-equipo-ed td { background: var(--panel); }
+.aeq { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; padding: 8px 4px 12px; }
+.aeq h4 { margin: 0 0 4px; }
+.aeq-maq { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 4px 12px; margin-top: 6px; }
+.aeq-elems { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0; }
+.aeq-chip { display: inline-flex; align-items: center; gap: 4px; padding: 2px 4px 2px 10px; border: 1px solid var(--borde); border-radius: 99px; }
+.aeq input:not([type]) { width: 100%; }
+@media (max-width: 800px) { .aeq { grid-template-columns: 1fr; } }
+.asg-fam.eq { color: var(--texto); }
+.asg-herr.fija { opacity: .6; }
+.asg-chip.eq { border-style: dashed; }
+.asg-nota { margin: 0 0 8px; }

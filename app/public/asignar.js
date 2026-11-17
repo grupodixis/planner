@@ -12,6 +12,7 @@
   let elegido = null;          // material del escandallo elegido para asignar con clic (pantallas táctiles)
   let tareaSel = null;         // tarea seleccionada (herramientas)
   const marcadas = new Set();  // herramientas marcadas (nombre)
+  const marcadosEq = new Set(); // equipos marcados (id de tipo de máquina)
   let filtro = '';
   const abiertas = new Set();  // OTs desplegadas
   let pidiendo = null;         // { tareaId, escandalloId } mientras se pregunta la cantidad
@@ -76,12 +77,28 @@
     const buscar = el('input', { type: 'search', class: 'asg-buscar', placeholder: '🔎 Buscar herramienta…', value: filtro, 'aria-label': 'Buscar herramienta' });
     buscar.addEventListener('input', () => { filtro = buscar.value; pintarHerramientas(); const b = $('.asg-buscar'); b.focus(); b.setSelectionRange(b.value.length, b.value.length); });
     const t = tareaSel && d.ots.flatMap((o) => o.tareas).find((x) => x.id === tareaSel);
-    const btn = el('button', { type: 'button', class: 'primario asg-agregar', disabled: !editar || !t || !marcadas.size, onclick: agregarHerramientas },
-      t ? `＋ Agregar ${marcadas.size || ''} a «${t.nombre}»` : 'Elige una tarea a la derecha');
+    const nM = marcadas.size + marcadosEq.size;
+    const btn = el('button', { type: 'button', class: 'primario asg-agregar', disabled: !editar || !t || !nM, onclick: agregarHerramientas },
+      t ? `＋ Agregar ${nM || ''} a «${t.nombre}»` : 'Elige una tarea a la derecha');
+    // equipos de los que hay pocos: la tarea los pide; en el tablero se asigna uno concreto y se controla que no se crucen
+    const eqs = (d.equipos || []).filter((e) => !q || norm(e.nombre).includes(q));
+    const bloqueEq = eqs.length ? [
+      el('div', { class: 'asg-fam eq' }, '⚙ Equipos (hay pocos) · en el tablero se asigna cuál'),
+      ...eqs.map((e) => {
+        const todasFijas = e.n && e.n_fijas === e.n;
+        return el('label', { class: `asg-herr eq${todasFijas ? ' fija' : ''}` },
+          el('input', { type: 'checkbox', checked: marcadosEq.has(e.id), disabled: !editar || todasFijas,
+            onchange: (ev) => { ev.target.checked ? marcadosEq.add(e.id) : marcadosEq.delete(e.id); pintarHerramientas(); } }),
+          e.nombre, el('span', { class: 'ayuda' }, todasFijas ? ` · fija en ${e.fijas_en.join(', ')}: planifica la tarea allí`
+            : ` (${e.n || 'ninguno dado de alta'})${e.n_fijas ? ` · ${e.n_fijas} fija en ${e.fijas_en.join(', ')}` : ''}`));
+      })] : [];
     izq.replaceChildren(
-      el('div', { class: 'asg-tit' }, 'Herramientas · marca y agrega a la tarea seleccionada'),
+      el('div', { class: 'asg-tit' }, 'Herramientas y equipos · marca y agrega a la tarea seleccionada'),
+      el('p', { class: 'ayuda asg-nota' }, 'Las máquinas fijas (sierra, plegadora, cizalla, cabina…) no se asignan aquí: van con el área donde se planifica la tarea (Tablero › Áreas de trabajo › Equipo fijo).'),
       buscar,
       el('div', { class: 'asg-herr-lista' },
+        ...bloqueEq,
+        el('div', { class: 'asg-fam eq' }, '🔧 Herramientas de mano'),
         ...[...porFam].map(([fam, hs]) => [el('div', { class: 'asg-fam' }, fam), ...hs.map((h) => el('label', { class: 'asg-herr' },
           el('input', { type: 'checkbox', checked: marcadas.has(h.nombre), disabled: !editar, onchange: (ev) => { ev.target.checked ? marcadas.add(h.nombre) : marcadas.delete(h.nombre); pintarHerramientas(); } }),
           h.nombre))]),
@@ -93,16 +110,18 @@
             marcadas.add(c.nombre); toast(`Añadida al catálogo: ${c.nombre}`); pintarHerramientas();
           } catch (e) { toast(e.message, true); }
         } }, `＋ Añadir «${filtro.trim()}» al catálogo`) : null),
-      el('div', { class: 'asg-pie' }, el('span', { class: 'ayuda' }, `${marcadas.size} marcada(s)`),
-        marcadas.size ? el('button', { type: 'button', class: 'ghost mini', onclick: () => { marcadas.clear(); pintarHerramientas(); } }, 'Desmarcar') : null, btn));
+      el('div', { class: 'asg-pie' }, el('span', { class: 'ayuda' }, `${nM} marcada(s)`),
+        nM ? el('button', { type: 'button', class: 'ghost mini', onclick: () => { marcadas.clear(); marcadosEq.clear(); pintarHerramientas(); } }, 'Desmarcar') : null, btn));
   }
 
   async function agregarHerramientas() {
     const items = [...marcadas].map((nombre) => ({ descripcion: nombre, catalogo_id: herrCat.find((h) => h.nombre === nombre)?.id || null }));
     try {
-      const r = await api('POST', `/api/tareas/${tareaSel}/herramientas`, { items });
-      toast(r.añadidas ? `${r.añadidas} herramienta(s) agregada(s)` : 'Ya las tenía');
-      marcadas.clear();
+      const r = items.length ? await api('POST', `/api/tareas/${tareaSel}/herramientas`, { items }) : { añadidas: 0 };
+      const e = marcadosEq.size ? await api('POST', `/api/tareas/${tareaSel}/equipos`, { tipo_ids: [...marcadosEq] }) : { añadidos: 0 };
+      const n = r.añadidas + e.añadidos;
+      toast(n ? `${n} agregado(s) a la tarea` : 'Ya los tenía');
+      marcadas.clear(); marcadosEq.clear();
       await cargar();
     } catch (e) { toast(e.message, true); }
   }
@@ -119,7 +138,7 @@
       ...d.ots.map((o) => {
         const abierta = abiertas.has(o.id);
         const nMat = o.tareas.reduce((s, t) => s + t.materiales.length, 0);
-        const nHer = o.tareas.reduce((s, t) => s + t.herramientas.length, 0);
+        const nHer = o.tareas.reduce((s, t) => s + t.herramientas.length + (t.equipos || []).length, 0);
         return el('div', { class: `asg-ot${abierta ? ' abierta' : ''}` },
           el('button', { type: 'button', class: 'asg-ot-cab', 'aria-expanded': String(abierta),
             onclick: () => { abierta ? abiertas.delete(o.id) : abiertas.add(o.id); pintarOTs(); } },
@@ -130,7 +149,8 @@
   }
 
   function tareaFila(t, i) {
-    const items = tab === 'material' ? t.materiales : t.herramientas;
+    const items = tab === 'material' ? t.materiales
+      : [...(t.equipos || []).map((q) => ({ equipo: true, tarea_id: t.id, id: q.tipo_recurso_id, descripcion: q.nombre, cantidad: q.cantidad > 1 ? q.cantidad : null })), ...t.herramientas];
     const sel = tab === 'herramienta' && tareaSel === t.id;
     const fila = el('div', { class: `asg-tarea${sel ? ' sel' : ''}${tab === 'material' && elegido ? ' destino' : ''}`, 'data-tarea': t.id, tabindex: '0', role: 'button',
       onclick: (ev) => {
@@ -159,11 +179,12 @@
   function chip(x) {
     const mat = tab === 'material';
     const txt = mat ? `${cant(x.cantidad)} ${x.unidad || ''} · ${x.descripcion}` : `${x.cantidad != null ? `${cant(x.cantidad)} · ` : ''}${x.descripcion}`;
-    return el('span', { class: `asg-chip${mat ? '' : ' h'}`, title: mat ? 'Pulsa para cambiar la cantidad' : '' },
+    return el('span', { class: `asg-chip${mat ? '' : ' h'}${x.equipo ? ' eq' : ''}`, title: mat ? 'Pulsa para cambiar la cantidad' : x.equipo ? 'Equipo: en el tablero se asigna cuál' : '' },
+      x.equipo ? '⚙ ' : null,
       el('span', { onclick: mat && editar ? () => cambiarCantidad(x) : null }, txt),
       editar ? el('button', { type: 'button', class: 'asg-chip-x', 'aria-label': `Quitar ${x.descripcion}`, onclick: async (ev) => {
         ev.stopPropagation();
-        try { await api('DELETE', mat ? `/api/tarea-material/${x.id}` : `/api/tarea-herramienta/${x.id}`); await cargar(); }
+        try { await api('DELETE', mat ? `/api/tarea-material/${x.id}` : x.equipo ? `/api/tareas/${x.tarea_id}/equipos/${x.id}` : `/api/tarea-herramienta/${x.id}`); await cargar(); }
         catch (e) { toast(e.message, true); }
       } }, '✕') : null);
   }
