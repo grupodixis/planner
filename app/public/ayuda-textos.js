@@ -16,7 +16,7 @@ window.S360_AYUDA = {
           { que: 'Se planifica en el calendario', quien: 'Quien planifica', aqui: true },
           { que: 'Se asignan personas y equipos', quien: 'Quien planifica', aqui: true },
           { que: 'El operario la ve y la apunta', quien: 'Mi día' },
-          { que: 'Se confirma lo real', quien: 'Encargado · Parte del día' },
+          { que: 'Se confirma lo real', quien: 'Encargado · Supervisión de partes' },
         ],
       },
       recorridos: [
@@ -77,7 +77,7 @@ window.S360_AYUDA = {
     },
 
     '/parte.html': {
-      titulo: 'Parte del día',
+      titulo: 'Supervisión de partes',
       para_que: 'Al final del día el encargado confirma lo que se hizo de verdad. Lo planificado no se toca: lo real se guarda aparte y sirve para el avance, los costes y los informes.',
       esquema: {
         titulo: 'De lo planificado a lo real',
@@ -92,7 +92,7 @@ window.S360_AYUDA = {
       recorridos: [
         {
           id: 'parte-basico', version: 1, si: 'planificar', ofrecer: true, duracion: '1 min',
-          titulo: 'Cómo cerrar el parte',
+          titulo: 'Cómo supervisar los partes',
           pasos: [
             { sel: '#pendientes', texto: 'Arriba, los <b>días pasados sin cerrar</b> y lo que hay por clasificar en la bandeja.' },
             { sel: '#mi-dia-envios', texto: 'Quién ha <b>enviado su día</b> desde el móvil: ✔ enviado, ◐ a medias, ✗ nada.' },

@@ -175,13 +175,13 @@
   const ausenteTodoElDia = (recursoId, fecha) => ausenciasDe(recursoId, fecha).find((a) => a.hora_desde == null);
   const festivoDe = (fecha) => (estado.datos?.festivos || []).find((f) => f.fecha === fecha);
   const laborable = (f) => !esFinde(f) && !festivoDe(f);
-  // Parte del día: tramos cerrados y días cerrados no se replanifican
+  // Supervisión de partes: tramos cerrados y días cerrados no se replanifican
   const diaCerrado = (f) => (estado.datos?.dias_cerrados || []).includes(f);
   const bloqueado = (tr) => !!tr.cierre || diaCerrado(tr.fecha);
   const CIERRE_TXT = { hecho: '✓', corregido: '≠' };
   const marcaCierre = (tr) => (tr.cierre ? el('span', {
     class: `marca-cierre c-${tr.cierre}`,
-    title: `${tr.cierre === 'hecho' ? 'Hecho como estaba' : 'Hecho con cambios'} (parte del día) · ${durTxt(+tr.real_h.toFixed(2))} reales`,
+    title: `${tr.cierre === 'hecho' ? 'Hecho como estaba' : 'Hecho con cambios'} (supervisión de partes) · ${durTxt(+tr.real_h.toFixed(2))} reales`,
   }, CIERRE_TXT[tr.cierre]) : null);
   const ausTexto = (a) => (a.hora_desde != null ? `${AUS_TXT[a.tipo]} ${hhmm(a.hora_desde)}–${hhmm(a.hora_hasta)}` : AUS_TXT[a.tipo]);
 
@@ -491,7 +491,7 @@
       const cerrado = diaCerrado(estado.fecha);
       $('#cal-body').prepend(el('p', { class: `parte-aviso${cerrado ? ' cerrado' : ''}` },
         cerrado ? 'Parte cerrado: este día ya no se replanifica. ' : 'El parte de este día está sin cerrar. ',
-        el('a', { href: `/parte.html?fecha=${estado.fecha}` }, cerrado ? 'Ver el parte' : 'Rellenar el parte →')));
+        el('a', { href: `/parte.html?fecha=${estado.fecha}` }, cerrado ? 'Ver la supervisión' : 'Supervisar los partes →')));
     }
   }
 
@@ -1494,9 +1494,9 @@
     if (tr) {
       if (bloqueado(tr)) {
         partes.push(el('p', { class: 'aviso-cierre' }, tr.cierre
-          ? `Cerrado en el parte del día (${tr.cierre === 'hecho' ? 'como estaba' : 'con cambios'}) · ${durTxt(+tr.real_h.toFixed(2))} reales. `
+          ? `Cerrado en la supervisión de partes (${tr.cierre === 'hecho' ? 'como estaba' : 'con cambios'}) · ${durTxt(+tr.real_h.toFixed(2))} reales. `
           : 'El parte de este día está cerrado. ',
-        el('a', { href: `/parte.html?fecha=${tr.fecha}` }, 'Ver el parte')));
+        el('a', { href: `/parte.html?fecha=${tr.fecha}` }, 'Ver la supervisión')));
       }
       partes.push(seccionTramo(t, tr, pend, editar && !bloqueado(tr)));
     }

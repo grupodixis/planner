@@ -1,4 +1,4 @@
-/* s360_planificacion · Parte del día: registrar lo real (validar o corregir lo planificado) */
+/* s360_planificacion · Supervisión de partes: registrar lo real (validar o corregir lo planificado) */
 (() => {
   'use strict';
 
