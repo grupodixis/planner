@@ -2010,3 +2010,9 @@ dialog.dlg-req[open] { display: flex; }
 .ay-video-grande { width: min(1000px, calc(100vw - 24px)); max-width: none; padding: 12px; }
 .ay-video-grande video { width: 100%; display: block; border-radius: 8px; background: #000; }
 .ay-video-grande .acciones { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-top: 10px; }
+.log-tareas { list-style: none; margin: 4px 0 2px; padding: 0; display: flex; flex-direction: column; gap: 2px; font-size: 13px; }
+.log-tareas li::before { content: '↳ '; color: var(--suave); }
+.log-tareas a { color: var(--azul); text-decoration: none; }
+.log-tareas a:hover { text-decoration: underline; }
+.log-tareas.sin { font-style: italic; margin: 4px 0 2px; }
+#tareas-tbody tr.destacada td { background: var(--azul-bg); transition: background .6s; }

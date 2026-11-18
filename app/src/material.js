@@ -37,7 +37,8 @@ const SQL_LINEAS = `
          p.codigo AS proyecto_codigo, p.nombre AS proyecto_nombre,
          pr.nombre AS proveedor, us.nombre AS stock_por, up.nombre AS pedido_por, ur.nombre AS recibido_por,
          COALESCE((SELECT sum(m.cantidad) FROM tarea_material m WHERE m.escandallo_id = e.id), 0)::float AS asignado,
-         COALESCE((SELECT json_agg(json_build_object('id', m.id, 'tarea_id', t.id, 'tarea', t.nombre, 'ot', o.codigo, 'cantidad', m.cantidad::float)
+         COALESCE((SELECT json_agg(json_build_object('id', m.id, 'tarea_id', t.id, 'tarea', t.nombre, 'ot', o.codigo, 'ot_id', o.id, 'proyecto_id', o.proyecto_id, 'cantidad', m.cantidad::float,
+                                                     'fecha', (SELECT min(x.fecha) FROM tramos x WHERE x.tarea_id = t.id))
                                    ORDER BY o.codigo, t.orden_en_of)
                      FROM tarea_material m JOIN tareas t ON t.id = m.tarea_id JOIN ordenes o ON o.id = t.orden_id
                     WHERE m.escandallo_id = e.id), '[]') AS tareas,

@@ -1052,6 +1052,14 @@
     if (p && estado.proyectos.some((x) => x.id === p)) {
       await elegirProyecto(p);
       if (ot) await elegirOT(ot);
+      // viniendo de logística (material de una tarea): se señala la tarea
+      const tarea = Number(q.get('tarea')) || null;
+      const fila = tarea && document.querySelector(`#tareas-tbody tr[data-id="${tarea}"]`);
+      if (fila) {
+        fila.scrollIntoView({ block: 'center' });
+        fila.classList.add('destacada');
+        setTimeout(() => fila.classList.remove('destacada'), 4000);
+      }
     } else if (estado.proyectos.length) {
       await elegirProyecto(estado.proyectos[0].id);
     }

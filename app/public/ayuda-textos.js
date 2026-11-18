@@ -420,7 +420,7 @@ window.S360_AYUDA = {
             { sel: 'log-pestanas', texto: 'Las pestañas siguen el camino del material: <b>Revisar stock</b> → <b>Por pedir</b> (compras) → <b>Pedido</b> → <b>Disponible</b>. El número es lo que está pendiente.' },
             { sel: 'log-pestana-revisar', esperar: 'click', texto: 'Pulsa <b>Revisar stock</b>: es lo que te toca a ti.', saltar_si: (n) => n.getAttribute('aria-selected') === 'true' },
             { sel: 'log-partida', esperar: 'click', texto: 'El material va agrupado por partida. Pulsa la cabecera para <b>abrirla</b>. Los contadores te dicen cuántas líneas tiene, cuántas faltan y cuántas van tarde.', saltar_si: (n) => n.parentElement.open },
-            { sel: 'log-linea', texto: 'Cada tarjeta es un material: <b>cuánto hace falta</b>, para qué día y para qué tarea. La nota del técnico va al final.' },
+            { sel: 'log-linea', texto: 'Cada tarjeta es un material: <b>cuánto hace falta</b> y para qué día. Debajo, <b>↳ la tarea de la OT</b> que lo usa: púlsala para verla en su proyecto.' },
             { sel: 'log-stock', texto: 'Mira en el almacén y contesta: <b>No hay</b>, <b>Hay todo</b>, o escribe <b>cuánto hay</b> y pulsa ✓.', aviso: 'Esto se apunta de verdad: lo que falte pasa a «Por pedir» y compras recibe un aviso. Si te equivocas, puedes corregirlo después.' },
             { sel: 'mat-foto', texto: 'Si hay algo raro (otra medida, viene dañado…), saca una <b>foto</b>: el técnico y compras la verán en la tarjeta.' },
             { sel: 'log-buscar', esperar: 'escribir', texto: 'Para encontrar algo rápido, busca por material, proyecto o partida. Prueba a escribir <b>tubo</b>.' },

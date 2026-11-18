@@ -90,8 +90,14 @@
         l.stock != null ? ` · hay ${cant(l.stock)}` : '',
         l.falta ? el('b', { class: 'log-falta' }, ` · faltan ${cant(l.falta)}`) : '',
         l.fecha_necesaria ? el('span', { class: tarde ? 'neg' : '' }, ` · para el ${fecha(l.fecha_necesaria)}`) : '',
-        l.tareas.length ? ` · ${l.tareas.map((t) => t.tarea).join(', ')}` : '',
+
         l.nota ? ` · ${l.nota}` : ''),
+      // tareas de la OT que usan este material: enlace a la tarea en Proyectos y OTs
+      l.tareas.length ? el('ul', { class: 'log-tareas', 'aria-label': 'Tareas que lo usan' }, l.tareas.map((t) => el('li', {},
+        el('a', { href: `/proyectos.html?p=${t.proyecto_id}&ot=${t.ot_id}&tarea=${t.tarea_id}`, title: 'Ver la tarea en su OT' },
+          el('b', {}, t.ot), ` · ${t.tarea}`),
+        el('span', { class: 'ayuda' }, ` · ${cant(t.cantidad)} ${l.unidad || ''}${t.fecha ? ` · ${fecha(t.fecha)}` : ' · sin planificar'}`))))
+        : el('p', { class: 'log-tareas sin ayuda' }, 'Sin asignar a ninguna tarea todavía'),
       (l.compra === 'pedido' || l.compra === 'recibido' || l.stock_por || l.nota_logistica) ? el('div', { class: 'log-l2 ayuda' },
         [l.stock_por && `Revisado por ${l.stock_por}`,
           l.compra === 'pedido' && `Pedido${l.num_pedido ? ` nº ${l.num_pedido}` : ''}${l.proveedor ? ` a ${l.proveedor}` : ''}${l.fecha_prevista ? `, llega el ${fecha(l.fecha_prevista)}` : ''}${l.pedido_por ? ` (${l.pedido_por})` : ''}`,
