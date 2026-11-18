@@ -74,8 +74,29 @@
         el('span', { class: 'ayuda' }, `${orden.length} partidas`),
         el('button', { type: 'button', class: 'ghost', onclick: () => todas(true) }, 'Abrir todas'),
         el('button', { type: 'button', class: 'ghost', onclick: () => todas(false) }, 'Cerrar todas')) : null,
-      ...orden.map(grupoEl)].filter(Boolean)
+      ...orden.map(grupoEl), el('div', { id: 'barra-pedido' })].filter(Boolean)
       : [el('p', { class: 'vacio-grande' }, vista === 'revisar' ? 'Nada por revisar.' : vista === 'comprar' ? 'Nada por pedir.' : vista === 'recibir' ? 'Nada pendiente de llegar.' : 'Nada.')]));
+    barraPedido();
+  }
+
+  // líneas marcadas para un pedido de compra: barra abajo con el proveedor y «Crear pedido»
+  const marcadas = new Set();
+  function barraPedido() {
+    const caja = $('#barra-pedido');
+    if (!caja) return;
+    for (const id of [...marcadas]) if (!d.lineas.some((l) => l.id === id && l.estado === 'por_pedir' && !l.pedido_compra)) marcadas.delete(id);
+    if (!marcadas.size) { caja.replaceChildren(); caja.className = ''; return; }
+    const prov = el('select', { 'aria-label': 'Proveedor del pedido' }, el('option', { value: '' }, 'Proveedor (se puede elegir después)…'),
+      d.proveedores.map((p) => el('option', { value: p.id }, p.nombre)));
+    caja.className = 'log-barra-pedido';
+    caja.replaceChildren(el('b', {}, `${marcadas.size} línea${marcadas.size === 1 ? '' : 's'} marcada${marcadas.size === 1 ? '' : 's'}`), prov,
+      el('button', { type: 'button', class: 'primario', onclick: async () => {
+        try {
+          const p = await api('POST', '/api/compras/pedidos', { proveedor_id: prov.value || null, escandallo_ids: [...marcadas] });
+          location.href = `/compras.html?pedido=${p.id}`;
+        } catch (e) { toast(e.message, true); }
+      } }, '🛒 Crear pedido de compra'),
+      el('button', { type: 'button', class: 'ghost mini', onclick: () => { marcadas.clear(); pintar(); } }, 'Desmarcar'));
   }
 
   function tarjeta(l) {
@@ -143,8 +164,18 @@
         el('button', { type: 'button', class: l.stock != null && l.stock >= l.cantidad ? 'sel' : '', onclick: () => hecho(`/api/escandallo/${l.id}/stock`, { stock: l.cantidad }, 'Apuntado: hay todo') }, 'Hay todo'),
         el('span', { class: 'log-hay' }, 'Hay ', inp, ` ${l.unidad || ''} `, el('button', { type: 'button', class: 'primario mini', onclick: guardar }, '✓'))));
     }
-    // compras: pedir
-    if (puede.compras && l.estado === 'por_pedir') {
+    // compras: ya está en un pedido de compra en preparación
+    if (l.estado === 'por_pedir' && l.pedido_compra) {
+      out.push(el('div', { class: 'log-acc log-en-pedido' }, `🛒 En el pedido ${l.pedido_compra.codigo} (${{ borrador: 'en preparación', por_aprobar: 'esperando aprobación', aprobado: 'aprobado, por enviar' }[l.pedido_compra.estado] || l.pedido_compra.estado}) `,
+        el('a', { class: 'boton ghost mini', href: `/compras.html?pedido=${l.pedido_compra.id}` }, 'Abrir pedido')));
+    }
+    // compras: marcar para un pedido de compra con varias líneas
+    if (puede.compras && l.estado === 'por_pedir' && !l.pedido_compra) {
+      out.push(el('label', { class: 'log-sel' }, el('input', { type: 'checkbox', checked: marcadas.has(l.id), onchange: (ev) => { ev.target.checked ? marcadas.add(l.id) : marcadas.delete(l.id); barraPedido(); } }),
+        ' Incluir en un pedido de compra'));
+    }
+    // compras: pedir (rápido: ya pedido por teléfono, sin pedido de compra)
+    if (puede.compras && l.estado === 'por_pedir' && !l.pedido_compra) {
       const prov = el('select', { 'aria-label': 'Proveedor' }, el('option', { value: '' }, 'Proveedor…'),
         d.proveedores.map((p) => el('option', { value: p.id }, p.nombre)));
       const f = el('input', { type: 'date', 'aria-label': 'Llega el', min: hoy });

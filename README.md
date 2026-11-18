@@ -96,6 +96,7 @@ app/src/notificaciones.js avisos al móvil (push) y avisos programados
 app/src/capturas.js       bandeja de capturas: capturar y clasificar (tarea / asunto / información)
 app/src/eventos.js        avisos en vivo entre pantallas (Server-Sent Events)
 app/public/ayuda*.js      ayuda: «?», recorridos y novedades
+app/src/compras.js        proveedores y pedidos de compra (aprobación, PDF, envío)
 app/src/costes.js         control de costes por proyecto (presupuesto, real, previsión, margen)
 app/src/importar.js       importación de proyectos del compositor (s360-import/2 y /1) y catálogo
 app/src/migraciones.js    cambios de esquema que se aplican solos al arrancar
@@ -662,6 +663,26 @@ y material añadidos a mano en el planificador se conservan.
 `GET /api/importar/catalogo` devuelve los nombres exactos (áreas con su equipo fijo, capacidades,
 equipos por familia y uso, subcontratas, categorías, materiales y herramientas) para que el
 compositor los use.
+
+## Compras: pedidos de compra y proveedores (menú Compras)
+
+- **Material de las partidas** (logística) pasa al menú Compras. En «Por pedir» cada línea tiene
+  **«Incluir en un pedido de compra»**; abajo se elige el proveedor y **Crear pedido de compra**.
+  (El «🛒 Pedido» rápido de cada línea sigue, para lo pedido por teléfono.)
+- **Pedidos de compra** (`/compras.html`): por estado (esperando aprobación, aprobados por enviar,
+  borradores, enviados). Ficha con proveedor, entrega, dónde, referencia, forma de pago,
+  observaciones y **líneas con precio** (más líneas a mano: portes…); se guarda al cambiar.
+  - Total por encima del **límite** (Ajustes, 3.000 € por defecto) → **Pedir aprobación**: avisa a
+    quien tiene el permiso **aprobar_compras** (Dirección y Administrador), que **aprueba** o
+    **no aprueba** con motivo (vuelve a borrador y se avisa a quien lo preparó).
+  - **PDF del pedido** (pdfkit) con los datos de la empresa y las condiciones de Ajustes.
+  - **Enviar**: por correo desde la cuenta SMTP (gestion@) con el PDF adjunto, o «Ya lo he
+    enviado yo». Al enviarlo, sus líneas pasan a **Pedido** con proveedor, fecha, nº de pedido
+    (PC-AAAA-NNNN) y **precio** (base del coste comprometido del material).
+- **Proveedores**: ficha (CIF, email de pedidos y de facturas, teléfono, contacto, forma de pago,
+  plazo, portes, lo que sirve, notas, activo). Vienen de Notion.
+- **Correo de salida**: en el servidor, `bash configurar-correo.sh` (pide la contraseña de
+  gestion@ y la deja en `.env`; IONOS, smtp.ionos.es:587).
 
 ## Control de costes (Informes › Control de costes)
 

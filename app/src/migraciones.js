@@ -786,6 +786,55 @@ const MIGRACIONES = [
        INSERT INTO ajustes (clave, valor) VALUES ('migr_permiso_costes', 'true');
      END IF;
    END $$`,
+  // 2026-11 · Compras: ficha de proveedor completa, pedidos de compra con aprobación y envío por correo
+  `ALTER TABLE proveedores ADD COLUMN IF NOT EXISTS cif TEXT`,
+  `ALTER TABLE proveedores ADD COLUMN IF NOT EXISTS email_admin TEXT`,
+  `ALTER TABLE proveedores ADD COLUMN IF NOT EXISTS forma_pago TEXT`,
+  `ALTER TABLE proveedores ADD COLUMN IF NOT EXISTS plazo_dias INT`,
+  `ALTER TABLE proveedores ADD COLUMN IF NOT EXISTS portes TEXT`,
+  `CREATE TABLE IF NOT EXISTS pedidos_compra (
+     id             SERIAL PRIMARY KEY,
+     codigo         TEXT NOT NULL UNIQUE,
+     proveedor_id   INT REFERENCES proveedores(id) ON DELETE SET NULL,
+     estado         TEXT NOT NULL DEFAULT 'borrador' CHECK (estado IN ('borrador','por_aprobar','aprobado','enviado','anulado')),
+     fecha_entrega  DATE,
+     entregar_en    TEXT,
+     referencia     TEXT,
+     forma_pago     TEXT,
+     observaciones  TEXT,
+     total          NUMERIC(12,2) NOT NULL DEFAULT 0,
+     creado_por     INT REFERENCES usuarios(id) ON DELETE SET NULL,
+     creado         TIMESTAMPTZ NOT NULL DEFAULT now(),
+     aprobacion_pedida_en TIMESTAMPTZ,
+     aprobado_por   INT REFERENCES usuarios(id) ON DELETE SET NULL,
+     aprobado_en    TIMESTAMPTZ,
+     rechazo        TEXT,
+     enviado_por    INT REFERENCES usuarios(id) ON DELETE SET NULL,
+     enviado_en     TIMESTAMPTZ,
+     enviado_a      TEXT,
+     enviado_correo BOOLEAN NOT NULL DEFAULT FALSE
+   )`,
+  `CREATE TABLE IF NOT EXISTS pedido_compra_lineas (
+     id             SERIAL PRIMARY KEY,
+     pedido_id      INT NOT NULL REFERENCES pedidos_compra(id) ON DELETE CASCADE,
+     escandallo_id  INT REFERENCES partida_escandallo(id) ON DELETE SET NULL,
+     descripcion    TEXT NOT NULL,
+     cantidad       NUMERIC(12,3) NOT NULL DEFAULT 0,
+     unidad         TEXT,
+     precio         NUMERIC(12,4),
+     orden          INT NOT NULL DEFAULT 0
+   )`,
+  `CREATE INDEX IF NOT EXISTS pedido_compra_lineas_idx ON pedido_compra_lineas (pedido_id, orden)`,
+  `ALTER TABLE partida_escandallo ADD COLUMN IF NOT EXISTS pedido_compra_id INT REFERENCES pedidos_compra(id) ON DELETE SET NULL`,
+  `ALTER TABLE partida_escandallo ADD COLUMN IF NOT EXISTS precio_pedido NUMERIC(12,4)`,
+  // permiso «aprobar_compras»: Dirección y Administrador (una vez)
+  `DO $$ BEGIN
+     IF NOT EXISTS (SELECT 1 FROM ajustes WHERE clave = 'migr_permiso_aprobar_compras') THEN
+       UPDATE roles SET permisos = array_append(permisos, 'aprobar_compras')
+        WHERE clave IN ('admin', 'direccion') AND NOT ('aprobar_compras' = ANY(permisos));
+       INSERT INTO ajustes (clave, valor) VALUES ('migr_permiso_aprobar_compras', 'true');
+     END IF;
+   END $$`,
 ];
 
 async function migrar() {

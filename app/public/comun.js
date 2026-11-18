@@ -108,8 +108,10 @@
   const GRUPOS = [
     ['Planificación', [['/', 'Tablero', null, 'Planificar tareas en áreas y operarios'], ['/parte.html', 'Supervisión de partes', 'planificar', 'Revisar y confirmar lo hecho cada día'],
       ['/bandeja.html', 'Bandeja', 'planificar', 'Capturas por clasificar'], ['/mi-dia.html', 'Mi día', 'mi_dia', 'Apuntar mi propio día']]],
-    ['Proyectos', [['/proyectos.html', 'Proyectos y OTs', null, 'Partidas, OTs, tareas, escandallo e importación'],
-      ['/logistica.html', 'Logística y compras', ['logistica', 'compras', 'escandallo'], 'Stock, pedidos y recepción de material']]],
+    ['Proyectos', [['/proyectos.html', 'Proyectos y OTs', null, 'Partidas, OTs, tareas, escandallo e importación']]],
+    ['Compras', [['/logistica.html', 'Material de las partidas', ['logistica', 'compras', 'escandallo'], 'Stock, por pedir, pedido y recepción'],
+      ['/compras.html', 'Pedidos de compra', ['compras', 'aprobar_compras', 'logistica'], 'Preparar, aprobar y enviar pedidos a proveedores'],
+      ['/compras.html?vista=proveedores', 'Proveedores', ['compras', 'logistica', 'escandallo', 'aprobar_compras'], 'Fichas, contactos y lo que sirve cada uno']]],
     ['Recursos', [['/recursos.html', 'Operarios, máquinas y subcontratas', null, 'Fichas, vacaciones y festivos, tipos'],
       ['/recursos.html?tipo=areas', 'Áreas de trabajo', null, 'Zonas del taller, puestos, cabina y su equipo fijo'],
       ['/capacidades.html', 'Capacidades', ['recursos', 'planificar'], 'Lo que sabe hacer cada uno'], ['/usuarios.html', 'Usuarios y accesos', 'usuarios', 'Cuentas, roles y PIN']]],

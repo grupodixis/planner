@@ -397,6 +397,51 @@ window.S360_AYUDA = {
       ],
     },
 
+    '/compras.html': {
+      titulo: 'Compras',
+      para_que: 'Pedidos de compra a proveedores: se preparan con el material «por pedir» de las partidas, Dirección los aprueba si pasan del límite y se envían en PDF desde gestion@. Al enviarlos, logística ya los ve como pedidos.',
+      esquema: {
+        titulo: 'El camino de un pedido',
+        pasos: [
+          { que: 'Marcar lo que falta', quien: 'Material de las partidas › Por pedir' },
+          { que: 'Precios y proveedor', quien: 'Compras', aqui: true },
+          { que: 'Aprobación (si pasa del límite)', quien: 'Dirección', aqui: true },
+          { que: 'Enviar el PDF', quien: 'Compras · desde gestion@', aqui: true },
+          { que: 'Recibir con el albarán', quien: 'Logística' },
+        ],
+      },
+      recorridos: [
+        {
+          id: 'cmp-basico', version: 1, si: ['compras', 'aprobar_compras'], ofrecer: true, duracion: '1 min',
+          titulo: 'Cómo va un pedido de compra',
+          pasos: [
+            { sel: '.cmp-lista', texto: 'Los pedidos por estado: <b>esperando aprobación</b>, <b>aprobados por enviar</b>, <b>borradores</b> y <b>enviados</b>. Se crean desde <b>Material de las partidas › Por pedir</b>, marcando las líneas.' },
+            { sel: '.cmp-campos', texto: 'Proveedor, fecha de entrega, dónde entregar y referencia. <b>Todo se guarda solo</b> al cambiarlo.', opcional: true },
+            { sel: '.cmp-tabla', texto: 'Las líneas: pon el <b>precio</b> de cada una (en naranja las que faltan). Se pueden añadir líneas a mano (portes, etc.).', opcional: true },
+            { sel: '.cmp-acciones', texto: '<b>📄 Ver PDF</b> es lo que recibe el proveedor. Si el total pasa del límite, primero <b>Pedir aprobación</b>; si no, <b>Enviar al proveedor</b>.', opcional: true },
+            { sel: '#tab-proveedores', texto: 'En <b>Proveedores</b> están sus correos, forma de pago y lo que sirve cada uno.' },
+          ],
+        },
+      ],
+      secciones: [
+        {
+          titulo: 'Preparar y enviar', si: 'compras',
+          pasos: [
+            'En <b>Material de las partidas › Por pedir</b> marca «Incluir en un pedido de compra» en cada línea.',
+            'Abajo elige el proveedor y pulsa <b>Crear pedido de compra</b>.',
+            'Pon los precios y revisa fecha y referencia.',
+            'Si pasa del límite, <b>Pedir aprobación</b>; Dirección recibe el aviso.',
+            '<b>Enviar al proveedor</b>: por correo desde gestion@, o «Ya lo he enviado yo» si lo mandas a mano.',
+          ],
+        },
+        {
+          titulo: 'Aprobar', si: 'aprobar_compras',
+          pasos: ['Te llega un aviso con el pedido.', 'Revisa líneas, precios y total.', '<b>✔ Aprobar</b> o <b>✗ No aprobar</b> con el motivo (vuelve a borrador).'],
+        },
+        { titulo: 'El límite y los datos del PDF', texto: 'En <b>⚙ Ajustes</b>: a partir de qué importe aprueba Dirección, los datos de la empresa y las condiciones al pie del pedido.' },
+      ],
+    },
+
     '/costes.html': {
       titulo: 'Control de costes',
       para_que: 'Cómo va cada proyecto en dinero: lo presupuestado, lo gastado hasta hoy, lo que costará al terminar y el margen sobre el PVP. Solo lo ven Administración, Operaciones y Dirección.',
@@ -474,7 +519,7 @@ window.S360_AYUDA = {
           titulo: 'Cómo pedir lo que falta',
           pasos: [
             { sel: 'log-pestana-comprar', esperar: 'click', texto: 'En <b>Por pedir</b> está lo que logística ha dicho que falta.', saltar_si: (n) => n.getAttribute('aria-selected') === 'true' },
-            { sel: 'log-pedir', texto: 'Elige <b>proveedor</b>, <b>cuándo llega</b>, el <b>nº de pedido</b> y, si lo tienes, adjunta el PDF. Luego <b>🛒 Pedido</b>.', aviso: 'Al marcarlo como pedido se avisa al técnico y a logística, y el tablero comprueba si llega a tiempo para la tarea.' },
+            { sel: 'log-pedir', opcional: true, texto: 'Elige <b>proveedor</b>, <b>cuándo llega</b>, el <b>nº de pedido</b> y, si lo tienes, adjunta el PDF. Luego <b>🛒 Pedido</b>.', aviso: 'Al marcarlo como pedido se avisa al técnico y a logística, y el tablero comprueba si llega a tiempo para la tarea.' },
             { sel: 'log-pestana-recibir', texto: 'Lo pedido pasa a <b>Pedido · por recibir</b>, donde logística lo recibe con el albarán.' },
           ],
         },
@@ -523,5 +568,6 @@ window.S360_AYUDA = {
     { id: 3, fecha: '2026-11-17', si: ['logistica', 'compras'], titulo: 'Partidas plegables', texto: 'En <b>Material de las partidas</b> cada partida se abre y se cierra, con sus contadores de falta y retraso. Se recuerda lo que dejas abierto.', ir: '/logistica.html' },
     { id: 5, fecha: '2026-11-17', titulo: 'Ayuda en todas las pantallas', texto: 'Pulsa <b>?</b> arriba a la derecha (en el móvil, <b>Menú › Ayuda</b>): qué se hace en cada pantalla, vídeos cortos y un recorrido guiado.' },
     { id: 6, fecha: '2026-11-18', si: 'costes', titulo: 'Control de costes', texto: 'Nueva pantalla en <b>Informes › Control de costes</b>: presupuesto, real, previsión y margen sobre el PVP por partida, OT, tarea y persona.', ir: '/costes.html' },
+    { id: 7, fecha: '2026-11-18', si: ['compras', 'aprobar_compras', 'logistica'], titulo: 'Pedidos de compra', texto: 'Nuevo menú <b>Compras</b>: pedidos a proveedores con PDF, aprobación de Dirección por encima del límite y envío desde gestion@. Los proveedores tienen su ficha.', ir: '/compras.html' },
   ],
 };

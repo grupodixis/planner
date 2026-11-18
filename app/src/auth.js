@@ -17,6 +17,7 @@ const PERMISOS = {
   escandallo: 'Definir el escandallo (materiales) de las partidas',
   logistica: 'Logística: revisar stock y recibir material',
   compras: 'Compras: pedir a proveedores lo que falta',
+  aprobar_compras: 'Aprobar pedidos de compra por encima del límite',
   mi_dia: 'Apuntar su propio día (Mi día). Solo, sin otros permisos: no ve nada más',
 };
 // Permisos de un usuario «u»: los de su rol más los de sus roles añadidos (varios roles)

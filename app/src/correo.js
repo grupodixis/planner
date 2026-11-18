@@ -33,4 +33,20 @@ async function enviar({ para, asunto, texto }) {
   }
 }
 
-module.exports = { configurado, enviar };
+// Para lo que no puede fallar en silencio (pedidos a proveedores): lanza con el motivo
+async function enviarOFallar({ para, cc, asunto, texto, adjuntos }) {
+  const t = crear();
+  if (!t) throw Object.assign(new Error('El correo de salida no está configurado en el servidor'), { status: 400 });
+  try {
+    return await t.sendMail({
+      from: process.env.SMTP_FROM || process.env.SMTP_USER,
+      to: para, cc: cc || undefined, subject: asunto, text: texto,
+      attachments: (adjuntos || []).map((a) => ({ filename: a.nombre, content: a.datos, contentType: a.tipo })),
+    });
+  } catch (e) {
+    throw Object.assign(new Error(`No se pudo enviar el correo: ${e.message}`), { status: 502 });
+  }
+}
+const remitente = () => process.env.SMTP_FROM || process.env.SMTP_USER || null;
+
+module.exports = { configurado, enviar, enviarOFallar, remitente };

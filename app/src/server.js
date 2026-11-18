@@ -54,6 +54,7 @@ app.use('/api/informes', (req, res, next) => {
 });
 require('./informes').montar(app, asyncH);   // informes de horas y costes
 require('./costes').montar(app, asyncH);   // control de costes y tiempos por proyecto
+require('./compras').montar(app, asyncH);   // proveedores y pedidos de compra
 require('./ausencias').montar(app, asyncH);   // vacaciones, bajas, averías y festivos
 
 /* ---------- Áreas de trabajo ---------- */

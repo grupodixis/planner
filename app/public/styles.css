@@ -2060,3 +2060,47 @@ dialog.dlg-cos { width: min(460px, calc(100vw - 24px)); }
 .cos-campo { display: grid; grid-template-columns: 1fr 130px auto; align-items: center; gap: 8px; font-size: 13.5px; }
 .cos-campo input { background: #1f1f1f; border: 1px solid var(--borde); border-radius: 8px; padding: 5px 8px; color: var(--texto); text-align: right; font: inherit; }
 .dlg-cos .acciones { display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px; }
+
+/* ---------- Compras ---------- */
+.compras-pant { padding: 0 20px 20px; max-width: 1500px; margin: 0 auto; }
+.compras-cuerpo { margin-top: 14px; }
+.cmp-dos { display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-start; }
+.cmp-lista { flex: 1 1 300px; max-width: 380px; display: flex; flex-direction: column; gap: 10px; }
+.cmp-detalle { flex: 999 1 600px; min-width: 0; display: flex; flex-direction: column; gap: 14px; }
+.cmp-grupo h3 { font-size: 13px; color: var(--suave); margin: 6px 0; display: flex; align-items: center; gap: 6px; }
+.cmp-grupo ul, .cmp-provs { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.cmp-provs { max-height: calc(100vh - 260px); overflow-y: auto; }
+.cmp-item { width: 100%; text-align: left; display: flex; flex-direction: column; gap: 2px; padding: 9px 11px; border-radius: 10px; border: 1px solid var(--borde); background: transparent; }
+.cmp-item.actual { border-color: var(--azul); background: var(--azul-bg); }
+.cmp-item.apagado { opacity: .55; }
+.cmp-item-1 { display: flex; justify-content: space-between; gap: 8px; }
+.cmp-item-2 { font-size: 13px; }
+.cmp-estado { font-size: 12.5px; padding: 3px 10px; border-radius: 99px; border: 1px solid var(--borde); color: var(--suave); white-space: nowrap; }
+.cmp-estado.aviso { color: var(--naranja); border-color: var(--naranja); }
+.cmp-estado.ok { color: var(--verde); border-color: var(--verde); }
+.cmp-pasos { list-style: none; margin: 0; padding: 0; display: flex; gap: 6px; flex-wrap: wrap; }
+.cmp-pasos li { display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--suave); padding-right: 10px; }
+.cmp-pasos li i { font-style: normal; width: 22px; height: 22px; border-radius: 99px; display: grid; place-items: center; background: #262626; font-size: 11.5px; }
+.cmp-pasos li.hecho i { background: #2f6b4a; color: #fff; }
+.cmp-pasos li.ahora { color: var(--naranja); } .cmp-pasos li.ahora i { background: #8a5a1a; color: #fff; }
+.cmp-campos { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 10px 14px; }
+.cmp-campos .ancho, .cmp-campos h3.ancho { grid-column: 1 / -1; }
+.cmp-campos h3 { margin: 8px 0 0; font-size: 13px; color: var(--suave); text-transform: uppercase; letter-spacing: .04em; }
+.cmp-campo { display: flex; flex-direction: column; gap: 4px; font-size: 12.5px; color: var(--suave); }
+.cmp-campo input, .cmp-campo select, .cmp-campo textarea, .dlg-enviar textarea, .dlg-cos textarea { background: #1a1a1a; border: 1px solid var(--borde); border-radius: 8px; color: var(--texto); font: inherit; font-size: 14px; padding: 7px 9px; }
+.cmp-campo input:disabled, .cmp-campo select:disabled, .cmp-campo textarea:disabled { opacity: .75; }
+.cmp-tabla input { background: #1a1a1a; border: 1px solid var(--borde); border-radius: 6px; color: var(--texto); font: inherit; padding: 4px 6px; }
+.cmp-in-num { width: 96px; text-align: right; } .cmp-in-ud { width: 60px; } .cmp-in-desc { width: 100%; min-width: 200px; }
+.cmp-in-num.falta { border-color: var(--naranja); }
+.cmp-tabla td { vertical-align: top; }
+.cmp-acciones { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
+.dlg-enviar { width: min(640px, calc(100vw - 24px)); }
+.cmp-correo { display: grid; gap: 8px; }
+.cmp-correo textarea { width: 100%; box-sizing: border-box; }
+.dlg-cos textarea { width: 100%; box-sizing: border-box; }
+/* logística: crear pedido con varias líneas */
+.log-sel { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--suave); }
+.log-barra-pedido { position: sticky; bottom: 10px; z-index: 5; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; background: #1d3347; border: 1px solid var(--azul); border-radius: 12px; padding: 10px 14px; margin-top: 10px; box-shadow: 0 6px 20px #0009; }
+.log-barra-pedido select { background: #1a1a1a; color: var(--texto); border: 1px solid var(--borde); border-radius: 8px; padding: 6px 8px; font: inherit; }
+.log-en-pedido { font-size: 13px; }
+.cmp-lista input[type=search] { background: #1a1a1a; border: 1px solid var(--borde); border-radius: 8px; color: var(--texto); font: inherit; padding: 7px 9px; }
