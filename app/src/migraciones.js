@@ -770,6 +770,22 @@ const MIGRACIONES = [
    ON CONFLICT (clave) DO NOTHING`,
   `UPDATE roles SET permisos = permisos || ARRAY['escandallo','logistica','compras']
     WHERE clave = 'admin' AND NOT ('escandallo' = ANY(permisos))`,
+  // 2026-11 · Control de costes: PVP y presupuesto de coste por partida (los trae el compositor o se escriben)
+  `ALTER TABLE partidas ADD COLUMN IF NOT EXISTS pvp NUMERIC(12,2)`,
+  `ALTER TABLE partidas ADD COLUMN IF NOT EXISTS presupuesto JSONB NOT NULL DEFAULT '{}'`,
+  `UPDATE partidas SET pvp = (extra->>'importe_eur')::numeric
+    WHERE pvp IS NULL AND jsonb_typeof(extra->'importe_eur') = 'number'`,
+  // permiso «costes»: solo Administrador, Operaciones y Dirección (una sola vez: luego se gestiona en Usuarios)
+  `DO $$ BEGIN
+     IF NOT EXISTS (SELECT 1 FROM ajustes WHERE clave = 'migr_permiso_costes') THEN
+       INSERT INTO roles (clave, nombre, descripcion, permisos, sistema, orden) VALUES
+         ('direccion', 'Dirección', 'Informes y control de costes', '{informes,costes}', FALSE, 9)
+       ON CONFLICT (clave) DO NOTHING;
+       UPDATE roles SET permisos = array_append(permisos, 'costes')
+        WHERE clave IN ('admin', 'operaciones', 'direccion') AND NOT ('costes' = ANY(permisos));
+       INSERT INTO ajustes (clave, valor) VALUES ('migr_permiso_costes', 'true');
+     END IF;
+   END $$`,
 ];
 
 async function migrar() {

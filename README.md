@@ -96,6 +96,7 @@ app/src/notificaciones.js avisos al móvil (push) y avisos programados
 app/src/capturas.js       bandeja de capturas: capturar y clasificar (tarea / asunto / información)
 app/src/eventos.js        avisos en vivo entre pantallas (Server-Sent Events)
 app/public/ayuda*.js      ayuda: «?», recorridos y novedades
+app/src/costes.js         control de costes por proyecto (presupuesto, real, previsión, margen)
 app/src/importar.js       importación de proyectos del compositor (s360-import/2 y /1) y catálogo
 app/src/migraciones.js    cambios de esquema que se aplican solos al arrancar
 app/public/               frontend sin compilación: index (tablero), proyectos, recursos, usuarios,
@@ -662,6 +663,30 @@ y material añadidos a mano en el planificador se conservan.
 equipos por familia y uso, subcontratas, categorías, materiales y herramientas) para que el
 compositor los use.
 
+## Control de costes (Informes › Control de costes)
+
+Solo con el permiso **costes** (Administrador, Operaciones y Dirección; el rol Dirección se crea
+solo). Sin ese permiso, **Informes** sale sin euros (ni coste, ni importe, ni margen).
+
+- **Lista de proyectos**: PVP, coste presupuestado, real, previsión al terminar, desviación,
+  **margen previsto** (PVP − previsión) y **avance frente a gastado**, con ⚠ si hay avisos.
+- **Un proyecto**: cifras clave (PVP, margen previsto, coste al terminar, mano de obra, avance /
+  gastado, horas extra), **avisos** (partida que gasta más deprisa de lo que avanza, mano de obra
+  >10 % sobre lo presupuestado, partida con pérdidas, tarea con más horas de las estimadas),
+  **por tipo de coste** (mano de obra, material, maquinaria, subcontratas, otros) y el árbol
+  **partida › OT › tarea › persona** con horas y mano de obra. Exporta a Excel.
+- **Cálculo**: real = horas del parte × coste/hora de la ficha (el de ese día); las horas por encima
+  de la jornada en un día llevan **recargo** (+50 % por defecto, se cambia en la pantalla).
+  Previsión de una tarea = real + (estimación actual − real) × coste/hora (el suyo o el medio);
+  terminada = real (si se terminó sin horas en el parte, lo presupuestado). Avance = presupuesto de
+  mano de obra de lo hecho (en curso, por horas, hasta el 90 %).
+- **Presupuesto**: por partida, `pvp` y `presupuesto` (`mano_obra`, `material`, `maquinaria`,
+  `subcontratas`, `otros`) los trae el compositor (s360-import/2) o se escriben con «✎ Presupuesto».
+  La mano de obra de la partida se reparte entre sus tareas por horas-persona presupuestadas; si no
+  viene, se estima con horas × coste/hora medio (y lo avisa).
+- **Por venir**: material real con los precios de compra (pedido y albarán), coste de maquinaria
+  y subcontratas por factura, otros gastos con foto del ticket desde el móvil, cierre del proyecto.
+
 ## Ayuda: «?», recorridos y novedades
 
 - **«?»** arriba a la derecha en todas las pantallas (en Mi día, **Menú › Ayuda**): panel con para
@@ -846,6 +871,10 @@ API: `/api/catalogo-llevar` · `/api/partidas/:id/escandallo` (+ `/enviar`) · `
 | POST | `/api/importar` | importar (transacción; devuelve el informe y el id del proyecto) |
 | GET | `/api/importaciones` | historial (`?proyecto_id=`) |
 | GET | `/api/importar/catalogo` | nombres exactos para el compositor (`s360-catalogo/1`) |
+| GET | `/api/costes/proyectos` | control de costes: todos los proyectos (permiso costes) |
+| GET | `/api/costes/proyecto/:id` | un proyecto: partida › OT › tarea › persona, por tipo de coste, avisos |
+| PUT | `/api/costes/partida/:id` | PVP y presupuesto de coste de una partida |
+| GET/PUT | `/api/costes/ajustes` | recargo de la hora extra |
 | POST | `/api/proyectos/:id/condiciones` | `{texto}` añadir condición previa |
 | GET · PUT | `/api/tareas/:id/dependencias` | tareas que pueden ir antes (mismo proyecto; las que harían un círculo, marcadas) · `{dependencias: [{id, espera_h}]}` |
 | PATCH · DELETE | `/api/condiciones/:id` | `{cumplida, texto}` · quitar |

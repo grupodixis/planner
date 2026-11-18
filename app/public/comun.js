@@ -113,7 +113,8 @@
     ['Recursos', [['/recursos.html', 'Operarios, máquinas y subcontratas', null, 'Fichas, vacaciones y festivos, tipos'],
       ['/recursos.html?tipo=areas', 'Áreas de trabajo', null, 'Zonas del taller, puestos, cabina y su equipo fijo'],
       ['/capacidades.html', 'Capacidades', ['recursos', 'planificar'], 'Lo que sabe hacer cada uno'], ['/usuarios.html', 'Usuarios y accesos', 'usuarios', 'Cuentas, roles y PIN']]],
-    ['Informes', [['/informes.html', 'Informes', 'informes', 'Horas, costes y resultados']]],
+    ['Informes', [['/informes.html', 'Informes', 'informes', 'Horas, avance y planificación por periodo'],
+      ['/costes.html', 'Control de costes', 'costes', 'Presupuesto, real, previsión y margen por proyecto']]],
   ];
   // pantalla actual (un enlace con «?tipo=…» solo cuenta en esa pestaña)
   const aqui = (href) => {

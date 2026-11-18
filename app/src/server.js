@@ -38,7 +38,22 @@ eventos.montar(app);   // GET /api/eventos (con sesión)
 require('./partes').montar(app, asyncH);
 require('./midia').montar(app, asyncH);   // «Mi día» de cada operario y lo que declara para el parte   // parte del día (va antes: protege lo ya cerrado)
 require('./tramos')(app, asyncH);
+// sin permiso «costes», los informes salen sin euros (coste, coste/hora, importe, margen)
+app.use('/api/informes', (req, res, next) => {
+  if (auth.tiene(req.usuario, 'costes')) return next();
+  const quitar = (v) => {
+    if (Array.isArray(v)) return v.map(quitar);
+    if (!v || typeof v !== 'object') return v;
+    const o = {};
+    for (const [k, x] of Object.entries(v)) if (!/^(coste|importe|margen)/.test(k) && k !== 'recursos_sin_coste') o[k] = quitar(x);
+    return o;
+  };
+  const json = res.json.bind(res);
+  res.json = (d) => json(quitar(d));
+  next();
+});
 require('./informes').montar(app, asyncH);   // informes de horas y costes
+require('./costes').montar(app, asyncH);   // control de costes y tiempos por proyecto
 require('./ausencias').montar(app, asyncH);   // vacaciones, bajas, averías y festivos
 
 /* ---------- Áreas de trabajo ---------- */

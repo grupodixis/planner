@@ -99,6 +99,8 @@ asigna `PR-###` y `OT-####`.
 | `nombre` | ● | texto ≤ 120 | |
 | `materiales` | ○ **v2** | array de material | El **escandallo** de la partida (abajo). |
 | `enviar_a_logistica` | ○ **v2** | sí/no | `true` = el técnico ya lo ha revisado en el compositor: al importar se envía a logística (le llega un aviso para revisar stock). Por defecto `false`: el técnico lo revisa en el planificador y pulsa «Enviar a logística». |
+| `pvp` | ○ **v2** | número ≥ 0 | **Precio de venta** de la partida (€, sin IVA). Sirve para el **margen** en el control de costes. (Si no viene, se usa `extra.importe_eur`.) |
+| `presupuesto` | ○ **v2** | objeto | **Coste presupuestado** en €: `{ mano_obra, material, maquinaria, subcontratas, otros }` (cada uno opcional). Lo que no venga no se compara; si falta `mano_obra`, se estima con horas-persona × coste/hora medio. |
 | `ots` | ● | array ≥ 1 | |
 | `extra` | ○ | objeto | |
 
@@ -352,6 +354,7 @@ Respuesta (resumen):
 - [ ] Material de la partida en `partidas[].materiales` (cantidad total con mermas, unidad del catálogo);
       cada tarea dice en `materiales` qué consume (refs del archivo).
 - [ ] `enviar_a_logistica: true` solo si el técnico ya revisó el escandallo.
+- [ ] `pvp` y `presupuesto` de cada partida (venta y coste por tipo) para el control de costes.
 - [ ] Fechas `AAAA-MM-DD`; decimales con punto.
 - [ ] Validar contra `esquema.json` antes de exportar y sincronizar nombres con
       `GET /api/importar/catalogo`.
@@ -365,7 +368,8 @@ npx ajv-cli validate --spec=draft2020 -c ajv-formats -s esquema.json -d mi-proye
 - **`s360-import/2`** (2026-11-17): material de la partida (`partidas[].materiales`,
   `enviar_a_logistica`); por tarea `desglose`, `capacidades`, `equipos`, `subcontratas`,
   `herramientas`, `materiales`. `oficio` y `requiere` siguen aceptándose. Catálogo en
-  `GET /api/importar/catalogo`.
+  `GET /api/importar/catalogo`. Desde el 2026-11-18, por partida `pvp` y `presupuesto` (control de
+  costes), también opcionales.
 - `s360-import/1` (2026-11-12): proyecto, partidas, OTs, tareas con horas, operarios, oficio, área,
   requisitos, dependencias y condiciones. Se sigue aceptando.
 

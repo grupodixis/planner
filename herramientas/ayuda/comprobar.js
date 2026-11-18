@@ -102,7 +102,8 @@ async function recorrer(p, tour) {
     for (const c of process.env.S360_PIN) await q.keyboard.press(c);
     await q.waitForTimeout(1800);
     // buscar un día con trabajo
-    for (let i = 0; i < 6 && !(await q.locator('.md-tramo').count()); i++) { await q.click('#dia-sig'); await q.waitForTimeout(900); }
+    // un día de hoy o anterior con trabajo para apuntar (los días futuros no tienen botones ni «Enviar»)
+    for (let i = 0; i < 10 && !(await q.locator('.md-botones').count()); i++) { await q.click('#dia-ant'); await q.waitForTimeout(900); }
     const tours = lista.find((x) => x.ruta === '/mi-dia.html')?.tours || [];
     for (const t of tours) {
       const { saltos } = await recorrer(q, t);

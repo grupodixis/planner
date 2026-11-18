@@ -74,8 +74,11 @@
     ['importe', 'Importe', 'Importe de la partida en el presupuesto (venta)', eur],
     ['margen', 'Importe − coste', 'Lo que queda del importe tras el coste real de mano de obra y máquinas (sin materiales)', (x, c) => (c.importe == null ? '—' : el('span', { class: x < 0 ? 'neg' : '' }, eur(x)))],
   ];
-  const celdas = (c) => COLS.map(([k, , , f]) => el('td', { class: 'num' }, f(c[k], c)));
-  const cabecera = (primera) => el('tr', {}, el('th', {}, primera), ...COLS.map(([, t, ayuda]) => el('th', { class: 'num', title: ayuda }, t)));
+  // sin permiso «costes» no se ven euros (el servidor tampoco los manda)
+  const verCostes = () => window.s360.tiene('costes');
+  const cols = () => (verCostes() ? COLS : COLS.filter(([k]) => !/^(coste|importe|margen)/.test(k)));
+  const celdas = (c) => cols().map(([k, , , f]) => el('td', { class: 'num' }, f(c[k], c)));
+  const cabecera = (primera) => el('tr', {}, el('th', {}, primera), ...cols().map(([, t, ayuda]) => el('th', { class: 'num', title: ayuda }, t)));
 
   async function pintarProyectos() {
     const main = $('#panel-inf');
@@ -87,8 +90,8 @@
       ...celdas(p.cifras)));
     main.replaceChildren(el('section', { class: 'panel' },
       el('div', { class: 'cab-panel' }, el('h2', {}, 'Proyectos'),
-        botonExportar(() => exportar('proyectos', ['Código', 'Proyecto', 'Cliente', 'Estado', ...COLS.map((c) => c[1])],
-          proyectos.map((p) => [p.codigo, p.nombre, p.cliente, p.estado, ...COLS.map(([k]) => p.cifras[k] ?? '')])))),
+        botonExportar(() => exportar('proyectos', ['Código', 'Proyecto', 'Cliente', 'Estado', ...cols().map((c) => c[1])],
+          proyectos.map((p) => [p.codigo, p.nombre, p.cliente, p.estado, ...cols().map(([k]) => p.cifras[k] ?? '')])))),
       el('p', { class: 'ayuda' }, 'Horas-persona. Pulsa un proyecto para verlo por partidas, OTs y tareas. Pasa el ratón por las cabeceras para ver qué es cada columna.'),
       el('div', { class: 'tabla-scroll' }, el('table', { class: 'tabla-inf' }, el('thead', {}, cabecera('Proyecto')), el('tbody', {}, filas)))));
   }
@@ -120,10 +123,10 @@
     }
     const filasCSV = [];
     for (const pa of d.partidas) {
-      filasCSV.push(['Partida', pa.codigo, pa.nombre, ...COLS.map(([k]) => pa.cifras[k] ?? '')]);
+      filasCSV.push(['Partida', pa.codigo, pa.nombre, ...cols().map(([k]) => pa.cifras[k] ?? '')]);
       for (const o of pa.ots) {
-        filasCSV.push(['OT', o.codigo, o.titulo, ...COLS.map(([k]) => o.cifras[k] ?? '')]);
-        for (const t of o.tareas) filasCSV.push(['Tarea', o.codigo, t.nombre, ...COLS.map(([k]) => t.cifras[k] ?? '')]);
+        filasCSV.push(['OT', o.codigo, o.titulo, ...cols().map(([k]) => o.cifras[k] ?? '')]);
+        for (const t of o.tareas) filasCSV.push(['Tarea', o.codigo, t.nombre, ...cols().map(([k]) => t.cifras[k] ?? '')]);
       }
     }
     const T = d.total;
@@ -134,8 +137,9 @@
         el('div', { class: 'cab-panel' },
           el('h2', {}, el('button', { type: 'button', class: 'ghost mini', onclick: () => { estado.proyecto = null; guardarURL(); pintar(); } }, '‹ Proyectos'), ` ${p.codigo} · ${p.nombre}`),
           el('span', { class: 'acciones-cab' },
+            verCostes() && el('a', { class: 'boton ghost mini', href: `/costes.html?proyecto=${p.id}` }, '€ Control de costes'),
             el('button', { type: 'button', class: 'ghost mini', onclick: () => { d.partidas.forEach((pa) => { estado.abiertos.add(`p${pa.id}`); pa.ots.forEach((o) => estado.abiertos.add(`o${o.id}`)); }); pintarProyecto(); } }, 'Desplegar todo'),
-            botonExportar(() => exportar(`informe-${p.codigo}`, ['Nivel', 'Código', 'Nombre', ...COLS.map((c) => c[1])], filasCSV)))),
+            botonExportar(() => exportar(`informe-${p.codigo}`, ['Nivel', 'Código', 'Nombre', ...cols().map((c) => c[1])], filasCSV)))),
         el('p', { class: 'ayuda' }, [p.cliente, p.obra, p.estado].filter(Boolean).join(' · ')),
         el('div', { class: 'kpis' },
           tarjeta('Avance', T.avance_pct != null ? `${nf1.format(T.avance_pct)} %` : '—', `${T.hechas}/${T.tareas} tareas · ${h(T.hecho_h)} de ${h(T.prev_h)} previstas terminadas`),
@@ -145,18 +149,18 @@
             T.rendimiento_pct == null ? '' : T.rendimiento_pct >= 100 ? 'bien' : T.rendimiento_pct < 90 ? 'mal' : ''),
           tarjeta('Horas reales', h(T.real_h), `de ${h(T.prev_h)} presupuestadas`),
           tarjeta('Previsión al terminar', h(T.prevision_h), T.desvio_h ? `${T.desvio_h > 0 ? '+' : ''}${nf1.format(T.desvio_h)} h (${pct(T.desvio_pct)})` : 'en presupuesto', T.desvio_h > 0.01 ? 'mal' : 'bien'),
-          tarjeta('Coste real', eur(T.coste), `personas ${eur(T.coste_op)} · máquinas ${eur(T.coste_maq)} · subcontratas ${eur(T.coste_sub)}`),
-          T.importe != null ? tarjeta('Importe − coste', eur(T.margen), `de ${eur(T.importe)} (sin materiales)`, T.margen < 0 ? 'mal' : '') : null),
-        d.recursos_sin_coste.length ? el('p', { class: 'aviso-coste' }, `Sin coste/hora (el coste sale incompleto): ${d.recursos_sin_coste.map((r) => r.nombre).join(', ')}. `,
+          verCostes() && tarjeta('Coste real', eur(T.coste), `personas ${eur(T.coste_op)} · máquinas ${eur(T.coste_maq)} · subcontratas ${eur(T.coste_sub)}`),
+          verCostes() && T.importe != null ? tarjeta('Importe − coste', eur(T.margen), `de ${eur(T.importe)} (sin materiales)`, T.margen < 0 ? 'mal' : '') : null),
+        d.recursos_sin_coste?.length ? el('p', { class: 'aviso-coste' }, `Sin coste/hora (el coste sale incompleto): ${d.recursos_sin_coste.map((r) => r.nombre).join(', ')}. `,
           el('a', { href: '/recursos.html' }, 'Ponlo en Recursos')) : null,
         el('div', { class: 'tabla-scroll' }, el('table', { class: 'tabla-inf' }, el('thead', {}, cabecera('Partida › OT › tarea')),
           el('tbody', {}, cuerpo), el('tfoot', {}, fila('fila-total', 'Total', T, null, 0))))),
       el('div', { class: 'inf-dos' },
         el('section', { class: 'panel' }, el('h2', {}, 'Quién ha trabajado'),
           d.personas.length ? el('table', { class: 'tabla-inf' },
-            el('thead', {}, el('tr', {}, el('th', {}, 'Recurso'), el('th', { class: 'num' }, 'Horas'), el('th', { class: 'num' }, 'Coste'), el('th', {}, 'Periodo'))),
+            el('thead', {}, el('tr', {}, el('th', {}, 'Recurso'), el('th', { class: 'num' }, 'Horas'), verCostes() && el('th', { class: 'num' }, 'Coste'), el('th', {}, 'Periodo'))),
             el('tbody', {}, d.personas.map((r) => el('tr', {}, el('td', {}, r.nombre, r.tipo !== 'operario' ? el('small', {}, ` · ${r.tipo === 'maquina' ? 'máquina' : 'subcontrata'}`) : null),
-              el('td', { class: 'num' }, h(r.h)), el('td', { class: 'num' }, eur(r.coste)), el('td', {}, `${fechaCorta(r.desde)} – ${fechaCorta(r.hasta)}`))))) : el('p', { class: 'ayuda' }, 'Aún no hay horas reales en el parte.')),
+              el('td', { class: 'num' }, h(r.h)), verCostes() && el('td', { class: 'num' }, eur(r.coste)), el('td', {}, `${fechaCorta(r.desde)} – ${fechaCorta(r.hasta)}`))))) : el('p', { class: 'ayuda' }, 'Aún no hay horas reales en el parte.')),
         el('section', { class: 'panel' }, el('h2', {}, 'Cómo se cerró lo planificado'),
           d.motivos.length ? el('table', { class: 'tabla-inf' },
             el('thead', {}, el('tr', {}, el('th', {}, 'Cierre'), el('th', {}, 'Motivo'), el('th', { class: 'num' }, 'Tramos'), el('th', { class: 'num' }, 'Plan'), el('th', { class: 'num' }, 'Real'))),
@@ -181,14 +185,14 @@
       el('p', { class: 'ayuda' }, `${d.dias_laborables} días laborables = ${nf1.format(cap)} h de jornada por persona. «Extra» = horas por encima de la jornada en un día.`),
       filas.length ? el('div', { class: 'tabla-scroll' }, el('table', { class: 'tabla-inf' },
         el('thead', {}, el('tr', {}, el('th', {}, 'Operario'), el('th', { class: 'num' }, 'Productivas'), el('th', { class: 'num' }, 'No product.'),
-          el('th', { class: 'num' }, 'Extra'), el('th', { class: 'num', title: 'Productivas sobre la jornada del periodo' }, 'Ocupación'), el('th', { class: 'num' }, 'Coste'), el('th', {}, 'Ausencias (días)'), el('th', {}, 'Proyectos'))),
+          el('th', { class: 'num' }, 'Extra'), el('th', { class: 'num', title: 'Productivas sobre la jornada del periodo' }, 'Ocupación'), verCostes() && el('th', { class: 'num' }, 'Coste'), el('th', {}, 'Ausencias (días)'), el('th', {}, 'Proyectos'))),
         el('tbody', {}, filas.map((o) => el('tr', {},
           el('td', {}, o.nombre, o.vinculo === 'subcontratado' ? el('span', { class: 'sub-tag' }, 'sub') : null),
           el('td', { class: 'num' }, h(o.productivas)),
           el('td', { class: 'num', title: Object.entries(o.no_productivo).map(([k, n]) => `${d.no_productivo[k] || k}: ${n} h`).join('\n') }, h(o.no_productivas)),
           el('td', { class: `num${o.extra ? ' neg' : ''}` }, h(o.extra)),
           el('td', { class: 'num' }, cap ? `${Math.round((o.productivas / cap) * 100)} %` : '—'),
-          el('td', { class: 'num' }, o.sin_coste ? el('span', { title: 'Sin coste/hora en su ficha' }, `${eur(o.coste)} ⚠`) : eur(o.coste)),
+          verCostes() && el('td', { class: 'num' }, o.sin_coste ? el('span', { title: 'Sin coste/hora en su ficha' }, `${eur(o.coste)} ⚠`) : eur(o.coste)),
           el('td', { class: 'aus' }, ausTxt(o.ausencias)),
           el('td', { class: 'proys' }, o.proyectos.map((p) => `${p.codigo} ${nf1.format(p.h)} h`).join(' · '))))))) : el('p', { class: 'ayuda' }, 'No hay horas ni ausencias en este periodo. Las horas salen del parte del día.')));
   }
@@ -202,10 +206,10 @@
         botonExportar(() => exportar(`maquinas-${d.desde}-${d.hasta}`, ['Recurso', 'Clase', 'Planificadas', 'Reales', 'Días', 'Coste'],
           lista.map((r) => [r.nombre, r.tipo, r.plan_h, r.h, r.dias, r.coste])))),
       lista.length ? el('table', { class: 'tabla-inf' },
-        el('thead', {}, el('tr', {}, el('th', {}, 'Recurso'), el('th', { class: 'num' }, 'Planificadas'), el('th', { class: 'num' }, 'Reales'), el('th', { class: 'num' }, 'Días'), el('th', { class: 'num' }, 'Coste'))),
+        el('thead', {}, el('tr', {}, el('th', {}, 'Recurso'), el('th', { class: 'num' }, 'Planificadas'), el('th', { class: 'num' }, 'Reales'), el('th', { class: 'num' }, 'Días'), verCostes() && el('th', { class: 'num' }, 'Coste'))),
         el('tbody', {}, lista.map((r) => el('tr', {}, el('td', {}, r.nombre, el('small', {}, r.tipo === 'maquina' ? '' : ' · subcontrata / alquiler')),
           el('td', { class: 'num' }, h(r.plan_h)), el('td', { class: 'num' }, h(r.h)), el('td', { class: 'num' }, String(r.dias || '—')),
-          el('td', { class: 'num' }, r.coste_hora == null && r.h ? el('span', { title: 'Sin coste/hora' }, '— ⚠') : eur(r.coste))))))
+          verCostes() && el('td', { class: 'num' }, r.coste_hora == null && r.h ? el('span', { title: 'Sin coste/hora' }, '— ⚠') : eur(r.coste))))))
         : el('p', { class: 'ayuda' }, 'Ninguna máquina planificada ni usada en este periodo.')));
   }
 

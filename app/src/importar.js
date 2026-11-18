@@ -516,6 +516,10 @@ async function importar(c, archivo, resoluciones, usuario, simular) {
         [ya.id, nuevo.codigo, nuevo.nombre, nuevo.orden, nuevo.extra]);
       registrar('partidas', 'partida', pa.ref_externa, nuevo.codigo, nuevo.nombre, campos);
     }
+    // control de costes: PVP y coste presupuestado, solo si el archivo los trae (no se borra lo escrito a mano)
+    const pvp = typeof pa.pvp === 'number' ? pa.pvp : typeof pa.extra?.importe_eur === 'number' ? pa.extra.importe_eur : null;
+    if (pvp != null) await c.query('UPDATE partidas SET pvp = $2 WHERE id = $1', [idPartida.get(pa.ref_externa), pvp]);
+    if (pa.presupuesto) await c.query('UPDATE partidas SET presupuesto = $2 WHERE id = $1', [idPartida.get(pa.ref_externa), JSON.stringify(pa.presupuesto)]);
   }
 
   /* 5b · Material de cada partida (escandallo). Lo que el archivo trae manda; lo añadido a mano (sin ref) no se toca */

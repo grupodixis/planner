@@ -368,7 +368,7 @@ window.S360_AYUDA = {
             { texto: 'En un minuto te enseño cómo apuntar tu día. <b>No cambiaremos nada</b>.' },
             { sel: '.md-tramo', texto: 'Cada tarjeta es un <b>trabajo de hoy</b>: la hora, el área, la tarea y con quién vas.' },
             { sel: '.md-ll-lista', opcional: true, texto: '<b>🧰 Necesitas</b>: el material y las herramientas. Marca la casilla cuando <b>tengas el material</b> y cuando <b>prepares cada herramienta</b>.' },
-            { sel: '.md-botones', texto: 'Al terminar: <b>✓ Hecho</b>, <b>◐ En parte</b> (de qué hora a qué hora) o <b>✗ No</b> (con el motivo). Luego dinos si la tarea <b>queda terminada</b>.' },
+            { sel: '.md-botones', opcional: true, texto: 'Al terminar: <b>✓ Hecho</b>, <b>◐ En parte</b> (de qué hora a qué hora) o <b>✗ No</b> (con el motivo). Luego dinos si la tarea <b>queda terminada</b>.' },
             { sel: '.md-inc-link', opcional: true, texto: '¿Algo raro? <b>＋ Capturar</b>: una foto, un audio o un texto de este trabajo.' },
             { sel: '#extra-abrir', texto: '<b>Trabajo no planificado</b>: si hiciste otra cosa (desplazamiento, limpieza, otra tarea).' },
             { sel: '#enviar', texto: 'Cuando lo tengas todo, <b>Enviar mi día</b>. Puedes cambiarlo hasta que el encargado lo confirme.' },
@@ -394,6 +394,47 @@ window.S360_AYUDA = {
           titulo: 'Logística en el móvil', si: 'logistica',
           pasos: ['Menú › <b>📦 Revisar stock</b>: «No hay», «Hay todo» o cuánto hay.', 'Menú › <b>🚚 Recibir material</b>: «Ha llegado», con el nº de albarán y su foto.', '<b>⚠ Incidencia</b> si llega mal o incompleto.'],
         },
+      ],
+    },
+
+    '/costes.html': {
+      titulo: 'Control de costes',
+      para_que: 'Cómo va cada proyecto en dinero: lo presupuestado, lo gastado hasta hoy, lo que costará al terminar y el margen sobre el PVP. Solo lo ven Administración, Operaciones y Dirección.',
+      esquema: {
+        titulo: 'De dónde sale cada cifra',
+        pasos: [
+          { que: 'Presupuesto y PVP', quien: 'Del compositor al importar (o «✎ Presupuesto»)' },
+          { que: 'Horas reales', quien: 'Supervisión de partes' },
+          { que: 'Coste real', quien: 'Horas × coste/hora de la ficha (+ recargo de las extra)', aqui: true },
+          { que: 'Previsión y margen', quien: 'Real + lo que falta × coste/hora', aqui: true },
+        ],
+      },
+      recorridos: [
+        {
+          id: 'cos-basico', version: 1, si: 'costes', ofrecer: true, conmigo: true, duracion: '1 min',
+          titulo: 'Cómo leer el control de costes',
+          pasos: [
+            { sel: '#panel-costes tbody tr.clic', esperar: 'click', texto: 'Cada fila es un proyecto: PVP, coste presupuestado, real, previsión y <b>margen previsto</b>. <b>Pulsa uno</b> para verlo en detalle.', opcional: true },
+            { sel: '.kpis', texto: 'Arriba lo importante: <b>margen previsto</b>, coste al terminar frente a lo presupuestado y <b>avance frente a gastado</b> (si se gasta más deprisa de lo que se avanza, sale en rojo).', opcional: true },
+            { sel: '.cos-lista-avisos', texto: 'Los <b>avisos</b>: partidas que se pasan, que dan pérdidas o tareas con más horas de las estimadas.', opcional: true },
+            { sel: '.cos-tipos', texto: '<b>Por tipo de coste</b>: mano de obra, material, maquinaria, subcontratas y otros. El material real llegará con los precios de compra.', opcional: true },
+            { sel: '.cos-edit', texto: '<b>✎ Presupuesto</b>: PVP y coste presupuestado de la partida, si no vinieron del compositor.', opcional: true },
+            { sel: '.cos-ajustes', texto: 'El <b>recargo de la hora extra</b> (ahora +50 %) se cambia aquí.' },
+          ],
+        },
+      ],
+      secciones: [
+        {
+          titulo: 'Qué significa…',
+          terminos: [
+            ['<b>Real</b>', 'Horas del parte × coste/hora de la persona (el de ese día). Las horas por encima de la jornada llevan el recargo.'],
+            ['<b>Previsión</b>', 'Lo real más lo que falta (estimación actual − real) × coste/hora. Si está terminada, lo real.'],
+            ['<b>Avance / gastado</b>', 'Valor del trabajo hecho y lo gastado, ambos sobre la mano de obra presupuestada.'],
+            ['<b>Margen previsto</b>', 'PVP − coste previsto al terminar (lo que aún no se lleva, como el material, cuenta por lo presupuestado).'],
+            ['<b>Estimado</b>', 'Si el compositor no trae la mano de obra de la partida: horas presupuestadas × coste/hora medio.'],
+          ],
+        },
+        { titulo: 'Para que salga bien', texto: 'Pon el <b>coste €/h</b> en la ficha de cada persona y máquina (Recursos) y cierra los partes cada día.' },
       ],
     },
 
@@ -481,5 +522,6 @@ window.S360_AYUDA = {
     { id: 2, fecha: '2026-11-17', si: ['proyectos', 'escandallo'], titulo: 'Importación del compositor v2', texto: 'Los proyectos importados traen ya el <b>material de cada partida</b>, lo que necesita cada tarea (capacidades, equipos, herramientas) y el <b>desglose de tiempos</b>.', ir: '/proyectos.html' },
     { id: 3, fecha: '2026-11-17', si: ['logistica', 'compras'], titulo: 'Partidas plegables', texto: 'En <b>Material de las partidas</b> cada partida se abre y se cierra, con sus contadores de falta y retraso. Se recuerda lo que dejas abierto.', ir: '/logistica.html' },
     { id: 5, fecha: '2026-11-17', titulo: 'Ayuda en todas las pantallas', texto: 'Pulsa <b>?</b> arriba a la derecha (en el móvil, <b>Menú › Ayuda</b>): qué se hace en cada pantalla, vídeos cortos y un recorrido guiado.' },
+    { id: 6, fecha: '2026-11-18', si: 'costes', titulo: 'Control de costes', texto: 'Nueva pantalla en <b>Informes › Control de costes</b>: presupuesto, real, previsión y margen sobre el PVP por partida, OT, tarea y persona.', ir: '/costes.html' },
   ],
 };

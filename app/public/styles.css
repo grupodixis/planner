@@ -2034,3 +2034,29 @@ th.con-asa { position: relative; }
 .col-asa::after { content: ''; position: absolute; left: 4px; top: 3px; bottom: 3px; width: 2px; border-radius: 1px; background: var(--suave); opacity: .25; transition: opacity .15s; }
 .col-asa:hover::after, .col-asa.activo::after, .col-asa:focus-visible::after { opacity: .9; background: var(--azul); }
 .col-asa:focus-visible { outline: none; }
+
+/* ---------- Control de costes ---------- */
+.ag { display: inline-flex; align-items: center; gap: 6px; }
+.ag-barra { position: relative; display: inline-block; width: 70px; height: 10px; border-radius: 5px; background: #2a2a2a; overflow: hidden; }
+.ag-av { position: absolute; left: 0; top: 0; height: 5px; background: var(--verde); }
+.ag-ga { position: absolute; left: 0; bottom: 0; height: 5px; background: #9a9a9a; }
+.ag-ga.mal { background: var(--rojo); }
+.ag small { color: var(--suave); font-size: 11px; }
+.cos-avisos { color: var(--rojo); font-size: 12px; white-space: nowrap; }
+.cos-lista-avisos { list-style: none; margin: 6px 0; padding: 0; display: grid; gap: 4px; font-size: 13px; }
+.cos-lista-avisos li.mal { color: var(--rojo); }
+.cos-lista-avisos li.aviso { color: var(--naranja); }
+.cos-lista-avisos li.info { color: var(--suave); }
+.cos-ajustes { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.tabla-inf .fila-partida .sub { font-weight: 400; display: flex; align-items: center; gap: 8px; margin-top: 2px; }
+.tabla-inf .fila-persona td { color: var(--suave); font-size: 12.5px; }
+.tabla-inf td.niv3 { padding-left: 62px; }
+.cos-edit { padding: 1px 8px; font-size: 11.5px; }
+.cos-tipos td.sub { color: var(--suave); font-size: 12px; }
+dialog.dlg-cos { width: min(460px, calc(100vw - 24px)); }
+.dlg-cos h2 { margin: 0 0 6px; font-size: 17px; }
+.dlg-cos h3 { margin: 12px 0 2px; font-size: 13px; color: var(--suave); text-transform: uppercase; letter-spacing: .04em; }
+.cos-form { display: grid; gap: 6px; }
+.cos-campo { display: grid; grid-template-columns: 1fr 130px auto; align-items: center; gap: 8px; font-size: 13.5px; }
+.cos-campo input { background: #1f1f1f; border: 1px solid var(--borde); border-radius: 8px; padding: 5px 8px; color: var(--texto); text-align: right; font: inherit; }
+.dlg-cos .acciones { display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px; }

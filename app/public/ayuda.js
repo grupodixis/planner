@@ -118,6 +118,8 @@
     if (i >= pasos.length) { finTour(true); return; }
     tour.i = i;
     const p = pasos[i];
+    // mientras se busca el elemento, la burbuja anterior no se puede pulsar (evita saltos dobles)
+    tour.burbuja.querySelectorAll('button').forEach((b) => { b.disabled = true; });
     const n = await buscar(p);
     if (!tour || tour.i !== i) return;
     // lo que no está en pantalla (o ya está hecho) se salta

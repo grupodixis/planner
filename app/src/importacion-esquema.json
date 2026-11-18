@@ -160,6 +160,43 @@
           ],
           "maxLength": 120
         },
+        "pvp": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Precio de venta de la partida en el presupuesto (€, sin IVA). Sirve para el margen en el control de costes."
+        },
+        "presupuesto": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "Coste presupuestado de la partida en € por tipo. Lo que no venga, no se compara.",
+          "properties": {
+            "mano_obra": {
+              "type": "number",
+              "minimum": 0,
+              "description": "Mano de obra propia"
+            },
+            "material": {
+              "type": "number",
+              "minimum": 0,
+              "description": "Material"
+            },
+            "maquinaria": {
+              "type": "number",
+              "minimum": 0,
+              "description": "Maquinaria propia"
+            },
+            "subcontratas": {
+              "type": "number",
+              "minimum": 0,
+              "description": "Subcontratas y alquileres"
+            },
+            "otros": {
+              "type": "number",
+              "minimum": 0,
+              "description": "Otros gastos (dietas, desplazamientos…)"
+            }
+          }
+        },
         "ots": {
           "type": "array",
           "minItems": 1,
