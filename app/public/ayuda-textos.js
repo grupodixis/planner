@@ -450,6 +450,7 @@ window.S360_AYUDA = {
           pasos: ['Te llega un aviso con el pedido.', 'Revisa líneas, precios y total.', '<b>✔ Aprobar</b> o <b>✗ No aprobar</b> con el motivo (vuelve a borrador).'],
         },
         { titulo: 'El límite y los datos del PDF', texto: 'En <b>⚙ Ajustes</b>: a partir de qué importe aprueba Dirección, los datos de la empresa y las condiciones al pie del pedido.' },
+        { titulo: 'El correo de salida', si: 'usuarios', texto: 'En <b>⚙ Ajustes › Correo de salida</b>: servidor, cuenta y contraseña de compras@ (IONOS: smtp.ionos.es, 587, STARTTLS). La contraseña se guarda cifrada y no se vuelve a mostrar; para cambiarla, escribe la nueva y <b>Guardar</b>. <b>Probar conexión</b> comprueba que entra.' },
       ],
     },
 
@@ -581,5 +582,6 @@ window.S360_AYUDA = {
     { id: 6, fecha: '2026-11-18', si: 'costes', titulo: 'Control de costes', texto: 'Nueva pantalla en <b>Informes › Control de costes</b>: presupuesto, real, previsión y margen sobre el PVP por partida, OT, tarea y persona.', ir: '/costes.html' },
     { id: 7, fecha: '2026-11-18', si: ['compras', 'aprobar_compras', 'logistica'], titulo: 'Pedidos de compra', texto: 'Nuevo menú <b>Compras</b>: pedidos a proveedores con PDF, aprobación de Dirección por encima del límite y envío desde compras@. Los proveedores tienen su ficha.', ir: '/compras.html' },
     { id: 8, fecha: '2026-11-18', si: ['compras', 'aprobar_compras', 'logistica'], titulo: 'Pedir precio a proveedores', texto: 'Antes de pedir se puede <b>pedir precio</b> a varios proveedores, apuntar sus ofertas, compararlas línea a línea y crear los pedidos con esos precios.', ir: '/compras.html?vista=precios' },
+    { id: 9, fecha: '2026-11-19', si: 'usuarios', titulo: 'Correo de salida en Ajustes', texto: 'La cuenta de correo desde la que salen pedidos y peticiones de precio se cambia ya desde <b>Compras › ⚙ Ajustes</b>, con botón para probarla.', ir: '/compras.html?vista=ajustes' },
   ],
 };

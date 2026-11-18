@@ -2118,3 +2118,7 @@ dialog.dlg-cos { width: min(460px, calc(100vw - 24px)); }
 .log-provs-elegir { list-style: none; margin: 0 0 10px; padding: 0; max-height: 300px; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; }
 .log-provs-elegir label { display: flex; align-items: baseline; gap: 6px; padding: 4px 0; }
 .chip-sug { font-size: 11.5px; padding: 1px 8px; border-radius: 99px; background: #16301f; color: #7fdcaa; }
+.cmp-correo-ajustes { margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--borde, #ddd); }
+.cmp-correo-ajustes .cmp-acciones { justify-content: flex-start; align-items: center; margin-top: 12px; }
+.cmp-correo-ajustes .cmp-acciones input[type=email] { min-width: 200px; }
+.ok-correo { color: #1b7a3a; font-weight: 600; }

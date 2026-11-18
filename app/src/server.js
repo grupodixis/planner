@@ -308,6 +308,7 @@ const PORT = Number(process.env.PORT || 3000);
 (async () => {
   await esperarBD();
   await migrar();
+  await require('./correo').cargar().catch((e) => console.error('Correo:', e.message));
   await auth.asegurarAdmin();
   await require('./capacidades').sembrar().catch((e) => console.error('Capacidades:', e.message));
   await require('./catalogo').sembrar().catch((e) => console.error('Catálogo base:', e.message));

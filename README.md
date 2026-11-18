@@ -273,7 +273,12 @@ Menú **Usuarios** (solo quien tiene el permiso «usuarios»).
 - **Borrar** solo quita a quien nunca ha hecho nada en el sistema; si ya planificó o importó, se
   desactiva y se conserva su historial.
 
-Correo (opcional), en `.env`: `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM` y
+Correo de salida: se configura en **Compras › Ajustes › Correo de salida** (permiso `usuarios`):
+servidor, puerto, seguridad, cuenta, contraseña y remitente, con «Probar conexión» y «Enviar correo de
+prueba». Se guarda en `ajustes` ('correo') con la contraseña cifrada (AES-256-GCM); la clave está fuera
+de la base de datos (`CORREO_CLAVE` en `.env` o, si no, el archivo `.clave-correo` del volumen de
+archivos), y la contraseña nunca vuelve al navegador. Si el panel está vacío vale lo de `.env`
+(`SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM`). Además, en `.env`:
 `APP_URL` (la dirección pública para los enlaces; en el VPS la pone el script de despliegue).
 
 ## Supervisión de partes (lo real)
@@ -688,8 +693,9 @@ compositor los use.
   «Por pedir». Mientras pide precio, la línea sale en logística como «✉ Pidiendo precio».
 - **Proveedores**: ficha (CIF, email de pedidos y de facturas, teléfono, contacto, forma de pago,
   plazo, portes, lo que sirve, notas, activo). Vienen de Notion.
-- **Correo de salida**: en el servidor, `bash configurar-correo.sh` (pide la contraseña de
-  gestion@ y la deja en `.env`; IONOS, smtp.ionos.es:587).
+- **Correo de salida**: en **Compras › Ajustes › Correo de salida** (cuenta compras@; IONOS,
+  smtp.ionos.es:587 STARTTLS). Alternativa en el servidor: `bash configurar-correo.sh` (lo deja en
+  `.env`; lo del panel manda sobre esto).
 
 ## Control de costes (Informes › Control de costes)
 

@@ -178,6 +178,15 @@ function montar(app, asyncH) {
   const pAprobar = auth.permiso('aprobar_compras');
 
   /* ---------- Ajustes ---------- */
+  // Correo de salida (servidor SMTP). La contraseña entra pero nunca sale.
+  const pCorreo = auth.permiso('usuarios');
+  app.get('/api/ajustes/correo', pCorreo, asyncH(async (req, res) => res.json(await correo.verAjustes())));
+  app.put('/api/ajustes/correo', pCorreo, asyncH(async (req, res) => res.json(await correo.guardarAjustes(req.body || {}, req.usuario.id))));
+  app.post('/api/ajustes/correo/probar', pCorreo, asyncH(async (req, res) => {
+    const para = req.body?.para ? String(req.body.para).trim() : null;
+    if (para && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(para)) throw fallo(400, 'Correo de destino no válido');
+    res.json(await correo.probar(para));
+  }));
   app.get('/api/compras/ajustes', verPedidos, asyncH(async (req, res) => res.json({ ...(await ajustes()), correo: correo.configurado(), remitente: correo.remitente() })));
   app.put('/api/compras/ajustes', auth.permiso('aprobar_compras', 'usuarios'), asyncH(async (req, res) => {
     const b = req.body || {};
