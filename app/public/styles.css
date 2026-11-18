@@ -280,7 +280,7 @@ button:disabled { opacity: .4; cursor: not-allowed; }
 .tabla-tareas td.ord { white-space: nowrap; width: 1%; }
 .tabla-tareas td.ord button { padding: 2px 6px; }
 .tabla-tareas { table-layout: fixed; }
-.tabla-tareas col.c-ord { width: 64px; } .tabla-tareas col.c-num { width: 56px; }
+.tabla-tareas col.c-ord { width: 64px; } .tabla-tareas col.c-num { width: 64px; }
 .tabla-tareas col.c-area { width: 15%; } .tabla-tareas col.c-req { width: 15%; }
 .tabla-tareas col.c-est { width: 92px; } .tabla-tareas col.c-x { width: 40px; }
 .tabla-tareas td.est { white-space: normal; }
@@ -2027,3 +2027,10 @@ dialog.dlg-req[open] { display: flex; }
   100% { outline: 3px solid rgba(255, 213, 74, 0); outline-offset: 2px; box-shadow: 0 0 0 6px rgba(255, 213, 74, 0), 0 0 22px rgba(255, 213, 74, 0); }
 }
 @media (prefers-reduced-motion: reduce) { .destello { animation-timing-function: steps(1, end); } }
+
+/* asa para cambiar el ancho de una columna (tabla de tareas) */
+th.con-asa { position: relative; }
+.col-asa { position: absolute; top: 0; bottom: 0; right: -5px; width: 10px; cursor: col-resize; touch-action: none; z-index: 2; }
+.col-asa::after { content: ''; position: absolute; left: 4px; top: 3px; bottom: 3px; width: 2px; border-radius: 1px; background: var(--suave); opacity: .25; transition: opacity .15s; }
+.col-asa:hover::after, .col-asa.activo::after, .col-asa:focus-visible::after { opacity: .9; background: var(--azul); }
+.col-asa:focus-visible { outline: none; }

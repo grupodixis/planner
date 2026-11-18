@@ -87,5 +87,51 @@
     colocar();
   }
 
-  window.s360Divisores = { preparar };
+  /* Columnas de una tabla (table-layout: fixed con <colgroup>): asa en el borde derecho de cada
+     cabecera con data-ancho; la columna sin ancho (la del nombre) se queda con lo que sobra. */
+  function columnas(tabla, clave) {
+    if (!tabla || tabla.dataset.columnas) return;
+    tabla.dataset.columnas = '1';
+    const cols = [...tabla.querySelectorAll('colgroup col')];
+    const ths = [...tabla.querySelectorAll('thead th')];
+    ths.forEach((th, i) => {
+      const col = cols[i];
+      if (!col || !th.hasAttribute('data-ancho')) return;
+      const k = `s360-col-${clave}-${i}`;
+      const v = leer(k);
+      if (v) col.style.width = `${v}px`;
+      const asa = document.createElement('span');
+      asa.className = 'col-asa';
+      asa.setAttribute('role', 'separator'); asa.setAttribute('tabindex', '0'); asa.setAttribute('aria-orientation', 'vertical');
+      asa.setAttribute('aria-label', `Ancho de la columna ${th.textContent.trim()}`);
+      asa.title = 'Arrastra para cambiar el ancho · doble clic: ancho normal';
+      const min = Number(th.dataset.ancho) || 40;
+      const poner = (w, g) => { w = Math.round(Math.max(min, Math.min(w, 700))); col.style.width = `${w}px`; if (g) guardar(k, w); };
+      asa.addEventListener('pointerdown', (ev) => {
+        if (ev.button !== 0) return;
+        ev.preventDefault();
+        const x0 = ev.clientX, w0 = th.getBoundingClientRect().width;
+        asa.setPointerCapture(ev.pointerId);
+        asa.classList.add('activo'); document.body.classList.add('redimensionando');
+        const mover = (e) => poner(w0 + e.clientX - x0, false);
+        const soltar = (e) => {
+          poner(w0 + e.clientX - x0, true);
+          asa.classList.remove('activo'); document.body.classList.remove('redimensionando');
+          asa.removeEventListener('pointermove', mover); asa.removeEventListener('pointerup', soltar); asa.removeEventListener('pointercancel', soltar);
+        };
+        asa.addEventListener('pointermove', mover); asa.addEventListener('pointerup', soltar); asa.addEventListener('pointercancel', soltar);
+      });
+      asa.addEventListener('dblclick', () => { col.style.width = ''; guardar(k, null); });
+      asa.addEventListener('keydown', (ev) => {
+        const dx = ev.key === 'ArrowRight' ? 8 : ev.key === 'ArrowLeft' ? -8 : 0;
+        if (!dx) return;
+        ev.preventDefault();
+        poner(th.getBoundingClientRect().width + dx * (ev.shiftKey ? 4 : 1), true);
+      });
+      th.classList.add('con-asa');
+      th.append(asa);
+    });
+  }
+
+  window.s360Divisores = { preparar, columnas };
 })();

@@ -1039,6 +1039,7 @@
       clave: 'proyectos', desde: 1201, restoMin: 420,
       columnas: [{ min: 200, titulo: 'Ancho de la lista de proyectos' }, { min: 320, titulo: 'Ancho del proyecto' }],
     });
+    window.s360Divisores?.columnas(document.querySelector('.tabla-tareas'), 'tareas');
     window.s360.alCambiar(async () => {
       await Promise.all([cargarProyectos(), estado.proyectoId ? cargarOTs() : null, estado.otId ? cargarOT() : null]);
       if (estado.proyectoId) pintarFichaProyecto();
