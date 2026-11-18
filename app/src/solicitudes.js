@@ -1,6 +1,6 @@
 // Peticiones de precio a proveedores (SOL-AAAA-NNNN).
 //  · Se crean con líneas de «Por pedir» y los proveedores a los que se pregunta.
-//  · A cada proveedor se le envía la petición en PDF (por correo desde gestion@ o a mano).
+//  · A cada proveedor se le envía la petición en PDF (por correo desde compras@ o a mano).
 //  · Sus ofertas (precio por línea, entrega, portes, PDF) se apuntan aquí; se comparan y se elige
 //    proveedor por línea. «Crear pedidos» hace un pedido por proveedor con esos precios.
 const PDFDocument = require('pdfkit');

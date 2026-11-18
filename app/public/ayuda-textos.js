@@ -399,14 +399,14 @@ window.S360_AYUDA = {
 
     '/compras.html': {
       titulo: 'Compras',
-      para_que: 'Pedidos de compra a proveedores: se preparan con el material «por pedir» de las partidas, Dirección los aprueba si pasan del límite y se envían en PDF desde gestion@. Al enviarlos, logística ya los ve como pedidos.',
+      para_que: 'Pedidos de compra a proveedores: se preparan con el material «por pedir» de las partidas, Dirección los aprueba si pasan del límite y se envían en PDF desde compras@. Al enviarlos, logística ya los ve como pedidos.',
       esquema: {
         titulo: 'El camino de un pedido',
         pasos: [
           { que: 'Marcar lo que falta', quien: 'Material de las partidas › Por pedir' },
           { que: 'Precios y proveedor', quien: 'Compras', aqui: true },
           { que: 'Aprobación (si pasa del límite)', quien: 'Dirección', aqui: true },
-          { que: 'Enviar el PDF', quien: 'Compras · desde gestion@', aqui: true },
+          { que: 'Enviar el PDF', quien: 'Compras · desde compras@', aqui: true },
           { que: 'Recibir con el albarán', quien: 'Logística' },
         ],
       },
@@ -432,7 +432,7 @@ window.S360_AYUDA = {
             'Abajo elige el proveedor y pulsa <b>Crear pedido de compra</b>.',
             'Pon los precios y revisa fecha y referencia.',
             'Si pasa del límite, <b>Pedir aprobación</b>; Dirección recibe el aviso.',
-            '<b>Enviar al proveedor</b>: por correo desde gestion@, o «Ya lo he enviado yo» si lo mandas a mano.',
+            '<b>Enviar al proveedor</b>: por correo desde compras@, o «Ya lo he enviado yo» si lo mandas a mano.',
           ],
         },
         {
@@ -579,7 +579,7 @@ window.S360_AYUDA = {
     { id: 3, fecha: '2026-11-17', si: ['logistica', 'compras'], titulo: 'Partidas plegables', texto: 'En <b>Material de las partidas</b> cada partida se abre y se cierra, con sus contadores de falta y retraso. Se recuerda lo que dejas abierto.', ir: '/logistica.html' },
     { id: 5, fecha: '2026-11-17', titulo: 'Ayuda en todas las pantallas', texto: 'Pulsa <b>?</b> arriba a la derecha (en el móvil, <b>Menú › Ayuda</b>): qué se hace en cada pantalla, vídeos cortos y un recorrido guiado.' },
     { id: 6, fecha: '2026-11-18', si: 'costes', titulo: 'Control de costes', texto: 'Nueva pantalla en <b>Informes › Control de costes</b>: presupuesto, real, previsión y margen sobre el PVP por partida, OT, tarea y persona.', ir: '/costes.html' },
-    { id: 7, fecha: '2026-11-18', si: ['compras', 'aprobar_compras', 'logistica'], titulo: 'Pedidos de compra', texto: 'Nuevo menú <b>Compras</b>: pedidos a proveedores con PDF, aprobación de Dirección por encima del límite y envío desde gestion@. Los proveedores tienen su ficha.', ir: '/compras.html' },
+    { id: 7, fecha: '2026-11-18', si: ['compras', 'aprobar_compras', 'logistica'], titulo: 'Pedidos de compra', texto: 'Nuevo menú <b>Compras</b>: pedidos a proveedores con PDF, aprobación de Dirección por encima del límite y envío desde compras@. Los proveedores tienen su ficha.', ir: '/compras.html' },
     { id: 8, fecha: '2026-11-18', si: ['compras', 'aprobar_compras', 'logistica'], titulo: 'Pedir precio a proveedores', texto: 'Antes de pedir se puede <b>pedir precio</b> a varios proveedores, apuntar sus ofertas, compararlas línea a línea y crear los pedidos con esos precios.', ir: '/compras.html?vista=precios' },
   ],
 };

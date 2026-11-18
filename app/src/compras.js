@@ -19,9 +19,9 @@ const cantTxt = (x) => Number(x).toLocaleString('es-ES', { maximumFractionDigits
 
 const AJUSTES_DEF = {
   limite_aprobacion: 3000,
-  empresa: { nombre: 'HAM Menorca', cif: '', direccion: '', telefono: '', email: 'gestion@hamenorca.com' },
+  empresa: { nombre: 'HAM Menorca', cif: '', direccion: '', telefono: '', email: 'compras@hamenorca.com' },
   entregar_en: 'Taller HAM Menorca',
-  condiciones: 'Indicar el nº de pedido en el albarán y en la factura.\nEnviar el certificado de material (3.1 EN 10204) con la entrega cuando corresponda.\nFacturas a gestion@hamenorca.com.',
+  condiciones: 'Indicar el nº de pedido en el albarán y en la factura.\nEnviar el certificado de material (3.1 EN 10204) con la entrega cuando corresponda.\nFacturas a compras@hamenorca.com.',
 };
 async function ajustes() {
   const { rows } = await query(`SELECT valor FROM ajustes WHERE clave = 'compras'`);

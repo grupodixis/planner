@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # Configura el correo de salida de s360 (pedidos a proveedores, enlaces de alta…) con la cuenta
-# gestion@hamenorca.com de IONOS. La contraseña se escribe aquí, en el servidor: no pasa por ningún otro sitio.
+# compras@hamenorca.com de IONOS. La contraseña se escribe aquí, en el servidor: no pasa por ningún otro sitio.
 #   cd /opt/s360 && bash configurar-correo.sh
 set -euo pipefail
 cd "$(dirname "$0")"
 [ -f .env ] || { echo "No encuentro .env en $(pwd)"; exit 1; }
 
-read -r -p "Cuenta de correo [gestion@hamenorca.com]: " CUENTA
-CUENTA=${CUENTA:-gestion@hamenorca.com}
+read -r -p "Cuenta de correo [compras@hamenorca.com]: " CUENTA
+CUENTA=${CUENTA:-compras@hamenorca.com}
 read -r -s -p "Contraseña de ${CUENTA}: " CLAVE; echo
 [ -n "$CLAVE" ] || { echo "Sin contraseña no se configura nada."; exit 1; }
 case "$CLAVE" in *"'"*) echo "La contraseña no puede llevar comilla simple ('). Cámbiala en IONOS y vuelve a intentarlo."; exit 1;; esac

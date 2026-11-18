@@ -676,7 +676,7 @@ compositor los use.
     quien tiene el permiso **aprobar_compras** (Dirección y Administrador), que **aprueba** o
     **no aprueba** con motivo (vuelve a borrador y se avisa a quien lo preparó).
   - **PDF del pedido** (pdfkit) con los datos de la empresa y las condiciones de Ajustes.
-  - **Enviar**: por correo desde la cuenta SMTP (gestion@) con el PDF adjunto, o «Ya lo he
+  - **Enviar**: por correo desde la cuenta SMTP (compras@) con el PDF adjunto, o «Ya lo he
     enviado yo». Al enviarlo, sus líneas pasan a **Pedido** con proveedor, fecha, nº de pedido
     (PC-AAAA-NNNN) y **precio** (base del coste comprometido del material).
 - **Peticiones de precio** (SOL-AAAA-NNNN, pestaña de Compras): desde «Por pedir», marcar líneas →

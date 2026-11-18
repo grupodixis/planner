@@ -57,7 +57,7 @@
       el('div', { class: 'cab-panel' }, el('h2', {}, 'Pedidos'),
         tiene('compras') ? el('button', { type: 'button', class: 'ghost mini', onclick: nuevoAMano }, '＋ Pedido a mano') : null),
       el('p', { class: 'ayuda' }, 'Los pedidos de material se crean desde ', el('a', { href: '/logistica.html?vista=comprar' }, 'Material de las partidas › Por pedir'), ', marcando las líneas.'),
-      d.correo ? null : el('p', { class: 'aviso-coste' }, 'El correo de salida (gestion@) aún no está configurado: de momento se descarga el PDF y se envía a mano.'),
+      d.correo ? null : el('p', { class: 'aviso-coste' }, 'El correo de salida (compras@) aún no está configurado: de momento se descarga el PDF y se envía a mano.'),
       ...grupos.map(([k, t]) => {
         const ps = d.pedidos.filter((p) => p.estado === k);
         if (!ps.length) return null;
@@ -459,7 +459,7 @@
     const emp = (k) => (v) => guardar({ empresa: { [k]: v } });
     $('#panel-compras').replaceChildren(el('section', { class: 'panel', style: 'max-width: 900px' },
       el('h2', {}, 'Ajustes de compras'),
-      el('p', { class: aj.correo ? 'ayuda' : 'aviso-coste' }, aj.correo ? `Correo de salida: ${aj.remitente}` : 'Correo de salida sin configurar: falta poner la cuenta de gestion@ en el servidor.'),
+      el('p', { class: aj.correo ? 'ayuda' : 'aviso-coste' }, aj.correo ? `Correo de salida: ${aj.remitente}` : 'Correo de salida sin configurar: falta poner la cuenta de compras@ en el servidor.'),
       el('div', { class: 'cmp-campos' },
         campo('Aprobación de Dirección a partir de (€, sin IVA)', aj.limite_aprobacion, (v) => guardar({ limite_aprobacion: v }), { type: 'number', min: '0', step: '50' }),
         campo('Entregar en (por defecto)', aj.entregar_en, (v) => guardar({ entregar_en: v }), { maxlength: 300 }),
