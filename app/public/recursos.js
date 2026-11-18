@@ -708,6 +708,9 @@
   async function init() {
     try { estado.usuario = await api('GET', '/api/me'); } catch { return; }
     window.s360.iniciar(estado.usuario);
+    window.s360Divisores?.preparar(document.querySelector('#panel-recursos'), {
+      clave: 'recursos', desde: 901, restoMin: 380, columnas: [{ min: 220, titulo: 'Ancho de la lista' }],
+    });
     window.s360.alCambiar(() => cargar());
     prepararSemillero();
     $('#salir').onclick = async () => { await api('POST', '/api/logout'); location.href = '/login.html'; };

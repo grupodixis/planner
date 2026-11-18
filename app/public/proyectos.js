@@ -1035,6 +1035,10 @@
   async function init() {
     try { estado.usuario = await api('GET', '/api/me'); } catch { return; }
     window.s360.iniciar(estado.usuario);
+    window.s360Divisores?.preparar(document.querySelector('main.gestion'), {
+      clave: 'proyectos', desde: 1201, restoMin: 420,
+      columnas: [{ min: 200, titulo: 'Ancho de la lista de proyectos' }, { min: 320, titulo: 'Ancho del proyecto' }],
+    });
     window.s360.alCambiar(async () => {
       await Promise.all([cargarProyectos(), estado.proyectoId ? cargarOTs() : null, estado.otId ? cargarOT() : null]);
       if (estado.proyectoId) pintarFichaProyecto();

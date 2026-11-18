@@ -221,9 +221,10 @@ dialog::backdrop { background: #000a; }
 
 /* ---------- Pantalla Proyectos y OTs ---------- */
 .gestion {
-  display: grid; grid-template-columns: 260px minmax(0, 0.85fr) minmax(0, 1.6fr); gap: 16px;
-  padding: 0 20px 20px; height: calc(100% - 64px); min-height: 560px;
+  display: grid; grid-template-columns: var(--col-0, 260px) var(--col-1, minmax(0, 0.85fr)) minmax(0, 1.6fr); gap: 16px;
+  padding: 0 20px 20px; height: calc(100% - 64px); min-height: 560px; position: relative;
 }
+.divisor-gen { bottom: auto; }
 .gestion .panel h2 { margin: 0; }
 .gestion .cab-panel { margin-bottom: 10px; }
 .gestion .cab-panel.sep { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--linea); }
@@ -424,7 +425,7 @@ dialog#dlg-empujar h2 { margin: 0 0 6px; font-size: 18px; }
 }
 .pestanas [role=tab]:hover { color: var(--texto); }
 .pestanas [role=tab][aria-selected=true] { color: var(--texto); background: var(--panel); border-color: var(--borde); border-bottom: 1px solid var(--panel); }
-.gestion.recursos-pant { grid-template-columns: 300px minmax(0, 1fr); height: calc(100% - 118px); }
+.gestion.recursos-pant { grid-template-columns: var(--col-0, 300px) minmax(0, 1fr); height: calc(100% - 118px); }
 .uso-recurso { display: grid; grid-template-columns: max-content 1fr; gap: 4px 14px; margin: 0; font-size: 13.5px; }
 .uso-recurso dt { color: var(--suave); }
 .uso-recurso dd { margin: 0; }
