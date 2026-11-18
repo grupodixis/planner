@@ -16,7 +16,10 @@
         const r = await fetch('/api/me', { credentials: 'same-origin' });
         if (r.ok) {
           const u = await r.json();
-          location.replace(u.solo_mi_dia ? '/mi-dia.html' : '/capturar.html');
+          // en el móvil se confirma y se avisa: quien tiene su ficha de persona va a Mi día
+          const movil = matchMedia('(max-width: 760px)').matches;
+          const miDia = u.solo_mi_dia || (movil && u.recurso_id && (u.permisos || []).includes('mi_dia'));
+          location.replace(miDia ? '/mi-dia.html' : movil ? '/capturar.html' : '/');
           return;
         }
         const d = await fetch('/api/pin/dispositivo', { credentials: 'same-origin' });

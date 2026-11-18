@@ -1464,9 +1464,12 @@ button.t-deps.vacia { opacity: .55; }
 /* menú en móvil: se desliza en horizontal en vez de ensanchar la página */
 @media (max-width: 760px) {
   .top { gap: 8px 14px; }
-  .top .menu { max-width: 100%; overflow-x: auto; scrollbar-width: none; flex-wrap: nowrap; }
-  .top .menu::-webkit-scrollbar { display: none; }
-  .top .menu a { white-space: nowrap; flex: none; }
+  .top .menu { max-width: 100%; flex-wrap: wrap; row-gap: 4px; }
+  .top .menu a, .top .menu-g-btn { white-space: nowrap; flex: none; }
+  /* los desplegables no se pueden salir de la pantalla */
+  .top .menu { position: relative; }
+  .top .menu-grupo { position: static; }
+  .top .menu-panel { left: 0; right: 0; min-width: 0; }
 }
 
 /* ---------- Materiales y herramientas de la tarea (🧰) ---------- */
