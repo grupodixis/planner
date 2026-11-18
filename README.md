@@ -679,6 +679,13 @@ compositor los use.
   - **Enviar**: por correo desde la cuenta SMTP (gestion@) con el PDF adjunto, o «Ya lo he
     enviado yo». Al enviarlo, sus líneas pasan a **Pedido** con proveedor, fecha, nº de pedido
     (PC-AAAA-NNNN) y **precio** (base del coste comprometido del material).
+- **Peticiones de precio** (SOL-AAAA-NNNN, pestaña de Compras): desde «Por pedir», marcar líneas →
+  **✉ Pedir precio…** → proveedores (primero los que sirven ese material) y fechas. A cada proveedor
+  se le envía el **PDF de la petición** (por correo o a mano) y se le puede **recordar**. Su oferta
+  se apunta (precio por línea, entrega, portes, su referencia y PDF). **Comparativo** línea ×
+  proveedor con lo más barato que llega a tiempo marcado; se elige proveedor por línea y **Crear
+  pedidos** hace un pedido por proveedor con esos precios (y los portes). Lo no elegido vuelve a
+  «Por pedir». Mientras pide precio, la línea sale en logística como «✉ Pidiendo precio».
 - **Proveedores**: ficha (CIF, email de pedidos y de facturas, teléfono, contacto, forma de pago,
   plazo, portes, lo que sirve, notas, activo). Vienen de Notion.
 - **Correo de salida**: en el servidor, `bash configurar-correo.sh` (pide la contraseña de

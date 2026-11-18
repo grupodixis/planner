@@ -75,6 +75,46 @@ async function siguienteCodigo(c) {
   return `PC-${y}-${String((rows[0].n || 0) + 1).padStart(4, '0')}`;
 }
 
+// Líneas de material «por pedir» que no están ya en un pedido ni pidiendo precio (con lo que falta y cuándo hace falta)
+async function lineasLibres(c, ids, { solicitud = null } = {}) {
+  if (!ids.length) return [];
+  const { rows: ls } = await c.query(
+    `SELECT e.id, e.descripcion, e.unidad, GREATEST(e.cantidad - COALESCE(e.stock, 0), 0)::float AS falta, e.compra, e.pedido_compra_id, e.solicitud_id,
+            pr.codigo AS proyecto, pr.nombre AS proyecto_nombre,
+            (SELECT min(x.fecha) FROM tarea_material m JOIN tramos x ON x.tarea_id = m.tarea_id WHERE m.escandallo_id = e.id) AS necesaria
+       FROM partida_escandallo e JOIN partidas pa ON pa.id = e.partida_id JOIN proyectos pr ON pr.id = pa.proyecto_id
+      WHERE e.id = ANY($1)`, [ids]);
+  if (ls.length !== ids.length) throw fallo(400, 'Alguna línea de material ya no existe');
+  const ocupada = ls.find((l) => l.pedido_compra_id);
+  if (ocupada) throw fallo(400, `«${ocupada.descripcion}» ya está en un pedido`);
+  const pidiendo = ls.find((l) => l.solicitud_id && l.solicitud_id !== solicitud);
+  if (pidiendo) throw fallo(400, `«${pidiendo.descripcion}» ya está pidiendo precio`);
+  const noPend = ls.find((l) => l.compra !== 'por_pedir');
+  if (noPend) throw fallo(400, `«${noPend.descripcion}» no está «por pedir»`);
+  return ls;
+}
+
+// Crea un pedido en borrador con sus líneas; las de material quedan enlazadas al pedido
+async function crearPedido(c, { proveedor_id, lineas, fecha_entrega, referencia, usuarioId }) {
+  const aj = await ajustes();
+  let formaPago = null;
+  if (proveedor_id) { const { rows } = await c.query('SELECT forma_pago FROM proveedores WHERE id = $1', [proveedor_id]); formaPago = rows[0]?.forma_pago || null; }
+  const codigo = await siguienteCodigo(c);
+  const { rows } = await c.query(
+    `INSERT INTO pedidos_compra (codigo, proveedor_id, fecha_entrega, entregar_en, referencia, forma_pago, creado_por)
+     VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id`,
+    [codigo, proveedor_id || null, fecha_entrega || null, aj.entregar_en, texto(referencia, 300), formaPago, usuarioId]);
+  const pid = rows[0].id;
+  let i = 0;
+  for (const l of lineas) {
+    await c.query(`INSERT INTO pedido_compra_lineas (pedido_id, escandallo_id, descripcion, cantidad, unidad, precio, orden) VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+      [pid, l.escandallo_id || null, l.descripcion, l.cantidad, l.unidad || null, l.precio ?? null, i++]);
+    if (l.escandallo_id) await c.query('UPDATE partida_escandallo SET pedido_compra_id = $2, solicitud_id = NULL WHERE id = $1', [l.escandallo_id, pid]);
+  }
+  await recalcular(c, pid);
+  return pid;
+}
+
 /* ---------- PDF del pedido ---------- */
 function pdfPedido(p, aj) {
   return new Promise((ok, mal) => {
@@ -200,37 +240,15 @@ function montar(app, asyncH) {
   app.post('/api/compras/pedidos', pCompras, asyncH(async (req, res) => {
     const b = req.body || {};
     const ids = (Array.isArray(b.escandallo_ids) ? b.escandallo_ids : []).map(Number).filter(Number.isInteger).slice(0, 200);
-    const aj = await ajustes();
     const id = await tx(async (c) => {
-      const { rows: ls } = ids.length ? await c.query(
-        `SELECT e.id, e.descripcion, e.unidad, GREATEST(e.cantidad - COALESCE(e.stock, 0), 0)::float AS falta, e.compra, e.pedido_compra_id,
-                pr.codigo AS proyecto, pr.nombre AS proyecto_nombre,
-                (SELECT min(x.fecha) FROM tarea_material m JOIN tramos x ON x.tarea_id = m.tarea_id WHERE m.escandallo_id = e.id) AS necesaria
-           FROM partida_escandallo e JOIN partidas pa ON pa.id = e.partida_id JOIN proyectos pr ON pr.id = pa.proyecto_id
-          WHERE e.id = ANY($1)`, [ids]) : { rows: [] };
-      if (ids.length && ls.length !== ids.length) throw fallo(400, 'Alguna línea de material ya no existe');
-      const ocupada = ls.find((l) => l.pedido_compra_id);
-      if (ocupada) throw fallo(400, `«${ocupada.descripcion}» ya está en otro pedido`);
-      const noPend = ls.find((l) => l.compra !== 'por_pedir');
-      if (noPend) throw fallo(400, `«${noPend.descripcion}» no está «por pedir»`);
-      const prov = b.proveedor_id ? Number(b.proveedor_id) : null;
-      let formaPago = null;
-      if (prov) { const { rows: pp } = await c.query('SELECT forma_pago FROM proveedores WHERE id = $1', [prov]); formaPago = pp[0]?.forma_pago || null; }
-      const necesaria = ls.map((l) => l.necesaria).filter(Boolean).sort()[0] || null;
-      const refs = [...new Set(ls.map((l) => `${l.proyecto} · ${l.proyecto_nombre}`))].join(' / ');
-      const codigo = await siguienteCodigo(c);
-      const { rows } = await c.query(
-        `INSERT INTO pedidos_compra (codigo, proveedor_id, fecha_entrega, entregar_en, referencia, forma_pago, creado_por)
-         VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id`,
-        [codigo, prov, necesaria || null, aj.entregar_en, texto(refs, 300), formaPago, req.usuario.id]);
-      const pid = rows[0].id;
-      let i = 0;
-      for (const l of ls) {
-        await c.query(`INSERT INTO pedido_compra_lineas (pedido_id, escandallo_id, descripcion, cantidad, unidad, orden) VALUES ($1,$2,$3,$4,$5,$6)`,
-          [pid, l.id, l.descripcion, l.falta, l.unidad, i++]);
-        await c.query('UPDATE partida_escandallo SET pedido_compra_id = $2 WHERE id = $1', [l.id, pid]);
-      }
-      return pid;
+      const ls = await lineasLibres(c, ids);
+      return crearPedido(c, {
+        proveedor_id: b.proveedor_id ? Number(b.proveedor_id) : null,
+        lineas: ls.map((l) => ({ escandallo_id: l.id, descripcion: l.descripcion, cantidad: l.falta, unidad: l.unidad, precio: null })),
+        fecha_entrega: ls.map((l) => l.necesaria).filter(Boolean).sort()[0] || null,
+        referencia: [...new Set(ls.map((l) => `${l.proyecto} · ${l.proyecto_nombre}`))].join(' / '),
+        usuarioId: req.usuario.id,
+      });
     });
     res.status(201).json(await pedido(id));
   }));
@@ -386,4 +404,4 @@ function montar(app, asyncH) {
   }));
 }
 
-module.exports = { montar };
+module.exports = { montar, ajustes, lineasLibres, crearPedido, eur, cantTxt, texto, num, fechaOk, ddmm };

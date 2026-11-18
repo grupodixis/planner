@@ -84,7 +84,7 @@
   function barraPedido() {
     const caja = $('#barra-pedido');
     if (!caja) return;
-    for (const id of [...marcadas]) if (!d.lineas.some((l) => l.id === id && l.estado === 'por_pedir' && !l.pedido_compra)) marcadas.delete(id);
+    for (const id of [...marcadas]) if (!d.lineas.some((l) => l.id === id && l.estado === 'por_pedir' && !l.pedido_compra && !l.solicitud)) marcadas.delete(id);
     if (!marcadas.size) { caja.replaceChildren(); caja.className = ''; return; }
     const prov = el('select', { 'aria-label': 'Proveedor del pedido' }, el('option', { value: '' }, 'Proveedor (se puede elegir después)…'),
       d.proveedores.map((p) => el('option', { value: p.id }, p.nombre)));
@@ -96,7 +96,41 @@
           location.href = `/compras.html?pedido=${p.id}`;
         } catch (e) { toast(e.message, true); }
       } }, '🛒 Crear pedido de compra'),
+      el('button', { type: 'button', class: 'ghost', onclick: dialogoPedirPrecio }, '✉ Pedir precio…'),
       el('button', { type: 'button', class: 'ghost mini', onclick: () => { marcadas.clear(); pintar(); } }, 'Desmarcar'));
+  }
+
+  // pedir precio de las líneas marcadas a varios proveedores (sugeridos por lo que sirven)
+  function dialogoPedirPrecio() {
+    const ls = d.lineas.filter((l) => marcadas.has(l.id));
+    const texto = norm(ls.map((l) => l.descripcion).join(' '));
+    // palabras de «lo que sirve» de cada proveedor que aparecen en el material (inox, tubo, tornillo…)
+    const sugerido = (p) => (p.materiales || []).some((m) => norm(m).split(/[^a-z0-9]+/).some((w) => w.length >= 4 && texto.includes(w.replace(/s$/, ''))));
+    const provs = [...d.proveedores].sort((a, b) => Number(sugerido(b)) - Number(sugerido(a)) || a.nombre.localeCompare(b.nombre));
+    const elegidos = new Set();
+    const necesaria = ls.map((l) => l.fecha_necesaria).filter(Boolean).sort()[0] || '';
+    const resp = el('input', { type: 'date', min: hoy, 'aria-label': 'Responder antes del' });
+    const nec = el('input', { type: 'date', value: necesaria, 'aria-label': 'Lo necesitamos el' });
+    const ul = el('ul', { class: 'log-provs-elegir' }, provs.map((p) => el('li', {}, el('label', {},
+      el('input', { type: 'checkbox', onchange: (ev) => (ev.target.checked ? elegidos.add(p.id) : elegidos.delete(p.id)) }),
+      ` ${p.nombre}`, sugerido(p) ? el('span', { class: 'chip-sug' }, 'sirve esto') : null,
+      el('small', { class: 'ayuda' }, ` ${(p.materiales || []).slice(0, 3).join(', ')}`)))));
+    const dlg = el('dialog', { class: 'dlg-cos' },
+      el('h2', {}, `Pedir precio · ${ls.length} línea${ls.length === 1 ? '' : 's'}`),
+      el('p', { class: 'ayuda' }, ls.map((l) => l.descripcion).join(' · ')),
+      el('h3', {}, 'A quién'), ul,
+      el('div', { class: 'cmp-campos' }, el('label', { class: 'cmp-campo' }, el('span', {}, 'Responder antes del'), resp), el('label', { class: 'cmp-campo' }, el('span', {}, 'Lo necesitamos el'), nec)),
+      el('div', { class: 'acciones' },
+        el('button', { type: 'button', class: 'ghost', onclick: () => dlg.close() }, 'Cancelar'),
+        el('button', { type: 'button', class: 'primario', onclick: async () => {
+          if (!elegidos.size) { toast('Elige al menos un proveedor', true); return; }
+          try {
+            const s = await api('POST', '/api/compras/solicitudes', { escandallo_ids: [...marcadas], proveedor_ids: [...elegidos], responder_antes: resp.value, necesario_el: nec.value });
+            location.href = `/compras.html?vista=precios&sol=${s.id}`;
+          } catch (e) { toast(e.message, true); }
+        } }, 'Crear petición de precio')));
+    dlg.addEventListener('close', () => dlg.remove());
+    document.body.append(dlg); dlg.showModal();
   }
 
   function tarjeta(l) {
@@ -164,18 +198,23 @@
         el('button', { type: 'button', class: l.stock != null && l.stock >= l.cantidad ? 'sel' : '', onclick: () => hecho(`/api/escandallo/${l.id}/stock`, { stock: l.cantidad }, 'Apuntado: hay todo') }, 'Hay todo'),
         el('span', { class: 'log-hay' }, 'Hay ', inp, ` ${l.unidad || ''} `, el('button', { type: 'button', class: 'primario mini', onclick: guardar }, '✓'))));
     }
+    // compras: pidiendo precio a proveedores
+    if (l.estado === 'por_pedir' && l.solicitud) {
+      out.push(el('div', { class: 'log-acc log-en-pedido' }, `✉ Pidiendo precio (${l.solicitud.codigo}) `,
+        el('a', { class: 'boton ghost mini', href: `/compras.html?vista=precios&sol=${l.solicitud.id}` }, 'Ver ofertas')));
+    }
     // compras: ya está en un pedido de compra en preparación
     if (l.estado === 'por_pedir' && l.pedido_compra) {
       out.push(el('div', { class: 'log-acc log-en-pedido' }, `🛒 En el pedido ${l.pedido_compra.codigo} (${{ borrador: 'en preparación', por_aprobar: 'esperando aprobación', aprobado: 'aprobado, por enviar' }[l.pedido_compra.estado] || l.pedido_compra.estado}) `,
         el('a', { class: 'boton ghost mini', href: `/compras.html?pedido=${l.pedido_compra.id}` }, 'Abrir pedido')));
     }
     // compras: marcar para un pedido de compra con varias líneas
-    if (puede.compras && l.estado === 'por_pedir' && !l.pedido_compra) {
+    if (puede.compras && l.estado === 'por_pedir' && !l.pedido_compra && !l.solicitud) {
       out.push(el('label', { class: 'log-sel' }, el('input', { type: 'checkbox', checked: marcadas.has(l.id), onchange: (ev) => { ev.target.checked ? marcadas.add(l.id) : marcadas.delete(l.id); barraPedido(); } }),
-        ' Incluir en un pedido de compra'));
+        ' Pedir precio o incluir en un pedido'));
     }
     // compras: pedir (rápido: ya pedido por teléfono, sin pedido de compra)
-    if (puede.compras && l.estado === 'por_pedir' && !l.pedido_compra) {
+    if (puede.compras && l.estado === 'por_pedir' && !l.pedido_compra && !l.solicitud) {
       const prov = el('select', { 'aria-label': 'Proveedor' }, el('option', { value: '' }, 'Proveedor…'),
         d.proveedores.map((p) => el('option', { value: p.id }, p.nombre)));
       const f = el('input', { type: 'date', 'aria-label': 'Llega el', min: hoy });

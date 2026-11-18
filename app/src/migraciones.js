@@ -835,6 +835,51 @@ const MIGRACIONES = [
        INSERT INTO ajustes (clave, valor) VALUES ('migr_permiso_aprobar_compras', 'true');
      END IF;
    END $$`,
+  // 2026-11 · Peticiones de precio a proveedores (SOL-AAAA-NNNN): ofertas, comparativo y pedidos
+  `CREATE TABLE IF NOT EXISTS solicitudes_precio (
+     id             SERIAL PRIMARY KEY,
+     codigo         TEXT NOT NULL UNIQUE,
+     estado         TEXT NOT NULL DEFAULT 'abierta' CHECK (estado IN ('abierta','cerrada','anulada')),
+     responder_antes DATE,
+     necesario_el   DATE,
+     notas          TEXT,
+     creado_por     INT REFERENCES usuarios(id) ON DELETE SET NULL,
+     creado         TIMESTAMPTZ NOT NULL DEFAULT now(),
+     cerrado_en     TIMESTAMPTZ
+   )`,
+  `CREATE TABLE IF NOT EXISTS solicitud_lineas (
+     id             SERIAL PRIMARY KEY,
+     solicitud_id   INT NOT NULL REFERENCES solicitudes_precio(id) ON DELETE CASCADE,
+     escandallo_id  INT REFERENCES partida_escandallo(id) ON DELETE SET NULL,
+     descripcion    TEXT NOT NULL,
+     cantidad       NUMERIC(12,3) NOT NULL DEFAULT 0,
+     unidad         TEXT,
+     orden          INT NOT NULL DEFAULT 0,
+     elegido        INT
+   )`,
+  `CREATE TABLE IF NOT EXISTS solicitud_proveedores (
+     id             SERIAL PRIMARY KEY,
+     solicitud_id   INT NOT NULL REFERENCES solicitudes_precio(id) ON DELETE CASCADE,
+     proveedor_id   INT NOT NULL REFERENCES proveedores(id) ON DELETE CASCADE,
+     estado         TEXT NOT NULL DEFAULT 'pendiente' CHECK (estado IN ('pendiente','enviada','respondida','no_oferta')),
+     enviado_en     TIMESTAMPTZ,
+     enviado_correo BOOLEAN NOT NULL DEFAULT FALSE,
+     enviado_a      TEXT,
+     recordado_en   TIMESTAMPTZ,
+     respondido_en  TIMESTAMPTZ,
+     fecha_entrega  DATE,
+     portes         NUMERIC(12,2),
+     ref_oferta     TEXT,
+     notas          TEXT,
+     UNIQUE (solicitud_id, proveedor_id)
+   )`,
+  `CREATE TABLE IF NOT EXISTS solicitud_precios (
+     sp_id          INT NOT NULL REFERENCES solicitud_proveedores(id) ON DELETE CASCADE,
+     linea_id       INT NOT NULL REFERENCES solicitud_lineas(id) ON DELETE CASCADE,
+     precio         NUMERIC(12,4) NOT NULL,
+     PRIMARY KEY (sp_id, linea_id)
+   )`,
+  `ALTER TABLE partida_escandallo ADD COLUMN IF NOT EXISTS solicitud_id INT REFERENCES solicitudes_precio(id) ON DELETE SET NULL`,
 ];
 
 async function migrar() {

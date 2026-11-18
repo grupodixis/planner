@@ -412,13 +412,14 @@ window.S360_AYUDA = {
       },
       recorridos: [
         {
-          id: 'cmp-basico', version: 1, si: ['compras', 'aprobar_compras'], ofrecer: true, duracion: '1 min',
+          id: 'cmp-basico', version: 2, si: ['compras', 'aprobar_compras'], ofrecer: true, duracion: '1 min',
           titulo: 'Cómo va un pedido de compra',
           pasos: [
             { sel: '.cmp-lista', texto: 'Los pedidos por estado: <b>esperando aprobación</b>, <b>aprobados por enviar</b>, <b>borradores</b> y <b>enviados</b>. Se crean desde <b>Material de las partidas › Por pedir</b>, marcando las líneas.' },
             { sel: '.cmp-campos', texto: 'Proveedor, fecha de entrega, dónde entregar y referencia. <b>Todo se guarda solo</b> al cambiarlo.', opcional: true },
             { sel: '.cmp-tabla', texto: 'Las líneas: pon el <b>precio</b> de cada una (en naranja las que faltan). Se pueden añadir líneas a mano (portes, etc.).', opcional: true },
             { sel: '.cmp-acciones', texto: '<b>📄 Ver PDF</b> es lo que recibe el proveedor. Si el total pasa del límite, primero <b>Pedir aprobación</b>; si no, <b>Enviar al proveedor</b>.', opcional: true },
+            { sel: '#tab-precios', texto: 'En <b>Peticiones de precio</b> se pide oferta a varios proveedores, se apuntan sus precios y se comparan antes de pedir.' },
             { sel: '#tab-proveedores', texto: 'En <b>Proveedores</b> están sus correos, forma de pago y lo que sirve cada uno.' },
           ],
         },
@@ -432,6 +433,16 @@ window.S360_AYUDA = {
             'Pon los precios y revisa fecha y referencia.',
             'Si pasa del límite, <b>Pedir aprobación</b>; Dirección recibe el aviso.',
             '<b>Enviar al proveedor</b>: por correo desde gestion@, o «Ya lo he enviado yo» si lo mandas a mano.',
+          ],
+        },
+        {
+          titulo: 'Pedir precio antes de pedir', si: 'compras',
+          pasos: [
+            'En <b>Material de las partidas › Por pedir</b> marca las líneas y pulsa <b>✉ Pedir precio…</b>.',
+            'Elige los proveedores (salen primero los que sirven ese material) y las fechas.',
+            'En <b>Peticiones de precio</b>, <b>📤 Enviar</b> a cada uno (o «Ya lo he enviado yo»).',
+            'Cuando contesten, <b>✎ Apuntar oferta</b>: precio por línea, entrega, portes y su PDF.',
+            'Compara, elige proveedor en cada línea (en verde lo más barato que llega a tiempo) y <b>🛒 Crear pedidos</b>.',
           ],
         },
         {
@@ -569,5 +580,6 @@ window.S360_AYUDA = {
     { id: 5, fecha: '2026-11-17', titulo: 'Ayuda en todas las pantallas', texto: 'Pulsa <b>?</b> arriba a la derecha (en el móvil, <b>Menú › Ayuda</b>): qué se hace en cada pantalla, vídeos cortos y un recorrido guiado.' },
     { id: 6, fecha: '2026-11-18', si: 'costes', titulo: 'Control de costes', texto: 'Nueva pantalla en <b>Informes › Control de costes</b>: presupuesto, real, previsión y margen sobre el PVP por partida, OT, tarea y persona.', ir: '/costes.html' },
     { id: 7, fecha: '2026-11-18', si: ['compras', 'aprobar_compras', 'logistica'], titulo: 'Pedidos de compra', texto: 'Nuevo menú <b>Compras</b>: pedidos a proveedores con PDF, aprobación de Dirección por encima del límite y envío desde gestion@. Los proveedores tienen su ficha.', ir: '/compras.html' },
+    { id: 8, fecha: '2026-11-18', si: ['compras', 'aprobar_compras', 'logistica'], titulo: 'Pedir precio a proveedores', texto: 'Antes de pedir se puede <b>pedir precio</b> a varios proveedores, apuntar sus ofertas, compararlas línea a línea y crear los pedidos con esos precios.', ir: '/compras.html?vista=precios' },
   ],
 };

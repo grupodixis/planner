@@ -2104,3 +2104,17 @@ dialog.dlg-cos { width: min(460px, calc(100vw - 24px)); }
 .log-barra-pedido select { background: #1a1a1a; color: var(--texto); border: 1px solid var(--borde); border-radius: 8px; padding: 6px 8px; font: inherit; }
 .log-en-pedido { font-size: 13px; }
 .cmp-lista input[type=search] { background: #1a1a1a; border: 1px solid var(--borde); border-radius: 8px; color: var(--texto); font: inherit; padding: 7px 9px; }
+.cmp-h3 { margin: 4px 0 0; font-size: 13px; color: var(--suave); text-transform: uppercase; letter-spacing: .04em; }
+.cmp-provs-sol { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-start; }
+.cmp-provs-sol select { background: #1a1a1a; color: var(--texto); border: 1px dashed var(--borde); border-radius: 10px; padding: 8px 10px; font: inherit; align-self: center; }
+.cmp-prov { border: 1px solid var(--borde); border-radius: 10px; padding: 10px 12px; display: flex; flex-direction: column; gap: 4px; min-width: 240px; flex: 1 1 240px; max-width: 360px; }
+.cmp-prov-acc { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 4px; }
+.cmp-comp th.cmp-col-prov { min-width: 170px; }
+.cmp-comp td.cmp-oferta label { display: flex; gap: 8px; align-items: flex-start; cursor: pointer; padding: 4px 6px; border-radius: 8px; }
+.cmp-comp td.cmp-oferta.mejor label { box-shadow: inset 0 0 0 1px #3f8f62; }
+.cmp-comp td.cmp-oferta.sel label { background: #16301f; }
+.dlg-oferta { width: min(640px, calc(100vw - 24px)); }
+.dlg-oferta .cmp-campos { margin-top: 10px; }
+.log-provs-elegir { list-style: none; margin: 0 0 10px; padding: 0; max-height: 300px; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; }
+.log-provs-elegir label { display: flex; align-items: baseline; gap: 6px; padding: 4px 0; }
+.chip-sug { font-size: 11.5px; padding: 1px 8px; border-radius: 99px; background: #16301f; color: #7fdcaa; }

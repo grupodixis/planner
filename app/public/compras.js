@@ -34,12 +34,13 @@
     borrador: ['Borrador', ''], por_aprobar: ['Esperando aprobación', 'aviso'], aprobado: ['Aprobado · por enviar', 'ok'], enviado: ['Enviado', 'ok'], anulado: ['Anulado', ''],
   };
   const q0 = new URLSearchParams(location.search);
-  const estado = { vista: q0.get('vista') || 'pedidos', pedido: Number(q0.get('pedido')) || null, proveedor: Number(q0.get('proveedor')) || null,
+  const estado = { vista: q0.get('vista') || 'pedidos', pedido: Number(q0.get('pedido')) || null, sol: Number(q0.get('sol')) || null, proveedor: Number(q0.get('proveedor')) || null,
     proveedores: [], ajustes: null, filtroProv: '' };
   const guardarURL = () => {
     const u = new URLSearchParams();
     if (estado.vista !== 'pedidos') u.set('vista', estado.vista);
     if (estado.vista === 'pedidos' && estado.pedido) u.set('pedido', estado.pedido);
+    if (estado.vista === 'precios' && estado.sol) u.set('sol', estado.sol);
     if (estado.vista === 'proveedores' && estado.proveedor) u.set('proveedor', estado.proveedor);
     history.replaceState(null, '', `${location.pathname}${u.toString() ? `?${u}` : ''}`);
   };
@@ -217,6 +218,183 @@
     document.body.append(d); d.showModal();
   }
 
+  /* ================= Peticiones de precio ================= */
+  const EST_SP = { pendiente: ['Sin enviar', ''], enviada: ['Esperando oferta', 'aviso'], respondida: ['Oferta recibida', 'ok'], no_oferta: ['No oferta', ''] };
+  async function pintarSolicitudes() {
+    const lista = await api('GET', '/api/compras/solicitudes');
+    if (!estado.sol && lista.length) estado.sol = lista[0].id;
+    const izq = el('section', { class: 'panel cmp-lista' },
+      el('div', { class: 'cab-panel' }, el('h2', {}, 'Peticiones de precio')),
+      el('p', { class: 'ayuda' }, 'Se crean desde ', el('a', { href: '/logistica.html?vista=comprar' }, 'Material de las partidas › Por pedir'), ': marca las líneas y pulsa «✉ Pedir precio».'),
+      ...[['abierta', '✉ Abiertas'], ['cerrada', '✔ Cerradas (90 días)']].map(([k, t]) => {
+        const ss = lista.filter((x) => x.estado === k);
+        if (!ss.length) return null;
+        return el('div', { class: 'cmp-grupo' }, el('h3', {}, `${t} `, el('span', { class: 'llv-n' }, String(ss.length))),
+          el('ul', {}, ss.map((x) => el('li', {}, el('button', { type: 'button', class: `cmp-item${x.id === estado.sol ? ' actual' : ''}`, onclick: () => { estado.sol = x.id; guardarURL(); pintar(); } },
+            el('span', { class: 'cmp-item-1' }, el('b', {}, x.codigo), el('span', { class: x.n_resp < x.n_prov && k === 'abierta' ? 'ayuda' : '' }, `${x.n_resp} de ${x.n_prov} ofertas`)),
+            el('small', { class: 'ayuda' }, [x.proyectos, `${x.n_lineas} línea${x.n_lineas === 1 ? '' : 's'}`, x.responder_antes && k === 'abierta' ? `responder antes del ${fecha(x.responder_antes)}` : `creada ${cuando(x.creado)}`].filter(Boolean).join(' · ')))))));
+      }),
+      lista.length ? null : el('p', { class: 'vacio-grande' }, 'Todavía no hay peticiones de precio.'));
+    const der = el('section', { class: 'panel cmp-detalle' });
+    $('#panel-compras').replaceChildren(el('div', { class: 'cmp-dos' }, izq, der));
+    if (estado.sol) await pintarSolicitud(der);
+    else der.append(el('p', { class: 'ayuda' }, 'Elige una petición de la lista.'));
+  }
+
+  async function pintarSolicitud(caja) {
+    let s;
+    try { s = await api('GET', `/api/compras/solicitudes/${estado.sol}`); } catch (e) { caja.replaceChildren(el('p', { class: 'ayuda' }, e.message)); return; }
+    if (!estado.proveedores.length) estado.proveedores = await api('GET', '/api/proveedores');
+    const abierta = s.estado === 'abierta' && tiene('compras');
+    const recargar = () => pintar();
+    const hacer = async (fn, ok) => { try { await fn(); if (ok) toast(ok); recargar(); } catch (e) { toast(e.message, true); } };
+    // mejor precio por línea entre los que llegan a tiempo (si se sabe la fecha)
+    const llega = (p, l) => { const nec = l.necesaria || s.necesario_el; return !nec || !p.fecha_entrega ? null : p.fecha_entrega <= nec; };
+    const mejor = new Map();
+    for (const l of s.lineas) {
+      const ofs = s.proveedores.filter((p) => p.precios[l.id] != null);
+      const aTiempo = ofs.filter((p) => llega(p, l) !== false);
+      const base = aTiempo.length ? aTiempo : ofs;
+      if (base.length) mejor.set(l.id, base.reduce((a, b) => (b.precios[l.id] < a.precios[l.id] ? b : a)).id);
+    }
+    const elegido = Object.fromEntries(s.lineas.map((l) => [l.id, l.elegido]));
+    const guardarEleccion = async () => { try { await api('PUT', `/api/compras/solicitudes/${s.id}/elegir`, { elegido }); toast('Guardado'); } catch (e) { toast(e.message, true); } };
+    const totalProv = (p) => s.lineas.reduce((t, l) => t + (elegido[l.id] === p.id ? l.cantidad * (p.precios[l.id] || 0) : 0), 0) + (s.lineas.some((l) => elegido[l.id] === p.id) ? (p.portes || 0) : 0);
+    const pies = new Map();
+    const actualizarPies = () => { for (const p of s.proveedores) pies.get(p.id).textContent = eur(totalProv(p)); };
+
+    const cab = el('tr', {}, el('th', {}, 'Material'), el('th', { class: 'num' }, 'Cantidad'),
+      ...s.proveedores.map((p) => {
+        const t = s.lineas.length && p.fecha_entrega ? s.lineas.every((l) => llega(p, l) !== false) : null;
+        return el('th', { class: 'cmp-col-prov' }, el('b', {}, p.proveedor),
+          el('div', { class: 'sub' }, p.estado === 'respondida' ? [p.ref_oferta ? `oferta ${p.ref_oferta} · ` : '', p.fecha_entrega ? `llega ${fecha(p.fecha_entrega)} ` : 'sin fecha ', t === true ? el('span', { class: 'pos' }, '✓ a tiempo') : t === false ? el('span', { class: 'neg' }, '⚠ tarde') : null] : (EST_SP[p.estado] || [p.estado])[0]));
+      }));
+    const filas = s.lineas.map((l) => el('tr', {},
+      el('td', {}, l.descripcion, el('div', { class: 'sub' }, [l.proyecto_codigo, l.partida_codigo, l.necesaria ? `hace falta ${fecha(l.necesaria)}` : null].filter(Boolean).join(' · '))),
+      el('td', { class: 'num' }, `${String(l.cantidad).replace('.', ',')} ${l.unidad || ''}`),
+      ...s.proveedores.map((p) => {
+        const pr = p.precios[l.id];
+        if (pr == null) return el('td', { class: 'sub' }, p.estado === 'respondida' || p.estado === 'no_oferta' ? 'No la oferta' : '—');
+        const radio = el('input', { type: 'radio', name: `l${l.id}`, checked: elegido[l.id] === p.id, disabled: !abierta, 'aria-label': `Elegir ${p.proveedor} para ${l.descripcion}`,
+          onchange: () => { elegido[l.id] = p.id; actualizarPies(); guardarEleccion(); pintarSel(); } });
+        return el('td', { class: `cmp-oferta${mejor.get(l.id) === p.id ? ' mejor' : ''}`, 'data-l': l.id, 'data-p': p.id },
+          el('label', {}, radio, el('span', {}, el('b', {}, eur(pr)), ` /${l.unidad || 'ud'}`, el('div', { class: 'sub' }, `total ${eur(pr * l.cantidad)}${mejor.get(l.id) === p.id ? ' · mejor' : ''}`))));
+      })));
+    const pintarSel = () => { for (const td of caja.querySelectorAll('.cmp-oferta')) td.classList.toggle('sel', elegido[td.dataset.l] === Number(td.dataset.p)); };
+    const pie = el('tr', { class: 'fila-total' }, el('td', { colspan: '2' }, 'Total elegido (con portes)'),
+      ...s.proveedores.map((p) => { const t = el('b'); pies.set(p.id, t); return el('td', {}, t, p.portes ? el('div', { class: 'sub' }, `portes ${eur(p.portes)}`) : null); }));
+
+    const tarjetaProv = (p) => {
+      const [txt, cls] = EST_SP[p.estado] || [p.estado, ''];
+      return el('div', { class: 'cmp-prov' },
+        el('div', { class: 'cmp-item-1' }, el('b', {}, p.proveedor), el('span', { class: `cmp-estado ${cls}` }, txt)),
+        el('small', { class: 'ayuda' }, [p.enviado_en ? `enviada ${cuando(p.enviado_en)}${p.enviado_correo ? ` a ${p.enviado_a}` : ' (a mano)'}` : null, p.recordado_en ? `recordada ${cuando(p.recordado_en)}` : null, p.respondido_en ? `respondió ${cuando(p.respondido_en)}` : null].filter(Boolean).join(' · ') || (p.email || 'sin email en su ficha')),
+        p.archivos.length ? el('div', {}, p.archivos.map((a) => el('a', { href: `/api/archivos/${a.id}`, target: '_blank', rel: 'noopener', class: 'ayuda' }, `📎 ${a.nombre || 'oferta'} `))) : null,
+        abierta ? el('div', { class: 'cmp-prov-acc' },
+          el('button', { type: 'button', class: 'ghost mini', onclick: () => dialogoEnviarSol(s, p) }, p.enviado_en ? '🔔 Recordar' : '📤 Enviar'),
+          el('button', { type: 'button', class: p.estado === 'enviada' ? 'primario mini' : 'ghost mini', onclick: () => dialogoOferta(s, p) }, '✎ Apuntar oferta'),
+          el('button', { type: 'button', class: 'ghost mini', 'aria-label': `Quitar ${p.proveedor}`, onclick: () => { if (confirm(`¿Quitar a ${p.proveedor} de esta petición?`)) hacer(() => api('DELETE', `/api/compras/solicitudes/${s.id}/proveedores/${p.id}`)); } }, '✕')) : null);
+    };
+    const yaEstan = new Set(s.proveedores.map((p) => p.proveedor_id));
+    const selAdd = el('select', { 'aria-label': 'Añadir proveedor' }, el('option', { value: '' }, '＋ Añadir proveedor…'),
+      estado.proveedores.filter((x) => x.activo && !yaEstan.has(x.id)).map((x) => el('option', { value: x.id }, x.nombre)));
+    selAdd.addEventListener('change', () => selAdd.value && hacer(() => api('POST', `/api/compras/solicitudes/${s.id}/proveedores`, { proveedor_id: selAdd.value })));
+    const nElegidas = s.lineas.filter((l) => l.elegido).length;
+    const inFecha = (k, txt) => { const i = el('input', { type: 'date', value: s[k] || '', disabled: !abierta }); i.addEventListener('change', () => hacer(() => api('PUT', `/api/compras/solicitudes/${s.id}`, { [k]: i.value }), 'Guardado')); return el('label', { class: 'cmp-campo' }, el('span', {}, txt), i); };
+
+    caja.replaceChildren(...[
+      el('div', { class: 'cab-panel' },
+        el('div', {}, el('h2', {}, `Petición ${s.codigo}`), el('p', { class: 'ayuda', style: 'margin:2px 0 0' }, `Creada por ${s.creado_por_nombre || '—'} el ${cuando(s.creado)}${s.cerrado_en ? ` · ${s.estado} el ${cuando(s.cerrado_en)}` : ''}`)),
+        el('span', { class: `cmp-estado ${s.estado === 'abierta' ? 'aviso' : ''}` }, { abierta: 'Abierta', cerrada: 'Cerrada · pedidos creados', anulada: 'Anulada' }[s.estado])),
+      el('div', { class: 'cmp-campos' }, inFecha('responder_antes', 'Responder antes del'), inFecha('necesario_el', 'Lo necesitamos el')),
+      el('h3', { class: 'cmp-h3' }, 'Proveedores'),
+      el('div', { class: 'cmp-provs-sol' }, s.proveedores.map(tarjetaProv), abierta ? selAdd : null),
+      el('h3', { class: 'cmp-h3' }, 'Comparar y elegir'),
+      el('p', { class: 'ayuda' }, 'Marca qué proveedor se queda cada línea. En verde, lo más barato que llega a tiempo.'),
+      el('div', { class: 'tabla-scroll' }, el('table', { class: 'tabla-inf cmp-comp' }, el('thead', {}, cab), el('tbody', {}, filas), el('tfoot', {}, pie))),
+      abierta ? el('div', { class: 'cmp-acciones' },
+        el('a', { class: 'boton ghost', href: `/api/compras/solicitudes/${s.id}/pdf`, target: '_blank', rel: 'noopener' }, '📄 PDF de la petición'),
+        el('button', { type: 'button', class: 'ghost peligro', onclick: () => { if (confirm(`¿Anular ${s.codigo}? Las líneas vuelven a «Por pedir».`)) hacer(() => api('DELETE', `/api/compras/solicitudes/${s.id}`), 'Petición anulada'); } }, 'Anular'),
+        el('button', { type: 'button', class: 'primario', onclick: async () => {
+          const n = new Set(s.lineas.filter((l) => elegido[l.id]).map((l) => elegido[l.id])).size;
+          if (!n) { toast('Elige proveedor en alguna línea', true); return; }
+          const sinElegir = s.lineas.filter((l) => !elegido[l.id]).length;
+          if (!confirm(`Se crearán ${n} pedido${n === 1 ? '' : 's'} con los precios de las ofertas.${sinElegir ? ` ${sinElegir} línea(s) sin elegir vuelven a «Por pedir».` : ''} ¿Seguir?`)) return;
+          try { const r = await api('POST', `/api/compras/solicitudes/${s.id}/pedidos`, {}); toast(`${r.pedidos.length} pedido(s) creados`); estado.vista = 'pedidos'; estado.pedido = r.pedidos[0]; guardarURL(); pintar(); }
+          catch (e) { toast(e.message, true); }
+        } }, `🛒 Crear pedidos${nElegidas ? '' : ''}`)) : null].filter(Boolean));
+    actualizarPies(); pintarSel();
+  }
+
+  function dialogoOferta(s, p) {
+    const ins = new Map();
+    const fEnt = el('input', { type: 'date', value: p.fecha_entrega || '' });
+    const portes = el('input', { type: 'number', min: '0', step: '0.01', value: p.portes ?? '', placeholder: '0 = pagados' });
+    const ref = el('input', { value: p.ref_oferta || '', maxlength: 80, placeholder: 'nº de su oferta' });
+    const notas = el('textarea', { rows: 2, maxlength: 1000 }); notas.value = p.notas || '';
+    const subidos = []; const nombre = el('span', { class: 'ayuda' });
+    const file = el('input', { type: 'file', accept: 'application/pdf,image/*', hidden: true, onchange: async () => {
+      const f = file.files[0]; if (!f) return;
+      try { toast('Subiendo…'); subidos.push(await window.s360.subirArchivo(f)); nombre.textContent = ` ${f.name}`; toast('Listo: se guarda al guardar la oferta'); } catch (e) { toast(e.message, true); }
+    } });
+    const d = el('dialog', { class: 'dlg-cos dlg-oferta' },
+      el('h2', {}, `Oferta de ${p.proveedor}`),
+      el('p', { class: 'ayuda' }, 'Precio unitario de cada línea (sin IVA). Deja vacío lo que no oferta.'),
+      el('table', { class: 'tabla-inf' }, el('tbody', {}, s.lineas.map((l) => {
+        const i = el('input', { type: 'number', min: '0', step: '0.0001', value: p.precios[l.id] ?? '', 'aria-label': `Precio de ${l.descripcion}`, class: 'cmp-in-num' });
+        ins.set(l.id, i);
+        return el('tr', {}, el('td', {}, l.descripcion, el('div', { class: 'sub' }, `${String(l.cantidad).replace('.', ',')} ${l.unidad || ''}`)), el('td', { class: 'num' }, i, ` €/${l.unidad || 'ud'}`));
+      }))),
+      el('div', { class: 'cmp-campos' },
+        el('label', { class: 'cmp-campo' }, el('span', {}, 'Entrega el'), fEnt),
+        el('label', { class: 'cmp-campo' }, el('span', {}, 'Portes (€)'), portes),
+        el('label', { class: 'cmp-campo' }, el('span', {}, 'Su referencia'), ref),
+        el('label', { class: 'cmp-campo ancho' }, el('span', {}, 'Notas'), notas)),
+      el('label', { class: 'boton ghost mini' }, '📎 Adjuntar su oferta (PDF o foto)', file, nombre),
+      el('div', { class: 'acciones' },
+        el('button', { type: 'button', class: 'ghost', onclick: async () => {
+          try { await api('PUT', `/api/compras/solicitudes/${s.id}/proveedores/${p.id}`, { no_oferta: true, notas: notas.value, archivos: subidos }); d.close(); toast('Apuntado: no oferta'); pintar(); } catch (e) { toast(e.message, true); }
+        } }, 'No oferta'),
+        el('button', { type: 'button', class: 'ghost', onclick: () => d.close() }, 'Cancelar'),
+        el('button', { type: 'button', class: 'primario', onclick: async () => {
+          const precios = Object.fromEntries([...ins].map(([k, i]) => [k, i.value === '' ? null : i.value]));
+          try { await api('PUT', `/api/compras/solicitudes/${s.id}/proveedores/${p.id}`, { precios, fecha_entrega: fEnt.value, portes: portes.value, ref_oferta: ref.value, notas: notas.value, archivos: subidos }); d.close(); toast('Oferta guardada'); pintar(); }
+          catch (e) { toast(e.message, true); }
+        } }, 'Guardar oferta')));
+    d.addEventListener('close', () => d.remove());
+    document.body.append(d); d.showModal();
+  }
+
+  function dialogoEnviarSol(s, p) {
+    const aj = estado.ajustes || {};
+    const recordar = !!p.enviado_en;
+    const para = el('input', { type: 'email', value: p.email || '', 'aria-label': 'Para' });
+    const asunto = el('input', { value: `${recordar ? 'Recordatorio: ' : ''}[${s.codigo}] Petición de oferta · ${aj.empresa?.nombre || 'HAM Menorca'}`, 'aria-label': 'Asunto' });
+    const texto = el('textarea', { rows: 6, 'aria-label': 'Texto del correo' });
+    texto.value = recordar
+      ? `Buenos días:\n\nLes recordamos nuestra petición de oferta ${s.codigo}${s.responder_antes ? `, que necesitaríamos antes del ${new Date(`${s.responder_antes}T12:00:00`).toLocaleDateString('es-ES')}` : ''}. Se la adjuntamos de nuevo.\n\nUn saludo,\n${aj.empresa?.nombre || 'HAM Menorca'}`
+      : `Buenos días:\n\nLes adjuntamos petición de oferta ${s.codigo}. Les agradeceríamos precio y plazo de entrega${s.responder_antes ? ` antes del ${new Date(`${s.responder_antes}T12:00:00`).toLocaleDateString('es-ES')}` : ''}, indicando si los portes están incluidos.\nPor favor, mantengan la referencia ${s.codigo} en el asunto de su respuesta.\n\nUn saludo,\n${aj.empresa?.nombre || 'HAM Menorca'}`;
+    const enviar = async (porCorreo) => {
+      try { await api('POST', `/api/compras/solicitudes/${s.id}/proveedores/${p.id}/enviar`, porCorreo ? { correo: true, para: para.value, asunto: asunto.value, texto: texto.value } : { correo: false }); d.close(); toast(porCorreo ? `Enviado a ${para.value}` : 'Apuntado como enviado'); pintar(); }
+      catch (e) { toast(e.message, true); }
+    };
+    const pdf = `/api/compras/solicitudes/${s.id}/pdf?sp=${p.id}`;
+    const d = el('dialog', { class: 'dlg-cos dlg-enviar' },
+      el('h2', {}, `${recordar ? 'Recordar' : 'Enviar'} ${s.codigo} a ${p.proveedor}`),
+      aj.correo ? el('div', { class: 'cmp-correo' },
+        el('label', { class: 'cmp-campo' }, el('span', {}, 'De'), el('input', { value: aj.remitente || '', disabled: true })),
+        el('label', { class: 'cmp-campo' }, el('span', {}, 'Para'), para),
+        el('label', { class: 'cmp-campo' }, el('span', {}, 'Asunto'), asunto), texto,
+        el('p', { class: 'ayuda' }, '📎 ', el('a', { href: pdf, target: '_blank', rel: 'noopener' }, `${s.codigo}.pdf`)))
+        : el('p', { class: 'aviso-coste' }, 'El correo de salida aún no está configurado. ', el('a', { href: pdf, target: '_blank', rel: 'noopener' }, 'Descarga el PDF'), ', envíalo tú y márcalo como enviado.'),
+      el('div', { class: 'acciones' },
+        el('button', { type: 'button', class: 'ghost', onclick: () => d.close() }, 'Cancelar'),
+        el('button', { type: 'button', class: aj.correo ? 'ghost' : 'primario', onclick: () => enviar(false) }, 'Ya lo he enviado yo'),
+        aj.correo ? el('button', { type: 'button', class: 'primario', onclick: () => enviar(true) }, recordar ? '🔔 Enviar recordatorio' : '📤 Enviar por correo') : null));
+    d.addEventListener('close', () => d.remove());
+    document.body.append(d); d.showModal();
+  }
+
   /* ================= Proveedores ================= */
   async function pintarProveedores() {
     estado.proveedores = await api('GET', '/api/proveedores');
@@ -294,7 +472,7 @@
   /* ================= General ================= */
   function pintar() {
     for (const b of document.querySelectorAll('.llv-tab')) b.setAttribute('aria-selected', String(b.dataset.vista === estado.vista));
-    const f = { pedidos: pintarPedidos, proveedores: pintarProveedores, ajustes: pintarAjustes }[estado.vista] || pintarPedidos;
+    const f = { pedidos: pintarPedidos, precios: pintarSolicitudes, proveedores: pintarProveedores, ajustes: pintarAjustes }[estado.vista] || pintarPedidos;
     return f().catch((e) => toast(e.message, true));
   }
 
@@ -304,6 +482,7 @@
     window.s360.iniciar(yo);
     $('#tab-ajustes').hidden = !(tiene('aprobar_compras') || tiene('usuarios'));
     $('#tab-pedidos').hidden = !(tiene('compras') || tiene('aprobar_compras') || tiene('logistica'));
+    $('#tab-precios').hidden = $('#tab-pedidos').hidden;
     if ($('#tab-pedidos').hidden && estado.vista === 'pedidos') estado.vista = 'proveedores';
     for (const b of document.querySelectorAll('.llv-tab')) b.addEventListener('click', () => { estado.vista = b.dataset.vista; guardarURL(); pintar(); });
     try { estado.ajustes = await api('GET', '/api/compras/ajustes'); } catch { /* sin permiso: no hace falta */ }

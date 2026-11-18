@@ -34,6 +34,7 @@ const SQL_LINEAS = `
          e.enlaces, e.stock::float, e.stock_en, e.compra, e.proveedor_id, e.fecha_prevista, e.pedido_en, e.recibido_en, e.nota_logistica,
          e.num_pedido, e.num_albaran, e.ref_externa, e.baja_presupuesto, e.pedido_compra_id, e.precio_pedido::float,
          (SELECT json_build_object('id', c.id, 'codigo', c.codigo, 'estado', c.estado) FROM pedidos_compra c WHERE c.id = e.pedido_compra_id) AS pedido_compra,
+         (SELECT json_build_object('id', s.id, 'codigo', s.codigo) FROM solicitudes_precio s WHERE s.id = e.solicitud_id AND s.estado = 'abierta') AS solicitud,
          pa.codigo AS partida_codigo, pa.nombre AS partida_nombre, pa.escandallo_enviado, pa.proyecto_id,
          p.codigo AS proyecto_codigo, p.nombre AS proyecto_nombre,
          pr.nombre AS proveedor, us.nombre AS stock_por, up.nombre AS pedido_por, ur.nombre AS recibido_por,
@@ -328,7 +329,7 @@ function montar(app, asyncH) {
     if (req.query.partida) { params.push(Number(req.query.partida)); conds.push(`e.partida_id = $${params.length}`); }
     const ls = await lineas(conds.join(' AND '), params);
     const cuenta = (est) => ls.filter((l) => l.estado === est).length;
-    const { rows: proveedores } = await query('SELECT id, nombre, zona, transporte FROM proveedores WHERE activo ORDER BY lower(nombre)');
+    const { rows: proveedores } = await query('SELECT id, nombre, zona, transporte, materiales FROM proveedores WHERE activo ORDER BY lower(nombre)');
     res.json({
       lineas: ls, proveedores,
       cuentas: { revisar: cuenta('sin_revisar'), comprar: cuenta('por_pedir'), recibir: cuenta('pedido'), disponible: cuenta('disponible'), todo: ls.length },
