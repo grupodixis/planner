@@ -25,6 +25,7 @@ app.get('/health', (req, res) => res.json({ ok: true, version: VERSION }));
 /* ---------- Autenticación ---------- */
 
 require('./pin').publico(app, asyncH);   // entrar con PIN desde un dispositivo autorizado (sin sesión)
+require('./ofertas-portal').montar(app, asyncH);   // el proveedor responde la petición de precio (enlace sin sesión)
 require('./usuarios')(app, asyncH);   // entrar, recuperar contraseña, Mi cuenta, usuarios y roles
 require('./pin').gestion(app, asyncH);   // PIN de operarios y dispositivos autorizados
 require('./archivos').montar(app, asyncH);   // fotos y documentos (justificantes, incidencias)

@@ -691,6 +691,16 @@ compositor los use.
   proveedor con lo más barato que llega a tiempo marcado; se elige proveedor por línea y **Crear
   pedidos** hace un pedido por proveedor con esos precios (y los portes). Lo no elegido vuelve a
   «Por pedir». Mientras pide precio, la línea sale en logística como «✉ Pidiendo precio».
+- **El proveedor responde en la plataforma** (`/oferta.html?t=…`, `src/ofertas-portal.js`): el correo
+  y el PDF de la petición llevan un **enlace personal** por proveedor y petición (también «🔗 Enlace»
+  en su tarjeta, para WhatsApp). Sin cuenta: ve los datos de la empresa y el material y pone **precio
+  por línea**, «No lo tengo», **alternativa**, entrega, portes (o incluidos), su referencia, contacto,
+  observaciones y su **PDF**. Puede corregir mientras la petición esté abierta; cerrada queda para
+  leer. Al enviar, aviso `oferta_recibida` a compras y la oferta entra en el comparativo («🌐 respondió
+  en la plataforma»; «👁 abrió el enlace» si solo lo miró). El enlace es `sp.firma`: HMAC con la clave
+  del servidor sobre `solicitud_proveedores.portal_nonce`; «nuevo» anula el anterior
+  (`POST /api/compras/solicitudes/:id/proveedores/:sp/enlace {nuevo}`). API pública:
+  `GET·PUT /api/oferta/:t`, `POST·GET·DELETE /api/oferta/:t/archivos[/:id]`, `GET /api/oferta/:t/pdf`.
 - **Proveedores**: ficha (CIF, email de pedidos y de facturas, teléfono, contacto, forma de pago,
   plazo, portes, lo que sirve, notas, activo). Vienen de Notion.
 - **Correo de salida**: en **Compras › Ajustes › Correo de salida** (cuenta compras@; IONOS,

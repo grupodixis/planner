@@ -274,11 +274,13 @@
       el('td', { class: 'num' }, `${String(l.cantidad).replace('.', ',')} ${l.unidad || ''}`),
       ...s.proveedores.map((p) => {
         const pr = p.precios[l.id];
-        if (pr == null) return el('td', { class: 'sub' }, p.estado === 'respondida' || p.estado === 'no_oferta' ? 'No la oferta' : '—');
+        const inf = (p.lineas_info || {})[l.id] || {};
+        const alt = inf.alt ? el('div', { class: 'sub cmp-alt' }, `↔ Alternativa: ${inf.alt}`) : null;
+        if (pr == null) return el('td', { class: 'sub' }, inf.no ? 'No lo tiene' : p.estado === 'respondida' || p.estado === 'no_oferta' ? 'No la oferta' : '—', alt);
         const radio = el('input', { type: 'radio', name: `l${l.id}`, checked: elegido[l.id] === p.id, disabled: !abierta, 'aria-label': `Elegir ${p.proveedor} para ${l.descripcion}`,
           onchange: () => { elegido[l.id] = p.id; actualizarPies(); guardarEleccion(); pintarSel(); } });
         return el('td', { class: `cmp-oferta${mejor.get(l.id) === p.id ? ' mejor' : ''}`, 'data-l': l.id, 'data-p': p.id },
-          el('label', {}, radio, el('span', {}, el('b', {}, eur(pr)), ` /${l.unidad || 'ud'}`, el('div', { class: 'sub' }, `total ${eur(pr * l.cantidad)}${mejor.get(l.id) === p.id ? ' · mejor' : ''}`))));
+          el('label', {}, radio, el('span', {}, el('b', {}, eur(pr)), ` /${l.unidad || 'ud'}`, el('div', { class: 'sub' }, `total ${eur(pr * l.cantidad)}${mejor.get(l.id) === p.id ? ' · mejor' : ''}`), alt)));
       })));
     const pintarSel = () => { for (const td of caja.querySelectorAll('.cmp-oferta')) td.classList.toggle('sel', elegido[td.dataset.l] === Number(td.dataset.p)); };
     const pie = el('tr', { class: 'fila-total' }, el('td', { colspan: '2' }, 'Total elegido (con portes)'),
@@ -288,11 +290,15 @@
       const [txt, cls] = EST_SP[p.estado] || [p.estado, ''];
       return el('div', { class: 'cmp-prov' },
         el('div', { class: 'cmp-item-1' }, el('b', {}, p.proveedor), el('span', { class: `cmp-estado ${cls}` }, txt)),
-        el('small', { class: 'ayuda' }, [p.enviado_en ? `enviada ${cuando(p.enviado_en)}${p.enviado_correo ? ` a ${p.enviado_a}` : ' (a mano)'}` : null, p.recordado_en ? `recordada ${cuando(p.recordado_en)}` : null, p.respondido_en ? `respondió ${cuando(p.respondido_en)}` : null].filter(Boolean).join(' · ') || (p.email || 'sin email en su ficha')),
+        el('small', { class: 'ayuda' }, [p.enviado_en ? `enviada ${cuando(p.enviado_en)}${p.enviado_correo ? ` a ${p.enviado_a}` : ' (a mano)'}` : null, p.recordado_en ? `recordada ${cuando(p.recordado_en)}` : null,
+          p.portal_respondido_en ? `🌐 respondió en la plataforma ${cuando(p.portal_respondido_en)}` : p.respondido_en ? `respondió ${cuando(p.respondido_en)}` : p.portal_visto_en ? `👁 abrió el enlace ${cuando(p.portal_visto_en)}` : null].filter(Boolean).join(' · ') || (p.email || 'sin email en su ficha')),
+        p.contacto ? el('small', { class: 'ayuda' }, `Contacto: ${p.contacto}`) : null,
+        p.notas && p.portal_respondido_en ? el('small', { class: 'ayuda', style: 'white-space:pre-wrap' }, `«${p.notas}»`) : null,
         p.archivos.length ? el('div', {}, p.archivos.map((a) => el('a', { href: `/api/archivos/${a.id}`, target: '_blank', rel: 'noopener', class: 'ayuda' }, `📎 ${a.nombre || 'oferta'} `))) : null,
         abierta ? el('div', { class: 'cmp-prov-acc' },
           el('button', { type: 'button', class: 'ghost mini', onclick: () => dialogoEnviarSol(s, p) }, p.enviado_en ? '🔔 Recordar' : '📤 Enviar'),
           el('button', { type: 'button', class: p.estado === 'enviada' ? 'primario mini' : 'ghost mini', onclick: () => dialogoOferta(s, p) }, '✎ Apuntar oferta'),
+          el('button', { type: 'button', class: 'ghost mini', title: 'Enlace para que el proveedor ponga sus precios en la plataforma', onclick: () => copiarEnlace(s, p) }, '🔗 Enlace'),
           el('button', { type: 'button', class: 'ghost mini', 'aria-label': `Quitar ${p.proveedor}`, onclick: () => { if (confirm(`¿Quitar a ${p.proveedor} de esta petición?`)) hacer(() => api('DELETE', `/api/compras/solicitudes/${s.id}/proveedores/${p.id}`)); } }, '✕')) : null);
     };
     const yaEstan = new Set(s.proveedores.map((p) => p.proveedor_id));
@@ -365,17 +371,32 @@
     document.body.append(d); d.showModal();
   }
 
-  function dialogoEnviarSol(s, p) {
+  async function enlaceProv(s, p, nuevo) {
+    const r = await api('POST', `/api/compras/solicitudes/${s.id}/proveedores/${p.id}/enlace`, nuevo ? { nuevo: true } : {});
+    return r.url;
+  }
+  async function copiarEnlace(s, p) {
+    try {
+      const url = await enlaceProv(s, p);
+      try { await navigator.clipboard.writeText(url); toast('Enlace copiado: pégalo en un correo o un WhatsApp al proveedor'); }
+      catch { prompt('Copia el enlace para el proveedor:', url); }
+    } catch (e) { toast(e.message, true); }
+  }
+
+  async function dialogoEnviarSol(s, p) {
     const aj = estado.ajustes || {};
+    let url = null;
+    try { url = await enlaceProv(s, p); } catch (e) { toast(e.message, true); }
+    const lineaEnlace = url ? `\n\nPuede responder directamente en nuestra plataforma, sin registrarse, poniendo sus precios línea a línea:\n${url}\n` : '';
     const recordar = !!p.enviado_en;
     const para = el('input', { type: 'email', value: p.email || '', 'aria-label': 'Para' });
     const asunto = el('input', { value: `${recordar ? 'Recordatorio: ' : ''}[${s.codigo}] Petición de oferta · ${aj.empresa?.nombre || 'HAM Menorca'}`, 'aria-label': 'Asunto' });
-    const texto = el('textarea', { rows: 6, 'aria-label': 'Texto del correo' });
+    const texto = el('textarea', { rows: 10, 'aria-label': 'Texto del correo' });
     texto.value = recordar
-      ? `Buenos días:\n\nLes recordamos nuestra petición de oferta ${s.codigo}${s.responder_antes ? `, que necesitaríamos antes del ${new Date(`${s.responder_antes}T12:00:00`).toLocaleDateString('es-ES')}` : ''}. Se la adjuntamos de nuevo.\n\nUn saludo,\n${aj.empresa?.nombre || 'HAM Menorca'}`
-      : `Buenos días:\n\nLes adjuntamos petición de oferta ${s.codigo}. Les agradeceríamos precio y plazo de entrega${s.responder_antes ? ` antes del ${new Date(`${s.responder_antes}T12:00:00`).toLocaleDateString('es-ES')}` : ''}, indicando si los portes están incluidos.\nPor favor, mantengan la referencia ${s.codigo} en el asunto de su respuesta.\n\nUn saludo,\n${aj.empresa?.nombre || 'HAM Menorca'}`;
+      ? `Buenos días:\n\nLes recordamos nuestra petición de oferta ${s.codigo}${s.responder_antes ? `, que necesitaríamos antes del ${new Date(`${s.responder_antes}T12:00:00`).toLocaleDateString('es-ES')}` : ''}. Se la adjuntamos de nuevo.${lineaEnlace}\n\nUn saludo,\n${aj.empresa?.nombre || 'HAM Menorca'}`
+      : `Buenos días:\n\nLes adjuntamos petición de oferta ${s.codigo}. Les agradeceríamos precio y plazo de entrega${s.responder_antes ? ` antes del ${new Date(`${s.responder_antes}T12:00:00`).toLocaleDateString('es-ES')}` : ''}, indicando si los portes están incluidos.\nSi responden por correo, mantengan la referencia ${s.codigo} en el asunto.${lineaEnlace}\n\nUn saludo,\n${aj.empresa?.nombre || 'HAM Menorca'}`;
     const enviar = async (porCorreo) => {
-      try { await api('POST', `/api/compras/solicitudes/${s.id}/proveedores/${p.id}/enviar`, porCorreo ? { correo: true, para: para.value, asunto: asunto.value, texto: texto.value } : { correo: false }); d.close(); toast(porCorreo ? `Enviado a ${para.value}` : 'Apuntado como enviado'); pintar(); }
+      try { await api('POST', `/api/compras/solicitudes/${s.id}/proveedores/${p.id}/enviar`, porCorreo ? { correo: true, para: para.value, asunto: asunto.value, texto: texto.value, enlace: !!url && texto.value.includes(url) } : { correo: false }); d.close(); toast(porCorreo ? `Enviado a ${para.value}` : 'Apuntado como enviado'); pintar(); }
       catch (e) { toast(e.message, true); }
     };
     const pdf = `/api/compras/solicitudes/${s.id}/pdf?sp=${p.id}`;
@@ -385,8 +406,9 @@
         el('label', { class: 'cmp-campo' }, el('span', {}, 'De'), el('input', { value: aj.remitente || '', disabled: true })),
         el('label', { class: 'cmp-campo' }, el('span', {}, 'Para'), para),
         el('label', { class: 'cmp-campo' }, el('span', {}, 'Asunto'), asunto), texto,
-        el('p', { class: 'ayuda' }, '📎 ', el('a', { href: pdf, target: '_blank', rel: 'noopener' }, `${s.codigo}.pdf`)))
-        : el('p', { class: 'aviso-coste' }, 'El correo de salida aún no está configurado. ', el('a', { href: pdf, target: '_blank', rel: 'noopener' }, 'Descarga el PDF'), ', envíalo tú y márcalo como enviado.'),
+        el('p', { class: 'ayuda' }, '📎 ', el('a', { href: pdf, target: '_blank', rel: 'noopener' }, `${s.codigo}.pdf`), url ? ' · el enlace para responder en la plataforma va en el texto y en el PDF (si lo quitas del texto, no se envía)' : null))
+        : el('p', { class: 'aviso-coste' }, 'El correo de salida aún no está configurado. ', el('a', { href: pdf, target: '_blank', rel: 'noopener' }, 'Descarga el PDF'), ' (lleva el enlace para responder en la plataforma), envíalo tú y márcalo como enviado.'),
+      url ? el('p', { class: 'ayuda' }, el('button', { type: 'button', class: 'ghost mini', onclick: () => copiarEnlace(s, p) }, '🔗 Copiar enlace'), ' para mandarlo por WhatsApp u otro medio.') : null,
       el('div', { class: 'acciones' },
         el('button', { type: 'button', class: 'ghost', onclick: () => d.close() }, 'Cancelar'),
         el('button', { type: 'button', class: aj.correo ? 'ghost' : 'primario', onclick: () => enviar(false) }, 'Ya lo he enviado yo'),

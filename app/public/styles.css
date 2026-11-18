@@ -2122,3 +2122,4 @@ dialog.dlg-cos { width: min(460px, calc(100vw - 24px)); }
 .cmp-correo-ajustes .cmp-acciones { justify-content: flex-start; align-items: center; margin-top: 12px; }
 .cmp-correo-ajustes .cmp-acciones input[type=email] { min-width: 200px; }
 .ok-correo { color: #1b7a3a; font-weight: 600; }
+.cmp-alt { color: var(--aviso, #b7791f); font-style: italic; }

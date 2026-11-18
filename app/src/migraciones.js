@@ -880,6 +880,12 @@ const MIGRACIONES = [
      PRIMARY KEY (sp_id, linea_id)
    )`,
   `ALTER TABLE partida_escandallo ADD COLUMN IF NOT EXISTS solicitud_id INT REFERENCES solicitudes_precio(id) ON DELETE SET NULL`,
+  // 2026-11 · El proveedor responde la petición de precio en la plataforma (enlace sin sesión)
+  `ALTER TABLE solicitud_proveedores ADD COLUMN IF NOT EXISTS portal_nonce TEXT,
+     ADD COLUMN IF NOT EXISTS portal_visto_en TIMESTAMPTZ,
+     ADD COLUMN IF NOT EXISTS portal_respondido_en TIMESTAMPTZ,
+     ADD COLUMN IF NOT EXISTS contacto TEXT,
+     ADD COLUMN IF NOT EXISTS lineas_info JSONB NOT NULL DEFAULT '{}'::jsonb`,
 ];
 
 async function migrar() {

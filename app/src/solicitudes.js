@@ -8,6 +8,7 @@ const { query, tx } = require('./db');
 const auth = require('./auth');
 const correo = require('./correo');
 const archivos = require('./archivos');
+const portal = require('./ofertas-portal');
 const { ajustes, lineasLibres, crearPedido, eur, cantTxt, texto, num, fechaOk } = require('./compras');
 
 const fallo = (status, msg) => Object.assign(new Error(msg), { status });
@@ -41,6 +42,8 @@ async function solicitud(id, c = { query }) {
   ]);
   const arch = await archivos.de('oferta', provs.map((p) => p.id));
   for (const p of provs) {
+    p.portal = !!p.portal_nonce;
+    delete p.portal_nonce;
     p.precios = Object.fromEntries(precios.filter((x) => x.sp_id === p.id).map((x) => [x.linea_id, x.precio]));
     p.archivos = arch.get(p.id) || [];
   }
@@ -50,7 +53,7 @@ async function solicitud(id, c = { query }) {
 }
 
 /* ---------- PDF de la petición de oferta (sin precios) ---------- */
-function pdfSolicitud(s, aj, prov) {
+function pdfSolicitud(s, aj, prov, url) {
   return new Promise((ok, mal) => {
     const doc = new PDFDocument({ size: 'A4', margin: 48, info: { Title: `Petición de oferta ${s.codigo}`, Author: aj.empresa.nombre } });
     const trozos = [];
@@ -89,6 +92,13 @@ function pdfSolicitud(s, aj, prov) {
     }
     y += 12;
     doc.font('Helvetica').fontSize(9).fillColor(gris).text(`Entrega en: ${aj.entregar_en}. Indiquen si los portes están incluidos.${s.notas ? `\n${s.notas}` : ''}`, 48, y, { width: W });
+    if (url) {
+      y = doc.y + 14;
+      if (y > doc.page.height - 110) { doc.addPage(); y = 48; }
+      doc.roundedRect(48, y, W, 46, 4).fill('#eaf3ec');
+      doc.font('Helvetica-Bold').fontSize(10).fillColor('#111').text('Puede responder directamente en nuestra plataforma, sin registrarse:', 60, y + 9, { width: W - 24 });
+      doc.font('Helvetica').fontSize(9).fillColor('#1a5fb4').text(url, 60, y + 25, { width: W - 24, link: url, underline: true });
+    }
     doc.end();
   });
 }
@@ -222,11 +232,20 @@ function montar(app, asyncH) {
     res.json(await solicitud(id));
   }));
 
+  // Enlace del proveedor para responder en la plataforma ({ nuevo: true } anula el anterior)
+  app.post('/api/compras/solicitudes/:id/proveedores/:sp/enlace', pCompras, asyncH(async (req, res) => {
+    const id = Number(req.params.id); const sp = Number(req.params.sp);
+    const s = await solicitud(id);
+    if (!s || !s.proveedores.some((x) => x.id === sp)) throw fallo(404, 'Proveedor no encontrado en esta petición');
+    res.json({ url: await portal.enlace(sp, req, { nuevo: !!req.body?.nuevo }) });
+  }));
+
   app.get('/api/compras/solicitudes/:id/pdf', ver, asyncH(async (req, res) => {
     const s = await solicitud(Number(req.params.id));
     if (!s) throw fallo(404, 'Petición no encontrada');
     const prov = s.proveedores.find((x) => x.id === Number(req.query.sp)) || null;
-    const pdf = await pdfSolicitud(s, await ajustes(), prov);
+    const url = prov && s.estado === 'abierta' && auth.tiene(req.usuario, 'compras') ? await portal.enlace(prov.id, req) : null;
+    const pdf = await pdfSolicitud(s, await ajustes(), prov, url);
     res.set({ 'Content-Type': 'application/pdf', 'Content-Disposition': `inline; filename="${s.codigo}.pdf"`, 'Cache-Control': 'no-store' });
     res.send(pdf);
   }));
@@ -244,10 +263,13 @@ function montar(app, asyncH) {
       para = texto(b.para, 300);
       if (!para || !/@/.test(para)) throw fallo(400, 'Falta el correo del proveedor');
       const aj = await ajustes();
-      const pdf = await pdfSolicitud(s, aj, prov);
+      const url = b.enlace === false ? null : await portal.enlace(sp, req);
+      const pdf = await pdfSolicitud(s, aj, prov, url);
+      let cuerpo = String(b.texto || '').slice(0, 5000);
+      if (url && !cuerpo.includes(url)) cuerpo += `\n\n— Puede responder directamente en nuestra plataforma, sin registrarse:\n${url}`;
       await correo.enviarOFallar({
         para, asunto: texto(b.asunto, 200) || `[${s.codigo}] Petición de oferta · ${aj.empresa.nombre}`,
-        texto: String(b.texto || '').slice(0, 5000), adjuntos: [{ nombre: `${s.codigo}.pdf`, datos: pdf, tipo: 'application/pdf' }],
+        texto: cuerpo, adjuntos: [{ nombre: `${s.codigo}.pdf`, datos: pdf, tipo: 'application/pdf' }],
       });
     }
     if (recordar) await query('UPDATE solicitud_proveedores SET recordado_en = now() WHERE id = $1', [sp]);
@@ -303,4 +325,4 @@ function montar(app, asyncH) {
   }));
 }
 
-module.exports = { montar };
+module.exports = { montar, solicitud, pdfSolicitud };

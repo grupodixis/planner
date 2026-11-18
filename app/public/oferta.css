@@ -1,0 +1,98 @@
+/* Página pública: el proveedor contesta la petición de precio. Sin la interfaz interna. */
+:root {
+  --fondo: #f4f5f2; --papel: #ffffff; --tinta: #1d1f1c; --suave: #5f645c; --linea: #dcdfd8;
+  --acento: #1f6b3a; --acento-2: #e6f1e9; --aviso: #8a5a00; --aviso-2: #fff4dc; --error: #b42318;
+  --campo: #fbfbfa; --sombra: 0 1px 2px rgba(0,0,0,.06), 0 6px 24px rgba(0,0,0,.05);
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --fondo: #121411; --papel: #1b1e1a; --tinta: #eceee9; --suave: #a3a99f; --linea: #30352e;
+    --acento: #5cc287; --acento-2: #1d3325; --aviso: #f0b64a; --aviso-2: #33290f; --error: #ff8a7a; --campo: #161815;
+    --sombra: none; color-scheme: dark; }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--fondo); color: var(--tinta); font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+main { max-width: 980px; margin: 0 auto; padding: 24px 16px 64px; }
+.cargando, .vacio { color: var(--suave); text-align: center; margin-top: 15vh; }
+.hoja { background: var(--papel); border: 1px solid var(--linea); border-radius: 10px; box-shadow: var(--sombra); padding: 28px; }
+@media (max-width: 640px) { .hoja { padding: 18px 14px; } }
+
+.cab { display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; border-bottom: 1px solid var(--linea); padding-bottom: 16px; }
+.cab .emp { font-weight: 700; font-size: 18px; }
+.cab .emp-datos { color: var(--suave); font-size: 13px; }
+.cab .ref { text-align: right; }
+.cab .ref .tit { font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--suave); }
+.cab .ref .cod { font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums; }
+@media (max-width: 640px) { .cab .ref { text-align: left; } }
+
+.datos { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px 20px; margin: 18px 0; }
+.datos div span { display: block; font-size: 12px; color: var(--suave); }
+.intro { margin: 0 0 16px; }
+.nota-pet { background: var(--campo); border: 1px solid var(--linea); border-radius: 8px; padding: 10px 12px; white-space: pre-wrap; }
+
+.banda { border-radius: 8px; padding: 12px 14px; margin: 0 0 18px; }
+.banda.ok { background: var(--acento-2); color: var(--tinta); border: 1px solid color-mix(in srgb, var(--acento) 40%, transparent); }
+.banda.aviso { background: var(--aviso-2); border: 1px solid color-mix(in srgb, var(--aviso) 40%, transparent); }
+
+h2 { font-size: 16px; margin: 26px 0 10px; }
+table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+th { text-align: left; font-size: 12px; font-weight: 600; color: var(--suave); padding: 8px; border-bottom: 1px solid var(--linea); }
+td { padding: 10px 8px; border-bottom: 1px solid var(--linea); vertical-align: top; }
+th.num, td.num { text-align: right; white-space: nowrap; }
+td.desc b { font-weight: 600; }
+.precio { width: 120px; text-align: right; }
+.sin td.desc, .sin td.num:not(.acc) { color: var(--suave); }
+.sin .precio { opacity: .45; }
+.chk { display: inline-flex; gap: 6px; align-items: center; font-size: 13px; color: var(--suave); white-space: nowrap; cursor: pointer; }
+.alt-btn { background: none; border: 0; padding: 0; color: var(--acento); font: inherit; font-size: 13px; cursor: pointer; text-decoration: underline; }
+.alt { margin-top: 8px; width: 100%; }
+tfoot td { border-bottom: 0; font-weight: 600; }
+tfoot .sub { color: var(--suave); font-weight: 400; }
+
+/* móvil: cada línea como tarjeta */
+@media (max-width: 700px) {
+  thead { display: none; }
+  table, tbody, tr, td { display: block; width: 100%; }
+  tbody tr { border: 1px solid var(--linea); border-radius: 8px; padding: 10px 12px; margin-bottom: 10px; }
+  td { border: 0; padding: 4px 0; }
+  td.num { text-align: left; }
+  td[data-t]::before { content: attr(data-t) ": "; color: var(--suave); font-size: 13px; }
+  .precio { width: 100%; }
+  tfoot tr { display: flex; justify-content: space-between; }
+  tfoot td { width: auto; }
+}
+
+input, textarea, select { font: inherit; color: var(--tinta); background: var(--campo); border: 1px solid var(--linea); border-radius: 6px; padding: 8px 10px; }
+input:focus-visible, textarea:focus-visible, button:focus-visible { outline: 2px solid var(--acento); outline-offset: 1px; }
+input:disabled, textarea:disabled { opacity: .7; }
+.campos { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 14px; }
+.campos label > span { display: block; font-size: 13px; color: var(--suave); margin-bottom: 4px; }
+.campos label input, .campos label textarea { width: 100%; }
+.campos .ancho { grid-column: 1 / -1; }
+.portes-fila { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.portes-fila input[type=text] { width: 120px; }
+
+.archivos { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.archivo { display: inline-flex; gap: 6px; align-items: center; border: 1px solid var(--linea); border-radius: 999px; padding: 4px 6px 4px 12px; font-size: 13px; }
+.archivo a { color: var(--tinta); }
+.archivo button { border: 0; background: none; color: var(--suave); cursor: pointer; font-size: 15px; padding: 0 6px; }
+
+.acciones { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-top: 26px; padding-top: 18px; border-top: 1px solid var(--linea); }
+.acciones .esp { flex: 1; }
+button.prim { background: var(--acento); color: #fff; border: 0; border-radius: 8px; padding: 11px 20px; font: inherit; font-weight: 600; cursor: pointer; }
+@media (prefers-color-scheme: dark) { button.prim { color: #0e1a12; } }
+button.sec { background: none; border: 1px solid var(--linea); color: var(--tinta); border-radius: 8px; padding: 10px 16px; font: inherit; cursor: pointer; }
+button:disabled { opacity: .6; cursor: default; }
+.error { color: var(--error); margin: 10px 0 0; }
+.pie { color: var(--suave); font-size: 13px; margin-top: 18px; text-align: center; }
+.pie a { color: inherit; }
+.alt-caja { margin-top: 8px; }
+.alt-caja > span { display: block; font-size: 12px; color: var(--suave); }
+.alt-caja .alt { margin-top: 2px; }
+@media (max-width: 700px) {
+  td[data-t] { display: flex; align-items: center; gap: 8px; }
+  td[data-t]::before { flex: none; }
+  td[data-t] .precio { flex: 1; min-width: 0; width: auto; }
+  tfoot td .sub { margin-right: 8px; }
+  tfoot tr td:first-child { text-align: left; }
+}

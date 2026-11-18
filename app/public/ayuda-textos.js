@@ -443,6 +443,7 @@ window.S360_AYUDA = {
             'En <b>Peticiones de precio</b>, <b>📤 Enviar</b> a cada uno (o «Ya lo he enviado yo»).',
             'Cuando contesten, <b>✎ Apuntar oferta</b>: precio por línea, entrega, portes y su PDF.',
             'Compara, elige proveedor en cada línea (en verde lo más barato que llega a tiempo) y <b>🛒 Crear pedidos</b>.',
+            'El proveedor puede <b>responder en la plataforma</b>: el correo y el PDF llevan su enlace personal (o <b>🔗 Enlace</b> para mandarlo por WhatsApp). Pone sus precios, «No lo tengo» o una alternativa, y su oferta entra sola en el comparativo; te llega un aviso.',
           ],
         },
         {
@@ -583,5 +584,6 @@ window.S360_AYUDA = {
     { id: 7, fecha: '2026-11-18', si: ['compras', 'aprobar_compras', 'logistica'], titulo: 'Pedidos de compra', texto: 'Nuevo menú <b>Compras</b>: pedidos a proveedores con PDF, aprobación de Dirección por encima del límite y envío desde compras@. Los proveedores tienen su ficha.', ir: '/compras.html' },
     { id: 8, fecha: '2026-11-18', si: ['compras', 'aprobar_compras', 'logistica'], titulo: 'Pedir precio a proveedores', texto: 'Antes de pedir se puede <b>pedir precio</b> a varios proveedores, apuntar sus ofertas, compararlas línea a línea y crear los pedidos con esos precios.', ir: '/compras.html?vista=precios' },
     { id: 9, fecha: '2026-11-19', si: 'usuarios', titulo: 'Correo de salida en Ajustes', texto: 'La cuenta de correo desde la que salen pedidos y peticiones de precio se cambia ya desde <b>Compras › ⚙ Ajustes</b>, con botón para probarla.', ir: '/compras.html?vista=ajustes' },
+    { id: 10, fecha: '2026-11-19', si: ['compras', 'aprobar_compras'], titulo: 'Los proveedores ponen sus precios', texto: 'Las peticiones de precio llevan un <b>enlace para que el proveedor responda en la plataforma</b>: precio por línea, «No lo tengo», alternativas, entrega, portes y su PDF. Su oferta aparece sola en el comparativo.', ir: '/compras.html?vista=precios' },
   ],
 };
