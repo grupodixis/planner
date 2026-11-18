@@ -106,7 +106,7 @@
   /* ---------- Menú principal agrupado ---------- */
   // [href, texto, permiso(s) o null = todos, descripción]
   const GRUPOS = [
-    ['Planificación', [['/', 'Tablero', null, 'Planificar tareas en áreas y operarios'], ['/parte.html', 'Parte del día', 'planificar', 'Confirmar lo hecho cada día'],
+    ['Planificación', [['/', 'Tablero', null, 'Planificar tareas en áreas y operarios'], ['/parte.html', 'Supervisión de partes', 'planificar', 'Confirmar lo hecho cada día'],
       ['/bandeja.html', 'Bandeja', 'planificar', 'Capturas por clasificar'], ['/mi-dia.html', 'Mi día', 'mi_dia', 'Apuntar mi propio día']]],
     ['Proyectos', [['/proyectos.html', 'Proyectos y OTs', null, 'Partidas, OTs, tareas, escandallo e importación'],
       ['/logistica.html', 'Logística y compras', ['logistica', 'compras', 'escandallo'], 'Stock, pedidos y recepción de material']]],

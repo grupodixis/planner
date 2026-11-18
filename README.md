@@ -333,7 +333,7 @@ Mismas reglas en todas las pantallas (`app/src/avance.js`):
 ## Menú principal
 
 Agrupado (`comun.js › GRUPOS`), cada grupo con desplegable (al pasar el ratón o pulsar) y la suma de
-lo pendiente de sus pantallas: **Planificación** (Tablero, Parte del día, Bandeja, Mi día) ·
+lo pendiente de sus pantallas: **Planificación** (Tablero, Supervisión de partes, Bandeja, Mi día) ·
 **Proyectos** (Proyectos y OTs, Logística y compras) · **Recursos** (Operarios, máquinas y subcontratas,
 Áreas de trabajo, Capacidades, Usuarios y accesos) · **Informes**. Solo salen las pantallas que permite el rol; un grupo con una sola pantalla
 es un enlace directo. **＋ Capturar** va como botón junto al usuario.
