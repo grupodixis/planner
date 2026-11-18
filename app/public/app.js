@@ -36,6 +36,8 @@
   const fechaURL = params.get('fecha');
   const periodoURL = params.get('periodo');
   const estado = {
+    destacarOT: Number(params.get('ot')) || null,
+    destacarDesde: Date.now(),
     fecha: /^\d{4}-\d{2}-\d{2}$/.test(fechaURL || '') ? fechaURL : hoyISO(),
     periodo: PERIODOS.includes(periodoURL) ? periodoURL : (PERIODOS.includes(leerPref('periodo', '')) ? leerPref('periodo', '') : 'dia'),
     datos: null,
@@ -195,6 +197,7 @@
     const url = new URL(location.href);
     url.searchParams.set('fecha', estado.fecha);
     url.searchParams.set('periodo', estado.periodo);
+    url.searchParams.delete('ot');
     history.replaceState(null, '', url);
     // si lo seleccionado ya no existe (otro usuario lo quitó), se deselecciona
     if (estado.sel?.tipo === 'tramo' && !tramo(estado.sel.id)) estado.sel = null;
@@ -205,6 +208,29 @@
     pintarConflictos();
     pintarDetalle();
     aplicarFiltro();
+    destacarOT();
+  }
+
+  /* ---------- OT señalada al venir de «Ver en tablero» (Proyectos): recuadro que se apaga en 5 s ---------- */
+  const DESTACAR_MS = 5000;
+  const destacando = () => estado.destacarOT && Date.now() - estado.destacarDesde < DESTACAR_MS;
+  function destacarOT() {
+    if (!estado.destacarOT) return;
+    const pasado = Date.now() - estado.destacarDesde;
+    if (pasado >= DESTACAR_MS) { estado.destacarOT = null; return; }
+    const nodos = [...document.querySelectorAll(`[data-ot="${estado.destacarOT}"]`)];
+    for (const n of nodos) {
+      n.classList.add('destello');
+      n.style.animationDelay = `-${pasado}ms`; // si se repinta, sigue donde iba
+    }
+    if (!estado.destacarVisto && nodos.length) {
+      estado.destacarVisto = true;
+      // primero lo planificado en el calendario; si no hay, la OT en «Por planificar»
+      const enCal = nodos.find((n) => !n.classList.contains('ot-b'));
+      const ot = nodos.find((n) => n.classList.contains('ot-b'));
+      ot?.scrollIntoView({ block: 'center' });
+      enCal?.scrollIntoView({ block: 'center', inline: 'center' });
+    }
   }
 
   /* ---------- recursos (izquierda) ---------- */
@@ -591,7 +617,7 @@
     const b = el('div', {
       class: `bloque${confs.length ? ' conflicto' : ''}${sel ? ' sel' : ''}${hermano ? ' hermano' : ''}${t.estado === 'hecha' ? ' hecha' : ''}`,
       draggable: editar ? 'true' : 'false', tabindex: '0', role: 'button',
-      'data-tramo': tr.id,
+      'data-tramo': tr.id, 'data-ot': t.orden_id,
       'data-buscar': `${t.orden_codigo} ${t.orden_titulo} ${t.nombre} ${tr.asignados.map((r) => r.nombre).join(' ')} ${t.proyecto || ''}`.toLowerCase(),
       'aria-label': `${t.orden_codigo} ${t.nombre}${parte}, ${hhmm(tr.hora_inicio)} a ${hhmm(tr.hora_inicio + tr.duracion_h)}`,
       title: `${hhmm(tr.hora_inicio)}–${hhmm(tr.hora_inicio + tr.duracion_h)} · ${durTxt(tr.duracion_h)}`
@@ -878,7 +904,7 @@
     const b = el('div', {
       class: `bloque op${solapada ? ' conflicto' : ''}${sel ? ' sel' : ''}${r ? '' : ' sin-op'}`,
       draggable: editar ? 'true' : 'false', tabindex: '0', role: 'button',
-      'data-tramo': tr.id,
+      'data-tramo': tr.id, 'data-ot': t.orden_id,
       'data-buscar': `${t.orden_codigo} ${t.orden_titulo} ${t.nombre} ${r?.nombre || ''} ${area}`.toLowerCase(),
       title: `${t.orden_codigo} · ${t.nombre}\n${hhmm(ini)}–${hhmm(fin)} · ${durTxt(fin - ini)} · ${area}`
         + (editar ? (r ? '\nBordes: franja de este operario · Arrástrala a otra persona para cambiarla' : '\nArrástralo a una persona para asignarla') : ''),
@@ -1038,7 +1064,7 @@
     const editar = puedeEditar() && !bloqueado(tr);
     const c = el('div', {
       class: `chip-tr${confs.length ? ' conflicto' : ''}${sel ? ' sel' : ''}${hermano ? ' hermano' : ''}${t.estado === 'hecha' ? ' hecha' : ''}${r === undefined ? ' sin-op' : ''}`,
-      draggable: editar ? 'true' : 'false', tabindex: '0', role: 'button', 'data-tramo': tr.id,
+      draggable: editar ? 'true' : 'false', tabindex: '0', role: 'button', 'data-tramo': tr.id, 'data-ot': t.orden_id,
       'data-buscar': `${t.orden_codigo} ${t.orden_titulo} ${t.nombre} ${tr.asignados.map((x) => x.nombre).join(' ')} ${t.proyecto || ''} ${area}`.toLowerCase(),
       title: `${t.orden_codigo} · ${t.orden_titulo}\n${t.nombre} · ${hhmm(ini)}–${hhmm(fin)} · ${durTxt(fin - ini)}\n${area}${gente ? ` · ${gente}` : ' · sin operarios'}`
         + (confs.length ? `\n⚠ ${confs.map((x) => x.mensaje).join('\n⚠ ')}` : '')
@@ -1279,7 +1305,7 @@
     lista.replaceChildren(...[...proyectos].map(([pk, P]) => {
       const t0 = P.t0;
       const claveP = `p:${pk}`;
-      const abierto = !plegados.has(claveP) || tSel?.proyecto_id === (pk || null);
+      const abierto = !plegados.has(claveP) || tSel?.proyecto_id === (pk || null) || (destacando() && [...P.partidas.values()].some((A) => A.ots.has(estado.destacarOT)));
       const partidas = [...P.partidas.values()].sort((a, b) => (a.t0.partida_orden ?? 1e9) - (b.t0.partida_orden ?? 1e9));
       const conPartidas = partidas.some((a) => a.t0.partida_id);
       return el('section', { class: `proy${abierto ? '' : ' plegado'}` },
@@ -1305,14 +1331,14 @@
 
   function bloqueOT(o, tareas, solo, tSel) {
     const claveO = `o:${o.orden_id}`;
-    const abierta = !plegados.has(claveO) || tSel?.orden_id === o.orden_id;
+    const abierta = !plegados.has(claveO) || tSel?.orden_id === o.orden_id || (destacando() && o.orden_id === estado.destacarOT);
     const horas = tareas.reduce((s, t) => s + t.duracion_h, 0);
     const plan = tareas.reduce((s, t) => s + Math.min(t.duracion_h, t.horas_planificadas), 0);
     const pend = tareas.filter((t) => pendientes(t) > 0);
     const visibles = solo ? pend : tareas;
     const entrega = o.fecha_entrega ? ddmm(o.fecha_entrega) : null;
     const tarde = o.fecha_entrega && o.fecha_entrega < hoyISO();
-    return el('div', { class: `ot-b${abierta ? '' : ' plegada'}`, style: `--c:${o.orden_color}`, 'data-buscar': `${o.orden_codigo} ${o.orden_titulo} ${o.proyecto || ''} ${o.partida || ''}`.toLowerCase() },
+    return el('div', { class: `ot-b${abierta ? '' : ' plegada'}`, style: `--c:${o.orden_color}`, 'data-ot': o.orden_id, 'data-buscar': `${o.orden_codigo} ${o.orden_titulo} ${o.proyecto || ''} ${o.partida || ''}`.toLowerCase() },
       el('button', { type: 'button', class: 'ot-cab', 'aria-expanded': abierta ? 'true' : 'false', onclick: () => plegar(claveO), title: o.orden_titulo },
         el('span', { class: 'ot-l1' },
           el('span', { class: 'punto', 'aria-hidden': 'true' }),
@@ -1877,7 +1903,9 @@
     pintarOrdenes();
     pintarDetalle();
     aplicarFiltro();
+    destacarOT();
   }
+
 
   function aplicarFiltro() {
     const q = estado.filtro.trim().toLowerCase();

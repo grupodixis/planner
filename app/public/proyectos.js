@@ -355,7 +355,7 @@
     $('#ot-borrar').hidden = !editar;
     $('#form-tarea').hidden = !editar || o.estado === 'cerrada';
     const primeraFecha = o.lista_tareas.map((t) => t.primera_fecha).filter(Boolean).sort()[0];
-    $('#ot-tablero').href = primeraFecha ? `/?fecha=${primeraFecha}` : '/';
+    $('#ot-tablero').href = primeraFecha ? `/?fecha=${primeraFecha}&ot=${o.id}` : `/?ot=${o.id}`;
 
 
     const guardar = (k) => async (v) => {

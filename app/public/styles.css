@@ -2020,3 +2020,10 @@ dialog.dlg-req[open] { display: flex; }
 .log-tareas a:hover { text-decoration: underline; }
 .log-tareas.sin { font-style: italic; margin: 4px 0 2px; }
 #tareas-tbody tr.destacada td { background: var(--azul-bg); transition: background .6s; }
+/* OT señalada al llegar desde «Ver en tablero»: recuadro que se apaga en 5 s */
+.destello { animation: destello 5s ease-in forwards; position: relative; z-index: 3; }
+@keyframes destello {
+  0%, 15% { outline: 3px solid #ffd54a; outline-offset: 2px; box-shadow: 0 0 0 6px rgba(255, 213, 74, .35), 0 0 22px rgba(255, 213, 74, .55); }
+  100% { outline: 3px solid rgba(255, 213, 74, 0); outline-offset: 2px; box-shadow: 0 0 0 6px rgba(255, 213, 74, 0), 0 0 22px rgba(255, 213, 74, 0); }
+}
+@media (prefers-reduced-motion: reduce) { .destello { animation-timing-function: steps(1, end); } }
