@@ -82,7 +82,7 @@ asigna `PR-###` y `OT-####`.
 |---|---|---|---|
 | `ref_externa` | ● | texto ≤ 80 | |
 | `codigo` | ○ | texto ≤ 30 | Código visible (`P-2026-0061`). |
-| `nombre` | ● | texto ≤ 120 | |
+| `nombre` | ● | texto ≤ 120 | **Breve: ≤ 40** («Nave almacén Alaior»). El alcance va en `notas`. |
 | `cliente` | ○ | texto ≤ 120 | |
 | `obra` | ○ | texto ≤ 200 | Dirección. Da nombre al **área de obra** del proyecto (§5). |
 | `notas` | ○ | texto ≤ 4000 | |
@@ -96,7 +96,7 @@ asigna `PR-###` y `OT-####`.
 |---|---|---|---|
 | `ref_externa` | ● | texto ≤ 80 | |
 | `codigo` | ○ | texto ≤ 30 | `01`, `C4.001`… |
-| `nombre` | ● | texto ≤ 120 | |
+| `nombre` | ● | texto ≤ 120 | **Breve: ≤ 30** («Estructura metálica»). Pesos y mediciones, en `extra` o en la descripción de sus OTs. |
 | `materiales` | ○ **v2** | array de material | El **escandallo** de la partida (abajo). |
 | `enviar_a_logistica` | ○ **v2** | sí/no | `true` = el técnico ya lo ha revisado en el compositor: al importar se envía a logística (le llega un aviso para revisar stock). Por defecto `false`: el técnico lo revisa en el planificador y pulsa «Enviar a logística». |
 | `pvp` | ○ **v2** | número ≥ 0 | **Precio de venta** de la partida (€, sin IVA). Sirve para el **margen** en el control de costes. (Si no viene, se usa `extra.importe_eur`.) |
@@ -122,8 +122,8 @@ asigna `PR-###` y `OT-####`.
 | Campo | | Tipo | Notas |
 |---|---|---|---|
 | `ref_externa` | ● | texto ≤ 80 | |
-| `codigo` | ○ | texto ≤ 30 | Sin él → `OT-####`. |
-| `titulo` | ● | texto ≤ 120 | |
+| `codigo` | ○ | texto ≤ 30 | Referencia del compositor: el planificador numera las OTs solas (`61.03` = proyecto 61, 3.ª OT) y guarda esta como «código anterior». |
+| `titulo` | ● | texto ≤ 120 | **Breve: ≤ 35** («Ingeniería de detalle»). El detalle, en `descripcion`. |
 | `descripcion` | ○ | texto ≤ 4000 | |
 | `prioridad` | ○ | `urgente` \| `alta` \| `normal` \| `baja` | |
 | `fecha_entrega` | ○ | `AAAA-MM-DD` | |
@@ -136,7 +136,7 @@ asigna `PR-###` y `OT-####`.
 | Campo | | Tipo | Notas |
 |---|---|---|---|
 | `ref_externa` | ● | texto ≤ 80 | |
-| `nombre` | ● | texto ≤ 120 | |
+| `nombre` | ● | texto ≤ 120 | **Breve: ≤ 40, verbo + objeto** («Planos de taller y despiece»). Las listas y mediciones, en `notas`. Sin repetir lo que ya dice su OT. |
 | `horas` | ● | número > 0, ≤ 999, **múltiplo de 0,5** | **Duración** (horas de reloj), no horas-persona. |
 | `operarios` | ○ | entero 0–50 | Personas a la vez (por defecto 1). **Horas-persona = horas × operarios.** `0` si no lleva gente propia (lacado externo). |
 | `area` | ○ | texto ≤ 120 | Área concreta, por nombre (§5). Las máquinas fijas del área (sierra, plegadora, cabina…) van solas con la tarea. |
@@ -309,7 +309,8 @@ ninguna partida del archivo (o repetida en la misma tarea); `ref_externa` que ya
 
 **Avisos** (se puede importar): nombres que no existen (§5), desglose que no cuadra, material
 repartido de más, capacidad que pide más personas que `operarios`, herramienta que es un equipo,
-cantidad cambiada de algo ya revisado/pedido, fecha de entrega pasada, tarea sin operarios ni equipos.
+cantidad cambiada de algo ya revisado/pedido, fecha de entrega pasada, tarea sin operarios ni equipos,
+**nombres demasiado largos** (proyecto > 40, partida > 30, OT > 35, tarea > 40 caracteres).
 
 Cada error/aviso lleva la ruta, p. ej. `proyecto.partidas[0].ots[1].tareas[2].desglose: …`.
 
@@ -342,6 +343,13 @@ Respuesta (resumen):
 ```
 
 ## 9. Checklist para el compositor
+
+- [ ] **Nombres breves y concretos** (en el tablero se lee código + nombre): proyecto ≤ 40, partida ≤ 30,
+      OT ≤ 35, tarea ≤ 40 (verbo + objeto). Sin pesos, mediciones, alcance ni listas en el nombre: eso va
+      en `descripcion` / `notas`. Sin repetir en la tarea lo que dice su OT ni en la OT lo que dice su
+      partida. Ejemplos: ✗ «Estructura metálica principal y secundaria (36.987,92 kg)» → ✓ «Estructura
+      metálica»; ✗ «Planos de taller, despiece de pórticos y listas de corte» → ✓ «Planos de taller y
+      despiece» (+ notas: «27 pilares HEA, pórticos IPE 360…»). Si se pasan, la vista previa lo avisa.
 
 - [ ] `formato` = `"s360-import/2"`.
 - [ ] `ref_externa` **estable y única** en proyecto, partidas, materiales, OTs y tareas.

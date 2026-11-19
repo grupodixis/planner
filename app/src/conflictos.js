@@ -3,7 +3,17 @@
 // cada recurso con su franja efectiva (desde–hasta) dentro del tramo.
 const hhmm = (h) => `${String(Math.floor(h)).padStart(2, '0')}:${String(Math.round((h % 1) * 60)).padStart(2, '0')}`;
 const horas = (h) => `${String(Math.round(h * 100) / 100).replace('.', ',')}h`;
-const etiqueta = (t) => `${t.codigo || t.orden_codigo} ${String(t.nombre || '').toLowerCase()}${t.tramos?.length > 1 ? ` (tramo ${t.indice})` : ''}`;
+// nombre corto: lo justo para reconocer la tarea (el código ya dice de qué OT y proyecto es)
+const corto = (n, max = 26) => {
+  const s = String(n || '').trim();
+  if (s.length <= max) return s.toLowerCase();
+  const c = s.slice(0, max); return `${c.slice(0, c.lastIndexOf(' ') > 10 ? c.lastIndexOf(' ') : max).toLowerCase()}…`;
+};
+const etiqueta = (t, { nombre = true } = {}) => `${t.codigo || t.orden_codigo}${nombre ? ` ${corto(t.nombre)}` : ''}${t.tramos?.length > 1 ? ` (tramo ${t.indice})` : ''}`;
+// dos tramos de la misma tarea: «58.02.3 planos… tramos 2 y 3»; si no, las dos etiquetas
+const dosTramos = (a, b) => (a.tarea_id && a.tarea_id === b.tarea_id
+  ? `${a.codigo || a.orden_codigo} ${corto(a.nombre)} tramos ${Math.min(a.indice, b.indice)} y ${Math.max(a.indice, b.indice)}`
+  : `${etiqueta(a)} y ${etiqueta(b)}`);
 
 // fecha 'AAAA-MM-DD' + hora decimal → milisegundos (en UTC, solo para comparar)
 const instante = (fecha, h) => Date.parse(`${fecha}T00:00:00Z`) + h * 3600e3;
@@ -17,7 +27,7 @@ function dependencias(t, out) {
   // Dependencias: no empezar antes de que termine la tarea previa (+ espera de secado, curado…)
   for (const d of t.dependencias || []) {
     if (d.estado === 'hecha') continue;   // la previa ya está terminada (de verdad)
-    const previa = `${d.orden_codigo} ${String(d.nombre).toLowerCase()}`;
+    const previa = d.codigo ? `${d.codigo} ${corto(d.nombre, 22)}` : `${d.orden_codigo} ${corto(d.nombre, 22)}`;
     const espera = d.espera_h ? ` + ${horas(d.espera_h)} de espera` : '';
     if (!d.fin) {
       if (d.estado !== 'hecha') {
@@ -131,7 +141,7 @@ function calcularConflictos(tramos, jornada, tiposDisponibles = new Set(), exclu
         const a = usos[i], b = usos[j];
         if (b.desde < a.hasta) {
           out.push({ tipo: 'solape', ids: [a.t.id, b.t.id], recurso_id: r.id,
-            mensaje: `${r.nombre} solapado: ${etiqueta(a.t)} y ${etiqueta(b.t)} (${hhmm(b.desde)}–${hhmm(Math.min(a.hasta, b.hasta))})` });
+            mensaje: `${r.nombre} solapado: ${dosTramos(a.t, b.t)} (${hhmm(b.desde)}–${hhmm(Math.min(a.hasta, b.hasta))})` });
         }
       }
     }
@@ -151,7 +161,7 @@ function calcularConflictos(tramos, jornada, tiposDisponibles = new Set(), exclu
         if (b.hora_inicio >= a.hora_inicio + a.duracion_h) break;
         out.push({ tipo: 'puesto', ids: [a.id, b.id], linea_id: area, leve: true,
           libre: a.hora_inicio + a.duracion_h,
-          mensaje: `${exclusivas.get(area)}: ${etiqueta(a)} y ${etiqueta(b)} a la vez (${hhmm(b.hora_inicio)}–${hhmm(Math.min(a.hora_inicio + a.duracion_h, b.hora_inicio + b.duracion_h))})` });
+          mensaje: `${exclusivas.get(area)}: ${dosTramos(a, b)} a la vez (${hhmm(b.hora_inicio)}–${hhmm(Math.min(a.hora_inicio + a.duracion_h, b.hora_inicio + b.duracion_h))})` });
       }
     }
   }

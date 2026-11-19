@@ -211,6 +211,17 @@ async function importar(c, archivo, resoluciones, usuario, simular) {
   const avisos = [];
   const errores = [];
   const cambios = [];
+  // nombres breves: el detalle (pesos, mediciones, alcance) va en la descripción o las notas, no en el nombre
+  const LARGO = { proyecto: 40, partida: 30, ot: 35, tarea: 40 };
+  const largo = (ruta, nivel, nombre) => {
+    if (nombre && String(nombre).trim().length > LARGO[nivel]) {
+      avisos.push({ ruta, mensaje: `Nombre de ${nivel} largo (${String(nombre).trim().length} caracteres, mejor ≤ ${LARGO[nivel]}): «${String(nombre).trim()}». Lo que sobra va en la descripción o las notas.`, tipo: 'nombre_largo' });
+    }
+  };
+  largo('proyecto.nombre', 'proyecto', P.nombre);
+  for (const x of plano.partidas) largo(`${x.ruta}.nombre`, 'partida', x.d.nombre);
+  for (const x of plano.ots) largo(`${x.ruta}.titulo`, 'ot', x.d.titulo);
+  for (const x of plano.tareas) largo(`${x.ruta}.nombre`, 'tarea', x.d.nombre);
   const cuenta = () => ({ crear: 0, actualizar: 0, igual: 0, borrar: 0, baja: 0 });
   const resumen = { partidas: cuenta(), ots: cuenta(), tareas: cuenta(), materiales: cuenta(), condiciones: { crear: 0, quitar: 0 }, dependencias: 0,
     asignaciones_material: 0, herramientas: 0, capacidades: 0, equipos: 0, desgloses: 0, a_logistica: 0 };

@@ -718,6 +718,11 @@ OT (el del compositor, `OT-0058-ING`, o `OT-1568`) queda en `ordenes.codigo_anti
 puede buscar en el tablero; al reimportar, el código del compositor ya no pisa el nuevo. Las OTs sin proyecto conservan
 `OT-NNNN`. En el tablero, cada tarea sale con su código y nombre (grande) y debajo OT, partida, obra y cliente.
 
+**Nombres breves**: el importador avisa (`nombre_largo`) si proyecto > 40, partida > 30, OT > 35 o tarea > 40
+caracteres (el detalle va en descripción/notas). En el tablero, los avisos citan la tarea por su código y un nombre
+corto (y dentro del detalle de la tarea, sin repetirla); cliente sin forma jurídica y obra = localidad (completo al
+pasar el ratón).
+
 ## Marca
 
 **Planéalo**: monograma (barra vertical y tres barras de tareas, la del medio naranja) en `public/logo.svg` (también

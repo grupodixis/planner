@@ -594,13 +594,28 @@
   }
 
   // icono 🧰 con el estado del material; «fecha» = día del tramo (si llega después, en rojo)
+  // abreviar sin perder claridad: cliente sin la forma jurídica; obra = la localidad (o la primera parte)
+  const capital = (x) => (x === x.toUpperCase() ? x.toLowerCase().replace(/(^|[\s'(-])(\p{L})/gu, (m, a, b) => a + b.toUpperCase()) : x);
+  function clienteCorto(c) {
+    if (!c) return '';
+    const s = c.replace(/[,.\s]+(s\.?\s?l\.?\s?u?\.?|s\.?\s?a\.?\s?u?\.?|s\.?\s?c\.?\s?p\.?|c\.?\s?b\.?|sociedad limitada.*|slu|sl|sa)\s*$/i, '').trim();
+    return capital(s);
+  }
+  function obraCorta(o) {
+    if (!o) return '';
+    const partes = o.split(/,|\(/).map((x) => x.trim()).filter(Boolean);
+    const cp = partes.find((x) => /^\d{5}\s+\S/.test(x));
+    if (cp) return cp.replace(/^\d{5}\s+/, '');
+    return partes[0].length > 30 ? `${partes[0].slice(0, 28)}…` : partes[0];
+  }
+  const recorta = (x, max) => (!x || x.length <= max ? x || '' : `${x.slice(0, max).replace(/\s+\S*$/, '')}…`);
   // código de la tarea (61.03.2) como etiqueta del color de su OT
   const codTarea = (t) => (t.codigo ? el('span', { class: 'cod-chip' }, t.codigo) : el('span', { class: 'cod-chip' }, t.orden_codigo));
   // contexto en pequeño: OT, partida, obra y cliente
   function contextoTarea(t, { corto = false } = {}) {
     const partes = [
       t.partida ? `${t.partida_codigo ? `${t.partida_codigo} ` : ''}${t.partida}` : null,
-      t.obra || null, corto ? null : t.cliente || null,
+      obraCorta(t.obra) || null, corto ? null : clienteCorto(t.cliente) || null,
     ].filter(Boolean);
     return [el('b', {}, `OT ${t.orden_codigo}`), ` ${t.orden_titulo}`, ...partes.flatMap((x) => [el('span', { class: 'sep' }, '·'), x])];
   }
@@ -1475,16 +1490,19 @@
 
     // Cabecera: de qué proyecto y partida es, y la OT
     dlg.style.setProperty('--c', t.orden_color);
+    // cabecera breve: proyecto › partida (lo completo, al pasar el ratón)
     $('#det-migas').replaceChildren(
-      t.proyecto ? el('span', { title: [t.cliente, t.obra].filter(Boolean).join(' · ') }, el('b', {}, t.proyecto), ` ${t.proyecto_nombre || ''}`) : el('span', {}, 'Sin proyecto'),
+      t.proyecto ? el('span', { title: `${t.proyecto} ${t.proyecto_nombre || ''}\n${[t.cliente, t.obra].filter(Boolean).join('\n')}` },
+        el('b', {}, t.proyecto), ` ${recorta(t.proyecto_nombre || '', 34)}`) : el('span', {}, 'Sin proyecto'),
       t.partida ? el('span', { class: 'sep' }, ' › ') : null,
-      t.partida ? el('span', {}, `${t.partida_codigo ? t.partida_codigo + ' · ' : ''}${t.partida}`) : null);
+      t.partida ? el('span', { title: t.partida }, `${t.partida_codigo ? t.partida_codigo + ' ' : ''}${recorta(t.partida, 30)}`) : null);
     $('#det-tit').replaceChildren(el('span', { class: 'punto', 'aria-hidden': 'true' }), `${t.orden_codigo} · ${t.orden_titulo}`);
     $('#det-meta').textContent = [
       { 1: 'Urgente', 2: 'Prioridad alta', 3: null, 4: 'Prioridad baja' }[t.prioridad],
       t.fecha_entrega && `entrega ${fechaCorta(t.fecha_entrega)}`,
-      [t.cliente, t.obra].filter(Boolean).join(' · ') || null,
+      clienteCorto(t.cliente) || null, obraCorta(t.obra) || null,
     ].filter(Boolean).join(' · ');
+    $('#det-meta').title = [t.cliente, t.obra].filter(Boolean).join('\n');
 
     const sit = estado.datos.situaciones?.[t.orden_id];
     const guardarExt = (cuerpo) => accion(async () => { await api('PATCH', `/api/tareas/${t.id}`, cuerpo); return 'Guardado'; });
@@ -1521,7 +1539,7 @@
       t.dependencias?.length ? el('dd', {}, el('ul', { class: 'deps' }, t.dependencias.map((d) => {
         const terminada = d.fin && d.planificadas >= d.duracion_h;
         const libre = d.fin ? `${fechaCorta(d.fin.fecha)} ${hhmm(d.fin.hora)}` : null;
-        return el('li', {}, `${d.orden_codigo} ${d.nombre}`,
+        return el('li', { title: d.nombre }, d.codigo ? el('span', { class: 'cod-chip' }, d.codigo) : `${d.orden_codigo} `, ` ${recorta(d.nombre, 34)}`,
           d.espera_h ? el('span', { class: 'ayuda' }, ` · +${durTxt(d.espera_h)} de espera`) : null,
           el('span', { class: d.estado === 'hecha' || terminada ? 'dep-ok' : 'dep-pend' },
             d.estado === 'hecha' ? ' · hecha' : !d.fin ? ' · sin planificar' : terminada ? ` · acaba ${libre}` : ` · planificada en parte (hasta ${libre})`));
@@ -1836,6 +1854,20 @@
   }
 
   // Avisos de un tramo, cada uno con su «Solucionar»
+  // dentro del detalle de una tarea, sus avisos no repiten su código y nombre: «1/2 operarios asignados»
+  const cortoN = (n, max = 26) => {
+    const x = String(n || '').trim();
+    if (x.length <= max) return x.toLowerCase();
+    const c = x.slice(0, max); return `${c.slice(0, c.lastIndexOf(' ') > 10 ? c.lastIndexOf(' ') : max).toLowerCase()}…`;
+  };
+  function avisoSinTarea(m, t) {
+    const pre = `${t.codigo || t.orden_codigo} ${cortoN(t.nombre)}`;
+    if (!m.startsWith(pre)) return m;
+    let r = m.slice(pre.length).replace(/^ \(tramo \d+\)/, '');
+    r = r.replace(/^:\s*/, '').replace(/^\s+/, '');
+    return r ? r[0].toUpperCase() + r.slice(1) : m;
+  }
+
   function listaAvisos(tr, t) {
     const lista = conflictosDe(tr.id);
     if (!lista.length) return el('span', { class: 'dep-ok' }, 'ninguno');
@@ -1844,7 +1876,7 @@
       const abierto = estado.solucion === k;
       return el('li', { class: c.leve ? 'leve' : '' },
         el('div', { class: 'aviso-l' },
-          el('span', {}, c.mensaje.replace(/^OT-\S+ [^:]*?(:| requiere| empieza| termina| va después| solapado)/i, (m, g) => g === ':' ? '' : g.trim()) ),
+          el('span', {}, avisoSinTarea(c.mensaje, t)),
           puedeEditar() && tieneSolucion(c) ? el('button', {
             type: 'button', class: `ghost mini${abierto ? ' activo' : ''}`, 'aria-expanded': abierto ? 'true' : 'false',
             onclick: () => { estado.solucion = abierto ? null : k; pintarDetalle(); },

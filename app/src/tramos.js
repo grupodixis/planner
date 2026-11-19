@@ -93,7 +93,7 @@ const SQL_TAREAS = `
                     WHERE x.tarea_id = t.id), 0)::float AS horas_persona,
          -- tareas que deben ir antes, con el final de su último tramo
          COALESCE((SELECT json_agg(json_build_object(
-                     'id', p2.id, 'nombre', p2.nombre, 'orden_codigo', o2.codigo, 'espera_h', d.espera_h, 'estado', p2.estado,
+                     'id', p2.id, 'nombre', p2.nombre, 'codigo', p2.codigo, 'orden_codigo', o2.codigo, 'espera_h', d.espera_h, 'estado', p2.estado,
                      'proveedor', (SELECT nombre FROM proveedores WHERE id = p2.proveedor_id),
                      'duracion_h', p2.duracion_h,
                      'planificadas', (SELECT COALESCE(sum(x.duracion_h), 0) FROM tramos x WHERE x.tarea_id = p2.id),
@@ -276,11 +276,11 @@ module.exports = function montar(app, asyncH) {
       if (tarde.length) {
         const ult = tarde.reduce((a2, m) => (m.fecha_prevista > a2 ? m.fecha_prevista : a2), tarde[0].fecha_prevista);
         conflictos.push({ tipo: 'material', ids: [tr.id], fecha: tr.fecha,
-          mensaje: `${t.orden_codigo} ${t.nombre}: el material llega el ${dm(ult)} (${corta(tarde)})` });
+          mensaje: `${t.codigo || t.orden_codigo} ${t.nombre}: el material llega el ${dm(ult)} (${corta(tarde)})` });
       }
       if (sinPedir.length) {
         conflictos.push({ tipo: 'material', ids: [tr.id], fecha: tr.fecha, leve: true,
-          mensaje: `${t.orden_codigo} ${t.nombre}: falta material sin pedir (${corta(sinPedir)})` });
+          mensaje: `${t.codigo || t.orden_codigo} ${t.nombre}: falta material sin pedir (${corta(sinPedir)})` });
       }
     }
 
