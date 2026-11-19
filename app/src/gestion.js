@@ -44,10 +44,10 @@ async function siguienteCodigo(prefijo) {
 module.exports = function montar(app, asyncH) {
   /* ---------- Catálogo para formularios ---------- */
   app.get('/api/catalogo', asyncH(async (req, res) => {
-    const [areas, recursos, tipos, departamentos, capacidades] = await Promise.all([
-      query(`SELECT l.id, l.nombre, l.tipo, l.proyecto_id, l.departamento_id, d.nombre AS departamento
+    const [areas, recursos, tipos, departamentos, talleres, capacidades] = await Promise.all([
+      query(`SELECT l.id, l.nombre, l.tipo, l.proyecto_id, l.departamento_id, d.nombre AS departamento, l.proveedor_id
                FROM lineas l LEFT JOIN proyectos p ON p.id = l.proyecto_id LEFT JOIN departamentos d ON d.id = l.departamento_id
-              WHERE l.activo AND (l.tipo <> 'obra' OR p.estado = 'activo')
+              WHERE l.activo AND (l.tipo <> 'obra' OR p.estado = 'activo') AND l.tipo <> 'externo'
               ORDER BY (l.tipo = 'obra'), d.orden NULLS LAST, l.orden, l.nombre`),
       query('SELECT id, tipo, nombre FROM recursos WHERE activo ORDER BY tipo, nombre'),
       query(`SELECT t.id, t.clase, t.nombre, t.familia, t.uso,
@@ -55,13 +55,14 @@ module.exports = function montar(app, asyncH) {
                       WHERE rt.tipo_recurso_id = t.id) AS recursos
                FROM tipos_recurso t ORDER BY t.clase, t.familia NULLS LAST, lower(t.nombre)`),
       query('SELECT id, clave, nombre FROM departamentos ORDER BY orden, nombre'),
+      query('SELECT id, nombre FROM proveedores WHERE activo ORDER BY lower(nombre)'),
       query(`SELECT k.id, k.familia, k.nombre,
                     (SELECT count(*)::int FROM recurso_capacidades rc JOIN recursos r ON r.id = rc.recurso_id AND r.activo
                       WHERE rc.capacidad_id = k.id AND rc.estado = 'validada') AS personas
                FROM capacidades k ORDER BY k.orden, lower(k.nombre)`),
     ]);
     res.json({ areas: areas.rows, recursos: recursos.rows, tipos: tipos.rows, departamentos: departamentos.rows,
-      capacidades: capacidades.rows, colores: COLORES });
+      talleres: talleres.rows, capacidades: capacidades.rows, colores: COLORES });
   }));
 
   /* ---------- Proyectos ---------- */
@@ -322,7 +323,8 @@ module.exports = function montar(app, asyncH) {
       `${SQL_RESUMEN_OT} ${cond.length ? 'WHERE ' + cond.join(' AND ') : ''}
        ORDER BY pa.orden NULLS LAST, pa.id, (o.estado = 'abierta') DESC, o.prioridad, o.fecha_entrega NULLS LAST, o.codigo`, vals);
     const av = await avance.resumen({ ordenIds: rows.map((o) => o.id) });
-    for (const o of rows) o.avance = av.ordenes[o.id] || null;
+    const sit = await require('./externos').situaciones(rows.map((o) => o.id));
+    for (const o of rows) { o.avance = av.ordenes[o.id] || null; o.situacion = sit.get(o.id) || null; }
     res.json(rows);
   }));
 
@@ -332,6 +334,7 @@ module.exports = function montar(app, asyncH) {
     if (!rows.length) throw fallo(404, 'OT no encontrada');
     const tareas = await query(
       `SELECT t.id, t.nombre, t.duracion_h, t.operarios_req, t.linea_id, t.estado, t.orden_en_of,
+              t.proveedor_id, (SELECT nombre FROM proveedores WHERE id = t.proveedor_id) AS proveedor, t.ext_avance, t.ext_nota,
               COALESCE((SELECT sum(x.duracion_h) FROM tramos x WHERE x.tarea_id = t.id), 0)::float AS horas_planificadas,
               (SELECT count(*)::int FROM tramos x WHERE x.tarea_id = t.id) AS n_tramos,
               COALESCE((SELECT sum(COALESCE(a.hasta, x.hora_inicio + x.duracion_h) - COALESCE(a.desde, x.hora_inicio))
@@ -355,7 +358,8 @@ module.exports = function montar(app, asyncH) {
          FROM tareas t WHERE t.orden_id = $1 ORDER BY t.orden_en_of, t.id`, [id]);
     const av = await avance.resumen({ ordenIds: [id] });
     for (const t of tareas.rows) t.avance = av.tareas[t.id] || null;
-    res.json({ ...rows[0], avance: av.ordenes[id] || null, lista_tareas: tareas.rows });
+    const sit = (await require('./externos').situaciones([id])).get(id) || null;
+    res.json({ ...rows[0], avance: av.ordenes[id] || null, situacion: sit, lista_tareas: tareas.rows });
   }));
 
   async function comprobarPartida(partidaId, proyectoId) {

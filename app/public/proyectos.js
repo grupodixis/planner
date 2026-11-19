@@ -318,6 +318,7 @@
           o.estado === 'cerrada' ? 'cerrada' : null,
         ].filter(Boolean).join(' · ')),
         o.avance?.tareas ? el('span', { class: 'item-sub' }, window.s360.chipAvance(o.avance)) : null,
+        o.estado !== 'cerrada' ? situacionOT(o.situacion, true) : null,
         o.baja_presupuesto ? el('span', { class: 'item-sub baja-txt' }, 'Ya no está en el presupuesto (se conserva por tener planificación)') : null,
         o.tareas ? el('span', { class: 'barra', title: `${o.horas_planificadas}h planificadas de ${o.horas}h · ${o.hechas} de ${o.tareas} tareas hechas` },
           el('span', { class: 'b-plan', style: `width:${o.horas ? (o.horas_planificadas / o.horas) * 100 : 0}%` }),
@@ -395,6 +396,9 @@
         + (o.horas_planificadas > horas ? ` (+${Math.round(((o.horas_planificadas - horas) / horas) * 100)}%)` : '')
         + (o.hp_estimadas ? ` · ${durTxt(+o.hp_planificadas.toFixed(1))} de ${durTxt(o.hp_estimadas)} horas-persona` : '')
         + ` · ${o.hechas} hechas · ` : '', window.s360.chipAvance(o.avance) || '');
+    let caja = $('#ot-situacion');
+    if (!caja) { caja = el('div', { id: 'ot-situacion' }); $('#ot-resumen').parentElement.after(caja); }
+    caja.replaceChildren(situacionOT(o.situacion) || '');
     pintarTareas();
   }
 
@@ -690,9 +694,17 @@
           onchange: (ev) => patch(t, { operarios_req: Number(ev.target.value) }),
         })),
         el('td', {}, el('select', {
-          'aria-label': 'Área por defecto', disabled: !editar,
-          onchange: (ev) => patch(t, { linea_id: ev.target.value ? Number(ev.target.value) : null }),
-        }, Object.entries(areas).map(([v, n]) => el('option', { value: v, selected: String(t.linea_id ?? '') === v }, n)))),
+          'aria-label': 'Dónde se hace: área o taller externo', disabled: !editar, class: t.proveedor_id ? 'sel-externo' : null,
+          title: t.proveedor_id ? `La hace un taller externo: ${t.proveedor}` : 'Área donde se hace (o un taller externo)',
+          onchange: (ev) => {
+            const v = ev.target.value;
+            patch(t, v.startsWith('p') ? { proveedor_id: Number(v.slice(1)) } : { linea_id: v ? Number(v) : null });
+          },
+        },
+        Object.entries(areas).map(([v, n]) => el('option', { value: v, selected: !t.proveedor_id && String(t.linea_id ?? '') === v }, n)),
+        (estado.catalogo.talleres || []).length ? el('optgroup', { label: 'Taller externo (lo hace un proveedor)' },
+          estado.catalogo.talleres.map((pv) => el('option', { value: `p${pv.id}`, selected: t.proveedor_id === pv.id }, `🏭 ${pv.nombre}`))) : null),
+        t.proveedor_id ? extTarea(t, editar, patch) : null),
         el('td', {}, req),
         el('td', { class: 'est' }, el('span', { class: `est-${clasePlan}` }, etiquetaPlan), plan ? el('br') : null, plan, realTarea(t)),
         el('td', {}, editar ? el('button', {
@@ -707,6 +719,30 @@
         }, '✕') : ''),
       );
     }));
+  }
+
+  // Tarea de un taller externo: cómo va fuera (avance y nota) — lo pone la oficina; más adelante, el propio taller
+  function extTarea(t, editar, patch) {
+    return el('div', { class: 'ext-tarea' },
+      el('label', {}, el('span', {}, 'Avance'),
+        el('input', { type: 'number', min: 0, max: 100, step: 5, value: t.ext_avance ?? '', placeholder: '%', disabled: !editar, 'aria-label': 'Avance en el taller externo (%)',
+          onchange: (ev) => patch(t, { ext_avance: ev.target.value === '' ? null : Number(ev.target.value) }) }), '%'),
+      el('input', { class: 'ext-nota', value: t.ext_nota || '', maxlength: 300, placeholder: 'cómo va (p. ej. «esperando chapa»)', disabled: !editar, 'aria-label': 'Nota del taller externo',
+        onchange: (ev) => patch(t, { ext_nota: ev.target.value }) }));
+  }
+
+  // Situación del producto: dónde está la OT cuando está fuera
+  function situacionOT(sit, compacta) {
+    if (!sit) return null;
+    const ico = { fuera: '🏭', listo: '🏭', pendiente: '⏳', vuelto: '✔' }[sit.nivel] || '🏭';
+    if (compacta) return el('span', { class: `item-sub sit-ot sit-${sit.nivel}` }, `${ico} ${sit.texto}`);
+    return el('div', { class: `sit-ot-caja sit-${sit.nivel}` },
+      el('div', {}, el('b', {}, '📍 Situación del producto: '), sit.texto),
+      el('ol', { class: 'sit-pasos' }, sit.pasos.map((x) => el('li', { class: x.estado },
+        el('span', { class: 'sit-p-ico', 'aria-hidden': 'true' }, x.estado === 'hecha' ? '✔' : x.estado === 'en_curso' ? '●' : '○'),
+        `${x.nombre} · ${x.proveedor}`,
+        x.estado === 'en_curso' && x.avance != null ? ` · ${x.avance} %` : '',
+        x.desde ? el('small', {}, ` ${x.desde === x.hasta ? fechaCorta(x.desde).slice(0, 5) : `${fechaCorta(x.desde).slice(0, 5)}→${fechaCorta(x.hasta).slice(0, 5)}`}`) : el('small', {}, ' sin planificar')))));
   }
 
   // Horas reales de la tarea y su rendimiento (hecha) o lo que lleva (en curso)

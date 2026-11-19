@@ -547,7 +547,6 @@
   /* ================= General ================= */
   function pintar() {
     for (const b of document.querySelectorAll('.llv-tab')) b.setAttribute('aria-selected', String(b.dataset.vista === estado.vista));
-    if (estado.vista === 'fabricacion') return window.s360Fab.pintar($('#panel-compras'));
     const f = { pedidos: pintarPedidos, precios: pintarSolicitudes, proveedores: pintarProveedores, ajustes: pintarAjustes }[estado.vista] || pintarPedidos;
     return f().catch((e) => toast(e.message, true));
   }
@@ -559,11 +558,10 @@
     $('#tab-ajustes').hidden = !(tiene('aprobar_compras') || tiene('usuarios'));
     $('#tab-pedidos').hidden = !(tiene('compras') || tiene('aprobar_compras') || tiene('logistica'));
     $('#tab-precios').hidden = $('#tab-pedidos').hidden;
-    $('#tab-fabricacion').hidden = !['compras', 'proyectos', 'planificar', 'logistica', 'aprobar_compras'].some(tiene);
-    if ($('#tab-pedidos').hidden && estado.vista === 'pedidos') estado.vista = $('#tab-fabricacion').hidden ? 'proveedores' : 'fabricacion';
+    if ($('#tab-pedidos').hidden && estado.vista === 'pedidos') estado.vista = 'proveedores';
     for (const b of document.querySelectorAll('.llv-tab')) b.addEventListener('click', () => { estado.vista = b.dataset.vista; guardarURL(); pintar(); });
     try { estado.ajustes = await api('GET', '/api/compras/ajustes'); } catch { /* sin permiso: no hace falta */ }
-    window.s360.alCambiar(() => { if (!document.querySelector('dialog[open]') && !document.activeElement?.closest('.cmp-detalle, .fab-ficha')) pintar(); });
+    window.s360.alCambiar(() => { if (!document.querySelector('dialog[open]') && !document.activeElement?.closest('.cmp-detalle')) pintar(); });
     pintar();
   }
 

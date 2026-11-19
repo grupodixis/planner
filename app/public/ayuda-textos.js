@@ -40,6 +40,7 @@ window.S360_AYUDA = {
         },
       ],
       secciones: [
+        { titulo: '🏭 Talleres externos', texto: 'Al final del tablero, el bloque <b>Talleres externos</b>: una fila por taller de fuera mientras tenga tareas activas (como las obras). Sus tareas se planifican ahí, arrastrándolas, y no ocupan a nadie de aquí (sin avisos de operarios ni jornada). Si el montaje está planificado antes de que termine lo de fuera, sale un aviso en rojo. Al pulsar una tarea ves la <b>📍 situación</b> de la OT y puedes poner su avance.' },
         {
           titulo: 'Planificar una tarea', si: 'planificar',
           pasos: [
@@ -150,6 +151,7 @@ window.S360_AYUDA = {
         },
       ],
       secciones: [
+        { titulo: '🏭 Tareas que hace un taller de fuera', texto: 'En la columna <b>Área / taller</b> de la tarea, elige el taller externo (Ferros Puig, la carpintería de aluminio, la galvanizadora, el transporte…). No hay etapas fijas: las etapas son las tareas de la OT, en su orden (con «después de…»). Debajo pones el <b>avance</b> y <b>cómo va</b>. Arriba de las tareas, la <b>📍 situación del producto</b>: dónde está ahora, hasta cuándo y lo que queda fuera.' },
         {
           titulo: 'Importar del compositor', si: 'proyectos',
           pasos: [
@@ -451,17 +453,6 @@ window.S360_AYUDA = {
           pasos: ['Te llega un aviso con el pedido.', 'Revisa líneas, precios y total.', '<b>✔ Aprobar</b> o <b>✗ No aprobar</b> con el motivo (vuelve a borrador).'],
         },
         { titulo: 'El límite y los datos del PDF', texto: 'En <b>⚙ Ajustes</b>: a partir de qué importe aprueba Dirección, los datos de la empresa y las condiciones al pie del pedido.' },
-        {
-          titulo: '🏗 Fabricación externa (talleres de fuera)', si: ['compras', 'proyectos', 'planificar', 'logistica', 'aprobar_compras'],
-          pasos: [
-            'Pestaña <b>🏗 Fabricación externa</b> › <b>＋ Pedido de fabricación</b>: el taller (p. ej. Ferros Puig), el proyecto, los planos y el <b>recorrido</b> (fabricación → galvanizado → pintura → transporte Ydica).',
-            'Divide el pedido en <b>partes</b> si van a llegar por separado (o déjalo en una) y une cada parte a su <b>tarea de montaje</b>.',
-            'En la ficha, <b>🔗 Copiar enlace</b> o <b>✉ Por correo</b> para el taller y para la galvanizadora: cada uno ve los planos y marca <b>solo sus etapas</b> (avance, fecha prevista, fotos, «entregado a Ydica»).',
-            'En <b>Dónde está cada cosa</b> ves cada parte en su columna; en rojo lo que llegará después de su montaje.',
-            'Cuando llega a Menorca, <b>✔ Recibido</b> (en la ficha o eligiendo varias partes).',
-          ],
-        },
-        { titulo: 'Fabricación externa en el tablero', texto: 'Las tareas de montaje llevan <b>🏭 dd/mm</b> (cuándo llegan sus piezas; en rojo si llegan ese día o después, con «Solucionar» para moverlas). En las vistas Semana y Mes, la franja <b>🏭 Fabricación externa</b> muestra cada pieza por etapas hasta el 📦 de llegada, <b>por pieza</b> o <b>por taller</b>. Los recorridos se cambian en <b>⚙ Recorridos</b>.' },
         { titulo: 'El correo de salida', si: 'usuarios', texto: 'En <b>⚙ Ajustes › Correo de salida</b>: servidor, cuenta y contraseña de compras@ (IONOS: smtp.ionos.es, 587, STARTTLS). La contraseña se guarda cifrada y no se vuelve a mostrar; para cambiarla, escribe la nueva y <b>Guardar</b>. <b>Probar conexión</b> comprueba que entra.' },
       ],
     },
@@ -596,7 +587,7 @@ window.S360_AYUDA = {
     { id: 8, fecha: '2026-11-18', si: ['compras', 'aprobar_compras', 'logistica'], titulo: 'Pedir precio a proveedores', texto: 'Antes de pedir se puede <b>pedir precio</b> a varios proveedores, apuntar sus ofertas, compararlas línea a línea y crear los pedidos con esos precios.', ir: '/compras.html?vista=precios' },
     { id: 9, fecha: '2026-11-19', si: 'usuarios', titulo: 'Correo de salida en Ajustes', texto: 'La cuenta de correo desde la que salen pedidos y peticiones de precio se cambia ya desde <b>Compras › ⚙ Ajustes</b>, con botón para probarla.', ir: '/compras.html?vista=ajustes' },
     { id: 10, fecha: '2026-11-19', si: ['compras', 'aprobar_compras'], titulo: 'Los proveedores ponen sus precios', texto: 'Las peticiones de precio llevan un <b>enlace para que el proveedor responda en la plataforma</b>: precio por línea, «No lo tengo», alternativas, entrega, portes y su PDF. Su oferta aparece sola en el comparativo.', ir: '/compras.html?vista=precios' },
-    { id: 11, fecha: '2026-11-19', si: ['compras', 'proyectos', 'planificar', 'logistica', 'aprobar_compras'], titulo: 'Fabricación externa', texto: 'Nuevo en <b>Compras › 🏗 Fabricación externa</b>: pedidos a talleres de fuera con sus planos, seguidos por partes y etapas (fabricación, galvanizado, pintura, transporte). El taller y la galvanizadora actualizan su parte desde su enlace, y el tablero avisa si una pieza llega después de su montaje.', ir: '/compras.html?vista=fabricacion' },
     { id: 12, fecha: '2026-11-19', titulo: 'La ayuda, en voz alta', texto: 'En el panel <b>?</b>, <b>🔊 Escuchar</b> lee la ayuda de la pantalla (con pausa, velocidad y voz). En los recorridos, el botón <b>🔇/🔊</b> de la burbuja lee cada paso al avanzar.' },
+    { id: 13, fecha: '2026-11-19', si: ['planificar', 'proyectos'], titulo: 'Talleres externos', texto: 'Una tarea de una OT la puede hacer un <b>taller de fuera</b>: elígelo en <b>Área / taller</b>. El taller sale en el tablero, en <b>Talleres externos</b>, mientras tenga tareas activas, y la OT muestra la <b>📍 situación del producto</b> (dónde está y hasta cuándo).', ir: '/proyectos.html' },
   ],
 };

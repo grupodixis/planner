@@ -26,7 +26,6 @@ app.get('/health', (req, res) => res.json({ ok: true, version: VERSION }));
 
 require('./pin').publico(app, asyncH);   // entrar con PIN desde un dispositivo autorizado (sin sesión)
 require('./ofertas-portal').montar(app, asyncH);   // el proveedor responde la petición de precio (enlace sin sesión)
-require('./fabricacion').montarPublico(app, asyncH);   // el taller / la galvanizadora actualizan el avance (enlace sin sesión)
 require('./usuarios')(app, asyncH);   // entrar, recuperar contraseña, Mi cuenta, usuarios y roles
 require('./pin').gestion(app, asyncH);   // PIN de operarios y dispositivos autorizados
 require('./archivos').montar(app, asyncH);   // fotos y documentos (justificantes, incidencias)
@@ -58,7 +57,6 @@ require('./informes').montar(app, asyncH);   // informes de horas y costes
 require('./costes').montar(app, asyncH);   // control de costes y tiempos por proyecto
 require('./compras').montar(app, asyncH);   // proveedores y pedidos de compra
 require('./solicitudes').montar(app, asyncH);   // peticiones de precio a proveedores
-require('./fabricacion').montar(app, asyncH);   // fabricación externa: pedidos a talleres y su seguimiento
 require('./ausencias').montar(app, asyncH);   // vacaciones, bajas, averías y festivos
 
 /* ---------- Áreas de trabajo ---------- */
@@ -188,6 +186,15 @@ app.patch('/api/tareas/:id', auth.permiso('planificar', 'proyectos'), asyncH(asy
   const mal = (msg) => res.status(400).json({ error: msg });
 
   if ('linea_id' in b) cambios.linea_id = b.linea_id ? Number(b.linea_id) : null;
+  // taller externo: proveedor_id (o elegir su área). Avance y nota de cómo va fuera.
+  if ('proveedor_id' in b) cambios.proveedor_id = b.proveedor_id ? Number(b.proveedor_id) : null;
+  if ('ext_avance' in b) {
+    const a = b.ext_avance === '' || b.ext_avance == null ? null : Math.round(Number(b.ext_avance));
+    if (a != null && !(a >= 0 && a <= 100)) return mal('Avance entre 0 y 100');
+    cambios.ext_avance = a;
+  }
+  if ('ext_nota' in b) cambios.ext_nota = String(b.ext_nota ?? '').trim().slice(0, 300) || null;
+  if ('ext_avance' in b || 'ext_nota' in b) cambios.ext_actualizado = new Date();
   if ('estado' in b) {
     if (!['pendiente', 'en_curso', 'hecha'].includes(b.estado)) return mal('Estado no válido');
     cambios.estado = b.estado;
@@ -222,6 +229,12 @@ app.patch('/api/tareas/:id', auth.permiso('planificar', 'proyectos'), asyncH(asy
   const tarea = await tx(async (c) => {
     const { rows: prev } = await c.query('SELECT id FROM tareas WHERE id = $1 FOR UPDATE', [id]);
     if (!prev.length) return null;
+    // el área y el taller van juntos: un taller externo tiene su área; un área propia quita el taller
+    if (cambios.proveedor_id) cambios.linea_id = await require('./externos').areaExterna(c, cambios.proveedor_id);
+    else if ('linea_id' in cambios && !('proveedor_id' in cambios)) {
+      const { rows: l } = cambios.linea_id ? await c.query('SELECT tipo, proveedor_id FROM lineas WHERE id = $1', [cambios.linea_id]) : { rows: [] };
+      cambios.proveedor_id = l[0]?.tipo === 'externo' ? l[0].proveedor_id : null;
+    }
     // duracion_h es la ESTIMACIÓN: puede quedar por debajo de lo planificado (se ve como exceso)
     const cols = Object.keys(cambios);
     const sets = cols.map((k, i) => `${k} = $${i + 2}`).join(', ');

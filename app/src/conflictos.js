@@ -12,6 +12,35 @@ const fechaHora = (ms) => {
   return `${String(d.getUTCDate()).padStart(2, '0')}/${String(d.getUTCMonth() + 1).padStart(2, '0')} ${hhmm(d.getUTCHours() + d.getUTCMinutes() / 60)}`;
 };
 
+// Dependencias (no empezar antes de que termine la previa + su espera) y exceso sobre lo estimado
+function dependencias(t, out) {
+  // Dependencias: no empezar antes de que termine la tarea previa (+ espera de secado, curado…)
+  for (const d of t.dependencias || []) {
+    if (d.estado === 'hecha') continue;   // la previa ya está terminada (de verdad)
+    const previa = `${d.orden_codigo} ${String(d.nombre).toLowerCase()}`;
+    const espera = d.espera_h ? ` + ${horas(d.espera_h)} de espera` : '';
+    if (!d.fin) {
+      if (d.estado !== 'hecha') {
+        out.push({ tipo: 'dependencia', ids: [t.id], leve: true, previa_id: d.id, mensaje: `${etiqueta(t)} va después de ${previa}, que aún no está planificada` });
+      }
+      continue;
+    }
+    const inicio = instante(t.fecha, t.hora_inicio);
+    const libre = instante(d.fin.fecha, d.fin.hora) + (d.espera_h || 0) * 3600e3;
+    if (inicio < libre) {
+      const l = new Date(libre);
+      // si lo de antes lo hace un taller de fuera, la pieza aún no está aquí: aviso fuerte
+      out.push({ tipo: 'dependencia', ids: [t.id], leve: !d.proveedor, previa_id: d.id,
+        libre: { fecha: l.toISOString().slice(0, 10), hora: l.getUTCHours() + l.getUTCMinutes() / 60 },
+        mensaje: `${etiqueta(t)} empieza antes de que termine ${previa}${d.proveedor ? ` en ${d.proveedor}` : ''}${espera} (${fechaHora(libre)})` });
+    }
+  }
+  if (t.exceso > 0) {
+    out.push({ tipo: 'exceso', ids: [t.id], leve: true,
+      mensaje: `${etiqueta(t)}: ${horas(t.exceso)} por encima de lo estimado (${horas(t.duracion_h_tarea ?? 0)})` });
+  }
+}
+
 // dia: { ausencias: Map(recurso_id → [ausencias]), festivo: nombre, fecha }
 function calcularConflictos(tramos, jornada, tiposDisponibles = new Set(), exclusivas = new Map(), dia = {}) {
   const out = [];
@@ -34,6 +63,8 @@ function calcularConflictos(tramos, jornada, tiposDisponibles = new Set(), exclu
 
   for (const t of tramos) {
     const ops = t.asignados.filter((r) => r.tipo === 'operario').length;
+    // tarea de un taller externo: solo cuentan las dependencias y el exceso
+    if (t.externa) { dependencias(t, out); continue; }
     if (ops < (t.operarios_req || 0)) {
       out.push({ tipo: 'operarios', ids: [t.id], falta: t.operarios_req - ops,
         mensaje: `${etiqueta(t)}: ${ops}/${t.operarios_req} operarios asignados` });
@@ -82,30 +113,7 @@ function calcularConflictos(tramos, jornada, tiposDisponibles = new Set(), exclu
     if (t.hora_inicio < jornada.inicio) {
       out.push({ tipo: 'jornada', ids: [t.id], lado: 'inicio', mensaje: `${etiqueta(t)} empieza a las ${hhmm(t.hora_inicio)}, antes de la jornada` });
     }
-    // Dependencias: no empezar antes de que termine la tarea previa (+ espera de secado, curado…)
-    for (const d of t.dependencias || []) {
-      if (d.estado === 'hecha') continue;   // la previa ya está terminada (de verdad)
-      const previa = `${d.orden_codigo} ${String(d.nombre).toLowerCase()}`;
-      const espera = d.espera_h ? ` + ${horas(d.espera_h)} de espera` : '';
-      if (!d.fin) {
-        if (d.estado !== 'hecha') {
-          out.push({ tipo: 'dependencia', ids: [t.id], leve: true, previa_id: d.id, mensaje: `${etiqueta(t)} va después de ${previa}, que aún no está planificada` });
-        }
-        continue;
-      }
-      const inicio = instante(t.fecha, t.hora_inicio);
-      const libre = instante(d.fin.fecha, d.fin.hora) + (d.espera_h || 0) * 3600e3;
-      if (inicio < libre) {
-        const l = new Date(libre);
-        out.push({ tipo: 'dependencia', ids: [t.id], leve: true, previa_id: d.id,
-          libre: { fecha: l.toISOString().slice(0, 10), hora: l.getUTCHours() + l.getUTCMinutes() / 60 },
-          mensaje: `${etiqueta(t)} empieza antes de que termine ${previa}${espera} (${fechaHora(libre)})` });
-      }
-    }
-    if (t.exceso > 0) {
-      out.push({ tipo: 'exceso', ids: [t.id], leve: true,
-        mensaje: `${etiqueta(t)}: ${horas(t.exceso)} por encima de lo estimado (${horas(t.duracion_h_tarea ?? 0)})` });
-    }
+    dependencias(t, out);
   }
 
   // Solapes: el mismo recurso en dos franjas a la vez

@@ -9,7 +9,6 @@ const { jornada } = require('./config');
 const { calcularConflictos } = require('./conflictos');
 const avance = require('./avance');
 const material = require('./material');
-const fabricacion = require('./fabricacion');
 const { ausenciasEnRango, festivosEnRango, ausenciasPorDia, textoAusencia } = require('./ausencias');
 
 const FECHA_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -69,6 +68,7 @@ async function ajustarFranjas(c, tramoId, delta) {
 
 const SQL_TAREAS = `
   SELECT t.id, t.nombre, t.duracion_h, t.operarios_req, t.linea_id, t.estado, t.orden_en_of, t.notas, t.baja_presupuesto, t.desglose,
+         t.proveedor_id, (SELECT nombre FROM proveedores WHERE id = t.proveedor_id) AS proveedor, t.ext_avance, t.ext_nota, t.ext_actualizado,
          o.proyecto_id, o.id AS orden_id, o.codigo AS orden_codigo, o.color AS orden_color, o.titulo AS orden_titulo,
          o.prioridad, o.partida_id, pa.codigo AS partida_codigo, pa.nombre AS partida, pa.orden AS partida_orden, o.fecha_entrega,
          p.codigo AS proyecto, p.nombre AS proyecto_nombre, p.cliente, p.obra,
@@ -93,6 +93,7 @@ const SQL_TAREAS = `
          -- tareas que deben ir antes, con el final de su último tramo
          COALESCE((SELECT json_agg(json_build_object(
                      'id', p2.id, 'nombre', p2.nombre, 'orden_codigo', o2.codigo, 'espera_h', d.espera_h, 'estado', p2.estado,
+                     'proveedor', (SELECT nombre FROM proveedores WHERE id = p2.proveedor_id),
                      'duracion_h', p2.duracion_h,
                      'planificadas', (SELECT COALESCE(sum(x.duracion_h), 0) FROM tramos x WHERE x.tarea_id = p2.id),
                      'fin', (SELECT json_build_object('fecha', x.fecha, 'hora', x.hora_inicio + x.duracion_h) FROM tramos x
@@ -183,12 +184,18 @@ module.exports = function montar(app, asyncH) {
                     l.departamento_id, d.nombre AS departamento, d.orden AS departamento_orden,
                     p.codigo AS proyecto_codigo, p.nombre AS proyecto_nombre,
                     (l.tipo = 'obra') AS es_obra,
-                    (l.tipo = 'obra' AND p.estado IS DISTINCT FROM 'activo') AS obra_cerrada
+                    (l.tipo = 'obra' AND p.estado IS DISTINCT FROM 'activo') AS obra_cerrada,
+                    (l.tipo = 'externo') AS es_externo, l.proveedor_id
                FROM lineas l LEFT JOIN proyectos p ON p.id = l.proyecto_id
                     LEFT JOIN departamentos d ON d.id = l.departamento_id
-              WHERE (l.activo AND (l.tipo <> 'obra' OR p.estado = 'activo'))
+              WHERE (l.activo AND l.tipo NOT IN ('obra', 'externo'))
+                 OR (l.activo AND l.tipo = 'obra' AND p.estado = 'activo')
+                 -- talleres externos: solo mientras tienen tareas activas (como las obras)
+                 OR (l.tipo = 'externo' AND EXISTS (SELECT 1 FROM tareas t JOIN ordenes o ON o.id = t.orden_id
+                       WHERE t.proveedor_id = l.proveedor_id AND t.estado <> 'hecha' AND o.estado = 'abierta' AND NOT t.baja_presupuesto))
                  OR EXISTS (SELECT 1 FROM tramos x WHERE x.linea_id = l.id AND x.fecha BETWEEN $1 AND $2)
-              ORDER BY (l.tipo = 'obra'), CASE WHEN l.tipo = 'obra' THEN p.codigo END, d.orden NULLS LAST, l.orden, l.nombre`, [desde, hasta]),
+              ORDER BY CASE l.tipo WHEN 'externo' THEN 2 WHEN 'obra' THEN 1 ELSE 0 END,
+                       CASE WHEN l.tipo = 'obra' THEN p.codigo END, d.orden NULLS LAST, l.orden, l.nombre`, [desde, hasta]),
       // Recursos activos + los dados de baja que aún tienen algo asignado en el rango
       query(`SELECT id, tipo, nombre, categoria, activo, vinculo, empresa, linea_id, departamento_id,
                     COALESCE((SELECT json_agg(rt.tipo_recurso_id) FROM recurso_tipos rt WHERE rt.recurso_id = r.id), '[]') AS tipos,
@@ -234,6 +241,7 @@ module.exports = function montar(app, asyncH) {
     // capacidades que tiene al menos una persona activa (si nadie la tiene, el aviso es leve: falta marcarla)
     const capacidadesConGente = new Set(recursos.rows.filter((r) => r.activo && r.tipo === 'operario').flatMap((r) => r.capacidades));
     const fijasDe = new Map(lineas.rows.map((l) => [l.id, l.maquinas]));
+    const externas = new Set(lineas.rows.filter((l) => l.es_externo).map((l) => l.id));
     for (const tr of tramos.rows) {
       // lo ya cerrado en el parte (o de tareas hechas) no genera avisos
       if (tr.cierre || porTarea.get(tr.tarea_id)?.estado === 'hecha') continue;
@@ -244,7 +252,9 @@ module.exports = function montar(app, asyncH) {
       const fijas = (fijasDe.get(tr.linea_id) || []).filter((m) => !ids.has(m.id)
         && ((t?.requisitos || []).some((q) => q.id === m.id) || (t?.requisitos_tipo || []).some((q) => m.tipos.includes(q.id))))
         .map((m) => ({ ...m, desde: tr.hora_inicio, hasta: tr.hora_inicio + tr.duracion_h, fija: true }));
-      porDia.get(tr.fecha).push({ ...t, ...tr, asignados: [...tr.asignados, ...fijas], duracion_h_tarea: t?.duracion_h });
+      // lo que hace un taller externo no ocupa a nadie de aquí: sin avisos de operarios, requisitos ni jornada
+      const externa = !!t?.proveedor_id || externas.has(tr.linea_id);
+      porDia.get(tr.fecha).push({ ...t, ...tr, externa, asignados: [...tr.asignados, ...fijas], duracion_h_tarea: t?.duracion_h });
     }
     const conflictos = [...porDia].flatMap(([f, lista]) =>
       calcularConflictos(lista, jornada, tiposDisponibles, exclusivas,
@@ -273,31 +283,18 @@ module.exports = function montar(app, asyncH) {
       }
     }
 
-    // Fabricación externa: marca 🏭 en las tareas de montaje, aviso si se monta antes de que llegue la pieza
-    // y la franja de llegadas (semana / mes)
-    const fab = await fabricacion.paraTablero(desde, hasta);
-    for (const t of tareas.rows) t.fab = fab.porTarea.get(t.id) || null;
-    for (const tr of tramos.rows) {
-      const t = porTarea.get(tr.tarea_id);
-      if (!t?.fab || tr.cierre || t.estado === 'hecha' || tr.fecha < hoyM) continue;
-      const tarde = t.fab.filter((f) => !f.recibido && f.llegada >= tr.fecha);
-      if (!tarde.length) continue;
-      const ult = tarde.reduce((a2, f) => (f.llegada > a2 ? f.llegada : a2), tarde[0].llegada);
-      conflictos.push({ tipo: 'fabricacion', ids: [tr.id], fecha: tr.fecha, llega: ult,
-        libre: { fecha: ult, hora: jornada.fin },   // a partir del día siguiente a la llegada
-        mensaje: `${t.orden_codigo} ${t.nombre}: ${tarde.map((f) => f.nombre).slice(0, 3).join(', ')} (${tarde[0].codigo}) llega ~${dm(ult)}${ult === tr.fecha ? ', el mismo día' : ''}` });
-    }
-
     // avance y rendimiento de las OTs y proyectos que aparecen en «Por planificar»
     const ordenIds = [...new Set(tareas.rows.map((t) => t.orden_id))];
     const av = ordenIds.length ? await avance.resumen({ ordenIds }) : { ordenes: {} };
     const proyIds = [...new Set(tareas.rows.map((t) => t.proyecto_id).filter(Boolean))];
     const avP = proyIds.length ? await avance.resumen({ proyectoIds: proyIds }) : { proyectos: {} };
+    // situación del producto de cada OT que tiene algo fuera (taller, tarea, avance, hasta cuándo)
+    const sit = await require('./externos').situaciones(ordenIds);
 
     res.json({ fecha: desde, desde, hasta, jornada, lineas: lineas.rows, recursos: recursos.rows,
-      tareas: tareas.rows, tramos: tramos.rows, conflictos, ausencias, festivos, fabricacion: fab.franja,
+      tareas: tareas.rows, tramos: tramos.rows, conflictos, ausencias, festivos,
       dias_cerrados: cerrados.rows.map((r) => r.fecha),
-      avance: { ordenes: av.ordenes, proyectos: avP.proyectos } });
+      avance: { ordenes: av.ordenes, proyectos: avP.proyectos }, situaciones: Object.fromEntries(sit) });
   }));
 
   /* ---------- Crear tramo (soltar una tarea en el calendario) ---------- */

@@ -26,8 +26,6 @@ const TIPOS = {
   mat_incidencia: { txt: 'Incidencia con un material (dañado, incompleto, no llegó…)', para: (u) => auth.tiene(u, 'compras') || auth.tiene(u, 'escandallo') },
   mat_recibido: { txt: 'Ya ha llegado el material de mis tareas', para: () => true },
   oferta_recibida: { txt: 'Un proveedor responde una petición de precio en la plataforma', para: (u) => auth.tiene(u, 'compras') },
-  fab_avance: { txt: 'El taller o la galvanizadora actualizan una fabricación externa', para: (u) => auth.tiene(u, 'compras') || auth.tiene(u, 'proyectos') },
-  fab_tarde: { txt: 'Una pieza de fabricación externa llegará después de su montaje', para: (u) => auth.tiene(u, 'planificar') },
 };
 const SILENCIO = { desde: 21, hasta: 7 };
 const URGENTES = ['averia', 'seguridad'];
