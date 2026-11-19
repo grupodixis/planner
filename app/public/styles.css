@@ -2157,3 +2157,4 @@ select.sel-externo { border-color: #b48ae8; color: #e3d2f8; }
 .det-sit { color: #e3d2f8; }
 .det-sit.sit-vuelto { color: var(--verde); }
 .det-sit .sit-pasos { margin-top: 6px; }
+.ud-dias { display: block; font-size: 10.5px; color: var(--suave); text-align: center; } .req-externo { font-size: 12px; color: #d9c2f5; }

@@ -94,7 +94,7 @@ async function calcular(proyectoIds) {
              FROM partidas WHERE proyecto_id = ANY($1) ORDER BY orden, codigo`, [proyectoIds]),
     query(`SELECT t.id, t.nombre, t.estado, t.orden_id, t.baja_presupuesto,
                   o.codigo AS ot_codigo, o.titulo AS ot_titulo, o.estado AS ot_estado, o.partida_id, o.proyecto_id,
-                  GREATEST(t.operarios_req, 1) AS ops,
+                  (CASE WHEN t.proveedor_id IS NOT NULL THEN 0 ELSE GREATEST(t.operarios_req, 1) END) AS ops,
                   COALESCE(t.duracion_inicial_h, t.duracion_h)::float AS prev_dur, t.duracion_h::float AS est_dur
              FROM tareas t JOIN ordenes o ON o.id = t.orden_id
             WHERE o.proyecto_id = ANY($1) ORDER BY o.codigo, t.orden_en_of, t.id`, [proyectoIds]),

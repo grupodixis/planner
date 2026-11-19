@@ -62,7 +62,7 @@ async function tareasDe(proyectoIds) {
     `WITH real AS (${SQL_REAL_TAREA} GROUP BY 1, 2)
      SELECT t.id, t.nombre, t.estado, t.orden_id, t.orden_en_of, t.baja_presupuesto,
             o.codigo AS orden_codigo, o.titulo AS orden_titulo, o.estado AS orden_estado, o.partida_id, o.proyecto_id,
-            GREATEST(t.operarios_req, 1) AS ops,
+            (CASE WHEN t.proveedor_id IS NOT NULL THEN 0 ELSE GREATEST(t.operarios_req, 1) END) AS ops,
             COALESCE(t.duracion_inicial_h, t.duracion_h)::float AS prev_dur, t.duracion_h::float AS est_dur,
             (SELECT COALESCE(sum(COALESCE(a.hasta, x.hora_inicio + x.duracion_h) - COALESCE(a.desde, x.hora_inicio)), 0)
                FROM tramos x JOIN tramo_asignaciones a ON a.tramo_id = x.id JOIN recursos r ON r.id = a.recurso_id AND r.tipo = 'operario'
@@ -250,7 +250,7 @@ function montar(app, asyncH) {
                 AND NOT EXISTS (SELECT 1 FROM dias_cerrados d WHERE d.fecha = x.fecha)`, [desde, hasta]),
       // tareas terminadas en el periodo con su desviación (horas-persona)
       query(`SELECT t.id, t.nombre, o.codigo AS orden_codigo, p.codigo AS proyecto,
-                    (COALESCE(t.duracion_inicial_h, t.duracion_h) * GREATEST(t.operarios_req, 1))::float AS prev_h,
+                    (COALESCE(t.duracion_inicial_h, t.duracion_h) * (CASE WHEN t.proveedor_id IS NOT NULL THEN 0 ELSE GREATEST(t.operarios_req, 1) END))::float AS prev_h,
                     (SELECT COALESCE(sum(g.horas), 0) FROM registros g JOIN recursos r ON r.id = g.recurso_id AND r.tipo = 'operario'
                       WHERE g.tarea_id = t.id AND g.tipo = 'productivo')::float AS real_h
                FROM tareas t JOIN ordenes o ON o.id = t.orden_id LEFT JOIN proyectos p ON p.id = o.proyecto_id

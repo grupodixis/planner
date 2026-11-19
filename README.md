@@ -717,6 +717,9 @@ el transporte…). No hay etapas fijas: las etapas son **las tareas de la OT**, 
 - **Elegir el taller**: en Proyectos, columna **Área / taller** de la tarea (grupo «Taller externo», con los
   proveedores activos). La tarea guarda `tareas.proveedor_id` y va al área de ese taller (`lineas.tipo = 'externo'`,
   `lineas.proveedor_id`; se crea sola, una por proveedor). Elegir un área propia quita el taller.
+- **Sin requisitos propios**: en una tarea externa, Oper. y Requiere no aplican («no aplica (fuera)»; se conservan por
+  si vuelve a hacerse aquí), la duración se ve en **días** (1 día = una jornada) y no cuenta en horas-persona, avance
+  ni mano de obra de costes e informes.
 - **Avance y cómo va**: `ext_avance` (%) y `ext_nota`, en la tabla de tareas y en el detalle del tablero (por ahora los
   pone la oficina; en el paso 3, el propio taller desde su enlace).
 - **Tablero**: bloque **Talleres externos** al final (después de las obras), una fila por taller **solo mientras tiene

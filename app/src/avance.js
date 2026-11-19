@@ -47,7 +47,7 @@ async function tareas({ proyectoIds, ordenIds } = {}) {
   if (ordenIds) { vals.push(ordenIds); cond.push(`o.id = ANY($${vals.length})`); }
   const { rows } = await query(
     `SELECT t.id, t.orden_id, o.partida_id, o.proyecto_id, (t.estado = 'hecha') AS hecha, t.baja_presupuesto AS baja,
-            (COALESCE(t.duracion_inicial_h, t.duracion_h) * GREATEST(t.operarios_req, 1))::float AS prev_h,
+            (COALESCE(t.duracion_inicial_h, t.duracion_h) * (CASE WHEN t.proveedor_id IS NOT NULL THEN 0 ELSE GREATEST(t.operarios_req, 1) END))::float AS prev_h,
             COALESCE((SELECT sum(g.horas) FROM registros g JOIN recursos r ON r.id = g.recurso_id AND r.tipo = 'operario'
                        WHERE g.tarea_id = t.id AND g.tipo = 'productivo'), 0)::float AS real_h
        FROM tareas t JOIN ordenes o ON o.id = t.orden_id

@@ -594,6 +594,8 @@
   }
 
   // icono 🧰 con el estado del material; «fecha» = día del tramo (si llega después, en rojo)
+  // duración de una tarea externa en días de jornada (64 h → «8 días»)
+  const diasTxt = (h) => { const d = +(h / J().horas).toFixed(1); return `${String(d).replace('.', ',')} día${d === 1 ? '' : 's'}`; };
   // tarea de un taller externo: 🏭 con su avance (y la nota al pasar el ratón)
   function iconoExt(t) {
     if (!t.proveedor_id) return null;
@@ -1371,14 +1373,15 @@
     const sel = estado.sel?.tipo === 'tarea' && estado.sel.id === t.id;
     const arrastrable = puedeEditar() && !completa;
     const estadoTxt = completa ? (t.tramos.length === 1 ? ddmm(t.tramos[0].fecha) : `${t.tramos.length} tramos`)
-      : t.horas_planificadas ? `quedan ${durTxt(pend)}` : durTxt(t.duracion_h);
+      : t.horas_planificadas ? `quedan ${t.proveedor_id ? diasTxt(pend) : durTxt(pend)}` : t.proveedor_id ? diasTxt(t.duracion_h) : durTxt(t.duracion_h);
+    const reqTxt = t.proveedor_id ? `lo hace ${t.proveedor}` : req;
 
     return el('div', {
       class: `tarea-card${completa ? ' planificada' : ''}${t.horas_planificadas && !completa ? ' parcial' : ''}${sel ? ' sel' : ''}${t.baja_presupuesto ? ' baja' : ''}`,
       draggable: arrastrable ? 'true' : 'false', tabindex: '0', role: 'button',
       'data-tarea': t.id,
       'data-buscar': `${t.orden_codigo} ${t.orden_titulo} ${t.nombre} ${req} ${t.partida_codigo || ''} ${t.partida || ''} ${t.proyecto || ''} ${t.proyecto_nombre || ''}`.toLowerCase(),
-      title: `${t.nombre}\n${durTxt(t.duracion_h)}${t.operarios_req ? ` · ${t.operarios_req} op` : ''}${req ? ` · ${req}` : ''}\n`
+      title: `${t.nombre}\n${t.proveedor_id ? diasTxt(t.duracion_h) : durTxt(t.duracion_h)}${t.operarios_req && !t.proveedor_id ? ` · ${t.operarios_req} op` : ''}${reqTxt ? ` · ${reqTxt}` : ''}\n`
         + (completa ? 'Planificada entera. Pulsa para ver el detalle.'
           : t.horas_planificadas ? `${durTxt(t.horas_planificadas)} planificadas de ${durTxt(t.duracion_h)}. Arrastra para planificar el resto.`
             : 'Arrastra al calendario para planificarla'),
@@ -1395,7 +1398,7 @@
       el('span', { class: 'tc-der' },
         iconoExt(t),
         iconoMat(t, t.tramos.length ? t.tramos.reduce((a, x) => (x.fecha < a ? x.fecha : a), t.tramos[0].fecha) : null),
-        t.operarios_req > 1 ? el('span', { class: 'tc-ops', title: `${t.operarios_req} operarios a la vez` }, `×${t.operarios_req}`) : null,
+        t.operarios_req > 1 && !t.proveedor_id ? el('span', { class: 'tc-ops', title: `${t.operarios_req} operarios a la vez` }, `×${t.operarios_req}`) : null,
         (t.dependencias || []).length ? el('span', { class: 'tc-dep', title: `Va después de: ${t.dependencias.map((d) => d.nombre).join(', ')}` }, '⤷') : null,
         el('span', { class: 'hora' }, estadoTxt)),
       t.horas_planificadas && !completa
@@ -1470,7 +1473,7 @@
     const sit = estado.datos.situaciones?.[t.orden_id];
     const guardarExt = (cuerpo) => accion(async () => { await api('PATCH', `/api/tareas/${t.id}`, cuerpo); return 'Guardado'; });
     const filas = [
-      el('dt', {}, 'Tarea'), el('dd', {}, el('b', {}, t.nombre), ` · ${durTxt(t.duracion_h)}`),
+      el('dt', {}, 'Tarea'), el('dd', {}, el('b', {}, t.nombre), ` · ${t.proveedor_id ? diasTxt(t.duracion_h) : durTxt(t.duracion_h)}`),
       t.proveedor_id ? el('dt', {}, '🏭 La hace') : null,
       t.proveedor_id ? el('dd', { class: 'det-ext' }, el('b', {}, t.proveedor), el('span', { class: 'ayuda' }, ' · taller externo'),
         el('div', { class: 'det-ext-campos' },
@@ -1534,8 +1537,8 @@
         el('ul', { class: 'conds' }, t.condiciones_pendientes.map((c) => el('li', {}, c)))) : null,
       t.baja_presupuesto ? el('dt', {}, 'Presupuesto') : null,
       t.baja_presupuesto ? el('dd', { class: 'baja-txt' }, 'Ya no está en el presupuesto (se conserva por tener planificación)') : null,
-      t.operarios_req ? el('dt', {}, 'Horas-persona') : null,
-      t.operarios_req ? el('dd', {}, `${durTxt(+t.horas_persona.toFixed(1))} de ${durTxt(t.duracion_h * t.operarios_req)} previstas`,
+      t.operarios_req && !t.proveedor_id ? el('dt', {}, 'Horas-persona') : null,
+      t.operarios_req && !t.proveedor_id ? el('dd', {}, `${durTxt(+t.horas_persona.toFixed(1))} de ${durTxt(t.duracion_h * t.operarios_req)} previstas`,
         el('span', { class: 'ayuda' }, ` (${durTxt(t.duracion_h)} × ${t.operarios_req} op)`)) : null,
     ];
 

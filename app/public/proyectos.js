@@ -685,14 +685,21 @@
           value: t.nombre, maxlength: 120, 'aria-label': 'Nombre de la tarea', disabled: !editar,
           onchange: (ev) => (ev.target.value.trim() ? patch(t, { nombre: ev.target.value }) : (ev.target.value = t.nombre)),
         }), extrasTarea(t, editar, patch)),
-        el('td', { class: 'num' }, el('input', {
-          type: 'number', min: 0.5, step: 0.5, value: t.duracion_h, 'aria-label': 'Horas', disabled: !editar,
-          onchange: (ev) => patch(t, { duracion_h: Number(ev.target.value) }),
-        })),
-        el('td', { class: 'num' }, el('input', {
-          type: 'number', min: 0, step: 1, value: t.operarios_req, 'aria-label': 'Operarios', disabled: !editar,
-          onchange: (ev) => patch(t, { operarios_req: Number(ev.target.value) }),
-        })),
+        // tarea de un taller externo: la duración en días (1 día = una jornada) y sin operarios propios
+        t.proveedor_id ? el('td', { class: 'num' }, el('input', {
+          type: 'number', min: 0.5, step: 0.5, value: +(t.duracion_h / JH()).toFixed(1), 'aria-label': 'Días', disabled: !editar,
+          title: `Días de trabajo en el taller (1 día = ${JH()} h de jornada)`,
+          onchange: (ev) => patch(t, { duracion_h: Math.max(0.5, Math.round(Number(ev.target.value) * JH() * 2) / 2) }),
+        }), el('span', { class: 'ud-dias' }, 'días'))
+          : el('td', { class: 'num' }, el('input', {
+            type: 'number', min: 0.5, step: 0.5, value: t.duracion_h, 'aria-label': 'Horas', disabled: !editar,
+            onchange: (ev) => patch(t, { duracion_h: Number(ev.target.value) }),
+          })),
+        t.proveedor_id ? el('td', { class: 'num ayuda', title: 'La hace el taller: no ocupa operarios de aquí' }, '—')
+          : el('td', { class: 'num' }, el('input', {
+            type: 'number', min: 0, step: 1, value: t.operarios_req, 'aria-label': 'Operarios', disabled: !editar,
+            onchange: (ev) => patch(t, { operarios_req: Number(ev.target.value) }),
+          })),
         el('td', {}, el('select', {
           'aria-label': 'Dónde se hace: área o taller externo', disabled: !editar, class: t.proveedor_id ? 'sel-externo' : null,
           title: t.proveedor_id ? `La hace un taller externo: ${t.proveedor}` : 'Área donde se hace (o un taller externo)',
@@ -705,7 +712,9 @@
         (estado.catalogo.talleres || []).length ? el('optgroup', { label: 'Taller externo (lo hace un proveedor)' },
           estado.catalogo.talleres.map((pv) => el('option', { value: `p${pv.id}`, selected: t.proveedor_id === pv.id }, `🏭 ${pv.nombre}`))) : null),
         t.proveedor_id ? extTarea(t, editar, patch) : null),
-        el('td', {}, req),
+        el('td', {}, t.proveedor_id
+          ? el('span', { class: 'req-externo', title: 'Lo que pide la tarea (operarios, capacidades, máquinas) es de vuestra gente: no aplica mientras la haga un taller externo. Se conserva por si vuelve a hacerse aquí.' }, 'no aplica (fuera)')
+          : req),
         el('td', { class: 'est' }, el('span', { class: `est-${clasePlan}` }, etiquetaPlan), plan ? el('br') : null, plan, realTarea(t)),
         el('td', {}, editar ? el('button', {
           type: 'button', class: 'ghost borrar', disabled: bloqueada,
@@ -721,6 +730,7 @@
     }));
   }
 
+  const JH = () => estado.catalogo.jornada_h || 8;
   // Tarea de un taller externo: cómo va fuera (avance y nota) — lo pone la oficina; más adelante, el propio taller
   function extTarea(t, editar, patch) {
     return el('div', { class: 'ext-tarea' },

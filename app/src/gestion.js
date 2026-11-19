@@ -62,7 +62,7 @@ module.exports = function montar(app, asyncH) {
                FROM capacidades k ORDER BY k.orden, lower(k.nombre)`),
     ]);
     res.json({ areas: areas.rows, recursos: recursos.rows, tipos: tipos.rows, departamentos: departamentos.rows,
-      talleres: talleres.rows, capacidades: capacidades.rows, colores: COLORES });
+      talleres: talleres.rows, capacidades: capacidades.rows, colores: COLORES, jornada_h: require('./config').jornada.horas });
   }));
 
   /* ---------- Proyectos ---------- */
@@ -307,7 +307,7 @@ module.exports = function montar(app, asyncH) {
              WHERE t.orden_id = o.id) AS horas_planificadas,
            (SELECT count(*)::int FROM tareas t WHERE t.orden_id = o.id AND t.estado = 'hecha') AS hechas,
            (SELECT COALESCE(sum(duracion_h), 0)::float FROM tareas t WHERE t.orden_id = o.id) AS horas,
-           (SELECT COALESCE(sum(duracion_h * operarios_req), 0)::float FROM tareas t WHERE t.orden_id = o.id) AS hp_estimadas,
+           (SELECT COALESCE(sum(duracion_h * operarios_req), 0)::float FROM tareas t WHERE t.orden_id = o.id AND t.proveedor_id IS NULL) AS hp_estimadas,
            (SELECT COALESCE(sum(COALESCE(a.hasta, x.hora_inicio + x.duracion_h) - COALESCE(a.desde, x.hora_inicio)), 0)::float
               FROM tareas t JOIN tramos x ON x.tarea_id = t.id JOIN tramo_asignaciones a ON a.tramo_id = x.id
               JOIN recursos r ON r.id = a.recurso_id AND r.tipo = 'operario'
