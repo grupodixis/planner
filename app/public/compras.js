@@ -35,6 +35,7 @@
   };
   const q0 = new URLSearchParams(location.search);
   const estado = { vista: q0.get('vista') || 'pedidos', pedido: Number(q0.get('pedido')) || null, sol: Number(q0.get('sol')) || null, proveedor: Number(q0.get('proveedor')) || null,
+    envio: Number(q0.get('envio')) || null,
     proveedores: [], ajustes: null, filtroProv: '' };
   const guardarURL = () => {
     const u = new URLSearchParams();
@@ -42,6 +43,7 @@
     if (estado.vista === 'pedidos' && estado.pedido) u.set('pedido', estado.pedido);
     if (estado.vista === 'precios' && estado.sol) u.set('sol', estado.sol);
     if (estado.vista === 'proveedores' && estado.proveedor) u.set('proveedor', estado.proveedor);
+    if (estado.vista === 'transportes' && estado.envio) u.set('envio', estado.envio);
     history.replaceState(null, '', `${location.pathname}${u.toString() ? `?${u}` : ''}`);
   };
 
@@ -465,6 +467,10 @@
           campo('plazo_dias', 'Plazo habitual (días)', { type: 'number', min: '0', step: '1' }), campo('portes', 'Portes', { maxlength: 200, placeholder: 'Pagados desde 600 €' }),
           el('label', { class: 'cmp-campo ancho' }, el('span', {}, 'Lo que sirve (separado por comas)'), familias),
           campo('notas', 'Notas', { tag: 'textarea', rows: 3, maxlength: 2000, ancho: 'ancho' })),
+        el('div', { class: 'cmp-campos' },
+          el('label', { class: 'cmp-campo' }, el('span', {}, 'Zona'), el('select', { disabled: !editar, onchange: (ev) => guardarCampo('zona', ev.target.value) },
+            [['menorca', 'Menorca'], ['peninsula', 'Península (llega por transporte a Menorca)'], ['baleares', 'Baleares'], ['online', 'Online / paquetería']].map(([v, t]) => el('option', { value: v, selected: x.zona === v }, t))))),
+        el('label', { class: 'chk' }, el('input', { type: 'checkbox', checked: x.transportista, disabled: !editar, onchange: (ev) => guardarCampo('transportista', ev.target.checked) }), ' Es transportista (península → Menorca: sale en Transportes)'),
         editar ? el('label', { class: 'chk' }, el('input', { type: 'checkbox', checked: x.activo, onchange: (ev) => guardarCampo('activo', ev.target.checked) }), ' Activo (sale para elegir en los pedidos)') : null,
       ] : el('p', { class: 'ayuda' }, 'Sin proveedores todavía.'))));
   }
@@ -545,10 +551,146 @@
       resultado);
   }
 
+  /* ================= Transportes península → Menorca ================= */
+  const ENV_EST = [['preparando', 'Preparando'], ['recogido', 'Recogido'], ['en_barco', 'En barco'], ['en_mao', 'En Maó · por entregar'], ['entregado', 'Entregado']];
+  const ENV_TXT = Object.fromEntries(ENV_EST);
+  async function pintarTransportes() {
+    const d = await api('GET', '/api/transportes');
+    const editar = tiene('compras') || tiene('logistica');
+    const marcados = new Set();
+    const hoy = new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Madrid' });
+    // lo que espera
+    const itemOT = (r) => el('li', { class: `trp-item${r.listo ? '' : ' no-listo'}`, draggable: editar ? 'true' : null, ondragstart: (ev) => ev.dataTransfer.setData('text/plain', JSON.stringify({ tarea_id: r.tarea_id })) },
+      editar ? el('input', { type: 'checkbox', 'aria-label': `Marcar OT ${r.ot_codigo}`, onchange: (ev) => (ev.target.checked ? marcados.add(`t${r.tarea_id}`) : marcados.delete(`t${r.tarea_id}`)) }) : null,
+      el('div', {}, el('b', {}, el('span', { class: 'cod-chip' }, r.ot_codigo), ` ${r.ot_titulo}`),
+        el('small', {}, r.listo
+          ? `🏭 ${r.prev_taller || '—'}${r.prev_localidad ? ` · ${r.prev_localidad}` : ''} · ${r.recibido ? `entregado a ${r.transportista} ${cuando(r.recibido)}` : 'listo'}${r.prev_nota ? ` · ${r.prev_nota}` : ''}`
+          : `aún en ${r.prev_taller} (${r.prev_codigo} ${r.prev_nombre}${r.prev_fin || r.prev_plan_fin ? `, termina ~${cuando(r.prev_fin || r.prev_plan_fin)}` : ''})`),
+        el('small', {}, `🚚 ${r.transportista}${r.plan_desde ? ` · transporte planificado ${cuando(r.plan_desde)}` : ''}`)));
+    const itemPed = (r) => el('li', { class: 'trp-item', draggable: editar ? 'true' : null, ondragstart: (ev) => ev.dataTransfer.setData('text/plain', JSON.stringify({ pedido_id: r.pedido_id })) },
+      editar ? el('input', { type: 'checkbox', 'aria-label': `Marcar ${r.codigo}`, onchange: (ev) => (ev.target.checked ? marcados.add(`p${r.pedido_id}`) : marcados.delete(`p${r.pedido_id}`)) }) : null,
+      el('div', {}, el('b', {}, el('span', { class: 'cod-chip mat' }, r.codigo), ` ${r.proveedor}`),
+        el('small', {}, `📦 Material · ${[r.localidad, r.fecha_entrega ? `listo ~${cuando(r.fecha_entrega)}` : null, r.proyectos].filter(Boolean).join(' · ')}`)));
+    const items = () => [...marcados].map((k) => (k[0] === 't' ? { tarea_id: Number(k.slice(1)) } : { pedido_id: Number(k.slice(1)) }));
+    const selEnvio = el('select', { 'aria-label': 'Añadir a un envío' }, el('option', { value: '' }, 'Añadir lo marcado a…'),
+      d.envios.filter((e) => !['entregado', 'anulado'].includes(e.estado)).map((e) => el('option', { value: e.id }, `${e.codigo} · ${e.transportista || ''}`)));
+    selEnvio.onchange = async () => {
+      if (!selEnvio.value || !marcados.size) return;
+      try { for (const it of items()) await api('POST', `/api/envios/${selEnvio.value}/lineas`, it); estado.envio = Number(selEnvio.value); guardarURL(); toast('Añadido al envío'); pintar(); }
+      catch (e) { toast(e.message, true); }
+    };
+    const nuevo = async (its) => {
+      try {
+        const e = await api('POST', '/api/envios', { transportista_id: d.transportistas[0]?.id || null, items: its });
+        estado.envio = e.id; guardarURL(); toast(`${e.codigo} creado`); pintar();
+      } catch (er) { toast(er.message, true); }
+    };
+    const pool = el('section', { class: 'trp-col trp-pool' },
+      el('h3', {}, '📦 Para enviar a Menorca ', el('span', { class: 'llv-n' }, String(d.pendientes.ots.length + d.pendientes.pedidos.length))),
+      el('ul', {}, d.pendientes.ots.filter((r) => r.listo).map(itemOT), d.pendientes.pedidos.map(itemPed),
+        d.pendientes.ots.filter((r) => !r.listo).map(itemOT)),
+      !d.pendientes.ots.length && !d.pendientes.pedidos.length ? el('p', { class: 'ayuda' }, 'Nada pendiente.') : null,
+      editar ? el('div', { class: 'trp-acc' },
+        el('button', { type: 'button', class: 'primario mini', onclick: () => (marcados.size ? nuevo(items()) : toast('Marca lo que va en el envío', true)) }, '＋ Nuevo envío con lo marcado'),
+        selEnvio) : null,
+      el('p', { class: 'ayuda' }, 'Sale solo: las OTs cuya tarea de transporte la hace un transportista (cuando el taller ha terminado o se lo ha entregado; en gris, lo que aún está en el taller) y los pedidos a proveedores de península sin llegar. Se arrastra a un envío o se marca y se añade.'));
+    const tarjeta = (e) => el('li', {}, el('button', {
+      type: 'button', class: `trp-env${e.id === estado.envio ? ' actual' : ''}${e.llegada_prevista && e.llegada_prevista < hoy && ['recogido', 'en_barco'].includes(e.estado) ? ' tarde' : ''}`,
+      onclick: () => { estado.envio = e.id; guardarURL(); pintar(); },
+      ondragover: (ev) => { if (editar && e.estado !== 'entregado') { ev.preventDefault(); ev.currentTarget.classList.add('soltar'); } },
+      ondragleave: (ev) => ev.currentTarget.classList.remove('soltar'),
+      ondrop: async (ev) => { ev.preventDefault(); try { await api('POST', `/api/envios/${e.id}/lineas`, JSON.parse(ev.dataTransfer.getData('text/plain'))); estado.envio = e.id; guardarURL(); toast(`Añadido a ${e.codigo}`); pintar(); } catch (er) { toast(er.message, true); } },
+    },
+    el('span', { class: 'trp-env-1' }, el('b', {}, e.codigo), el('small', {}, e.transportista || 'sin transportista')),
+    el('small', {}, [e.recogida_prevista && e.estado === 'preparando' ? `recogida ${cuando(e.recogida_prevista)}` : null, e.llegada_prevista ? `llega a Maó ${cuando(e.llegada_prevista)}` : null].filter(Boolean).join(' · ') || 'sin fechas'),
+    el('span', { class: 'trp-chips' }, e.lineas.map((l) => el('span', { class: `cod-chip${l.pedido_id ? ' mat' : ''}` }, l.ot_codigo || l.pedido_codigo || '·'))),
+    el('small', {}, [`${e.bultos || 0} bultos`, e.kg ? `${e.kg} kg` : null, e.coste != null ? eur(e.coste) : null].filter(Boolean).join(' · '))));
+    const cols = ENV_EST.map(([k, t]) => el('section', { class: 'trp-col' },
+      el('h3', {}, t, ' ', el('span', { class: 'llv-n' }, String(d.envios.filter((e) => e.estado === k).length))),
+      el('ul', {}, d.envios.filter((e) => e.estado === k).map(tarjeta)),
+      k === 'preparando' && editar ? el('button', { type: 'button', class: 'ghost mini', onclick: () => nuevo([]) }, '＋ Envío vacío') : null));
+    const ficha = el('div', { class: 'trp-ficha-caja' });
+    $('#panel-compras').replaceChildren(el('div', { class: 'trp-tablero' }, pool, ...cols), ficha);
+    if (!d.transportistas.length) ficha.append(el('p', { class: 'ayuda' }, 'No hay ningún proveedor marcado como transportista: márcalo en Proveedores (p. ej. Ydica).'));
+    const e = d.envios.find((x) => x.id === estado.envio);
+    if (e) pintarEnvio(ficha, e, d, editar);
+  }
+
+  function pintarEnvio(caja, e, d, editar) {
+    const guardar = async (cuerpo) => {
+      try { await api('PUT', `/api/envios/${e.id}`, cuerpo); toast('Guardado'); pintar(); } catch (er) { toast(er.message, true); }
+    };
+    const pasoActual = ENV_EST.findIndex(([k]) => k === e.estado);
+    const fechaIn = (k, txt) => el('label', { class: 'cmp-campo' }, el('span', {}, txt),
+      el('input', { type: 'date', value: e[k] || '', disabled: !editar, onchange: (ev) => guardar({ [k]: ev.target.value || null }) }));
+    const txtIn = (k, txt, attrs = {}) => el('label', { class: `cmp-campo${attrs.ancho ? ' ancho' : ''}` }, el('span', {}, txt),
+      el('input', { ...attrs, ancho: null, value: e[k] ?? '', disabled: !editar, onchange: (ev) => guardar({ [k]: ev.target.value }) }));
+    const lineaIn = (l, k, attrs) => el('input', { ...attrs, value: l[k] ?? '', disabled: !editar || e.estado === 'entregado',
+      onchange: (ev) => guardar({ lineas: [{ ...l, [k]: ev.target.value }] }) });
+    const copiar = async (nuevo) => {
+      try { const r = await api('POST', `/api/envios/${e.id}/enlace`, { nuevo }); await navigator.clipboard.writeText(r.url).then(() => toast('Enlace copiado: pégalo en WhatsApp o en un correo'), () => prompt('Copia el enlace:', r.url)); pintar(); }
+      catch (er) { toast(er.message, true); }
+    };
+    caja.replaceChildren(el('section', { class: 'panel trp-ficha' },
+      el('div', { class: 'cab-panel' }, el('h2', {}, `${e.codigo}${e.transportista ? ` · ${e.transportista}` : ''}`),
+        el('span', { class: 'ayuda' }, [`creado ${cuando(e.creado)}${e.creado_por_nombre ? ` por ${e.creado_por_nombre}` : ''}`, e.visto_en ? `el transportista lo vio ${cuando(e.visto_en)}` : null, e.n_recordatorios ? `✉ ${e.n_recordatorios} recordatorio(s)` : null].filter(Boolean).join(' · '))),
+      el('ol', { class: 'trp-pasos' }, ENV_EST.map(([k, t], i) => el('li', { class: i < pasoActual ? 'ok' : i === pasoActual ? 'ya' : null },
+        editar && i !== pasoActual && e.lineas.length ? el('button', { type: 'button', class: 'linklike', title: `Marcar «${t}»`, onclick: async () => {
+          if (i < pasoActual && !confirm(`¿Volver a «${t}»?`)) return;
+          try { await api('POST', `/api/envios/${e.id}/estado`, { estado: k }); toast(t); pintar(); } catch (er) { toast(er.message, true); }
+        } }, t) : t,
+        el('small', {}, e.fechas?.[k] ? cuando(e.fechas[k]) : k === 'en_mao' && e.llegada_prevista ? `prev. ${cuando(e.llegada_prevista)}` : k === 'recogido' && e.recogida_prevista ? `prev. ${cuando(e.recogida_prevista)}` : '')))),
+      el('div', { class: 'cmp-campos' },
+        el('label', { class: 'cmp-campo' }, el('span', {}, 'Transportista'), el('select', { disabled: !editar, onchange: (ev) => guardar({ transportista_id: ev.target.value }) },
+          el('option', { value: '' }, '—'), d.transportistas.map((t) => el('option', { value: t.id, selected: t.id === e.transportista_id }, t.nombre)))),
+        fechaIn('recogida_prevista', 'Recogida prevista'), fechaIn('llegada_prevista', 'Llega a Maó'),
+        txtIn('ref_transportista', 'Su referencia', { maxlength: 80 }),
+        txtIn('entregar_en', 'Entregar en', { maxlength: 300 }),
+        el('label', { class: 'cmp-campo' }, el('span', {}, 'Coste del envío (€)'), el('input', { type: 'number', min: 0, step: '0.01', value: e.coste ?? '', disabled: !editar, onchange: (ev) => guardar({ coste: ev.target.value }) })),
+        el('label', { class: 'cmp-campo' }, el('span', {}, 'Reparto del coste'), el('select', { disabled: !editar, onchange: (ev) => guardar({ reparto: ev.target.value }) },
+          el('option', { value: 'kg', selected: e.reparto === 'kg' }, 'Por kg'), el('option', { value: 'manual', selected: e.reparto === 'manual' }, 'A mano'))),
+        txtIn('notas', 'Notas para el transportista', { maxlength: 2000, ancho: true })),
+      e.nota_transportista ? el('p', { class: 'trp-nota' }, `💬 ${e.transportista}: «${e.nota_transportista}»`) : null,
+      el('table', { class: 'trp-lineas' },
+        el('thead', {}, el('tr', {}, el('th', {}, 'Qué va'), el('th', {}, 'Recoger en'), el('th', { class: 'num' }, 'Bultos'), el('th', { class: 'num' }, 'Kg'), el('th', { class: 'num' }, 'Coste'), el('th', {}, 'Recogido'), el('th', {}))),
+        el('tbody', {}, e.lineas.map((l) => el('tr', {},
+          el('td', {}, l.ot_codigo ? el('a', { href: `/proyectos.html?ot=${l.orden_id}` }, el('span', { class: 'cod-chip' }, l.ot_codigo)) : l.pedido_codigo ? el('a', { href: `/compras.html?pedido=${l.pedido_id}` }, el('span', { class: 'cod-chip mat' }, l.pedido_codigo)) : null,
+            ' ', lineaIn(l, 'descripcion', { maxlength: 300, class: 'trp-desc', 'aria-label': 'Qué va' }),
+            l.siguiente_aqui ? el('small', { class: l.siguiente_aqui < (e.llegada_prevista || '') ? 'trp-tarde' : 'ayuda' }, ` · se necesita aquí el ${cuando(l.siguiente_aqui)}`) : null),
+          el('td', {}, lineaIn(l, 'origen', { maxlength: 200, 'aria-label': 'Recoger en' })),
+          el('td', { class: 'num' }, lineaIn(l, 'bultos', { type: 'number', min: 0, step: 1, class: 'trp-n', 'aria-label': 'Bultos' })),
+          el('td', { class: 'num' }, lineaIn(l, 'kg', { type: 'number', min: 0, step: '0.1', class: 'trp-n', 'aria-label': 'Kg' })),
+          el('td', { class: 'num' }, e.reparto === 'manual' ? lineaIn(l, 'coste_manual', { type: 'number', min: 0, step: '0.01', class: 'trp-n', 'aria-label': 'Coste' }) : eur(l.coste)),
+          el('td', {}, el('input', { type: 'checkbox', checked: l.recogido, disabled: !editar, 'aria-label': 'Recogido', onchange: (ev) => guardar({ lineas: [{ ...l, recogido: ev.target.checked }] }) })),
+          el('td', {}, editar && e.estado !== 'entregado' ? el('button', { type: 'button', class: 'ghost mini borrar', 'aria-label': 'Quitar del envío', onclick: async () => {
+            try { await api('DELETE', `/api/envios/${e.id}/lineas/${l.id}`); pintar(); } catch (er) { toast(er.message, true); }
+          } }, '✕') : null)))),
+        el('tfoot', {}, el('tr', {}, el('td', { colspan: 2 }, el('b', {}, 'Total')), el('td', { class: 'num' }, String(e.bultos || 0)), el('td', { class: 'num' }, String(e.kg || 0)), el('td', { class: 'num' }, eur(e.coste)), el('td', { colspan: 2 })))),
+      editar && e.estado !== 'entregado' ? el('button', { type: 'button', class: 'ghost mini', onclick: async () => {
+        const desc = prompt('¿Qué va? (p. ej. «Palé de tornillería»)'); if (!desc) return;
+        const origen = prompt('¿Dónde se recoge?') || null;
+        try { await api('POST', `/api/envios/${e.id}/lineas`, { descripcion: desc, origen }); pintar(); } catch (er) { toast(er.message, true); }
+      } }, '＋ Línea suelta') : null,
+      e.archivos.length ? el('div', { class: 'trp-arch' }, el('span', { class: 'ayuda' }, 'CMR y fotos: '), e.archivos.map((a) => el('a', { href: `/api/envios/${e.id}/archivos/${a.id}`, target: '_blank', rel: 'noopener' }, `📎 ${a.nombre || 'archivo'}`))) : null,
+      editar ? el('div', { class: 'trp-acc' },
+        el('span', { class: 'ayuda' }, e.enviado_en ? `🔗 Enlace del transportista enviado ${cuando(e.enviado_en)}${e.email ? ` a ${e.email}` : ''}` : 'El transportista aún no tiene su enlace.'),
+        el('button', { type: 'button', class: 'primario mini', onclick: async () => {
+          const para = prompt('Correo del transportista', e.email || e.transportista_email || '');
+          if (!para) return;
+          try { await api('POST', `/api/envios/${e.id}/enviar`, { para }); toast(`Enviado a ${para}`); pintar(); } catch (er) { toast(er.message, true); }
+        } }, e.enviado_en ? '✉ Reenviar por correo' : '✉ Enviar al transportista'),
+        el('button', { type: 'button', class: 'ghost mini', onclick: () => copiar(false) }, '🔗 Copiar enlace'),
+        e.enviado_en ? el('button', { type: 'button', class: 'ghost mini', onclick: () => { if (confirm('El enlace anterior dejará de funcionar. ¿Crear uno nuevo?')) copiar(true); } }, 'Nuevo enlace') : null,
+        el('button', { type: 'button', class: 'ghost mini borrar', onclick: async () => {
+          if (!confirm(`¿Anular ${e.codigo}? Lo que lleva vuelve a «Para enviar».`)) return;
+          try { await api('DELETE', `/api/envios/${e.id}`); estado.envio = null; guardarURL(); pintar(); } catch (er) { toast(er.message, true); }
+        } }, 'Anular')) : null));
+  }
+
   /* ================= General ================= */
   function pintar() {
     for (const b of document.querySelectorAll('.llv-tab')) b.setAttribute('aria-selected', String(b.dataset.vista === estado.vista));
-    const f = { pedidos: pintarPedidos, precios: pintarSolicitudes, proveedores: pintarProveedores, ajustes: pintarAjustes }[estado.vista] || pintarPedidos;
+    const f = { pedidos: pintarPedidos, precios: pintarSolicitudes, proveedores: pintarProveedores, ajustes: pintarAjustes, transportes: pintarTransportes }[estado.vista] || pintarPedidos;
     return f().catch((e) => toast(e.message, true));
   }
 
@@ -559,6 +701,7 @@
     $('#tab-ajustes').hidden = !(tiene('aprobar_compras') || tiene('usuarios'));
     $('#tab-pedidos').hidden = !(tiene('compras') || tiene('aprobar_compras') || tiene('logistica'));
     $('#tab-precios').hidden = $('#tab-pedidos').hidden;
+    $('#tab-transportes').hidden = !(tiene('compras') || tiene('logistica') || tiene('aprobar_compras') || tiene('planificar'));
     if ($('#tab-pedidos').hidden && estado.vista === 'pedidos') estado.vista = 'proveedores';
     for (const b of document.querySelectorAll('.llv-tab')) b.addEventListener('click', () => { estado.vista = b.dataset.vista; guardarURL(); pintar(); });
     try { estado.ajustes = await api('GET', '/api/compras/ajustes'); } catch { /* sin permiso: no hace falta */ }

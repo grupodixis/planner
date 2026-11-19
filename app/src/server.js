@@ -27,6 +27,7 @@ app.get('/health', (req, res) => res.json({ ok: true, version: VERSION }));
 require('./pin').publico(app, asyncH);   // entrar con PIN desde un dispositivo autorizado (sin sesión)
 require('./ofertas-portal').montar(app, asyncH);   // el proveedor responde la petición de precio (enlace sin sesión)
 require('./seguimiento-ext').montarPublico(app, asyncH);   // el taller externo cuenta cómo van sus tareas (enlace sin sesión)
+require('./transportes').montarPublico(app, asyncH);   // el transportista dice cómo va el envío a Menorca (enlace sin sesión)
 require('./usuarios')(app, asyncH);   // entrar, recuperar contraseña, Mi cuenta, usuarios y roles
 require('./pin').gestion(app, asyncH);   // PIN de operarios y dispositivos autorizados
 require('./archivos').montar(app, asyncH);   // fotos y documentos (justificantes, incidencias)
@@ -289,6 +290,7 @@ app.patch('/api/tareas/:id', auth.permiso('planificar', 'proyectos'), asyncH(asy
 require('./gestion')(app, asyncH);
 require('./seguimiento-ext').montarGestion(app, asyncH);   // «Comenzar seguimiento» con los talleres externos
 require('./subcontratacion').montar(app, asyncH);   // pedir presupuesto / hacer pedido a un taller externo desde la OT
+require('./transportes').montarGestion(app, asyncH);   // envíos península → Menorca
 require('./recursos')(app, asyncH);
 require('./importar')(app, asyncH);
 require('./semillero')(app, asyncH);

@@ -779,7 +779,36 @@ el transporte…). No hay etapas fijas: las etapas son **las tareas de la OT**, 
   funcionan igual. Al **enviar** el pedido se crea o reactiva el seguimiento de ese taller en la OT y su enlace va en el
   correo y en el PDF; si el pedido es para otro taller del que tenía la tarea, la tarea pasa a ese taller. Control de
   costes: lo de los pedidos de subcontratación enviados suma en **Subcontratas** (las líneas sueltas, a la primera tarea).
-- **Siguientes pasos**: gestión de transportes; recepción desde el móvil.
+- **Siguientes pasos**: recepción desde el móvil; transportes dentro de la isla.
+
+## Transportes península → Menorca (Compras › 🚚 Transportes)
+
+`src/transportes.js`, página pública `envio.html?t=…`. Un **envío** (`envios`, `ENV-AAAA-NNNN`) es un viaje de un
+**transportista** (proveedor con `proveedores.transportista`; Ydica y Tragina marcados al migrar; se marca en su ficha,
+donde también está su **zona**) que recoge en la península y lo trae a Menorca.
+
+- **Para enviar a Menorca** (lo pendiente, sale solo): las OTs con una tarea que hace un transportista, aún no hecha y no
+  en un envío, «listas» si la tarea externa anterior está hecha o el taller la entregó (`ext_recibido`); en gris las que
+  aún están en el taller. Y los **pedidos de material** enviados a proveedores de zona `peninsula` con material sin
+  llegar. Se marcan y «＋ Nuevo envío» / «Añadir a…», o se arrastran a una tarjeta de envío.
+- **Envío** (`envio_lineas`: OT + su tarea de transporte, pedido o línea suelta; origen, bultos, kg, recogido): transportista,
+  recogida prevista, **llegada a Maó**, su referencia, entregar en, notas y **coste**, repartido por **kg** (o a partes
+  iguales si no hay kg) o **a mano**. Estados: preparando → recogido → en_barco → en_mao → entregado (con la fecha de cada
+  uno en `fechas`); anular devuelve lo que lleva a pendiente.
+- **Efectos** (`aplicar`): la tarea de transporte pasa a en curso / hecha y su fecha prevista es la llegada (así el
+  tablero avisa con `retraso_taller` y la dependencia del montaje «según el taller»); al recogerlo, la tarea del taller
+  anterior queda entregada al transportista; el material de los pedidos pasa a llegar ese día (`fecha_prevista`, avisos
+  de material); novedad en la OT y aviso `ext_seguimiento` a planificar y logística. La **situación** de la OT dice
+  «🚚 En barco con Ydica (ENV-…) · llega ~29/11». La ficha marca en rojo si lo siguiente de la OT aquí empieza antes.
+- **Enlace del transportista** (sin cuenta, como el de los talleres): marca recogido por sitio, estado, llegada, su
+  referencia, comentario y fotos (CMR, `archivos` `ref_tipo='envio'`). «✉ Enviar al transportista» se lo manda por
+  correo (con lo que hay que recoger); «Copiar enlace», «Nuevo enlace». **Recordatorio** diario (laborables, 9–19 h) si
+  pasó la recogida prevista estando preparando, o la llegada estando recogido / en barco, sin noticias ese día.
+- **Costes**: lo repartido a cada OT suma en Subcontratas de su tarea de transporte (los pedidos de material aún no).
+- API: `GET /api/transportes`, `POST /api/envios {transportista_id, items}`, `GET·PUT·DELETE /api/envios/:id`,
+  `POST /api/envios/:id/lineas`, `DELETE /api/envios/:id/lineas/:lid`, `POST /api/envios/:id/estado {estado, fecha}`,
+  `POST /api/envios/:id/enviar {para}`, `POST /api/envios/:id/enlace {nuevo}`; pública `GET·PUT /api/envio/:t`,
+  `POST·GET·DELETE /api/envio/:t/archivos[/:id]`.
 
 ## Control de costes (Informes › Control de costes)
 

@@ -1035,6 +1035,58 @@ const MIGRACIONES = [
   `ALTER TABLE solicitud_lineas ADD COLUMN IF NOT EXISTS tarea_id INT REFERENCES tareas(id) ON DELETE SET NULL`,
   `ALTER TABLE tareas ADD COLUMN IF NOT EXISTS ext_pedido_id INT REFERENCES pedidos_compra(id) ON DELETE SET NULL,
      ADD COLUMN IF NOT EXISTS ext_solicitud_id INT REFERENCES solicitudes_precio(id) ON DELETE SET NULL`,
+
+  // 2026-11 · Transportes península → Menorca: envíos (ENV-AAAA-NNNN) con un transportista (Ydica, Tragina…) que llevan
+  // piezas de OTs (lo que un taller deja listo para el transporte) y pedidos de material de proveedores de península.
+  // El transportista dice cómo va en su enlace (sin cuenta). El coste se reparte entre las OTs (por kg o a mano).
+  `ALTER TABLE proveedores ADD COLUMN IF NOT EXISTS transportista BOOLEAN NOT NULL DEFAULT FALSE`,
+  `DO $m$ BEGIN
+     IF NOT EXISTS (SELECT 1 FROM ajustes WHERE clave = 'migr_transportistas_v1') THEN
+       UPDATE proveedores SET transportista = true WHERE nombre ~* '(ydica|tragina)';
+       INSERT INTO ajustes (clave, valor) VALUES ('migr_transportistas_v1', 'true');
+     END IF;
+   END $m$`,
+  `CREATE TABLE IF NOT EXISTS envios (
+     id                SERIAL PRIMARY KEY,
+     codigo            TEXT NOT NULL UNIQUE,
+     transportista_id  INT REFERENCES proveedores(id) ON DELETE SET NULL,
+     estado            TEXT NOT NULL DEFAULT 'preparando' CHECK (estado IN ('preparando','recogido','en_barco','en_mao','entregado','anulado')),
+     recogida_prevista DATE,
+     llegada_prevista  DATE,
+     fechas            JSONB NOT NULL DEFAULT '{}'::jsonb,
+     entregar_en       TEXT,
+     ref_transportista TEXT,
+     coste             NUMERIC(12,2),
+     reparto           TEXT NOT NULL DEFAULT 'kg' CHECK (reparto IN ('kg','manual')),
+     notas             TEXT,
+     nota_transportista TEXT,
+     nonce             TEXT NOT NULL,
+     email             TEXT,
+     enviado_en        TIMESTAMPTZ,
+     visto_en          TIMESTAMPTZ,
+     actualizado_en    TIMESTAMPTZ,
+     recordatorio_en   DATE,
+     n_recordatorios   INT NOT NULL DEFAULT 0,
+     creado_por        INT REFERENCES usuarios(id) ON DELETE SET NULL,
+     creado            TIMESTAMPTZ NOT NULL DEFAULT now()
+   )`,
+  `CREATE TABLE IF NOT EXISTS envio_lineas (
+     id            SERIAL PRIMARY KEY,
+     envio_id      INT NOT NULL REFERENCES envios(id) ON DELETE CASCADE,
+     orden_id      INT REFERENCES ordenes(id) ON DELETE SET NULL,
+     tarea_id      INT REFERENCES tareas(id) ON DELETE SET NULL,
+     pedido_id     INT REFERENCES pedidos_compra(id) ON DELETE SET NULL,
+     descripcion   TEXT NOT NULL,
+     origen        TEXT,
+     bultos        INT,
+     kg            NUMERIC(10,1),
+     coste_manual  NUMERIC(12,2),
+     recogido      BOOLEAN NOT NULL DEFAULT FALSE,
+     orden         INT NOT NULL DEFAULT 0
+   )`,
+  `CREATE INDEX IF NOT EXISTS envio_lineas_envio_idx ON envio_lineas (envio_id, orden)`,
+  `CREATE INDEX IF NOT EXISTS envio_lineas_tarea_idx ON envio_lineas (tarea_id) WHERE tarea_id IS NOT NULL`,
+  `CREATE INDEX IF NOT EXISTS envio_lineas_pedido_idx ON envio_lineas (pedido_id) WHERE pedido_id IS NOT NULL`,
 ];
 
 async function migrar() {

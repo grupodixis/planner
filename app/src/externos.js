@@ -68,6 +68,16 @@ async function situaciones(ordenIds) {
     }
     out.set(ot, { texto, nivel, retraso, pasos: pasos.map((p) => ({ id: p.id, codigo: p.codigo, nombre: p.nombre, proveedor: p.proveedor, estado: p.estado, ext_estado: p.ext_estado, avance: p.ext_avance, nota: p.ext_nota, desde: p.desde, hasta: p.hasta, fin_prevista: p.fin_prevista, entregado_a: p.ext_entregado_a, entrega_fecha: p.entrega_fecha, recibido: p.recibido })) });
   }
+  // si va en un envío a Menorca (y aún no ha llegado), manda el envío
+  const env = await require('./transportes').deOrdenes([...porOT.keys()]);
+  const TXT = require('./transportes').ESTADO_TXT;
+  for (const [ot, e] of env) {
+    const sit = out.get(ot);
+    if (!sit || e.estado === 'entregado') continue;
+    sit.texto = `🚚 ${e.estado === 'preparando' ? 'Preparando el envío' : e.estado === 'en_mao' ? 'En Maó (almacén del transportista)' : `${TXT[e.estado][0].toUpperCase()}${TXT[e.estado].slice(1)}`} con ${e.transportista || 'el transportista'} (${e.codigo})${e.llegada ? ` · llega ~${ddmm(e.llegada)}` : ''}`;
+    sit.nivel = 'fuera';
+    sit.envio = e;
+  }
   return out;
 }
 

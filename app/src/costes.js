@@ -102,6 +102,7 @@ async function calcular(proyectoIds) {
     realesDe(proyectoIds, Number(aj.recargo_extra) || 0),
   ]);
   const subPedidos = await require('./subcontratacion').costePorTarea(tareas.map((t) => t.id));
+  const transp = await require('./transportes').costePorTarea(tareas.map((t) => t.id));
   const porTarea = new Map();
   for (const r of reales) {
     if (!porTarea.has(r.tarea_id)) porTarea.set(r.tarea_id, []);
@@ -145,6 +146,8 @@ async function calcular(proyectoIds) {
     }
     // pedidos de subcontratación enviados (talleres externos): comprometido
     x.tipos.subcontratas.real += subPedidos.get(t.id) || 0;
+    // envíos a Menorca (coste del transporte repartido por kg o a mano)
+    x.tipos.subcontratas.real += transp.get(t.id) || 0;
     // valor de lo hecho: hecha = todo lo presupuestado; en curso = proporción de horas (hasta el 90 %)
     const frac = t.estado === 'hecha' ? 1 : x.horas_est ? Math.min(0.9, hReal / x.horas_est) : 0;
     x.ganado = x.tipos.mano_obra.presup * frac;

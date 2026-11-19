@@ -2220,3 +2220,45 @@ h1.marca .marca-ico { width: 28px; height: 28px; flex: none; border-radius: 7px;
 .login h1.marca { font-size: 26px; margin-bottom: 14px; }
 .login h1.marca .marca-ico { width: 40px; height: 40px; border-radius: 10px; }
 .pin-caja h1.marca span { color: var(--suave); font-weight: 400; }
+
+/* ---------- Compras › Transportes (península → Menorca) ---------- */
+.trp-tablero { display: grid; grid-template-columns: minmax(260px, 1.3fr) repeat(5, minmax(170px, 1fr)); gap: 10px; align-items: start; overflow-x: auto; }
+.trp-col { background: var(--panel); border: 1px solid var(--linea); border-radius: 12px; padding: 10px; min-height: 120px; }
+.trp-col h3 { font-size: 13px; margin: 0 0 8px; }
+.trp-col ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 7px; }
+.trp-pool { border-color: #6b5520; background: #1f1b12; }
+.trp-item { display: flex; gap: 7px; align-items: flex-start; border: 1px solid #3a3a3a; border-radius: 9px; padding: 7px 8px; background: #202020; font-size: 12.5px; cursor: grab; }
+.trp-item small { display: block; color: var(--suave); }
+.trp-item.no-listo { opacity: .55; }
+.trp-item input { margin-top: 3px; }
+.cod-chip.mat { --c: #e08a2a; }
+.trp-env { display: flex; flex-direction: column; gap: 3px; width: 100%; text-align: left; border: 1.5px solid #2b4766; border-radius: 10px; padding: 8px 9px; background: #18222e; color: var(--texto); font: inherit; font-size: 12.5px; cursor: pointer; }
+.trp-env small { color: #b9c7d6; }
+.trp-env.actual { border-color: var(--azul); box-shadow: 0 0 0 2px #5aa9f044; }
+.trp-env.tarde { border-color: var(--rojo); }
+.trp-env.soltar { border-style: dashed; border-color: #2bb3a3; background: #16312d; }
+.trp-env-1 { display: flex; justify-content: space-between; gap: 6px; align-items: baseline; }
+.trp-chips { display: flex; flex-wrap: wrap; gap: 3px; }
+.trp-chips .cod-chip { font-size: 11px; }
+.trp-acc { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 10px; }
+.trp-ficha-caja { margin-top: 14px; }
+.trp-ficha .cmp-campos { margin-top: 8px; }
+.trp-pasos { display: flex; list-style: none; padding: 0; margin: 12px 0 6px; }
+.trp-pasos li { flex: 1; text-align: center; font-size: 12px; color: var(--suave); position: relative; padding-top: 20px; }
+.trp-pasos li::before { content: ''; position: absolute; top: 4px; left: 50%; width: 12px; height: 12px; border-radius: 50%; background: #333; border: 2px solid #555; transform: translateX(-50%); }
+.trp-pasos li::after { content: ''; position: absolute; top: 10px; left: calc(50% + 9px); right: calc(-50% + 9px); height: 2px; background: #444; }
+.trp-pasos li:last-child::after { display: none; }
+.trp-pasos li.ok { color: #bff0e8; } .trp-pasos li.ok::before, .trp-pasos li.ok::after { background: #2bb3a3; border-color: #2bb3a3; }
+.trp-pasos li.ya { color: #fff; font-weight: 600; } .trp-pasos li.ya::before { background: #fff; border-color: var(--azul); }
+.trp-pasos small { display: block; font-weight: 400; color: var(--suave); }
+.trp-pasos .linklike { background: none; border: 0; color: inherit; font: inherit; cursor: pointer; text-decoration: underline dotted; padding: 0; }
+.trp-lineas { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: 13px; }
+.trp-lineas th { font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: var(--suave); text-align: left; padding: 6px; border-bottom: 1px solid var(--linea); }
+.trp-lineas td { padding: 5px 6px; border-bottom: 1px solid #242424; vertical-align: middle; }
+.trp-lineas .num { text-align: right; }
+.trp-lineas .trp-n { width: 80px; text-align: right; }
+.trp-lineas .trp-desc { width: min(320px, 100%); }
+.trp-lineas tfoot td { border-bottom: 0; }
+.trp-tarde { color: var(--rojo); font-weight: 600; }
+.trp-nota { margin: 8px 0 0; }
+.trp-arch { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
