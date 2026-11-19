@@ -114,7 +114,7 @@ async function probar(para) {
   const t = transportePara(c);
   try {
     await t.verify();
-    if (para) await t.sendMail({ from: c.from || c.user, to: para, subject: 'Prueba de correo · s360', text: 'Este es un correo de prueba enviado desde s360. Si lo recibes, el correo de salida funciona.' });
+    if (para) await t.sendMail({ from: c.from || c.user, to: para, subject: 'Prueba de correo · Planéalo', text: 'Este es un correo de prueba enviado desde Planéalo. Si lo recibes, el correo de salida funciona.' });
   } catch (e) {
     throw Object.assign(new Error(`No conecta con ${c.host}: ${e.message}`), { status: 502 });
   }

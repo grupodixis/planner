@@ -17,7 +17,7 @@ self.addEventListener('fetch', (e) => {
 self.addEventListener('push', (e) => {
   let d = {};
   try { d = e.data ? e.data.json() : {}; } catch { d = { titulo: e.data && e.data.text() }; }
-  e.waitUntil(self.registration.showNotification(d.titulo || 's360', {
+  e.waitUntil(self.registration.showNotification(d.titulo || 'Planéalo', {
     body: d.cuerpo || '', icon: '/icono-192.png', badge: '/icono-192.png', tag: d.tag || undefined, renotify: !!d.tag,
     data: { url: d.url || '/inicio.html' }, lang: 'es',
   }));

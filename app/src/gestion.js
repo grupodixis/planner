@@ -334,7 +334,7 @@ module.exports = function montar(app, asyncH) {
     if (!rows.length) throw fallo(404, 'OT no encontrada');
     const tareas = await query(
       `SELECT t.id, t.nombre, t.duracion_h, t.operarios_req, t.linea_id, t.estado, t.orden_en_of,
-              t.proveedor_id, (SELECT nombre FROM proveedores WHERE id = t.proveedor_id) AS proveedor, t.ext_avance, t.ext_nota,
+              t.proveedor_id, (SELECT nombre FROM proveedores WHERE id = t.proveedor_id) AS proveedor, t.ext_avance, t.ext_nota, t.codigo,
               COALESCE((SELECT sum(x.duracion_h) FROM tramos x WHERE x.tarea_id = t.id), 0)::float AS horas_planificadas,
               (SELECT count(*)::int FROM tramos x WHERE x.tarea_id = t.id) AS n_tramos,
               COALESCE((SELECT sum(COALESCE(a.hasta, x.hora_inicio + x.duracion_h) - COALESCE(a.desde, x.hora_inicio))

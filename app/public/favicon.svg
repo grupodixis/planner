@@ -1,1 +1,7 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="14" fill="#2f6fd6"/><path d="M14 44V20h8v24zm14 0V14h8v30zm14 0V28h8v16z" fill="#fff"/></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Planéalo">
+  <rect width="64" height="64" rx="15" fill="#10776c"/>
+  <rect x="15" y="13" width="7.5" height="38" rx="3.75" fill="#fff"/>
+  <rect x="27" y="13" width="20" height="7.5" rx="3.75" fill="#fff"/>
+  <rect x="27" y="28.25" width="24" height="7.5" rx="3.75" fill="#f59e0b"/>
+  <rect x="27" y="43.5" width="15" height="7.5" rx="3.75" fill="#fff"/>
+</svg>

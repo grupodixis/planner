@@ -899,6 +899,96 @@ const MIGRACIONES = [
      ADD COLUMN IF NOT EXISTS ext_nota TEXT,
      ADD COLUMN IF NOT EXISTS ext_actualizado TIMESTAMPTZ`,
   `CREATE INDEX IF NOT EXISTS tareas_proveedor_idx ON tareas (proveedor_id) WHERE proveedor_id IS NOT NULL`,
+
+  // 2026-11 · Códigos jerárquicos: proyecto P-2026-0061 → «61»; sus OTs 61.01, 61.02…; sus tareas 61.02.1, 61.02.2…
+  // Automáticos (también al importar o al cambiar una OT de proyecto). El código anterior queda en codigo_antiguo.
+  // Si otro proyecto más antiguo ya usa el mismo número (p. ej. P-2027-0061), se antepone el año: «27-61».
+  `CREATE OR REPLACE FUNCTION planea_num_proyecto(pid INT) RETURNS TEXT LANGUAGE sql STABLE AS $f$
+     WITH p AS (SELECT id, COALESCE(substring(codigo FROM '(\\d+)\\D*$')::int, id) AS n, substring(codigo FROM '20(\\d\\d)') AS yy
+                  FROM proyectos WHERE id = pid)
+     SELECT CASE WHEN EXISTS (SELECT 1 FROM proyectos q WHERE q.id < p.id
+                                AND COALESCE(substring(q.codigo FROM '(\\d+)\\D*$')::int, q.id) = p.n)
+                 THEN COALESCE(p.yy, p.id::text) || '-' || p.n ELSE p.n::text END
+       FROM p $f$`,
+  `ALTER TABLE ordenes ADD COLUMN IF NOT EXISTS codigo_antiguo TEXT`,
+  `ALTER TABLE tareas ADD COLUMN IF NOT EXISTS numero INT, ADD COLUMN IF NOT EXISTS codigo TEXT`,
+  // una vez: renumerar lo que hay (OTs por partida y código anterior; tareas por su orden en la OT)
+  `DO $m$ BEGIN
+     IF NOT EXISTS (SELECT 1 FROM ajustes WHERE clave = 'migr_codigos_v1') THEN
+       UPDATE ordenes SET codigo_antiguo = codigo WHERE codigo_antiguo IS NULL;
+       UPDATE ordenes SET codigo = 'tmp-' || id WHERE proyecto_id IS NOT NULL;
+       WITH x AS (SELECT o.id, planea_num_proyecto(o.proyecto_id) AS pn,
+                         row_number() OVER (PARTITION BY o.proyecto_id ORDER BY pa.orden NULLS LAST, pa.id NULLS LAST, o.codigo_antiguo, o.id) AS rn
+                    FROM ordenes o LEFT JOIN partidas pa ON pa.id = o.partida_id WHERE o.proyecto_id IS NOT NULL)
+       UPDATE ordenes o SET codigo = x.pn || '.' || lpad(x.rn::text, 2, '0') FROM x WHERE x.id = o.id;
+       WITH x AS (SELECT t.id, row_number() OVER (PARTITION BY t.orden_id ORDER BY t.orden_en_of, t.id) AS rn FROM tareas t)
+       UPDATE tareas t SET numero = x.rn FROM x WHERE x.id = t.id;
+       UPDATE tareas t SET codigo = o.codigo || '.' || t.numero FROM ordenes o WHERE o.id = t.orden_id;
+       INSERT INTO ajustes (clave, valor) VALUES ('migr_codigos_v1', 'true'::jsonb);
+     END IF;
+   END $m$`,
+  // OT: código según su proyecto (al crearla, al cambiarla de proyecto o si el proyecto cambia de número)
+  `CREATE OR REPLACE FUNCTION planea_codigo_ot() RETURNS trigger LANGUAGE plpgsql AS $f$
+   DECLARE pn TEXT; seq INT;
+   BEGIN
+     IF NEW.proyecto_id IS NULL THEN RETURN NEW; END IF;
+     pn := planea_num_proyecto(NEW.proyecto_id);
+     IF TG_OP = 'UPDATE' AND NEW.proyecto_id = OLD.proyecto_id THEN
+       IF OLD.codigo ~ ('^' || pn || '\\.\\d+$') THEN
+         -- el código es automático: lo que llegue (p. ej. el del compositor al reimportar) queda como referencia
+         IF NEW.codigo IS DISTINCT FROM OLD.codigo THEN
+           IF NEW.codigo !~ '^[0-9-]+\\.\\d+$' THEN NEW.codigo_antiguo := NEW.codigo; END IF;
+           NEW.codigo := OLD.codigo;
+         END IF;
+         RETURN NEW;
+       ELSIF OLD.codigo ~ '^[0-9-]+\\.\\d+$' THEN
+         -- el proyecto cambió de número: se conserva la secuencia
+         NEW.codigo := pn || '.' || split_part(OLD.codigo, '.', 2);
+         RETURN NEW;
+       END IF;
+     END IF;
+     IF NEW.codigo IS NOT NULL AND NEW.codigo !~ '^[0-9-]+\\.\\d+$' AND NEW.codigo !~ '^tmp-' AND NEW.codigo_antiguo IS NULL THEN
+       NEW.codigo_antiguo := NEW.codigo;
+     END IF;
+     SELECT COALESCE(max(split_part(codigo, '.', 2)::int), 0) + 1 INTO seq FROM ordenes
+      WHERE proyecto_id = NEW.proyecto_id AND codigo ~ ('^' || pn || '\\.\\d+$') AND id <> COALESCE(NEW.id, 0);
+     NEW.codigo := pn || '.' || lpad(seq::text, 2, '0');
+     RETURN NEW;
+   END $f$`,
+  `DROP TRIGGER IF EXISTS planea_codigo_ot ON ordenes`,
+  `CREATE TRIGGER planea_codigo_ot BEFORE INSERT OR UPDATE OF codigo, proyecto_id ON ordenes FOR EACH ROW EXECUTE FUNCTION planea_codigo_ot()`,
+  // al cambiar el código de la OT, sus tareas lo siguen
+  `CREATE OR REPLACE FUNCTION planea_codigo_ot_tareas() RETURNS trigger LANGUAGE plpgsql AS $f$
+   BEGIN
+     IF NEW.codigo IS DISTINCT FROM OLD.codigo THEN
+       UPDATE tareas SET codigo = NEW.codigo || '.' || numero WHERE orden_id = NEW.id;
+     END IF;
+     RETURN NEW;
+   END $f$`,
+  `DROP TRIGGER IF EXISTS planea_codigo_ot_tareas ON ordenes`,
+  `CREATE TRIGGER planea_codigo_ot_tareas AFTER UPDATE ON ordenes FOR EACH ROW WHEN (NEW.codigo IS DISTINCT FROM OLD.codigo) EXECUTE FUNCTION planea_codigo_ot_tareas()`,
+  // tarea: el siguiente número de su OT (no cambia al reordenar: el código es estable)
+  `CREATE OR REPLACE FUNCTION planea_codigo_tarea() RETURNS trigger LANGUAGE plpgsql AS $f$
+   BEGIN
+     IF TG_OP = 'INSERT' OR NEW.orden_id IS DISTINCT FROM OLD.orden_id OR NEW.numero IS NULL THEN
+       SELECT COALESCE(max(numero), 0) + 1 INTO NEW.numero FROM tareas WHERE orden_id = NEW.orden_id AND id <> COALESCE(NEW.id, 0);
+     END IF;
+     NEW.codigo := (SELECT codigo FROM ordenes WHERE id = NEW.orden_id) || '.' || NEW.numero;
+     RETURN NEW;
+   END $f$`,
+  `DROP TRIGGER IF EXISTS planea_codigo_tarea ON tareas`,
+  `CREATE TRIGGER planea_codigo_tarea BEFORE INSERT OR UPDATE OF orden_id ON tareas FOR EACH ROW EXECUTE FUNCTION planea_codigo_tarea()`,
+  // al cambiar el código de un proyecto, sus OTs se renumeran (conservando su secuencia)
+  `CREATE OR REPLACE FUNCTION planea_codigo_proyecto() RETURNS trigger LANGUAGE plpgsql AS $f$
+   BEGIN
+     IF NEW.codigo IS DISTINCT FROM OLD.codigo THEN
+       UPDATE ordenes o SET codigo = planea_num_proyecto(NEW.id) || '.' || split_part(o.codigo, '.', 2)
+        WHERE o.proyecto_id = NEW.id AND o.codigo ~ '^[0-9-]+\\.\\d+$';
+     END IF;
+     RETURN NEW;
+   END $f$`,
+  `DROP TRIGGER IF EXISTS planea_codigo_proyecto ON proyectos`,
+  `CREATE TRIGGER planea_codigo_proyecto AFTER UPDATE OF codigo ON proyectos FOR EACH ROW EXECUTE FUNCTION planea_codigo_proyecto()`,
 ];
 
 async function migrar() {

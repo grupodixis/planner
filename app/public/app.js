@@ -16,7 +16,7 @@
   const MIME_TAREA = 'application/x-s360-tarea';
   const MIME_TRAMO = 'application/x-s360-tramo';
   const MIME_REC = 'application/x-s360-recurso';
-  const BLOQUE_H = 58, GAP = 4;
+  const BLOQUE_H = 66, GAP = 4;
 
   const $ = (s) => document.querySelector(s);
   const el = (tag, attrs = {}, ...hijos) => {
@@ -461,7 +461,7 @@
   /* ---------- calendario (centro) ---------- */
   // Dos vistas del mismo día: «Áreas» (filas = áreas, bloques = tramos con una barra por
   // operario) y «Operarios» (filas = operarios, barras = su franja en cada tramo).
-  const FILA_TXT = 16, FILA_OP = 15, PAD_B = 6;
+  const FILA_TIT = 20, FILA_TXT = 15, FILA_OP = 15, PAD_B = 6;
 
   function cabeceraHoras() {
     const horas = el('div', { class: 'horas' });
@@ -571,7 +571,7 @@
   const operariosDe = (tr) => tr.asignados.filter((r) => r.tipo === 'operario');
   const otrosRecursos = (tr) => tr.asignados.filter((r) => r.tipo !== 'operario');
   const altoBloque = (tr) => Math.max(BLOQUE_H,
-    PAD_B * 2 + FILA_TXT * 2 + Math.max(1, operariosDe(tr).length) * FILA_OP + (otrosRecursos(tr).length ? FILA_OP : 0));
+    PAD_B * 2 + FILA_TIT + FILA_TXT * 2 + Math.max(1, operariosDe(tr).length) * FILA_OP + (otrosRecursos(tr).length ? FILA_OP : 0));
 
   /* ---------- material y herramientas de la tarea ---------- */
   const MAT_TXT = { disponible: 'en almacén', pedido: 'pedido', por_pedir: 'falta (sin pedir)', sin_revisar: 'sin revisar por logística' };
@@ -594,6 +594,18 @@
   }
 
   // icono 🧰 con el estado del material; «fecha» = día del tramo (si llega después, en rojo)
+  // código de la tarea (61.03.2) como etiqueta del color de su OT
+  const codTarea = (t) => (t.codigo ? el('span', { class: 'cod-chip' }, t.codigo) : el('span', { class: 'cod-chip' }, t.orden_codigo));
+  // contexto en pequeño: OT, partida, obra y cliente
+  function contextoTarea(t, { corto = false } = {}) {
+    const partes = [
+      t.partida ? `${t.partida_codigo ? `${t.partida_codigo} ` : ''}${t.partida}` : null,
+      t.obra || null, corto ? null : t.cliente || null,
+    ].filter(Boolean);
+    return [el('b', {}, `OT ${t.orden_codigo}`), ` ${t.orden_titulo}`, ...partes.flatMap((x) => [el('span', { class: 'sep' }, '·'), x])];
+  }
+  const contextoTxt = (t) => [`${t.proyecto || ''} ${t.proyecto_nombre || ''}`.trim(), t.partida ? `Partida ${t.partida_codigo ? `${t.partida_codigo} ` : ''}${t.partida}` : null,
+    `OT ${t.orden_codigo} ${t.orden_titulo}`, [t.obra, t.cliente].filter(Boolean).join(' · ')].filter(Boolean).join('\n');
   // duración de una tarea externa en días de jornada (64 h → «8 días»)
   const diasTxt = (h) => { const d = +(h / J().horas).toFixed(1); return `${String(d).replace('.', ',')} día${d === 1 ? '' : 's'}`; };
   // tarea de un taller externo: 🏭 con su avance (y la nota al pasar el ratón)
@@ -628,9 +640,9 @@
       class: `bloque${confs.length ? ' conflicto' : ''}${sel ? ' sel' : ''}${hermano ? ' hermano' : ''}${t.estado === 'hecha' ? ' hecha' : ''}`,
       draggable: editar ? 'true' : 'false', tabindex: '0', role: 'button',
       'data-tramo': tr.id, 'data-ot': t.orden_id,
-      'data-buscar': `${t.orden_codigo} ${t.orden_titulo} ${t.nombre} ${tr.asignados.map((r) => r.nombre).join(' ')} ${t.proyecto || ''}`.toLowerCase(),
-      'aria-label': `${t.orden_codigo} ${t.nombre}${parte}, ${hhmm(tr.hora_inicio)} a ${hhmm(tr.hora_inicio + tr.duracion_h)}`,
-      title: `${hhmm(tr.hora_inicio)}–${hhmm(tr.hora_inicio + tr.duracion_h)} · ${durTxt(tr.duracion_h)}`
+      'data-buscar': `${t.codigo || ''} ${t.orden_codigo} ${t.orden_codigo_antiguo || ''} ${t.orden_titulo} ${t.nombre} ${tr.asignados.map((r) => r.nombre).join(' ')} ${t.proyecto || ''} ${t.cliente || ''}`.toLowerCase(),
+      'aria-label': `${t.codigo || t.orden_codigo} ${t.nombre}${parte}, ${hhmm(tr.hora_inicio)} a ${hhmm(tr.hora_inicio + tr.duracion_h)}`,
+      title: `${t.codigo || ''} ${t.nombre}\n${contextoTxt(t)}\n${hhmm(tr.hora_inicio)}–${hhmm(tr.hora_inicio + tr.duracion_h)} · ${durTxt(tr.duracion_h)}`
         + (tr.exceso ? ` · ${durTxt(tr.exceso)} sobre lo estimado` : '') + (confs.length ? ' · tiene avisos' : '')
         + (editar ? '\nBordes del bloque: horas del tramo · Bordes de cada operario: su franja · Mayús + ← →' : ''),
       onclick: () => seleccionar({ tipo: 'tramo', id: tr.id }),
@@ -653,8 +665,11 @@
       },
       ondragend: finArrastre,
     },
-      el('div', { class: 'tit' }, marcaCierre(tr), iconoExt(t), iconoMat(t, tr.fecha), `${t.orden_codigo} · ${t.orden_titulo}`),
-      el('div', { class: 'sub' }, `${t.nombre} · ${durTxt(tr.duracion_h)}${parte}`),
+      el('div', { class: 'tit' }, marcaCierre(tr), iconoExt(t), iconoMat(t, tr.fecha), codTarea(t), ` ${t.nombre}`),
+      el('div', { class: 'sub' }, contextoTarea(t)),
+      el('div', { class: 'hor' }, t.proveedor_id
+        ? `día ${tr.indice} de ${t.tramos.length}${t.ext_nota ? ` · «${t.ext_nota}»` : ''}`
+        : `${durTxt(tr.duracion_h)}${parte}`),
     );
     b.style.setProperty('--c', t.orden_color);
     b.style.left = pct(ini);
@@ -671,7 +686,7 @@
     // una barra por operario con su franja (redimensionable) + resto de recursos en una línea
     const ops = operariosDe(tr);
     const barras = el('div', { class: 'franjas' });
-    if (!ops.length) barras.append(el('div', { class: 'sin-ops' }, t.proveedor_id ? `lo hace ${t.proveedor}${t.ext_nota ? ` · «${t.ext_nota}»` : ''}` : t.operarios_req ? 'sin operarios · arrastra uno aquí' : 'sin operarios'));
+    if (!ops.length) barras.append(el('div', { class: 'sin-ops' }, t.proveedor_id ? `lo hace ${t.proveedor}` : t.operarios_req ? 'sin operarios · arrastra uno aquí' : 'sin operarios'));
     for (const r of ops) barras.append(barraFranja(tr, r, b));
     b.append(barras);
     if (otrosRecursos(tr).length) b.append(el('div', { class: 'rec-asig' }, otrosRecursos(tr).map((r) => `◇ ${r.nombre}`).join('  ')));
@@ -1075,8 +1090,8 @@
     const c = el('div', {
       class: `chip-tr${confs.length ? ' conflicto' : ''}${sel ? ' sel' : ''}${hermano ? ' hermano' : ''}${t.estado === 'hecha' ? ' hecha' : ''}${r === undefined ? ' sin-op' : ''}`,
       draggable: editar ? 'true' : 'false', tabindex: '0', role: 'button', 'data-tramo': tr.id, 'data-ot': t.orden_id,
-      'data-buscar': `${t.orden_codigo} ${t.orden_titulo} ${t.nombre} ${tr.asignados.map((x) => x.nombre).join(' ')} ${t.proyecto || ''} ${area}`.toLowerCase(),
-      title: `${t.orden_codigo} · ${t.orden_titulo}\n${t.nombre} · ${hhmm(ini)}–${hhmm(fin)} · ${durTxt(fin - ini)}\n${area}${gente ? ` · ${gente}` : ' · sin operarios'}`
+      'data-buscar': `${t.codigo || ''} ${t.orden_codigo} ${t.orden_codigo_antiguo || ''} ${t.orden_titulo} ${t.nombre} ${tr.asignados.map((x) => x.nombre).join(' ')} ${t.proyecto || ''} ${t.cliente || ''} ${area}`.toLowerCase(),
+      title: `${t.codigo || ''} ${t.nombre} · ${hhmm(ini)}–${hhmm(fin)} · ${durTxt(fin - ini)}\n${contextoTxt(t)}\n${area}${gente ? ` · ${gente}` : t.proveedor_id ? ` · lo hace ${t.proveedor}` : ' · sin operarios'}`
         + (confs.length ? `\n⚠ ${confs.map((x) => x.mensaje).join('\n⚠ ')}` : '')
         + (editar ? '\nArrástralo a otro día (conserva la hora)' : ''),
       onclick: () => seleccionar({ tipo: 'tramo', id: tr.id }),
@@ -1089,10 +1104,11 @@
       ondragend: finArrastre,
     },
       compacto
-        ? el('span', { class: 'ct-tit' }, marcaCierre(tr), iconoExt(t), iconoMat(t, tr.fecha), el('span', { class: 'ct-hora' }, hhmm(ini)), ` ${t.nombre}`)
-        : el('span', { class: 'ct-tit dos' }, marcaCierre(tr), iconoExt(t), iconoMat(t, tr.fecha), el('span', { class: 'ct-ot' }, t.orden_codigo), ` ${t.nombre}`),
-      compacto ? null : el('span', { class: 'ct-sub' }, `${hhmm(ini)}–${hhmm(fin)} · ${durTxt(fin - ini)}`),
-      compacto ? null : el('span', { class: 'ct-sub' }, estado.vista === 'operarios' && r !== null ? area : gente || (t.proveedor_id ? `lo hace ${t.proveedor}` : 'sin operarios')),
+        ? el('span', { class: 'ct-tit' }, marcaCierre(tr), iconoExt(t), iconoMat(t, tr.fecha), el('span', { class: 'ct-hora' }, hhmm(ini)), ' ', codTarea(t), ` ${t.nombre}`)
+        : el('span', { class: 'ct-tit dos' }, marcaCierre(tr), iconoExt(t), iconoMat(t, tr.fecha), codTarea(t), ` ${t.nombre}`),
+      compacto ? null : el('span', { class: 'ct-sub' }, `${hhmm(ini)} · ${durTxt(fin - ini)} · `,
+        estado.vista === 'operarios' && r !== null ? area : gente || (t.proveedor_id ? `lo hace ${t.proveedor}` : 'sin operarios')),
+      compacto ? null : el('span', { class: 'ct-sub ct-ctx' }, el('b', {}, t.orden_codigo), ` ${t.orden_titulo}${t.obra ? ` · ${t.obra}` : ''}`),
     );
     c.style.setProperty('--c', t.orden_color);
     return c;
@@ -1380,7 +1396,7 @@
       class: `tarea-card${completa ? ' planificada' : ''}${t.horas_planificadas && !completa ? ' parcial' : ''}${sel ? ' sel' : ''}${t.baja_presupuesto ? ' baja' : ''}`,
       draggable: arrastrable ? 'true' : 'false', tabindex: '0', role: 'button',
       'data-tarea': t.id,
-      'data-buscar': `${t.orden_codigo} ${t.orden_titulo} ${t.nombre} ${req} ${t.partida_codigo || ''} ${t.partida || ''} ${t.proyecto || ''} ${t.proyecto_nombre || ''}`.toLowerCase(),
+      'data-buscar': `${t.codigo || ''} ${t.orden_codigo} ${t.orden_codigo_antiguo || ''} ${t.orden_titulo} ${t.nombre} ${req} ${t.partida_codigo || ''} ${t.partida || ''} ${t.proyecto || ''} ${t.proyecto_nombre || ''}`.toLowerCase(),
       title: `${t.nombre}\n${t.proveedor_id ? diasTxt(t.duracion_h) : durTxt(t.duracion_h)}${t.operarios_req && !t.proveedor_id ? ` · ${t.operarios_req} op` : ''}${reqTxt ? ` · ${reqTxt}` : ''}\n`
         + (completa ? 'Planificada entera. Pulsa para ver el detalle.'
           : t.horas_planificadas ? `${durTxt(t.horas_planificadas)} planificadas de ${durTxt(t.duracion_h)}. Arrastra para planificar el resto.`
@@ -1394,7 +1410,7 @@
       },
       ondragend: finArrastre,
     },
-      el('span', { class: 'tc-nom' }, t.nombre),
+      el('span', { class: 'tc-nom' }, codTarea(t), ` ${t.nombre}`),
       el('span', { class: 'tc-der' },
         iconoExt(t),
         iconoMat(t, t.tramos.length ? t.tramos.reduce((a, x) => (x.fecha < a ? x.fecha : a), t.tramos[0].fecha) : null),

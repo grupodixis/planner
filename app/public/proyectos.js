@@ -374,7 +374,12 @@
         }))));
 
     $('#ot-campos').replaceChildren(
-      campo({ etiqueta: 'Código', valor: o.codigo, max: 30, ancho: 'c1', obligatorio: true, guardar: guardar('codigo') }),
+      // con proyecto, el código es automático (nº de proyecto . OT): no se edita; el anterior queda como referencia
+      o.proyecto_id
+        ? el('div', { class: 'campo c1' }, el('label', {}, 'Código'),
+          el('div', { class: 'cod-auto', title: `Automático: proyecto ${o.proyecto_codigo || ''}, OT nº ${String(o.codigo).split('.').pop()}${o.codigo_antiguo ? `\nCódigo anterior: ${o.codigo_antiguo}` : ''}` },
+            el('span', { class: 'cod-chip' }, o.codigo), o.codigo_antiguo ? el('small', {}, ` antes ${o.codigo_antiguo}`) : null))
+        : campo({ etiqueta: 'Código', valor: o.codigo, max: 30, ancho: 'c1', obligatorio: true, guardar: guardar('codigo') }),
       campo({ etiqueta: 'Título', valor: o.titulo, max: 120, ancho: 'c3', obligatorio: true, guardar: guardar('titulo') }),
       campo({ etiqueta: 'Proyecto', valor: o.proyecto_id, opciones: proyectos, ancho: 'c2', guardar: guardar('proyecto_id') }),
       campo({
@@ -681,10 +686,10 @@
 
       return el('tr', { class: `${t.estado}${t.baja_presupuesto ? ' baja' : ''}`, 'data-id': t.id },
         el('td', { class: 'ord' }, editar ? asaOrden(t.nombre) : ''),
-        el('td', {}, el('input', {
+        el('td', {}, el('div', { class: 'td-tarea' }, t.codigo ? el('span', { class: 'cod-chip', style: `--c:${o.color}` }, t.codigo) : null, el('input', {
           value: t.nombre, maxlength: 120, 'aria-label': 'Nombre de la tarea', disabled: !editar,
           onchange: (ev) => (ev.target.value.trim() ? patch(t, { nombre: ev.target.value }) : (ev.target.value = t.nombre)),
-        }), extrasTarea(t, editar, patch)),
+        })), extrasTarea(t, editar, patch)),
         // tarea de un taller externo: la duración en días (1 día = una jornada) y sin operarios propios
         t.proveedor_id ? el('td', { class: 'num' }, el('input', {
           type: 'number', min: 0.5, step: 0.5, value: +(t.duracion_h / JH()).toFixed(1), 'aria-label': 'Días', disabled: !editar,

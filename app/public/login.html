@@ -9,13 +9,13 @@
   <link rel="apple-touch-icon" href="/apple-touch-icon.png">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
-  <meta name="apple-mobile-web-app-title" content="s360">
-  <title>s360 · Entrar</title>
-  <link rel="stylesheet" href="styles.css?v=202611191517">
+  <meta name="apple-mobile-web-app-title" content="Planéalo">
+  <title>Planéalo · Entrar</title>
+  <link rel="stylesheet" href="styles.css?v=202611191550">
 </head>
 <body class="login">
   <form id="f">
-    <h1>s360_planificacion</h1>
+    <h1 class="marca"><img src="/logo.svg" alt="" class="marca-ico">Planéalo</h1>
     <label>Email <input name="email" type="email" autocomplete="username" required></label>
     <label>Contraseña <input name="password" type="password" autocomplete="current-password" required></label>
     <p class="error" id="err" role="alert"></p>
@@ -42,6 +42,6 @@
       else document.getElementById('err').textContent = (await r.json().catch(() => ({}))).error || 'Error al entrar';
     });
   </script>
-  <script src="pwa.js?v=202611191517"></script>
+  <script src="pwa.js?v=202611191550"></script>
 </body>
 </html>

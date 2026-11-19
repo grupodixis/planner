@@ -1,6 +1,6 @@
 {
-  "name": "s360 Planificador · HAM Menorca",
-  "short_name": "s360",
+  "name": "Planéalo · HAM Menorca",
+  "short_name": "Planéalo",
   "description": "Mi día, capturar y planificar",
   "lang": "es",
   "start_url": "/inicio.html",
@@ -10,8 +10,21 @@
   "background_color": "#141414",
   "theme_color": "#141414",
   "icons": [
-    { "src": "/icono-192.png", "sizes": "192x192", "type": "image/png" },
-    { "src": "/icono-512.png", "sizes": "512x512", "type": "image/png" },
-    { "src": "/icono-512-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+    {
+      "src": "/icono-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icono-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    },
+    {
+      "src": "/icono-512-maskable.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
   ]
 }

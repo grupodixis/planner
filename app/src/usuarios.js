@@ -30,9 +30,9 @@ function textoCorreo(tipo, nombre, url) {
   const horas = VIGENCIA[tipo];
   const plazo = horas >= 48 ? `${horas / 24} días` : `${horas} horas`;
   return tipo === 'activar'
-    ? { asunto: 'Tu cuenta en el planificador s360',
-        texto: `Hola ${nombre}:\n\nTe han dado de alta en el planificador s360. Para elegir tu contraseña y entrar abre este enlace:\n\n${url}\n\nEl enlace sirve una sola vez y caduca en ${plazo}.\n` }
-    : { asunto: 'Restablecer tu contraseña del planificador s360',
+    ? { asunto: 'Tu cuenta en Planéalo',
+        texto: `Hola ${nombre}:\n\nTe han dado de alta en Planéalo, el planificador de HAM Menorca. Para elegir tu contraseña y entrar abre este enlace:\n\n${url}\n\nEl enlace sirve una sola vez y caduca en ${plazo}.\n` }
+    : { asunto: 'Restablecer tu contraseña de Planéalo',
         texto: `Hola ${nombre}:\n\nPara elegir una contraseña nueva abre este enlace:\n\n${url}\n\nEl enlace sirve una sola vez y caduca en ${plazo}. Si no lo has pedido tú, ignora este correo.\n` };
 }
 

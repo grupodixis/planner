@@ -1123,8 +1123,8 @@ a.kpi-sub { color: var(--azul); }
   .buscar input { width: 170px; }
 }
 @media (max-width: 1450px) {
-  .top h1 { font-size: 0; }
-  .top h1::before { content: 's360'; font-size: 18px; }
+  .top h1 { font-size: 0; gap: 0; }
+  .top h1::after { content: 'Planéalo'; font-size: 18px; margin-left: 8px; }
 }
 @media (max-width: 1600px) { .top { gap: 14px; } }
 .tarjeta-parte > button { justify-self: start; }
@@ -2158,3 +2158,29 @@ select.sel-externo { border-color: #b48ae8; color: #e3d2f8; }
 .det-sit.sit-vuelto { color: var(--verde); }
 .det-sit .sit-pasos { margin-top: 6px; }
 .ud-dias { display: block; font-size: 10.5px; color: var(--suave); text-align: center; } .req-externo { font-size: 12px; color: #d9c2f5; }
+/* ---------- Códigos jerárquicos (61.03.2) ---------- */
+.cod-chip { display: inline-block; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-weight: 700; font-size: 12px; line-height: 1.5;
+  color: #fff; background: color-mix(in srgb, var(--c, #5aa9f0) 55%, #000); border-radius: 5px; padding: 0 6px; white-space: nowrap; }
+.td-tarea { display: flex; align-items: center; gap: 6px; }
+.td-tarea input { flex: 1; min-width: 0; }
+.cod-auto { padding: 7px 0; }
+.cod-auto small { color: var(--suave); }
+/* tablero: código y tarea grandes; OT, partida, obra y cliente pequeños */
+.bloque .tit { font-size: 14px; font-weight: 650; color: #fff; line-height: 20px; }
+.bloque .tit .cod-chip { margin-right: 2px; font-size: 11.5px; vertical-align: 1px; }
+.bloque .sub { font-size: 11.5px; line-height: 15px; color: color-mix(in srgb, var(--c) 18%, #cfcfcf); }
+.bloque .sub b { color: #eee; font-weight: 600; }
+.bloque .sub .sep, .chip-tr .sep { color: #777; margin: 0 4px; }
+.bloque .hor { font-size: 11px; line-height: 15px; color: #9a9a9a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: none; }
+.bloque .tit, .bloque .sub { line-height: normal; }
+.bloque .tit { line-height: 20px; } .bloque .sub { line-height: 15px; }
+.chip-tr .cod-chip { font-size: 10.5px; padding: 0 4px; margin-right: 1px; }
+.chip-tr .ct-tit { color: #fff; }
+.chip-tr .ct-ctx b { font-weight: 600; }
+.tarea-card .tc-nom .cod-chip { font-size: 10.5px; padding: 0 4px; margin-right: 2px; }
+/* ---------- Marca Planéalo ---------- */
+h1.marca { display: inline-flex; align-items: center; gap: 9px; letter-spacing: -.2px; font-weight: 700; }
+h1.marca .marca-ico { width: 28px; height: 28px; flex: none; border-radius: 7px; }
+.login h1.marca { font-size: 26px; margin-bottom: 14px; }
+.login h1.marca .marca-ico { width: 40px; height: 40px; border-radius: 10px; }
+.pin-caja h1.marca span { color: var(--suave); font-weight: 400; }

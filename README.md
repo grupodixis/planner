@@ -1,4 +1,4 @@
-# s360_planificacion
+# Planéalo (s360_planificacion)
 
 Gestor de proyectos web y multiusuario para **planificar y registrar los recursos asignados**
 (operarios, maquinaria propia, subcontratas/alquileres) a las **órdenes de trabajo (OT)** de
@@ -707,6 +707,22 @@ compositor los use.
 - **Correo de salida**: en **Compras › Ajustes › Correo de salida** (cuenta compras@; IONOS,
   smtp.ionos.es:587 STARTTLS). Alternativa en el servidor: `bash configurar-correo.sh` (lo deja en
   `.env`; lo del panel manda sobre esto).
+
+## Códigos de proyecto, OT y tarea
+
+Jerárquicos y automáticos (triggers en `migraciones.js`): el proyecto `P-2026-0061` es **61**; sus OTs **61.01, 61.02…**
+(por partida al renumerar; luego, la siguiente libre) y sus tareas **61.02.1, 61.02.2…** (`tareas.numero`, estable: no
+cambia al reordenar). Al cambiar una OT de proyecto o el código del proyecto, se renumeran OT y tareas. Si otro proyecto
+más antiguo ya usa el mismo número (p. ej. `P-2027-0061`), se antepone el año: **27-61.01**. El código anterior de cada
+OT (el del compositor, `OT-0058-ING`, o `OT-1568`) queda en `ordenes.codigo_antiguo`, se ve en la ficha («antes …») y se
+puede buscar en el tablero; al reimportar, el código del compositor ya no pisa el nuevo. Las OTs sin proyecto conservan
+`OT-NNNN`. En el tablero, cada tarea sale con su código y nombre (grande) y debajo OT, partida, obra y cliente.
+
+## Marca
+
+**Planéalo**: monograma (barra vertical y tres barras de tareas, la del medio naranja) en `public/logo.svg` (también
+`favicon.svg`), iconos de la app `icono-192/512`, `icono-512-maskable`, `apple-touch-icon`; verde `#10776c`, naranja
+`#f59e0b`. Cabecera `h1.marca` en todas las pantallas.
 
 ## Talleres externos (lo que se hace fuera)
 

@@ -3,7 +3,7 @@
 // cada recurso con su franja efectiva (desde–hasta) dentro del tramo.
 const hhmm = (h) => `${String(Math.floor(h)).padStart(2, '0')}:${String(Math.round((h % 1) * 60)).padStart(2, '0')}`;
 const horas = (h) => `${String(Math.round(h * 100) / 100).replace('.', ',')}h`;
-const etiqueta = (t) => `${t.orden_codigo} ${String(t.nombre || '').toLowerCase()}${t.tramos?.length > 1 ? ` (tramo ${t.indice})` : ''}`;
+const etiqueta = (t) => `${t.codigo || t.orden_codigo} ${String(t.nombre || '').toLowerCase()}${t.tramos?.length > 1 ? ` (tramo ${t.indice})` : ''}`;
 
 // fecha 'AAAA-MM-DD' + hora decimal → milisegundos (en UTC, solo para comparar)
 const instante = (fecha, h) => Date.parse(`${fecha}T00:00:00Z`) + h * 3600e3;
