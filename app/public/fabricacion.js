@@ -85,7 +85,7 @@
     const repintar = () => pintarSeguimiento().catch((e) => toast(e.message, true));
 
     const cols = COLUMNAS.filter(([k]) => k !== 'otro' || items.some((x) => x.col === 'otro'));
-    panel.replaceChildren(el('section', { class: 'panel fab-seg', 'data-ayuda': 'fab-seguimiento' },
+    panel.replaceChildren(el('section', { class: 'panel fab-seguimiento', 'data-ayuda': 'fab-seguimiento' },
       el('div', { class: 'cab-panel' },
         el('div', {}, el('h2', {}, 'Dónde está cada cosa'),
           el('p', { class: 'ayuda' }, 'Cada tarjeta es una parte de un pedido. La mueve quien hace cada etapa desde su enlace (taller, galvanizadora) y vosotros al recibirla. Pulsa una tarjeta para abrir el pedido.')),

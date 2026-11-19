@@ -2125,7 +2125,7 @@ dialog.dlg-cos { width: min(460px, calc(100vw - 24px)); }
 .cmp-alt { color: var(--aviso, #b7791f); font-style: italic; }
 
 /* ---------- Fabricación externa (Compras) ---------- */
-.fab-seg { display: flex; flex-direction: column; gap: 10px; }
+.fab-seguimiento { display: flex; flex-direction: column; gap: 10px; }
 .fab-cab-acc { display: flex; gap: 8px; flex-wrap: wrap; }
 .fab-filtros { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
 .fab-filtros input[type=search], .fab-filtros select { background: #1a1a1a; border: 1px solid var(--borde); border-radius: 8px; color: var(--texto); font: inherit; padding: 5px 9px; }
