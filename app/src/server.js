@@ -26,6 +26,7 @@ app.get('/health', (req, res) => res.json({ ok: true, version: VERSION }));
 
 require('./pin').publico(app, asyncH);   // entrar con PIN desde un dispositivo autorizado (sin sesión)
 require('./ofertas-portal').montar(app, asyncH);   // el proveedor responde la petición de precio (enlace sin sesión)
+require('./fabricacion').montarPublico(app, asyncH);   // el taller / la galvanizadora actualizan el avance (enlace sin sesión)
 require('./usuarios')(app, asyncH);   // entrar, recuperar contraseña, Mi cuenta, usuarios y roles
 require('./pin').gestion(app, asyncH);   // PIN de operarios y dispositivos autorizados
 require('./archivos').montar(app, asyncH);   // fotos y documentos (justificantes, incidencias)
@@ -57,6 +58,7 @@ require('./informes').montar(app, asyncH);   // informes de horas y costes
 require('./costes').montar(app, asyncH);   // control de costes y tiempos por proyecto
 require('./compras').montar(app, asyncH);   // proveedores y pedidos de compra
 require('./solicitudes').montar(app, asyncH);   // peticiones de precio a proveedores
+require('./fabricacion').montar(app, asyncH);   // fabricación externa: pedidos a talleres y su seguimiento
 require('./ausencias').montar(app, asyncH);   // vacaciones, bajas, averías y festivos
 
 /* ---------- Áreas de trabajo ---------- */

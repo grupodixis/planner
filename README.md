@@ -97,6 +97,7 @@ app/src/capturas.js       bandeja de capturas: capturar y clasificar (tarea / as
 app/src/eventos.js        avisos en vivo entre pantallas (Server-Sent Events)
 app/public/ayuda*.js      ayuda: «?», recorridos y novedades
 app/src/compras.js        proveedores y pedidos de compra (aprobación, PDF, envío)
+app/src/fabricacion.js    fabricación externa: pedidos a talleres, partes, etapas, enlaces de proveedores
 app/src/costes.js         control de costes por proyecto (presupuesto, real, previsión, margen)
 app/src/importar.js       importación de proyectos del compositor (s360-import/2 y /1) y catálogo
 app/src/migraciones.js    cambios de esquema que se aplican solos al arrancar
@@ -706,6 +707,45 @@ compositor los use.
 - **Correo de salida**: en **Compras › Ajustes › Correo de salida** (cuenta compras@; IONOS,
   smtp.ionos.es:587 STARTTLS). Alternativa en el servidor: `bash configurar-correo.sh` (lo deja en
   `.env`; lo del panel manda sobre esto).
+
+## Fabricación externa (Compras › 🏗 Fabricación externa)
+
+Para lo que fabrica un taller de fuera con nuestros planos (p. ej. **Ferros Puig**, Barcelona): fabrican, lo llevan a
+galvanizar (**Tenas**) si toca, lo pintan y lo entregan a **Ydica**, que lo trae a Menorca para montarlo
+(`src/fabricacion.js`, `public/fabricacion.js`; tablas `fab_pedidos`, `fab_partes`, `fab_eventos`, `fab_enlaces`).
+
+- **Pedido FE-AAAA-NNNN**: taller, proyecto y partida, título, importe, fecha, planos (PDF adjuntos o enlace a una
+  carpeta) y notas. Se sigue **entero o por partes** («Escalera», «Pilares», «Barandilla»…): cada parte avanza por su
+  cuenta, se puede separar en dos (✂) y se une a su **tarea de montaje**.
+- **Recorrido** (copiado de una plantilla, se retoca por pedido): etapas con clase (fabricación, galvanizado, pintura,
+  lacado, transporte, otro), **quién la actualiza** (el taller del pedido, otro proveedor, nosotros), días típicos y, en
+  el transporte, el transportista. Plantillas en «⚙ Recorridos» (`ajustes.fab_plantillas`; de serie: galvanizado +
+  pintura vía Ydica, galvanizado, pintura, lacado, solo fabricación vía Ydica, solo fabricación). «Recibido» siempre al
+  final y lo marcamos nosotros.
+- **Enlace de cada proveedor** (sin cuenta, `/fabricacion.html?t=pedido.proveedor.firma`; HMAC con la clave del servidor
+  sobre `fab_enlaces.nonce`): ve el pedido, los planos y todas las partes, pero solo puede tocar **sus etapas**:
+  empezar («📥 recibido en planta», «🚚 entregado a Ydica»), avance %, fecha prevista, comentario, fotos/PDF (albarán,
+  certificado de galvanizado) y terminar («✔ … terminada», «🚚 terminado y entregado a Ydica»); varias a la vez. No ve
+  importes. Copiar enlace o «✉ Por correo» (abre el correo con el texto) en la ficha.
+- **Fechas**: cada etapa guarda inicio/fin reales; la actual termina en la fecha prevista que pone quien la hace (o
+  inicio + días típicos; si ya pasó, «fuera de plazo»); las siguientes suman sus días. Llegada = fin del transporte.
+- **Seguimiento**: columnas Fabricación · Galvanizado · Pintura/lacado · (Otras) · Transporte · Listo por recibir ·
+  Recibido, con filtros (taller, proyecto, ⚠ con retraso) y búsqueda. Ficha: recorrido, partes × etapas, llegada y
+  montaje, enlaces, datos, planos e historial. Desde la oficina: actualizar, corregir la etapa, ✔ recibir.
+- **Tablero**: 🏭 en las tareas de montaje (rojo si las piezas llegan ese día o después) y aviso `fabricacion` con
+  «Solucionar → mover al día siguiente a la llegada»; detalle con el recorrido de cada pieza. En **Semana**, franja
+  plegable «🏭 Fabricación externa» con barras por etapa hasta el 📦 de llegada, **por pieza** o **por taller**
+  (`fab_modo`); en **Mes**, la llegada de cada pieza en su día. No ocupa recursos ni horas. **Mi día**: «🏭 Piezas
+  fabricadas fuera» con si ya están aquí o cuándo llegan.
+- **Avisos**: `fab_avance` (compras/proyectos) cuando un proveedor actualiza; `fab_tarde` (quien planifica, urgente)
+  si una parte pasa a llegar después de su montaje.
+- **Costes**: el importe del pedido (no anulado) cuenta como subcontrata real de su partida en Control de costes.
+- API: `GET/POST /api/fabricacion`, `GET/PATCH /api/fabricacion/:id`, `/api/fabricacion/opciones`,
+  `/api/fabricacion/proyecto/:id`, `GET/PUT /api/fabricacion/plantillas`, `POST /api/fabricacion/:id/partes`,
+  `PATCH/DELETE /api/fabricacion/partes/:id`, `POST /api/fabricacion/:id/accion {accion: empezar|avance|terminar|recibir|poner, partes[]…}`,
+  `POST/DELETE /api/fabricacion/:id/planos`, `POST /api/fabricacion/:id/enlace {proveedor_id, nuevo}`; públicas
+  `GET /api/fab-enlace/:t`, `POST /api/fab-enlace/:t/accion`, `POST·GET /api/fab-enlace/:t/archivos[/:id]`.
+- Pendiente: pedir precio a varios talleres con los planos; recibir desde el móvil (Logística).
 
 ## Control de costes (Informes › Control de costes)
 

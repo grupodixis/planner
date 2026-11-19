@@ -9,6 +9,7 @@ const { jornada } = require('./config');
 const { calcularConflictos } = require('./conflictos');
 const avance = require('./avance');
 const material = require('./material');
+const fabricacion = require('./fabricacion');
 const { ausenciasEnRango, festivosEnRango, ausenciasPorDia, textoAusencia } = require('./ausencias');
 
 const FECHA_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -272,6 +273,21 @@ module.exports = function montar(app, asyncH) {
       }
     }
 
+    // Fabricación externa: marca 🏭 en las tareas de montaje, aviso si se monta antes de que llegue la pieza
+    // y la franja de llegadas (semana / mes)
+    const fab = await fabricacion.paraTablero(desde, hasta);
+    for (const t of tareas.rows) t.fab = fab.porTarea.get(t.id) || null;
+    for (const tr of tramos.rows) {
+      const t = porTarea.get(tr.tarea_id);
+      if (!t?.fab || tr.cierre || t.estado === 'hecha' || tr.fecha < hoyM) continue;
+      const tarde = t.fab.filter((f) => !f.recibido && f.llegada >= tr.fecha);
+      if (!tarde.length) continue;
+      const ult = tarde.reduce((a2, f) => (f.llegada > a2 ? f.llegada : a2), tarde[0].llegada);
+      conflictos.push({ tipo: 'fabricacion', ids: [tr.id], fecha: tr.fecha, llega: ult,
+        libre: { fecha: ult, hora: jornada.fin },   // a partir del día siguiente a la llegada
+        mensaje: `${t.orden_codigo} ${t.nombre}: ${tarde.map((f) => f.nombre).slice(0, 3).join(', ')} (${tarde[0].codigo}) llega ~${dm(ult)}${ult === tr.fecha ? ', el mismo día' : ''}` });
+    }
+
     // avance y rendimiento de las OTs y proyectos que aparecen en «Por planificar»
     const ordenIds = [...new Set(tareas.rows.map((t) => t.orden_id))];
     const av = ordenIds.length ? await avance.resumen({ ordenIds }) : { ordenes: {} };
@@ -279,7 +295,7 @@ module.exports = function montar(app, asyncH) {
     const avP = proyIds.length ? await avance.resumen({ proyectoIds: proyIds }) : { proyectos: {} };
 
     res.json({ fecha: desde, desde, hasta, jornada, lineas: lineas.rows, recursos: recursos.rows,
-      tareas: tareas.rows, tramos: tramos.rows, conflictos, ausencias, festivos,
+      tareas: tareas.rows, tramos: tramos.rows, conflictos, ausencias, festivos, fabricacion: fab.franja,
       dias_cerrados: cerrados.rows.map((r) => r.fecha),
       avance: { ordenes: av.ordenes, proyectos: avP.proyectos } });
   }));

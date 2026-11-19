@@ -6,7 +6,8 @@
 //  · Previsión a final de una tarea = real si está hecha; si no, real + horas que faltan × coste/hora (el que lleva
 //    la tarea o, si aún no tiene horas, el medio).
 //  · Material, maquinaria, subcontratas y otros: presupuesto de la partida; lo real de maquinaria y subcontratas sale
-//    del parte (horas × coste/hora). El material real llegará con los precios de compra (fase 2).
+//    del parte (horas × coste/hora) y, en subcontratas, el importe de los pedidos de fabricación externa de la partida.
+//    El material real llegará con los precios de compra (fase 2).
 const { query } = require('./db');
 const auth = require('./auth');
 const { jornada } = require('./config');
@@ -149,6 +150,12 @@ async function calcular(proyectoIds) {
     return { ...t, x, personas };
   });
 
+  // Fabricación externa: el importe de cada pedido (no anulado) cuenta como subcontrata real de su partida
+  const { rows: fabs } = await query(
+    `SELECT proyecto_id, partida_id, sum(importe)::float AS importe, count(*)::int AS n FROM fab_pedidos
+      WHERE proyecto_id = ANY($1) AND estado <> 'anulado' AND importe IS NOT NULL GROUP BY 1, 2`, [proyectoIds]);
+  const fabDe = (proy, partida) => fabs.find((f) => f.proyecto_id === proy && (f.partida_id || null) === (partida || null));
+
   // Partidas: presupuesto del resto de tipos (solo a nivel de partida) y su previsión
   const grupos = [...partidas, ...proyectoIds.map((pid) => ({ id: null, proyecto_id: pid, codigo: '', nombre: 'Sin partida', pvp: null, presupuesto: {} }))].map((p) => {
     const suyas = filasTarea.filter((t) => (t.partida_id || null) === p.id && t.proyecto_id === p.proyecto_id);
@@ -161,6 +168,8 @@ async function calcular(proyectoIds) {
     }
     const x = suyas.reduce((a, t) => sumar(a, t.x), vacio());
     const pres = p.presupuesto || {};
+    const fe = fabDe(p.proyecto_id, p.id);
+    if (fe) { x.tipos.subcontratas.real += fe.importe; x.fab_externa = fe.importe; }
     for (const k of TIPOS.slice(1)) {
       if (typeof pres[k] === 'number') x.tipos[k].presup = pres[k];
       // lo que aún no se lleva de verdad (material, otros) se prevé por lo presupuestado

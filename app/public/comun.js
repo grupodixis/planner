@@ -111,6 +111,7 @@
     ['Proyectos', [['/proyectos.html', 'Proyectos y OTs', null, 'Partidas, OTs, tareas, escandallo e importación']]],
     ['Compras', [['/logistica.html', 'Material de las partidas', ['logistica', 'compras', 'escandallo'], 'Stock, por pedir, pedido y recepción'],
       ['/compras.html', 'Pedidos de compra', ['compras', 'aprobar_compras', 'logistica'], 'Preparar, aprobar y enviar pedidos a proveedores'],
+      ['/compras.html?vista=fabricacion', 'Fabricación externa', ['compras', 'proyectos', 'planificar', 'logistica', 'aprobar_compras'], 'Pedidos a talleres de fuera y dónde está cada pieza'],
       ['/compras.html?vista=proveedores', 'Proveedores', ['compras', 'logistica', 'escandallo', 'aprobar_compras'], 'Fichas, contactos y lo que sirve cada uno']]],
     ['Recursos', [['/recursos.html', 'Operarios, máquinas y subcontratas', null, 'Fichas, vacaciones y festivos, tipos'],
       ['/recursos.html?tipo=areas', 'Áreas de trabajo', null, 'Zonas del taller, puestos, cabina y su equipo fijo'],

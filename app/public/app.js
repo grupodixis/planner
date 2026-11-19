@@ -603,6 +603,19 @@
     return el('span', { class: `mat-ico ${tarde ? 'tarde' : L.estado}`, title: (tarde ? `⚠ El material llega el ${ddmm(L.llega)}, después de este día\n` : '') + textoLlevar(L) }, txt);
   }
 
+  // icono 🏭 de fabricación externa: cuándo llegan las piezas de esta tarea (en rojo si llegan ese día o después)
+  const textoFab = (F) => F.map((f) => `🏭 ${f.nombre} (${f.codigo} · ${f.taller}): ${f.recibido ? `✔ recibido ${ddmm(f.recibido_en)}` : `${f.donde} · llega ~${ddmm(f.llegada)}`}`).join('\n');
+  function iconoFab(t, fecha = null) {
+    const F = t.fab;
+    if (!F || !F.length) return null;
+    const pend = F.filter((f) => !f.recibido);
+    if (!pend.length) return el('span', { class: 'fab-ico ok', title: textoFab(F) }, '🏭 ✔');
+    const ult = pend.reduce((a, f) => (f.llegada > a ? f.llegada : a), pend[0].llegada);
+    const tarde = fecha && ult >= fecha;
+    return el('span', { class: `fab-ico${tarde ? ' tarde' : ''}`, title: (tarde ? `⚠ Las piezas llegan ~${ddmm(ult)}, ${ult === fecha ? 'el mismo día' : 'después de este día'}\n` : '') + textoFab(F) },
+      `🏭 ${tarde ? 'llega ' : ''}${ddmm(ult)}`);
+  }
+
   function bloque(tr) {
     const t = tarea(tr.tarea_id);
     const ini = Math.max(tr.hora_inicio, H_INI());
@@ -643,7 +656,7 @@
       },
       ondragend: finArrastre,
     },
-      el('div', { class: 'tit' }, marcaCierre(tr), iconoMat(t, tr.fecha), `${t.orden_codigo} · ${t.orden_titulo}`),
+      el('div', { class: 'tit' }, marcaCierre(tr), iconoMat(t, tr.fecha), iconoFab(t, tr.fecha), `${t.orden_codigo} · ${t.orden_titulo}`),
       el('div', { class: 'sub' }, `${t.nombre} · ${durTxt(tr.duracion_h)}${parte}`),
     );
     b.style.setProperty('--c', t.orden_color);
@@ -1079,8 +1092,8 @@
       ondragend: finArrastre,
     },
       compacto
-        ? el('span', { class: 'ct-tit' }, marcaCierre(tr), iconoMat(t, tr.fecha), el('span', { class: 'ct-hora' }, hhmm(ini)), ` ${t.nombre}`)
-        : el('span', { class: 'ct-tit dos' }, marcaCierre(tr), iconoMat(t, tr.fecha), el('span', { class: 'ct-ot' }, t.orden_codigo), ` ${t.nombre}`),
+        ? el('span', { class: 'ct-tit' }, marcaCierre(tr), iconoMat(t, tr.fecha), iconoFab(t, tr.fecha), el('span', { class: 'ct-hora' }, hhmm(ini)), ` ${t.nombre}`)
+        : el('span', { class: 'ct-tit dos' }, marcaCierre(tr), iconoMat(t, tr.fecha), iconoFab(t, tr.fecha), el('span', { class: 'ct-ot' }, t.orden_codigo), ` ${t.nombre}`),
       compacto ? null : el('span', { class: 'ct-sub' }, `${hhmm(ini)}–${hhmm(fin)} · ${durTxt(fin - ini)}`),
       compacto ? null : el('span', { class: 'ct-sub' }, estado.vista === 'operarios' && r !== null ? area : gente || 'sin operarios'),
     );
@@ -1221,8 +1234,86 @@
           total ? `${durTxt(+total.toFixed(1))} en la semana` : '', `${linea.activo && !linea.obra_cerrada ? '' : 'inactiva'}${claseObra(linea)}`, celdas);
       });
       if (!estado.datos.lineas.length) filas = [el('p', { class: 'cal-vacio' }, 'No hay áreas de trabajo activas. Crea una con el botón «Áreas de trabajo».')];
+      else filas.push(...franjaFab(dias));
     }
     $('#cal-body').replaceChildren(...filas);
+  }
+
+  /* ---------- Fabricación externa: franja de la semana (no ocupa a nadie: solo dónde está y cuándo llega) ---------- */
+  const FAB_COLOR = { fabricacion: 'var(--azul)', galvanizado: '#b48ae8', pintura: 'var(--naranja)', lacado: 'var(--naranja)', transporte: '#6a6a6a', otro: '#4fb3a9' };
+  // ¿hay un tramo de su tarea de montaje planificado antes de que llegue? (para marcarlo en rojo)
+  const montajeAntes = (f) => !f.recibido && f.tarea_id && estado.datos.tramos.some((tr) => tr.tarea_id === f.tarea_id && !tr.cierre && tr.fecha <= f.llegada);
+  function franjaFab(dias) {
+    const F = estado.datos.fabricacion || [];
+    if (!F.length) return [];
+    const clave = 'ga:fab';
+    const abierto = !plegados.has(clave);
+    const modo = leerPref('fab_modo', 'pieza');
+    const d0 = dias[0], d1 = dias[dias.length - 1];
+    const idx = (f) => (f < d0 ? -1 : f > d1 ? dias.length : dias.indexOf(f));
+    const irPedido = (f) => { location.href = `/compras.html?vista=fabricacion&fab=${f.pedido_id}`; };
+    // un tramo de barra: [desde, hasta) en días; si empieza y acaba el mismo día, ocupa ese día
+    const segmento = (f, x, etiqueta) => {
+      if (!x.desde || !x.hasta) return null;
+      const fin = x.hasta > x.desde ? sumarDias(x.hasta, -1) : x.desde;
+      const a = idx(x.desde), b = idx(fin);
+      if (b < 0 || a >= dias.length) return null;
+      const ini = Math.max(a, 0), ult = Math.min(b, dias.length - 1);
+      const tipo = x.tipo;
+      return el('button', {
+        type: 'button', class: `fab-seg ${x.estado}${tipo === 'transporte' ? ' transp' : ''}${a < 0 ? ' sigue-izq' : ''}${b >= dias.length ? ' sigue-der' : ''}`,
+        style: `grid-column:${ini + 1} / ${ult + 2};--c:${FAB_COLOR[tipo] || '#777'}`,
+        title: `${f.nombre} · ${f.codigo}\n${x.nombre} (${x.responsable}) · ${ddmm(x.desde)}–${ddmm(x.hasta)}${x.estado === 'hecha' ? ' ✔' : x.estado === 'actual' ? ' · ahora' : ' · previsto'}`,
+        onclick: () => irPedido(f),
+      }, `${a < 0 ? '‹ ' : ''}${etiqueta}${b >= dias.length ? ' ›' : ''}`);
+    };
+    const llegada = (f) => {
+      const dia = f.recibido ? f.recibido_en : f.llegada;
+      const i = idx(dia);
+      if (i < 0 || i >= dias.length) return null;
+      const tarde = montajeAntes(f);
+      return el('button', {
+        type: 'button', class: `fab-lleg${f.recibido ? ' ok' : tarde ? ' tarde' : ''}`, style: `grid-column:${i + 1} / ${i + 2}`,
+        title: f.recibido ? `${f.nombre}: recibido` : `${f.nombre}: llega ~${ddmm(f.llegada)}${tarde ? ' · ⚠ su montaje está planificado antes' : ''}`,
+        onclick: () => irPedido(f),
+      }, f.recibido ? '✔ recibido' : `📦 ${tarde ? '⚠ ' : ''}${hoyEs(dia) ? 'llega hoy' : `llega ${ddmm(dia)}`}`);
+    };
+    const fila = (nombre, sub, hijos, clase = '') => el('div', { class: `fila-sem fila-fab${clase}` },
+      el('div', { class: 'fila-nombre' }, nombre, sub ? el('span', { class: 'ubic', title: sub }, sub) : null),
+      el('div', { class: 'fab-sem', style: `--n:${dias.length}` }, dias.map((f, i) => el('span', { class: `fab-dia${esFinde(f) ? ' finde' : ''}${hoyEs(f) ? ' hoy' : ''}`, style: `grid-column:${i + 1}` })), hijos));
+    let filas = [];
+    if (abierto && modo === 'taller') {
+      // una fila por quien lo tiene (taller, galvanizadora, transportista): ve la carga de cada uno
+      const porQuien = new Map();
+      for (const f of F) for (const x of f.etapas) {
+        if (x.estado === 'hecha' && (!x.desde || x.desde === x.hasta)) continue;
+        const k = x.tipo === 'transporte' ? `🚚 ${x.nombre.replace(/^transporte\s*/i, '') || 'Transporte'}` : x.responsable || '—';
+        if (!porQuien.has(k)) porQuien.set(k, []);
+        porQuien.get(k).push(segmento(f, x, `${f.nombre}${x.tipo === 'transporte' ? '' : ` · ${x.nombre}`}`));
+      }
+      filas = [...porQuien].map(([k, segs]) => fila(k, `${segs.filter(Boolean).length} en la semana`, segs.filter(Boolean)))
+        .concat(F.some((f) => idx(f.recibido ? f.recibido_en : f.llegada) >= 0 && idx(f.recibido ? f.recibido_en : f.llegada) < dias.length)
+          ? [fila('📦 Llegadas a Menorca', '', F.map(llegada).filter(Boolean))] : []);
+    } else if (abierto) {
+      filas = F.map((f) => fila(f.nombre, `${f.codigo} · ${f.taller}${f.proyecto ? ` · ${f.proyecto}` : ''}`,
+        // las etapas ya hechas sin duración (marcadas el mismo día) no se dibujan: se ven en el pedido
+        [...f.etapas.filter((x) => !(x.estado === 'hecha' && x.desde === x.hasta)).map((x) => segmento(f, x, `${x.nombre}${x.tipo === 'transporte' ? '' : ` · ${x.responsable}`}`)), llegada(f)].filter(Boolean),
+        montajeAntes(f) ? ' tarde' : ''));
+    }
+    const tarde = F.filter(montajeAntes).length;
+    const cab = el('div', {
+      role: 'button', tabindex: '0', class: `grupo-areas fab${abierto ? '' : ' plegado'}`, 'aria-expanded': abierto ? 'true' : 'false',
+      onclick: () => { if (plegados.has(clave)) plegados.delete(clave); else plegados.add(clave); guardarPref('plegados', JSON.stringify([...plegados].slice(-300))); pintarCalendario(); },
+      onkeydown: (ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); ev.currentTarget.click(); } },
+    },
+    el('span', { class: 'flecha', 'aria-hidden': 'true' }, abierto ? '▾' : '▸'),
+    el('span', { class: 'ga-nom' }, '🏭 Fabricación externa · llegadas a Menorca'),
+    el('span', { class: 'ga-info' }, `${F.length} pieza${F.length > 1 ? 's' : ''} · no ocupa a nadie de aquí`),
+    tarde ? el('span', { class: 'ga-conf' }, `⚠ ${tarde} llega${tarde > 1 ? 'n' : ''} después del montaje`) : null,
+    el('span', { class: 'ga-nota fab-modo', onclick: (ev) => ev.stopPropagation() },
+      ['pieza', 'taller'].map((m) => el('button', { type: 'button', class: `ghost mini${modo === m ? ' activo' : ''}`, 'aria-pressed': modo === m ? 'true' : 'false',
+        onclick: () => { guardarPref('fab_modo', m); pintarCalendario(); } }, m === 'pieza' ? 'Por pieza' : 'Por taller'))));
+    return [cab, ...filas];
   }
 
   function pintarMes() {
@@ -1260,6 +1351,10 @@
             class: `carga${carga > 1 ? ' sobre' : carga > 0.85 ? ' alta' : ''}`, 'aria-hidden': 'true',
             title: `Ocupación de operarios: ${Math.round(carga * 100)}%${fuera.length ? ` (${nDisp} disponibles de ${nOps})` : ''}`,
           }, el('span', { style: `width:${Math.min(100, carga * 100)}%` })) : null,
+          ...(estado.datos.fabricacion || []).filter((x) => (x.recibido ? x.recibido_en : x.llegada) === f).map((x) => el('a', {
+            class: `fab-mes${x.recibido ? ' ok' : montajeAntes(x) ? ' tarde' : ''}`, href: `/compras.html?vista=fabricacion&fab=${x.pedido_id}`,
+            title: `${x.nombre} · ${x.codigo} · ${x.taller}\n${x.recibido ? 'recibido' : `llega ~${ddmm(x.llegada)} · ${x.donde}`}${montajeAntes(x) ? '\n⚠ su montaje está planificado antes' : ''}`,
+          }, `${x.recibido ? '✔' : '📦'} ${x.nombre}`)),
           ...lista.slice(0, resto > 0 ? MAX_FICHAS - 1 : MAX_FICHAS).map((tr) => chipTramo(tr, null, { compacto: true })),
           resto > 0 ? el('button', { type: 'button', class: 'ghost mas', onclick: () => irAPeriodo('dia', f) }, `+${resto + 1} más`) : null);
         prepararDropCelda(c, { fecha: f, modo: 'mes' });
@@ -1386,6 +1481,7 @@
       el('span', { class: 'tc-nom' }, t.nombre),
       el('span', { class: 'tc-der' },
         iconoMat(t, t.tramos.length ? t.tramos.reduce((a, x) => (x.fecha < a ? x.fecha : a), t.tramos[0].fecha) : null),
+        iconoFab(t, t.tramos.length ? t.tramos.reduce((a, x) => (x.fecha < a ? x.fecha : a), t.tramos[0].fecha) : null),
         t.operarios_req > 1 ? el('span', { class: 'tc-ops', title: `${t.operarios_req} operarios a la vez` }, `×${t.operarios_req}`) : null,
         (t.dependencias || []).length ? el('span', { class: 'tc-dep', title: `Va después de: ${t.dependencias.map((d) => d.nombre).join(', ')}` }, '⤷') : null,
         el('span', { class: 'hora' }, estadoTxt)),
@@ -1491,6 +1587,16 @@
           el('span', { class: `md-ll-est ${tarde ? 'falta' : { disponible: 'ok', pedido: 'pedido', por_pedir: 'falta', sin_revisar: 'revisar' }[m.estado]}` },
             m.estado === 'pedido' ? `${tarde ? '⚠ ' : '🚚 '}${m.fecha_prevista ? `llega ${ddmm(m.fecha_prevista)}` : 'pedido, sin fecha'}${m.proveedor ? ` · ${m.proveedor}` : ''}` : MAT_TXT[m.estado]));
       }))) : null,
+      t.fab?.length ? el('dt', {}, '🏭 Fabricación externa') : null,
+      t.fab?.length ? el('dd', { class: 'det-fab' }, t.fab.map((f) => el('div', { class: 'det-fab-p' },
+        el('div', {}, el('b', {}, f.nombre), ` · ${f.codigo} · ${f.taller}`),
+        el('ul', { class: 'det-fab-et' },
+          f.etapas.map((x) => el('li', { class: x.estado === 'actual' && !x.iniciada ? 'pendiente' : x.estado },
+            `${x.nombre}${x.responsable && x.responsable !== f.taller ? ` (${x.responsable})` : ''}`,
+            x.estado === 'hecha' ? (x.hasta ? ` ✔ ${ddmm(x.hasta)}` : ' ✔') : x.estado === 'actual' ? ` · ${x.iniciada ? 'en curso' : 'sin empezar'}, hasta ~${ddmm(x.hasta)}` : '')),
+          el('li', { class: f.recibido ? 'hecha' : 'llegada' }, f.recibido ? `Recibido ✔ ${ddmm(f.recibido_en)}` : `Llega a Menorca ~${ddmm(f.llegada)}`)),
+        tr && !f.recibido && f.llegada >= tr.fecha ? el('div', { class: 'det-fab-tarde' }, `⚠ Llega ~${ddmm(f.llegada)} y este tramo es el ${ddmm(tr.fecha)}`) : null,
+        el('a', { href: `/compras.html?vista=fabricacion&fab=${f.pedido_id}` }, 'Ver el pedido ›')))) : null,
       t.llevar?.herramientas.length ? el('dt', {}, 'Herramientas') : null,
       t.llevar?.herramientas.length ? el('dd', { class: 'det-llevar' }, el('ul', {}, t.llevar.herramientas.map((h) => el('li', {},
         el('span', {}, `${h.cantidad > 1 ? `${cantM(h.cantidad)}× ` : ''}${h.descripcion}`),
@@ -1608,7 +1714,7 @@
     const [a, b] = c.ids.map(tramo);
     return a && b && b.hora_inicio < a.hora_inicio ? a.id : c.ids[1];
   }
-  const tieneSolucion = (c) => ['operarios', 'capacidad', 'requisito', 'requisito_tipo', 'solape', 'jornada', 'exceso', 'dependencia', 'puesto', 'ausencia'].includes(c.tipo);
+  const tieneSolucion = (c) => ['operarios', 'capacidad', 'requisito', 'requisito_tipo', 'solape', 'jornada', 'exceso', 'dependencia', 'puesto', 'ausencia', 'fabricacion'].includes(c.tipo);
   const recurso = (id) => estado.datos.recursos.find((r) => r.id === id);
   const activos = (tipo) => estado.datos.recursos.filter((r) => r.activo !== false && (!tipo || r.tipo === tipo));
   // Dónde está ocupado un recurso ese día (sin contar el tramo indicado)
@@ -1750,6 +1856,21 @@
             type: 'button', class: 'ghost mini',
             onclick: () => guardarResizeTramo(tr, ini, fin - tr.exceso),
           }, `Recortar este tramo ${durTxt(tr.exceso)}`) : null);
+      }
+      case 'fabricacion': {
+        // la pieza llega de fuera ese día o después: mover el montaje al día siguiente a la llegada
+        const dest = siguienteHueco(c.libre.fecha, c.libre.hora);
+        const f = (t.fab || []).find((x) => !x.recibido && x.llegada === c.llega) || (t.fab || [])[0];
+        return caja(el('p', { class: 'ayuda' }, `Llega a Menorca ~${fechaCorta(c.llega)}${f ? ` (${f.donde})` : ''}.`),
+          el('button', {
+            type: 'button', class: 'primario mini',
+            onclick: () => accion(async () => {
+              await api('PATCH', `/api/tramos/${tr.id}`, { fecha: dest.fecha, hora_inicio: dest.hora });
+              if (estado.periodo === 'dia') estado.fecha = dest.fecha;
+              return `Tramo movido al ${fechaCorta(dest.fecha)} a las ${hhmm(dest.hora)}`;
+            }),
+          }, `Mover a ${fechaCorta(dest.fecha)} · ${hhmm(dest.hora)}`),
+          f ? el('a', { class: 'boton ghost', href: `/compras.html?vista=fabricacion&fab=${f.pedido_id}`, style: 'margin-left:6px' }, 'Ver el pedido') : null);
       }
       case 'dependencia': {
         const previa = (t.dependencias || []).find((d) => d.id === c.previa_id);

@@ -176,6 +176,11 @@ function montar(app, asyncH) {
     // lo que necesita para cada trabajo: materiales y herramientas asignados a la tarea
     const llevar = await require('./material').deTareas(tramos.map((x) => x.tarea_id), recursoId);
     for (const x of tramos) x.llevar = llevar.get(x.tarea_id) || null;
+    // piezas que se fabrican fuera (¿han llegado ya?)
+    if (tramos.length) {
+      const fab = await require('./fabricacion').paraTablero(fecha, fecha);
+      for (const x of tramos) x.fab = (fab.porTarea.get(x.tarea_id) || []).map((f) => ({ nombre: f.nombre, taller: f.taller, recibido: f.recibido, llegada: f.llegada, donde: f.donde }));
+    }
     res.json({
       fecha, hoy, editable: ed.ok, no_editable: ed.ok ? null : ed.motivo,
       recurso: rec[0], comun: req.usuario.via === 'pin_comun',
