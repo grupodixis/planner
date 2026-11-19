@@ -2134,8 +2134,35 @@ dialog.dlg-cos { width: min(460px, calc(100vw - 24px)); }
 .ay-b-voz.activo { border-color: var(--azul); background: var(--azul-bg); }
 /* ---------- Talleres externos ---------- */
 select.sel-externo { border-color: #b48ae8; color: #e3d2f8; }
-.ext-tarea { display: flex; gap: 6px; align-items: center; margin-top: 4px; font-size: 12px; color: var(--suave); }
+.ext-tarea { display: flex; flex-direction: column; gap: 5px; font-size: 12.5px; color: var(--suave); border-left: 3px solid #b48ae8; padding: 4px 0 6px 10px; }
+tr.fila-ext > td { border-top: 0; padding-top: 0; }
+.ext-tarea .ext-editar .ext-nota { max-width: 360px; }
+.ext-tarea .ext-editar { display: flex; gap: 6px; align-items: center; }
 .ext-tarea label { display: flex; gap: 4px; align-items: center; }
+/* lo que dice el taller (enlace de seguimiento) */
+.ext-dice { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 4px; color: var(--texto); }
+.ext-est { font-size: 11.5px; border-radius: 10px; padding: 1px 8px; background: #2b2b2b; color: #bbb; white-space: nowrap; }
+.ext-est.ext-en_curso { background: #173a35; color: #9ee6da; }
+.ext-est.ext-terminado, .ext-est.ext-entregado { background: var(--verde-bg); color: #a6e3a6; }
+.ext-bar { display: inline-block; width: 60px; height: 5px; border-radius: 3px; background: #333; margin-left: 4px; }
+.ext-bar i { display: block; height: 100%; border-radius: 3px; background: #2bb3a3; }
+.ext-tarde { color: var(--rojo); font-weight: 600; }
+.ext-fotos { display: inline-flex; gap: 3px; margin-left: 4px; }
+.ext-fotos a { display: inline-flex; width: 26px; height: 26px; border-radius: 5px; overflow: hidden; border: 1px solid var(--borde); align-items: center; justify-content: center; text-decoration: none; }
+.ext-fotos img { width: 100%; height: 100%; object-fit: cover; }
+.ext-nov summary { cursor: pointer; }
+.ext-nov ul { margin: 4px 0 0; padding-left: 16px; }
+.ext-seg { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; margin-top: 2px; }
+.ext-seg-txt { color: var(--suave); margin-right: 4px; }
+dialog.dlg-seg { width: min(560px, calc(100vw - 32px)); }
+dialog.dlg-seg h2 { margin: 0 0 6px; font-size: 18px; }
+dialog.dlg-seg .seg-ops { display: flex; gap: 8px; margin: 10px 0; }
+dialog.dlg-seg .seg-op { flex: 1; border: 1px solid var(--borde); border-radius: 9px; padding: 9px 10px; cursor: pointer; }
+dialog.dlg-seg .seg-op.on { border-color: #2bb3a3; background: #16312d; }
+dialog.dlg-seg .seg-op input { margin-right: 6px; }
+dialog.dlg-seg .seg-email { display: flex; gap: 8px; align-items: center; }
+dialog.dlg-seg .seg-email input { flex: 1; }
+dialog.dlg-seg .acciones { display: flex; justify-content: flex-end; gap: 8px; margin-top: 12px; }
 .ext-tarea input[type=number] { width: 58px; }
 .ext-tarea .ext-nota { flex: 1; min-width: 120px; font-size: 12px; }
 .sit-ot { color: #d9c2f5 !important; }

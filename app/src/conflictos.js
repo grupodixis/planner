@@ -36,13 +36,15 @@ function dependencias(t, out) {
       continue;
     }
     const inicio = instante(t.fecha, t.hora_inicio);
-    const libre = instante(d.fin.fecha, d.fin.hora) + (d.espera_h || 0) * 3600e3;
+    // si el taller de fuera dice que termina más tarde que el plan, vale su fecha (al final de ese día)
+    const finTaller = d.proveedor && d.fin_taller && d.fin_taller > d.fin.fecha ? instante(d.fin_taller, d.fin.hora) : 0;
+    const libre = Math.max(instante(d.fin.fecha, d.fin.hora), finTaller) + (d.espera_h || 0) * 3600e3;
     if (inicio < libre) {
       const l = new Date(libre);
       // si lo de antes lo hace un taller de fuera, la pieza aún no está aquí: aviso fuerte
       out.push({ tipo: 'dependencia', ids: [t.id], leve: !d.proveedor, previa_id: d.id,
         libre: { fecha: l.toISOString().slice(0, 10), hora: l.getUTCHours() + l.getUTCMinutes() / 60 },
-        mensaje: `${etiqueta(t)} empieza antes de que termine ${previa}${d.proveedor ? ` en ${d.proveedor}` : ''}${espera} (${fechaHora(libre)})` });
+        mensaje: `${etiqueta(t)} empieza antes de que termine ${previa}${d.proveedor ? ` en ${d.proveedor}` : ''}${espera} (${fechaHora(libre)}${finTaller > instante(d.fin.fecha, d.fin.hora) ? ', según el taller' : ''})` });
     }
   }
   if (t.exceso > 0) {

@@ -684,7 +684,7 @@
             : `${fechaCorta(t.primera_fecha).slice(0, 5)}→${fechaCorta(t.ultima_fecha).slice(0, 5)}`)
         : null;
 
-      return el('tr', { class: `${t.estado}${t.baja_presupuesto ? ' baja' : ''}`, 'data-id': t.id },
+      const fila = el('tr', { class: `${t.estado}${t.baja_presupuesto ? ' baja' : ''}`, 'data-id': t.id },
         el('td', { class: 'ord' }, editar ? asaOrden(t.nombre) : ''),
         el('td', {}, el('div', { class: 'td-tarea' }, t.codigo ? el('span', { class: 'cod-chip', style: `--c:${o.color}` }, t.codigo) : null, el('input', {
           value: t.nombre, maxlength: 120, 'aria-label': 'Nombre de la tarea', disabled: !editar,
@@ -716,7 +716,7 @@
         Object.entries(areas).map(([v, n]) => el('option', { value: v, selected: !t.proveedor_id && String(t.linea_id ?? '') === v }, n)),
         (estado.catalogo.talleres || []).length ? el('optgroup', { label: 'Taller externo (lo hace un proveedor)' },
           estado.catalogo.talleres.map((pv) => el('option', { value: `p${pv.id}`, selected: t.proveedor_id === pv.id }, `🏭 ${pv.nombre}`))) : null),
-        t.proveedor_id ? extTarea(t, editar, patch) : null),
+        t.proveedor_id ? el('span', { class: `ext-est ext-${t.ext?.estado || 'sin_empezar'}` }, EXT_EST[t.ext?.estado || 'sin_empezar']) : null),
         el('td', {}, t.proveedor_id
           ? el('span', { class: 'req-externo', title: 'Lo que pide la tarea (operarios, capacidades, máquinas) es de vuestra gente: no aplica mientras la haga un taller externo. Se conserva por si vuelve a hacerse aquí.' }, 'no aplica (fuera)')
           : req),
@@ -732,18 +732,113 @@
           },
         }, '✕') : ''),
       );
-    }));
+      // tarea de un taller externo: debajo, a lo ancho, lo que dice el taller y su seguimiento
+      return t.proveedor_id ? [fila, el('tr', { class: 'fila-ext' }, el('td', {}), el('td', { colspan: 7 }, extTarea(t, editar, patch)))] : fila;
+    }).flat());
   }
 
   const JH = () => estado.catalogo.jornada_h || 8;
-  // Tarea de un taller externo: cómo va fuera (avance y nota) — lo pone la oficina; más adelante, el propio taller
+  // Tarea de un taller externo: cómo va fuera. Lo dice el taller en su enlace de seguimiento (o la oficina, a mano):
+  // estado, avance, cuándo terminará, comentario, fotos y a quién lo entregó. Y el seguimiento con ese taller.
+  const EXT_EST = { sin_empezar: 'Sin empezar', en_curso: 'En curso', terminado: 'Terminado', entregado: 'Entregado' };
+  const dm = (f) => (f ? `${String(f).slice(8, 10)}/${String(f).slice(5, 7)}` : '');
+  const haceTxt = (ts) => {
+    if (!ts) return '';
+    const d = Math.floor((Date.now() - new Date(ts).getTime()) / 864e5);
+    return d <= 0 ? 'hoy' : d === 1 ? 'ayer' : `hace ${d} días`;
+  };
   function extTarea(t, editar, patch) {
+    const x = t.ext || {};
+    const o = estado.ot;
+    const tarde = x.fin_prevista && x.plan_hasta && x.fin_prevista > x.plan_hasta;
+    const est = x.estado || 'sin_empezar';
+    const fotos = (x.archivos || []);
+    const dice = el('div', { class: 'ext-dice' },
+      el('span', { class: `ext-est ext-${est}` }, EXT_EST[est]),
+      est === 'en_curso' && t.ext_avance != null ? el('span', { class: 'ext-bar', title: `${t.ext_avance} %` }, el('i', { style: `width:${t.ext_avance}%` })) : null,
+      est === 'en_curso' && t.ext_avance != null ? ` ${t.ext_avance} %` : null,
+      x.fin_prevista && !['terminado', 'entregado'].includes(est) ? el('span', { class: tarde ? 'ext-tarde' : null, title: tarde ? `Planificado hasta el ${dm(x.plan_hasta)}` : null }, ` · termina ${dm(x.fin_prevista)}${tarde ? ` (plan ${dm(x.plan_hasta)})` : ''}`) : null,
+      x.recibido && est === 'sin_empezar' ? ` · material recibido ${dm(x.recibido)}` : null,
+      x.entrega ? ` · entregado a ${x.entrega.a === 'nosotros' ? 'nosotros' : x.entrega.a}${x.entrega.fecha ? ` el ${dm(x.entrega.fecha)}` : ''}${x.entrega.nota ? ` · ${x.entrega.nota}` : ''}` : null,
+      x.actualizado ? el('small', {}, ` · ${haceTxt(x.actualizado)}`) : null,
+      fotos.length ? el('span', { class: 'ext-fotos' }, fotos.slice(0, 6).map((f) => el('a', { href: `/api/ext-archivos/${f.id}`, target: '_blank', rel: 'noopener', title: f.albaran ? 'Albarán' : (f.nombre || 'Foto') },
+        f.tipo.startsWith('image/') ? el('img', { src: `/api/ext-archivos/${f.id}`, alt: f.albaran ? 'Albarán' : 'Foto del taller', loading: 'lazy' }) : el('span', {}, '📄')))) : null);
+    const nov = (x.novedades || []).length ? el('details', { class: 'ext-nov' }, el('summary', {}, `Novedades (${x.novedades.length})`),
+      el('ul', {}, x.novedades.map((n) => el('li', {}, el('small', {}, `${new Date(n.creado).toLocaleString('es-ES', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })} `), n.texto)))) : null;
+    // el control del seguimiento va en la primera tarea de ese taller en la OT
+    const primera = o.lista_tareas.find((y) => y.proveedor_id === t.proveedor_id) === t;
     return el('div', { class: 'ext-tarea' },
-      el('label', {}, el('span', {}, 'Avance'),
-        el('input', { type: 'number', min: 0, max: 100, step: 5, value: t.ext_avance ?? '', placeholder: '%', disabled: !editar, 'aria-label': 'Avance en el taller externo (%)',
-          onchange: (ev) => patch(t, { ext_avance: ev.target.value === '' ? null : Number(ev.target.value) }) }), '%'),
-      el('input', { class: 'ext-nota', value: t.ext_nota || '', maxlength: 300, placeholder: 'cómo va (p. ej. «esperando chapa»)', disabled: !editar, 'aria-label': 'Nota del taller externo',
-        onchange: (ev) => patch(t, { ext_nota: ev.target.value }) }));
+      dice,
+      el('div', { class: 'ext-editar' },
+        el('label', {}, el('span', {}, 'Avance'),
+          el('input', { type: 'number', min: 0, max: 100, step: 5, value: t.ext_avance ?? '', placeholder: '%', disabled: !editar, 'aria-label': 'Avance en el taller externo (%)',
+            onchange: (ev) => patch(t, { ext_avance: ev.target.value === '' ? null : Number(ev.target.value) }) }), '%'),
+        el('input', { class: 'ext-nota', value: t.ext_nota || '', maxlength: 300, placeholder: 'cómo va (p. ej. «esperando chapa»)', disabled: !editar, 'aria-label': 'Nota del taller externo',
+          onchange: (ev) => patch(t, { ext_nota: ev.target.value }) })),
+      nov,
+      primera ? controlSeguimiento(t, o) : null);
+  }
+
+  // «Comenzar seguimiento» con un taller de la OT, o cómo va el que ya hay (enviado, visto, recordatorios)
+  const puedeSeguir = () => window.s360.tiene('planificar') || window.s360.tiene('proyectos');
+  function controlSeguimiento(t, o) {
+    const s = (o.seguimientos || []).find((x) => x.proveedor_id === t.proveedor_id);
+    if (!puedeSeguir()) return s?.activo ? el('div', { class: 'ext-seg ayuda' }, 'Seguimiento activo') : null;
+    if (!s || !s.activo) {
+      return el('div', { class: 'ext-seg' }, el('button', { type: 'button', class: 'primario mini', onclick: () => dialogoSeguimiento(t, o, s) }, '▶ Comenzar seguimiento'),
+        s && !s.activo ? el('small', { class: 'ayuda' }, ' (parado)') : null);
+    }
+    const partes = [s.enviado_en ? `enviado ${dm(s.enviado_en)}` : 'enlace creado', s.visto_en ? `visto ${haceTxt(s.visto_en)}` : 'aún no lo ha abierto',
+      s.actualizado_en ? `actualizó ${haceTxt(s.actualizado_en)}` : null, s.n_recordatorios ? `✉ ${s.n_recordatorios} recordatorio${s.n_recordatorios > 1 ? 's' : ''}${s.recordatorio_en ? ` (último ${dm(s.recordatorio_en)})` : ''}` : null].filter(Boolean);
+    const copiar = async (nuevo) => {
+      try {
+        if (nuevo && !confirm('El enlace anterior dejará de funcionar. ¿Crear uno nuevo?')) return;
+        const r = await api('POST', `/api/seguimientos/${s.id}/enlace`, { nuevo: !!nuevo });
+        await navigator.clipboard.writeText(r.url).then(() => toast('Enlace copiado: pégalo en WhatsApp o en un correo'), () => prompt('Copia el enlace:', r.url));
+      } catch (e) { toast(e.message, true); }
+    };
+    return el('div', { class: 'ext-seg' },
+      el('span', { class: 'ext-seg-txt' }, `📨 Seguimiento: ${partes.join(' · ')}`),
+      el('button', { type: 'button', class: 'ghost mini', onclick: () => copiar(false), title: 'Copiar su enlace' }, '🔗 Enlace'),
+      el('button', { type: 'button', class: 'ghost mini', onclick: () => dialogoSeguimiento(t, o, s), title: 'Volver a enviarlo por correo' }, '✉ Reenviar'),
+      el('button', { type: 'button', class: 'ghost mini', onclick: () => copiar(true), title: 'Anular el enlace y crear otro' }, 'Nuevo'),
+      el('button', { type: 'button', class: 'ghost mini', title: 'Parar: el enlace deja de funcionar y no hay más recordatorios',
+        onclick: async () => {
+          if (!confirm(`¿Parar el seguimiento con ${t.proveedor}? Su enlace dejará de funcionar.`)) return;
+          try { await api('PATCH', `/api/seguimientos/${s.id}`, { activo: false }); toast('Seguimiento parado'); await refrescarOT(); } catch (e) { toast(e.message, true); }
+        } }, '⏹ Parar'));
+  }
+
+  function dialogoSeguimiento(t, o, s) {
+    const pv = (estado.catalogo.talleres || []).find((x) => x.id === t.proveedor_id) || {};
+    const suyas = o.lista_tareas.filter((y) => y.proveedor_id === t.proveedor_id);
+    const dlg = el('dialog', { class: 'dlg-seg', 'aria-labelledby': 'seg-tit' });
+    let modo = 'correo';
+    const email = el('input', { type: 'email', value: s?.email || pv.email || '', placeholder: 'correo del taller', 'aria-label': 'Correo del taller', maxlength: 200 });
+    const opc = (m, tit, sub) => el('label', { class: `seg-op${m === modo ? ' on' : ''}` },
+      el('input', { type: 'radio', name: 'seg-modo', value: m, checked: m === modo, onchange: () => { modo = m; dlg.querySelectorAll('.seg-op').forEach((n) => n.classList.toggle('on', n.querySelector('input').value === m)); email.disabled = m !== 'correo'; } }),
+      el('b', {}, tit), el('br'), el('small', {}, sub));
+    const cerrar = () => { dlg.close(); dlg.remove(); };
+    dlg.append(
+      el('h2', { id: 'seg-tit' }, `Seguimiento con ${t.proveedor}`),
+      el('p', { class: 'ayuda' }, `OT ${o.codigo} ${o.titulo} · ${suyas.map((y) => `${y.codigo} ${y.nombre}`).join(', ')}`),
+      el('div', { class: 'seg-ops' }, opc('correo', '✉ Enviar por correo', 'con el enlace y sus tareas'), opc('enlace', '💬 Copiar el enlace', 'para WhatsApp')),
+      el('label', { class: 'seg-email' }, el('span', {}, 'Correo'), email),
+      el('p', { class: 'ayuda' }, 'Verá sus tareas de esta OT con nuestras fechas y las de los otros talleres, y podrá poner cómo van, cuándo terminará, fotos, comentarios y a quién lo entrega. No hace falta usuario. Si pasa su fecha sin terminar y sin noticias, le llegará un correo de recordatorio cada día laborable.'),
+      el('div', { class: 'acciones' },
+        el('button', { type: 'button', class: 'ghost', onclick: cerrar }, 'Cancelar'),
+        el('button', { type: 'button', class: 'primario', onclick: async (ev) => {
+          ev.target.disabled = true;
+          try {
+            const r = await api('POST', `/api/ordenes/${o.id}/seguimientos`, { proveedor_id: t.proveedor_id, email: email.value.trim() || null, enviar: modo === 'correo' });
+            if (modo === 'enlace') await navigator.clipboard.writeText(r.url).then(() => toast('Enlace copiado: pégalo en WhatsApp'), () => prompt('Copia el enlace:', r.url));
+            else toast(`Enviado a ${email.value.trim()}`);
+            cerrar(); await refrescarOT();
+          } catch (e) { toast(e.message, true); ev.target.disabled = false; }
+        } }, s ? 'Enviar' : 'Comenzar y enviar')));
+    dlg.addEventListener('cancel', (ev) => { ev.preventDefault(); cerrar(); });
+    document.body.append(dlg);
+    dlg.showModal();
   }
 
   // Situación del producto: dónde está la OT cuando está fuera
@@ -757,6 +852,8 @@
         el('span', { class: 'sit-p-ico', 'aria-hidden': 'true' }, x.estado === 'hecha' ? '✔' : x.estado === 'en_curso' ? '●' : '○'),
         `${x.nombre} · ${x.proveedor}`,
         x.estado === 'en_curso' && x.avance != null ? ` · ${x.avance} %` : '',
+        x.estado !== 'hecha' && x.fin_prevista ? el('span', { class: x.hasta && x.fin_prevista > x.hasta ? 'ext-tarde' : null }, ` · termina ${dm(x.fin_prevista)}`) : '',
+        x.entregado_a ? ` · entregado a ${x.entregado_a}${x.entrega_fecha ? ` ${dm(x.entrega_fecha)}` : ''}` : '',
         x.desde ? el('small', {}, ` ${x.desde === x.hasta ? fechaCorta(x.desde).slice(0, 5) : `${fechaCorta(x.desde).slice(0, 5)}→${fechaCorta(x.hasta).slice(0, 5)}`}`) : el('small', {}, ' sin planificar')))));
   }
 

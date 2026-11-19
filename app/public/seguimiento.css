@@ -1,0 +1,34 @@
+/* Página pública del taller externo: cómo van sus tareas (encima de oferta.css) */
+main { max-width: 720px; }
+.hola { margin: 16px 0 12px; }
+.tarea { border: 1px solid var(--linea); border-radius: 12px; padding: 14px; margin: 0 0 14px; background: var(--papel); }
+.tarea.ajena { background: var(--campo); color: var(--suave); padding: 10px 14px; }
+.tarea h3 { margin: 0; font-size: 16px; }
+.tarea .cod { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12.5px; background: var(--acento-2); color: var(--acento); border-radius: 5px; padding: 1px 6px; margin-right: 6px; }
+.tarea .plan { font-size: 13px; color: var(--suave); margin: 4px 0 10px; }
+.estados { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; margin: 8px 0 4px; }
+.estados button { font: inherit; font-size: 13px; padding: 9px 2px; border: 1px solid var(--linea); border-radius: 9px; background: var(--campo); color: var(--tinta); cursor: pointer; }
+.estados button.on { background: var(--acento); border-color: var(--acento); color: var(--papel); font-weight: 600; }
+.estados button:focus-visible { outline: 2px solid var(--acento); outline-offset: 2px; }
+.fila2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+@media (max-width: 440px) { .fila2 { grid-template-columns: 1fr; } .estados { grid-template-columns: repeat(2, 1fr); } }
+.campo { display: block; margin-top: 10px; }
+.campo > span { display: block; font-size: 12.5px; color: var(--suave); margin-bottom: 3px; }
+.campo input[type=date], .campo input[type=text], .campo textarea { width: 100%; }
+.avance { display: flex; gap: 10px; align-items: center; }
+.avance input[type=range] { flex: 1; accent-color: var(--acento); }
+.avance b { width: 48px; text-align: right; font-variant-numeric: tabular-nums; }
+.entrega { background: var(--acento-2); border-radius: 10px; padding: 10px; margin-top: 10px; }
+.destinos { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.destinos button { font: inherit; font-size: 13.5px; border: 1px solid color-mix(in srgb, var(--acento) 45%, transparent); background: var(--papel); color: var(--tinta); border-radius: 18px; padding: 5px 12px; cursor: pointer; }
+.destinos button.on { background: var(--acento); color: var(--papel); border-color: var(--acento); }
+.fotos { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+.foto { position: relative; width: 72px; height: 72px; border-radius: 9px; overflow: hidden; border: 1px solid var(--linea); background: var(--campo); display: flex; align-items: center; justify-content: center; }
+.foto img { width: 100%; height: 100%; object-fit: cover; }
+.foto button { position: absolute; top: 2px; right: 2px; border: 0; border-radius: 50%; width: 22px; height: 22px; background: #000a; color: #fff; cursor: pointer; font-size: 13px; line-height: 1; }
+.foto.mas { border-style: dashed; cursor: pointer; color: var(--suave); font-size: 26px; }
+.foto.mas input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+.viene { font-size: 13px; margin: 0 0 8px; }
+.guardar { display: block; width: 100%; font-size: 16px; padding: 13px; }
+.vencida { margin-bottom: 12px; }
+.ok-msg { color: var(--acento); font-weight: 600; text-align: center; margin: 10px 0 0; }

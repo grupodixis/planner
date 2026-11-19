@@ -741,8 +741,26 @@ el transporte…). No hay etapas fijas: las etapas son **las tareas de la OT**, 
 - **Sin requisitos propios**: en una tarea externa, Oper. y Requiere no aplican («no aplica (fuera)»; se conservan por
   si vuelve a hacerse aquí), la duración se ve en **días** (1 día = una jornada) y no cuenta en horas-persona, avance
   ni mano de obra de costes e informes.
-- **Avance y cómo va**: `ext_avance` (%) y `ext_nota`, en la tabla de tareas y en el detalle del tablero (por ahora los
-  pone la oficina; en el paso 3, el propio taller desde su enlace).
+- **Avance y cómo va**: `ext_avance` (%) y `ext_nota`, en la tabla de tareas y en el detalle del tablero. Los pone el
+  propio taller desde su enlace de seguimiento (abajo) o, a mano, la oficina.
+- **Seguimiento con el taller** (`src/seguimiento-ext.js`, página pública `seguimiento.html?t=…`): en la OT, debajo de cada
+  tarea externa (fila a lo ancho), **▶ Comenzar seguimiento** crea el enlace de ese taller para esa OT
+  (`ext_seguimientos`, uno por OT y proveedor) y lo manda por correo (con sus tareas y fechas) o lo copia para WhatsApp.
+  Cada taller empieza cuando se pulsa su botón. Sin cuenta: el enlace es `id.firma` (HMAC con la clave del servidor sobre
+  `nonce`; «Nuevo» lo cambia, «⏹ Parar» lo desactiva). En su página ve sus tareas de la OT (y las de los otros talleres,
+  solo para verlas) y pone por tarea: **estado** (`ext_estado`: sin_empezar / en_curso / terminado / entregado; mueve la
+  tarea a en curso / hecha), **avance**, **cuándo terminará** (`ext_fin_prevista`), comentario, **fotos** (archivos
+  `ext_foto`) y, al entregar, **a quién** (otro taller de la OT, nosotros u otro), fecha, bultos y **albarán**
+  (`ext_entregado_a`, `ext_entrega_*`, archivo `ext_albaran`). Si entrega a otro taller de la OT, la siguiente tarea de ese
+  taller queda «material recibido» (`ext_recibido`). Cada cambio queda en `ext_novedades` y avisa a quien planifica
+  (push `ext_seguimiento`). **Solo avisa**: si su fecha pasa de la planificada sale el aviso `retraso_taller` en el
+  tablero y la dependencia de lo siguiente usa su fecha («según el taller»), pero el plan no se mueve solo.
+  **Recordatorio**: si una tarea suya sin terminar tiene su fecha (la suya o, si no puso, la nuestra) pasada y no ha
+  actualizado ese día, un correo al día (laborables, 9–19 h, sin festivos) hasta que actualice o la termine; el primero
+  avisa también a quien planifica. API: `POST /api/ordenes/:id/seguimientos {proveedor_id, email, enviar}`,
+  `POST /api/seguimientos/:id/enlace {nuevo}`, `PATCH /api/seguimientos/:id {activo}`, `GET /api/ext-archivos/:id`;
+  pública `GET·PUT /api/seguimiento/:t`, `POST /api/seguimiento/:t/tareas/:tid/archivos[?albaran=1]`,
+  `GET·DELETE /api/seguimiento/:t/archivos/:id`.
 - **Tablero**: bloque **Talleres externos** al final (después de las obras), una fila por taller **solo mientras tiene
   tareas activas** (no hechas, de OTs abiertas) o tramos en las fechas vistas. Se planifica igual (arrastrar, repartir en
   días). No ocupa a nadie de aquí: sin avisos de operarios, requisitos, capacidades ni jornada (`externa` en
@@ -752,9 +770,8 @@ el transporte…). No hay etapas fijas: las etapas son **las tareas de la OT**, 
   termina ~26/11 · «nota»», «En Tenas: galvanizado terminado · lo siguiente: Transporte (Ydica)», «Aún no ha salido…» o
   «Ya no está fuera». En Proyectos (lista de OTs y ficha, con las tareas externas y sus fechas) y en el detalle del
   tablero. `situacion` en `/api/ordenes` y `/api/ordenes/:id`; `situaciones` en `/api/tablero`.
-- **Siguientes pasos**: (2) pedido de subcontratación que agrupa una o varias tareas externas de una OT (con petición
-  de presupuesto antes), y con el pedido el **enlace del proveedor** para que actualice sus tareas; (3) enlace propio
-  para quien hace solo una parte, recepción desde el móvil, avisos más finos.
+- **Siguientes pasos**: pedido de subcontratación que agrupa una o varias tareas externas de una OT (+ transporte), con
+  petición de presupuesto antes (el taller contesta precio y plazo en su enlace); recepción desde el móvil.
 
 ## Control de costes (Informes › Control de costes)
 

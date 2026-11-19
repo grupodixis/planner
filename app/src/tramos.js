@@ -69,6 +69,7 @@ async function ajustarFranjas(c, tramoId, delta) {
 const SQL_TAREAS = `
   SELECT t.id, t.nombre, t.duracion_h, t.operarios_req, t.linea_id, t.estado, t.orden_en_of, t.notas, t.baja_presupuesto, t.desglose,
          t.proveedor_id, (SELECT nombre FROM proveedores WHERE id = t.proveedor_id) AS proveedor, t.ext_avance, t.ext_nota, t.ext_actualizado,
+         t.ext_estado, t.ext_fin_prevista::text AS ext_fin_prevista, t.ext_recibido::text AS ext_recibido, t.ext_entregado_a,
          t.codigo, o.codigo_antiguo AS orden_codigo_antiguo,
          o.proyecto_id, o.id AS orden_id, o.codigo AS orden_codigo, o.color AS orden_color, o.titulo AS orden_titulo,
          o.prioridad, o.partida_id, pa.codigo AS partida_codigo, pa.nombre AS partida, pa.orden AS partida_orden, o.fecha_entrega,
@@ -95,7 +96,7 @@ const SQL_TAREAS = `
          COALESCE((SELECT json_agg(json_build_object(
                      'id', p2.id, 'nombre', p2.nombre, 'codigo', p2.codigo, 'orden_codigo', o2.codigo, 'espera_h', d.espera_h, 'estado', p2.estado,
                      'proveedor', (SELECT nombre FROM proveedores WHERE id = p2.proveedor_id),
-                     'duracion_h', p2.duracion_h,
+                     'duracion_h', p2.duracion_h, 'fin_taller', p2.ext_fin_prevista,
                      'planificadas', (SELECT COALESCE(sum(x.duracion_h), 0) FROM tramos x WHERE x.tarea_id = p2.id),
                      'fin', (SELECT json_build_object('fecha', x.fecha, 'hora', x.hora_inicio + x.duracion_h) FROM tramos x
                               WHERE x.tarea_id = p2.id ORDER BY x.fecha DESC, x.hora_inicio + x.duracion_h DESC LIMIT 1))
@@ -282,6 +283,15 @@ module.exports = function montar(app, asyncH) {
         conflictos.push({ tipo: 'material', ids: [tr.id], fecha: tr.fecha, leve: true,
           mensaje: `${t.codigo || t.orden_codigo} ${t.nombre}: falta material sin pedir (${corta(sinPedir)})` });
       }
+    }
+
+    // El taller externo dice que termina más tarde de lo planificado: aviso (no se mueve nada solo)
+    for (const t of tareas.rows) {
+      if (!t.proveedor_id || t.estado === 'hecha' || !t.ext_fin_prevista || !t.tramos.length) continue;
+      const ult = t.tramos[t.tramos.length - 1];
+      if (t.ext_fin_prevista <= ult.fecha || ult.fecha < desde || ult.fecha > hasta) continue;
+      conflictos.push({ tipo: 'retraso_taller', ids: [ult.id], fecha: ult.fecha,
+        mensaje: `${t.codigo || t.orden_codigo} ${t.nombre}: ${t.proveedor} dice que termina el ${dm(t.ext_fin_prevista)} (planificado hasta el ${dm(ult.fecha)})` });
     }
 
     // avance y rendimiento de las OTs y proyectos que aparecen en «Por planificar»

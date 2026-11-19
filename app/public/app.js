@@ -1849,6 +1849,11 @@
           libres.length ? el('div', { class: 'sol-acc' }, el('span', { class: 'ayuda' }, 'O pasarlo a un puesto libre a esa hora:'),
             ...libres.slice(0, 6).map((l) => el('button', { type: 'button', class: 'ghost mini', onclick: () => mover({ linea_id: l.id }, `Pasado a ${l.nombre}`) }, l.nombre))) : null);
       }
+      case 'retraso_taller': {
+        // el taller dice que termina más tarde: solo se avisa; lo que va después avisará si empieza antes
+        return caja(el('p', { class: 'ayuda' }, 'Lo ha puesto el taller en su enlace de seguimiento. El plan no se mueve solo: alarga este trabajo (arrastra el tramo o «Repartir») y revisa lo que va después, que avisará si empieza antes de su fecha.'),
+          el('a', { class: 'ghost mini', href: `/proyectos.html?ot=${t?.orden_id || ''}` }, 'Ver la OT y lo que dice el taller ↗'));
+      }
       default: return caja();
     }
   }

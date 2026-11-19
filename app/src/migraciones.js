@@ -989,6 +989,41 @@ const MIGRACIONES = [
    END $f$`,
   `DROP TRIGGER IF EXISTS planea_codigo_proyecto ON proyectos`,
   `CREATE TRIGGER planea_codigo_proyecto AFTER UPDATE OF codigo ON proyectos FOR EACH ROW EXECUTE FUNCTION planea_codigo_proyecto()`,
+
+  // 2026-11 · Seguimiento de talleres externos: cada taller de una OT tiene su enlace (sin cuenta) para decir
+  // cómo van sus tareas (estado, avance, fecha prevista, comentario, fotos, a quién lo entrega). Se envía al pulsar
+  // «Comenzar seguimiento». Si pasa su fecha sin terminar, recordatorio por correo una vez al día.
+  `CREATE TABLE IF NOT EXISTS ext_seguimientos (
+     id              SERIAL PRIMARY KEY,
+     orden_id        INT NOT NULL REFERENCES ordenes(id) ON DELETE CASCADE,
+     proveedor_id    INT NOT NULL REFERENCES proveedores(id) ON DELETE CASCADE,
+     nonce           TEXT NOT NULL,
+     email           TEXT,
+     activo          BOOLEAN NOT NULL DEFAULT TRUE,
+     iniciado_por    INT REFERENCES usuarios(id) ON DELETE SET NULL,
+     iniciado_en     TIMESTAMPTZ NOT NULL DEFAULT now(),
+     enviado_en      TIMESTAMPTZ,
+     visto_en        TIMESTAMPTZ,
+     actualizado_en  TIMESTAMPTZ,
+     recordatorio_en DATE,
+     n_recordatorios INT NOT NULL DEFAULT 0,
+     UNIQUE (orden_id, proveedor_id)
+   )`,
+  `ALTER TABLE tareas ADD COLUMN IF NOT EXISTS ext_estado TEXT CHECK (ext_estado IN ('sin_empezar','en_curso','terminado','entregado')),
+     ADD COLUMN IF NOT EXISTS ext_fin_prevista DATE,
+     ADD COLUMN IF NOT EXISTS ext_entregado_a TEXT,
+     ADD COLUMN IF NOT EXISTS ext_entregado_proveedor_id INT REFERENCES proveedores(id) ON DELETE SET NULL,
+     ADD COLUMN IF NOT EXISTS ext_entrega_fecha DATE,
+     ADD COLUMN IF NOT EXISTS ext_entrega_nota TEXT,
+     ADD COLUMN IF NOT EXISTS ext_recibido DATE`,
+  `CREATE TABLE IF NOT EXISTS ext_novedades (
+     id              SERIAL PRIMARY KEY,
+     tarea_id        INT NOT NULL REFERENCES tareas(id) ON DELETE CASCADE,
+     seguimiento_id  INT REFERENCES ext_seguimientos(id) ON DELETE SET NULL,
+     texto           TEXT NOT NULL,
+     creado          TIMESTAMPTZ NOT NULL DEFAULT now()
+   )`,
+  `CREATE INDEX IF NOT EXISTS ext_novedades_tarea_idx ON ext_novedades (tarea_id, creado DESC)`,
 ];
 
 async function migrar() {

@@ -55,7 +55,7 @@ module.exports = function montar(app, asyncH) {
                       WHERE rt.tipo_recurso_id = t.id) AS recursos
                FROM tipos_recurso t ORDER BY t.clase, t.familia NULLS LAST, lower(t.nombre)`),
       query('SELECT id, clave, nombre FROM departamentos ORDER BY orden, nombre'),
-      query('SELECT id, nombre FROM proveedores WHERE activo ORDER BY lower(nombre)'),
+      query('SELECT id, nombre, email, telefono FROM proveedores WHERE activo ORDER BY lower(nombre)'),
       query(`SELECT k.id, k.familia, k.nombre,
                     (SELECT count(*)::int FROM recurso_capacidades rc JOIN recursos r ON r.id = rc.recurso_id AND r.activo
                       WHERE rc.capacidad_id = k.id AND rc.estado = 'validada') AS personas
@@ -359,7 +359,10 @@ module.exports = function montar(app, asyncH) {
     const av = await avance.resumen({ ordenIds: [id] });
     for (const t of tareas.rows) t.avance = av.tareas[t.id] || null;
     const sit = (await require('./externos').situaciones([id])).get(id) || null;
-    res.json({ ...rows[0], avance: av.ordenes[id] || null, situacion: sit, lista_tareas: tareas.rows });
+    // seguimiento de los talleres externos: enlaces, lo que han dicho, fotos y novedades
+    const seg = await require('./seguimiento-ext').paraOT(id);
+    for (const t of tareas.rows) t.ext = seg.ext[t.id] || null;
+    res.json({ ...rows[0], avance: av.ordenes[id] || null, situacion: sit, seguimientos: seg.seguimientos, lista_tareas: tareas.rows });
   }));
 
   async function comprobarPartida(partidaId, proyectoId) {
