@@ -783,6 +783,10 @@ solo). Sin ese permiso, **Informes** sale sin euros (ni coste, ni importe, ni ma
   resaltado no deja pulsarlos). La primera vez se ofrece el recorrido de su rol; si un recorrido
   cambia (sube su `version`), se vuelve a ofrecer. Lo que no está en pantalla se salta.
 - **Novedades**: al entrar tras una actualización, una ventana con lo nuevo que afecta a sus permisos.
+- **En voz alta**: «🔊 Escuchar» en el panel lee la pantalla (para qué sirve, esquema y secciones), marcando lo que
+  suena; pausa, parar, velocidad y voz en español (se recuerdan en el navegador). En los recorridos, 🔇/🔊 en la burbuja
+  lee cada paso al avanzar. Usa la síntesis de voz del propio navegador (Web Speech): gratis, sin servicios externos;
+  la calidad depende del dispositivo (Chrome/Edge y iPhone traen buenas voces en español).
 - Textos en `app/public/ayuda-textos.js`; motor en `app/public/ayuda.js`. Los pasos apuntan a
   `data-ayuda="…"` o a ids estables. Lo visto se guarda en el navegador.
 - **Comprobación**: `herramientas/ayuda/comprobar.js` recorre todos los recorridos en la copia de

@@ -2242,3 +2242,11 @@ dialog.dlg-fab.ancho { width: min(920px, calc(100vw - 32px)); }
 .det-fab-et li.llegada { color: var(--texto); }
 .det-fab-tarde { color: var(--rojo); font-weight: 600; margin: 4px 0; }
 .det-fab-p a { color: var(--azul); }
+/* ayuda: lectura en voz alta */
+.ay-voz { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 10px 16px; border-bottom: 1px solid var(--linea); }
+.ay-voz-btn { min-width: 118px; }
+.ay-voz-op { display: flex; gap: 6px; margin-left: auto; }
+.ay-voz select { background: #1a1a1a; border: 1px solid var(--borde); border-radius: 8px; color: var(--texto); font: inherit; font-size: 12.5px; padding: 4px 6px; max-width: 170px; }
+.ay-leyendo { outline: 2px solid var(--azul); outline-offset: 4px; border-radius: 6px; background: #5aa9f010; }
+.ay-b-cab-acc { display: flex; gap: 4px; align-items: center; }
+.ay-b-voz.activo { border-color: var(--azul); background: var(--azul-bg); }

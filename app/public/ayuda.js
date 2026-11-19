@@ -24,6 +24,89 @@
   const leer = () => { try { return JSON.parse(localStorage.getItem(CLAVE) || '{}') || {}; } catch { return {}; } };
   const guardar = (f) => { const s = leer(); f(s); try { localStorage.setItem(CLAVE, JSON.stringify(s)); } catch { /* sin almacenamiento */ } };
 
+  /* ---------------- Voz: lee la ayuda en voz alta (síntesis del propio navegador, sin servicios externos) ---------------- */
+  const voz = (() => {
+    const ok = 'speechSynthesis' in window && 'SpeechSynthesisUtterance' in window;
+    const S = ok ? window.speechSynthesis : null;
+    let cola = [], alTerminar = null, gen = 0;
+    const pref = () => ({ vel: 1, auto: false, nombre: '', ...(leer().voz || {}) });
+    const ponerPref = (cambios) => guardar((x) => { x.voz = { ...pref(), ...cambios }; });
+    const voces = () => (S ? S.getVoices().filter((v) => /^es([-_]|$)/i.test(v.lang)) : []);
+    const elegida = () => {
+      const vs = voces(); const p = pref();
+      return vs.find((v) => v.name === p.nombre) || vs.find((v) => /es[-_]ES/i.test(v.lang) && /google|natural|online|neural|helena|lucia|monica|paulina/i.test(v.name))
+        || vs.find((v) => /es[-_]ES/i.test(v.lang)) || vs[0] || null;
+    };
+    if (S) S.addEventListener?.('voiceschanged', () => {});
+    // HTML de la ayuda → texto que suena bien (sin etiquetas, emojis ni flechas)
+    const limpiar = (html) => {
+      const d = document.createElement('div'); d.innerHTML = String(html || '');
+      return d.textContent
+        .replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}\u{FE0F}]/gu, ' ')
+        .replace(/\s*[→›]\s*/g, ', ').replace(/@(?=\s|$|[,.;])/g, ' arroba ').replace(/[«»"“”]/g, '').replace(/\s*·\s*/g, ', ')
+        .replace(/\bp\. ej\./gi, 'por ejemplo').replace(/\bnº\b/gi, 'número').replace(/\s+/g, ' ').trim();
+    };
+    // trozos de una o pocas frases (Chrome corta las locuciones muy largas)
+    const trozos = (t) => (t.match(/[^.!?;:]+[.!?;:]*/g) || [t]).reduce((a, f) => {
+      if (a.length && (a[a.length - 1] + f).length < 220) a[a.length - 1] += f; else a.push(f);
+      return a;
+    }, []).map((x) => x.trim()).filter(Boolean);
+    function parar() { gen++; cola = []; if (S) S.cancel(); const f = alTerminar; alTerminar = null; f?.(false); }
+    // partes: [{ texto (html), nodo? }] — se lee en orden; onParte(nodo) marca lo que suena
+    function hablar(partes, { onParte, onFin } = {}) {
+      if (!S) return;
+      parar();
+      const mio = ++gen;
+      alTerminar = onFin || null;
+      cola = partes.flatMap((p) => trozos(limpiar(p.texto)).map((t, i) => ({ t, nodo: i === 0 ? p.nodo : undefined })));
+      const v = elegida(); const vel = pref().vel;
+      const siguiente = () => {
+        if (mio !== gen) return;
+        const x = cola.shift();
+        if (!x) { const f = alTerminar; alTerminar = null; f?.(true); return; }
+        if (x.nodo !== undefined) onParte?.(x.nodo);
+        const u = new SpeechSynthesisUtterance(x.t);
+        u.lang = v?.lang || 'es-ES'; if (v) u.voice = v; u.rate = vel;
+        u.onend = siguiente; u.onerror = (e) => { if (e.error !== 'interrupted' && e.error !== 'canceled') siguiente(); };
+        S.speak(u);
+      };
+      siguiente();
+    }
+    const pausar = () => S?.pause(); const seguir = () => S?.resume();
+    const hablando = () => !!S && (S.speaking || cola.length > 0);
+    const enPausa = () => !!S && S.paused;
+    addEventListener('pagehide', parar);
+    return { ok, hablar, parar, pausar, seguir, hablando, enPausa, voces, elegida, pref, ponerPref };
+  })();
+
+  // barra «Escuchar» del panel: leer todo, pausa, parar, velocidad y voz
+  function barraVoz(partes) {
+    if (!voz.ok) return null;
+    const btn = el('button', { type: 'button', class: 'ay-voz-btn primario', 'aria-label': 'Escuchar esta ayuda' }, '🔊 Escuchar');
+    const stop = el('button', { type: 'button', class: 'ghost mini', 'aria-label': 'Parar la lectura', hidden: true }, '⏹');
+    const marcar = (n) => { panel?.querySelectorAll('.ay-leyendo').forEach((x) => x.classList.remove('ay-leyendo')); if (n) { n.classList.add('ay-leyendo'); n.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); } };
+    const estado = (txt, parado) => { btn.textContent = txt; stop.hidden = parado; if (parado) marcar(null); };
+    btn.addEventListener('click', () => {
+      if (voz.hablando() && !voz.enPausa()) { voz.pausar(); estado('▶ Seguir', false); return; }
+      if (voz.enPausa()) { voz.seguir(); estado('⏸ Pausa', false); return; }
+      estado('⏸ Pausa', false);
+      voz.hablar(partes(), { onParte: marcar, onFin: () => estado('🔊 Escuchar', true) });
+    });
+    stop.addEventListener('click', () => { voz.parar(); estado('🔊 Escuchar', true); });
+    const p = voz.pref();
+    const vel = el('select', { 'aria-label': 'Velocidad de la voz', title: 'Velocidad', onchange: (ev) => voz.ponerPref({ vel: Number(ev.target.value) }) },
+      [[0.85, 'lenta'], [1, 'normal'], [1.2, 'rápida'], [1.4, 'muy rápida']].map(([v, t]) => el('option', { value: v, selected: v === p.vel ? true : null }, t)));
+    const selVoz = el('select', { 'aria-label': 'Voz', title: 'Voz', onchange: (ev) => voz.ponerPref({ nombre: ev.target.value }) });
+    const llenar = () => {
+      const vs = voz.voces(); const yo = voz.elegida()?.name;
+      selVoz.replaceChildren(...vs.map((v) => el('option', { value: v.name, selected: v.name === yo ? true : null }, `${v.name.replace(/^(Microsoft|Google)\s*/i, '').replace(/\s*\(.*\)$/, '')} · ${v.lang}`)));
+      selVoz.hidden = vs.length < 2;
+    };
+    llenar();
+    window.speechSynthesis.addEventListener?.('voiceschanged', llenar);
+    return el('div', { class: 'ay-voz' }, btn, stop, el('span', { class: 'ay-voz-op' }, vel, selVoz));
+  }
+
   /* ---------------- Panel «?» ---------------- */
   let panel = null;
   function abrirPanel() {
@@ -33,10 +116,19 @@
     const tours = (p.recorridos || []).filter((r) => puede(r.si));
     const secciones = (p.secciones || []).filter((s) => puede(s.si));
     const novs = novedadesDe(true);
+    // lo que se lee en voz alta, en el orden del panel (cada parte marca su bloque mientras suena)
+    const partesVoz = () => {
+      const c = panel?.querySelector('.ay-cuerpo');
+      const out = [{ texto: `${p.titulo}. ${p.para_que}`, nodo: c?.querySelector('.ay-para') }];
+      if (p.esquema) out.push({ texto: `${p.esquema.titulo}: ${p.esquema.pasos.map((x, i) => `${i + 1}, ${x.que}, ${x.quien}.`).join(' ')}`, nodo: c?.querySelector('.ay-sec-esquema') });
+      c?.querySelectorAll('.ay-sec').forEach((n) => out.push({ texto: [...n.querySelectorAll('h3, li, dt, dd, p')].map((x) => x.innerHTML.replace(/<\/?b>/g, '')).map((t) => (/[.!?:]$/.test(t.replace(/<[^>]+>/g, '').trim()) ? t : `${t}.`)).join(' '), nodo: n }));
+      return out;
+    };
     panel = el('aside', { class: 'ay-panel', role: 'dialog', 'aria-modal': 'false', 'aria-labelledby': 'ay-tit' },
       el('div', { class: 'ay-cab' },
         el('h2', { id: 'ay-tit' }, el('span', { class: 'ay-ico', 'aria-hidden': 'true' }, '?'), p.titulo),
         el('button', { type: 'button', class: 'ghost', 'aria-label': 'Cerrar ayuda', onclick: cerrarPanel }, '✕')),
+      barraVoz(partesVoz),
       el('div', { class: 'ay-cuerpo' },
         el('p', { class: 'ay-para' }, p.para_que),
         tours.length ? el('div', { class: 'ay-tours' }, tours.map((r) => el('button', {
@@ -47,8 +139,8 @@
             el('video', { src: p.video.src, poster: p.video.poster || null, autoplay: true, muted: true, loop: true, playsinline: true, preload: 'metadata', 'aria-label': p.video.texto }),
             el('span', { class: 'ay-video-zoom', 'aria-hidden': 'true' }, '⤢')),
           el('figcaption', {}, p.video.texto)) : null,
-        p.esquema ? el('section', {}, el('h3', {}, p.esquema.titulo), esquema(p.esquema)) : null,
-        ...secciones.map((s) => el('section', {},
+        p.esquema ? el('section', { class: 'ay-sec-esquema' }, el('h3', {}, p.esquema.titulo), esquema(p.esquema)) : null,
+        ...secciones.map((s) => el('section', { class: 'ay-sec' },
           el('h3', {}, s.titulo),
           s.pasos ? el('ol', { class: 'ay-pasos' }, s.pasos.map((t) => el('li', { html: t }))) : null,
           s.terminos ? el('dl', { class: 'ay-terminos' }, s.terminos.flatMap(([t, d]) => [el('dt', { html: t }), el('dd', { html: d })])) : null,
@@ -60,7 +152,7 @@
     panel.querySelector('.ay-cab button').focus();
     document.addEventListener('keydown', escPanel);
   }
-  function cerrarPanel() { panel?.remove(); panel = null; document.removeEventListener('keydown', escPanel); }
+  function cerrarPanel() { if (panel) voz.parar(); panel?.remove(); panel = null; document.removeEventListener('keydown', escPanel); }
   function escPanel(ev) { if (ev.key === 'Escape') cerrarPanel(); }
 
   // el vídeo en grande, con controles para pararlo o ir atrás
@@ -148,7 +240,20 @@
     tour.burbuja.replaceChildren(...[
       el('div', { class: 'ay-b-cab' },
         el('small', {}, `${tour.r.titulo} · ${i + 1} de ${pasos.length}`),
-        el('button', { type: 'button', class: 'ghost mini', 'aria-label': 'Salir del recorrido', onclick: () => finTour(true) }, '✕')),
+        el('span', { class: 'ay-b-cab-acc' },
+          voz.ok ? el('button', {
+            type: 'button', class: `ghost mini ay-b-voz${voz.pref().auto ? ' activo' : ''}`, 'aria-pressed': voz.pref().auto ? 'true' : 'false',
+            title: voz.pref().auto ? 'Leyendo cada paso en voz alta · pulsa para silenciar' : 'Leer los pasos en voz alta',
+            onclick: (ev) => {
+              const on = !voz.pref().auto;
+              voz.ponerPref({ auto: on });
+              ev.currentTarget.classList.toggle('activo', on);
+              ev.currentTarget.setAttribute('aria-pressed', String(on));
+              ev.currentTarget.textContent = on ? '🔊' : '🔇';
+              if (on) leerPaso(p); else voz.parar();
+            },
+          }, voz.pref().auto ? '🔊' : '🔇') : null,
+          el('button', { type: 'button', class: 'ghost mini', 'aria-label': 'Salir del recorrido', onclick: () => finTour(true) }, '✕'))),
       el('p', { html: p.texto }),
       p.aviso ? el('p', { class: 'ay-b-aviso', html: p.aviso }) : null,
       espera ? el('p', { class: 'ay-b-tu' }, espera === 'click' ? '👉 Pulsa tú lo que está resaltado' : '⌨ Escribe tú en el recuadro resaltado') : null,
@@ -158,6 +263,10 @@
           : el('button', { type: 'button', class: 'primario', onclick: sig }, i === pasos.length - 1 ? 'Terminar' : 'Siguiente →'))].filter(Boolean));
     colocar();
     if (!espera) tour.burbuja.querySelector('.ay-b-pie .primario')?.focus({ preventScroll: true });
+    if (voz.ok && voz.pref().auto) leerPaso(p, espera); else voz.parar();
+  }
+  function leerPaso(p, espera = p.esperar) {
+    voz.hablar([{ texto: [p.texto, p.aviso, espera === 'click' ? 'Pulsa tú lo que está resaltado.' : espera === 'escribir' ? 'Escribe tú en el recuadro resaltado.' : ''].filter(Boolean).join(' ') }]);
   }
   function colocar() {
     if (!tour) return;
@@ -195,6 +304,7 @@
   }
   function finTour(marcar) {
     if (!tour) return;
+    voz.parar();
     cancelAnimationFrame(tour.raf);
     for (const f of tour.quitar) f();
     if (marcar) guardar((s) => { s.tours = { ...(s.tours || {}), [tour.r.id]: tour.r.version || 1 }; });
