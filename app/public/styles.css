@@ -2250,3 +2250,4 @@ dialog.dlg-fab.ancho { width: min(920px, calc(100vw - 32px)); }
 .ay-leyendo { outline: 2px solid var(--azul); outline-offset: 4px; border-radius: 6px; background: #5aa9f010; }
 .ay-b-cab-acc { display: flex; gap: 4px; align-items: center; }
 .ay-b-voz.activo { border-color: var(--azul); background: var(--azul-bg); }
+.grupo-areas.fab.vacia { cursor: default; opacity: .8; } .grupo-areas.fab.vacia a { color: var(--azul); text-transform: none; letter-spacing: 0; }

@@ -1245,7 +1245,14 @@
   const montajeAntes = (f) => !f.recibido && f.tarea_id && estado.datos.tramos.some((tr) => tr.tarea_id === f.tarea_id && !tr.cierre && tr.fecha <= f.llegada);
   function franjaFab(dias) {
     const F = estado.datos.fabricacion || [];
-    if (!F.length) return [];
+    if (!F.length) {
+      // sin piezas en camino: la franja se ve igual (vacía) para saber dónde aparecerán
+      return [el('div', { class: 'grupo-areas fab vacia' },
+        el('span', { class: 'flecha', 'aria-hidden': 'true' }, '▸'),
+        el('span', { class: 'ga-nom' }, '🏭 Fabricación externa · llegadas a Menorca'),
+        el('span', { class: 'ga-info' }, 'sin piezas de talleres de fuera en estas fechas'),
+        el('a', { class: 'ga-nota', href: '/compras.html?vista=fabricacion' }, 'Ver pedidos de fabricación ›'))];
+    }
     const clave = 'ga:fab';
     const abierto = !plegados.has(clave);
     const modo = leerPref('fab_modo', 'pieza');
