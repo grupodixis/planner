@@ -28,7 +28,7 @@ async function solicitud(id, c = { query }) {
   // en secuencia: dentro de una transacción el cliente no admite consultas a la vez
   const sec = async (qs) => { const out = []; for (const q of qs) out.push(await q()); return out; };
   const [{ rows: lineas }, { rows: provs }, { rows: precios }] = await sec([
-    () => c.query(`SELECT l.id, l.escandallo_id, l.descripcion, l.cantidad::float AS cantidad, l.unidad, l.orden, l.elegido,
+    () => c.query(`SELECT l.id, l.escandallo_id, l.tarea_id, l.descripcion, l.cantidad::float AS cantidad, l.unidad, l.orden, l.elegido,
                     pr.codigo AS proyecto_codigo, pa.codigo AS partida_codigo, pa.nombre AS partida_nombre,
                     (SELECT min(x.fecha) FROM tarea_material m JOIN tramos x ON x.tarea_id = m.tarea_id WHERE m.escandallo_id = l.escandallo_id) AS necesaria
                FROM solicitud_lineas l LEFT JOIN partida_escandallo e ON e.id = l.escandallo_id
@@ -113,8 +113,9 @@ function montar(app, asyncH) {
               (SELECT count(*)::int FROM solicitud_lineas l WHERE l.solicitud_id = s.id) AS n_lineas,
               (SELECT count(*)::int FROM solicitud_proveedores sp WHERE sp.solicitud_id = s.id) AS n_prov,
               (SELECT count(*)::int FROM solicitud_proveedores sp WHERE sp.solicitud_id = s.id AND sp.estado IN ('respondida','no_oferta')) AS n_resp,
-              (SELECT string_agg(DISTINCT pr.codigo, ', ') FROM solicitud_lineas l JOIN partida_escandallo e ON e.id = l.escandallo_id
-                 JOIN partidas pa ON pa.id = e.partida_id JOIN proyectos pr ON pr.id = pa.proyecto_id WHERE l.solicitud_id = s.id) AS proyectos
+              COALESCE((SELECT string_agg(DISTINCT pr.codigo, ', ') FROM solicitud_lineas l JOIN partida_escandallo e ON e.id = l.escandallo_id
+                 JOIN partidas pa ON pa.id = e.partida_id JOIN proyectos pr ON pr.id = pa.proyecto_id WHERE l.solicitud_id = s.id),
+                (SELECT '🏭 OT ' || o.codigo || ' ' || o.titulo FROM ordenes o WHERE o.id = s.orden_id)) AS proyectos, s.tipo
          FROM solicitudes_precio s
         WHERE s.estado = 'abierta' OR s.creado > now() - interval '90 days'
         ORDER BY (s.estado = 'abierta') DESC, s.creado DESC LIMIT 200`);
@@ -178,6 +179,7 @@ function montar(app, asyncH) {
     await tx(async (c) => {
       await abierta(id, c);
       await c.query('UPDATE partida_escandallo SET solicitud_id = NULL WHERE solicitud_id = $1', [id]);
+      await c.query('UPDATE tareas SET ext_solicitud_id = NULL WHERE ext_solicitud_id = $1', [id]);
       await c.query(`UPDATE solicitudes_precio SET estado = 'anulada', cerrado_en = now() WHERE id = $1`, [id]);
     });
     res.json({ ok: true });
@@ -304,17 +306,20 @@ function montar(app, asyncH) {
       const refs = [...new Set(s.lineas.map((l) => l.proyecto_codigo).filter(Boolean))].join(', ');
       // las líneas salen de la petición para poder entrar en el pedido
       await c.query('UPDATE partida_escandallo SET solicitud_id = NULL WHERE solicitud_id = $1', [id]);
+      await c.query('UPDATE tareas SET ext_solicitud_id = NULL WHERE ext_solicitud_id = $1', [id]);
+      const sub = s.tipo === 'subcontratacion';
+      const ot = sub && s.orden_id ? (await c.query('SELECT codigo, titulo FROM ordenes WHERE id = $1', [s.orden_id])).rows[0] : null;
       const out = [];
       for (const prov of s.proveedores) {
         const suyas = elegidas.filter((l) => l.elegido === prov.id);
         if (!suyas.length) continue;
-        const lineas = suyas.map((l) => ({ escandallo_id: l.escandallo_id, descripcion: l.descripcion, cantidad: l.cantidad, unidad: l.unidad, precio: prov.precios[l.id] }));
-        if (prov.portes) lineas.push({ descripcion: 'Portes', cantidad: 1, unidad: 'ud', precio: prov.portes });
+        const lineas = suyas.map((l) => ({ escandallo_id: l.escandallo_id, tarea_id: l.tarea_id, descripcion: l.descripcion, cantidad: l.cantidad, unidad: l.unidad, precio: prov.precios[l.id] }));
+        if (prov.portes) lineas.push({ descripcion: sub ? 'Portes / transporte' : 'Portes', cantidad: 1, unidad: 'ud', precio: prov.portes });
         const pid = await crearPedido(c, {
           proveedor_id: prov.proveedor_id, lineas,
           fecha_entrega: prov.fecha_entrega || s.necesario_el,
-          referencia: `${refs}${prov.ref_oferta ? ` · su oferta ${prov.ref_oferta}` : ''} · ${s.codigo}`,
-          usuarioId: req.usuario.id,
+          referencia: `${ot ? `OT ${ot.codigo} ${ot.titulo}` : refs}${prov.ref_oferta ? ` · su oferta ${prov.ref_oferta}` : ''} · ${s.codigo}`,
+          usuarioId: req.usuario.id, tipo: s.tipo, orden_id: s.orden_id, observaciones: sub ? s.notas : null,
         });
         out.push(pid);
       }

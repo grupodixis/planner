@@ -1024,6 +1024,17 @@ const MIGRACIONES = [
      creado          TIMESTAMPTZ NOT NULL DEFAULT now()
    )`,
   `CREATE INDEX IF NOT EXISTS ext_novedades_tarea_idx ON ext_novedades (tarea_id, creado DESC)`,
+
+  // 2026-11 · Subcontratación: petición de presupuesto y pedido a un taller externo con tareas de una OT (+ transporte…).
+  // Usan las mismas peticiones de precio y pedidos de compra, con tipo 'subcontratacion', su OT y líneas enlazadas a tareas.
+  `ALTER TABLE pedidos_compra ADD COLUMN IF NOT EXISTS tipo TEXT NOT NULL DEFAULT 'material' CHECK (tipo IN ('material','subcontratacion')),
+     ADD COLUMN IF NOT EXISTS orden_id INT REFERENCES ordenes(id) ON DELETE SET NULL`,
+  `ALTER TABLE solicitudes_precio ADD COLUMN IF NOT EXISTS tipo TEXT NOT NULL DEFAULT 'material' CHECK (tipo IN ('material','subcontratacion')),
+     ADD COLUMN IF NOT EXISTS orden_id INT REFERENCES ordenes(id) ON DELETE SET NULL`,
+  `ALTER TABLE pedido_compra_lineas ADD COLUMN IF NOT EXISTS tarea_id INT REFERENCES tareas(id) ON DELETE SET NULL`,
+  `ALTER TABLE solicitud_lineas ADD COLUMN IF NOT EXISTS tarea_id INT REFERENCES tareas(id) ON DELETE SET NULL`,
+  `ALTER TABLE tareas ADD COLUMN IF NOT EXISTS ext_pedido_id INT REFERENCES pedidos_compra(id) ON DELETE SET NULL,
+     ADD COLUMN IF NOT EXISTS ext_solicitud_id INT REFERENCES solicitudes_precio(id) ON DELETE SET NULL`,
 ];
 
 async function migrar() {

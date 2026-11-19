@@ -770,8 +770,16 @@ el transporte…). No hay etapas fijas: las etapas son **las tareas de la OT**, 
   termina ~26/11 · «nota»», «En Tenas: galvanizado terminado · lo siguiente: Transporte (Ydica)», «Aún no ha salido…» o
   «Ya no está fuera». En Proyectos (lista de OTs y ficha, con las tareas externas y sus fechas) y en el detalle del
   tablero. `situacion` en `/api/ordenes` y `/api/ordenes/:id`; `situaciones` en `/api/tablero`.
-- **Siguientes pasos**: pedido de subcontratación que agrupa una o varias tareas externas de una OT (+ transporte), con
-  petición de presupuesto antes (el taller contesta precio y plazo en su enlace); recepción desde el móvil.
+- **Subcontratación** (`src/subcontratacion.js`): en la OT, **🏭 Subcontratar…** marca tareas externas (+ líneas sueltas:
+  transporte, portes) y crea en Compras una **petición de presupuesto** a uno o varios talleres o un **pedido** a uno
+  (`POST /api/ordenes/:id/subcontratacion {tarea_ids, extras, accion: presupuesto|pedido, proveedor_ids|proveedor_id, notas,
+  responder_antes}`). Son las mismas peticiones (SOL) y pedidos (PC) de Compras con `tipo = 'subcontratacion'`, `orden_id`
+  y líneas con `tarea_id`; la tarea guarda `ext_solicitud_id` / `ext_pedido_id` (una tarea no puede estar en dos a la vez).
+  Respuesta en la plataforma, comparativo, «Crear pedidos», aprobación por importe y PDF («PEDIDO DE SUBCONTRATACIÓN»)
+  funcionan igual. Al **enviar** el pedido se crea o reactiva el seguimiento de ese taller en la OT y su enlace va en el
+  correo y en el PDF; si el pedido es para otro taller del que tenía la tarea, la tarea pasa a ese taller. Control de
+  costes: lo de los pedidos de subcontratación enviados suma en **Subcontratas** (las líneas sueltas, a la primera tarea).
+- **Siguientes pasos**: gestión de transportes; recepción desde el móvil.
 
 ## Control de costes (Informes › Control de costes)
 

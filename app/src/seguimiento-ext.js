@@ -66,8 +66,12 @@ async function tareasOT(ordenId, c = { query }) {
             t.ext_entregado_a, t.ext_entregado_proveedor_id, t.ext_entrega_fecha::text AS ext_entrega_fecha, t.ext_entrega_nota,
             t.ext_recibido::text AS ext_recibido,
             (SELECT min(x.fecha)::text FROM tramos x WHERE x.tarea_id = t.id) AS plan_desde,
-            (SELECT max(x.fecha)::text FROM tramos x WHERE x.tarea_id = t.id) AS plan_hasta
+            (SELECT max(x.fecha)::text FROM tramos x WHERE x.tarea_id = t.id) AS plan_hasta,
+            t.ext_pedido_id AS pedido_id, pc.codigo AS pedido_codigo, pc.estado AS pedido_estado, pcp.nombre AS pedido_proveedor,
+            t.ext_solicitud_id AS solicitud_id, sol.codigo AS solicitud_codigo, sol.estado AS solicitud_estado
        FROM tareas t JOIN proveedores pv ON pv.id = t.proveedor_id
+       LEFT JOIN pedidos_compra pc ON pc.id = t.ext_pedido_id AND pc.estado <> 'anulado' LEFT JOIN proveedores pcp ON pcp.id = pc.proveedor_id
+       LEFT JOIN solicitudes_precio sol ON sol.id = t.ext_solicitud_id AND sol.estado = 'abierta'
       WHERE t.orden_id = $1 AND t.proveedor_id IS NOT NULL AND NOT t.baja_presupuesto
       ORDER BY t.orden_en_of, t.id`, [ordenId]);
   return rows;
@@ -111,6 +115,7 @@ async function vista(s) {
   return {
     empresa: { nombre: aj.empresa.nombre, telefono: aj.empresa.telefono, email: aj.empresa.email, direccion: aj.empresa.direccion },
     proveedor: s.proveedor,
+    pedidos: [...new Set(ts.filter((t) => t.proveedor_id === s.proveedor_id && t.pedido_estado === 'enviado').map((t) => t.pedido_codigo))],
     ot: { codigo: s.ot_codigo, titulo: s.ot_titulo, abierta: s.ot_estado !== 'cerrada' },
     proyecto: { nombre: s.proyecto, obra: s.obra },
     tareas, destinos, hoy,
@@ -271,6 +276,19 @@ async function recordatorios() {
   }
 }
 
+// Crea (o reactiva) el seguimiento de un taller en una OT → { id, url }
+async function iniciar({ ordenId, proveedorId, email, usuarioId, req }) {
+  const { rows } = await query(
+    `INSERT INTO ext_seguimientos (orden_id, proveedor_id, nonce, email, iniciado_por) VALUES ($1,$2,$3,$4,$5)
+     ON CONFLICT (orden_id, proveedor_id) DO UPDATE SET activo = true, email = COALESCE(EXCLUDED.email, ext_seguimientos.email)
+     RETURNING *`, [ordenId, proveedorId, crypto.randomBytes(18).toString('base64url'), texto(email, 200), usuarioId]);
+  return { ...rows[0], url: urlDe(rows[0], req) };
+}
+async function urlActiva(ordenId, proveedorId, req) {
+  const { rows } = await query('SELECT * FROM ext_seguimientos WHERE orden_id = $1 AND proveedor_id = $2 AND activo', [ordenId, proveedorId]);
+  return rows.length ? urlDe(rows[0], req) : null;
+}
+
 /* ---------- para la OT (oficina) ---------- */
 async function paraOT(ordenId) {
   const [{ rows: segs }, { rows: nov }] = await Promise.all([
@@ -288,6 +306,8 @@ async function paraOT(ordenId) {
       estado: estadoExt(t), fin_prevista: t.ext_fin_prevista, recibido: t.ext_recibido, actualizado: t.ext_actualizado,
       entrega: t.ext_entregado_a ? { a: t.ext_entregado_a, fecha: t.ext_entrega_fecha, nota: t.ext_entrega_nota } : null,
       plan_hasta: t.plan_hasta,
+      pedido: t.pedido_id ? { id: t.pedido_id, codigo: t.pedido_codigo, estado: t.pedido_estado, proveedor: t.pedido_proveedor } : null,
+      solicitud: t.solicitud_id ? { id: t.solicitud_id, codigo: t.solicitud_codigo, estado: t.solicitud_estado } : null,
       archivos: arch.filter((a) => a.tarea_id === t.id).map((a) => ({ id: a.id, tipo: a.tipo, nombre: a.nombre, albaran: a.ref_tipo === 'ext_albaran' })),
       novedades: nov.filter((n) => n.tarea_id === t.id).slice(0, 5),
     };
@@ -377,12 +397,8 @@ function montarGestion(app, asyncH) {
     if (!t.length) throw fallo(400, 'Ese taller no tiene tareas en esta OT');
     const email = texto(b.email, 200);
     if (b.enviar && !(email && /.+@.+\..+/.test(email))) throw fallo(400, 'Falta el correo del taller');
-    const { rows } = await query(
-      `INSERT INTO ext_seguimientos (orden_id, proveedor_id, nonce, email, iniciado_por) VALUES ($1,$2,$3,$4,$5)
-       ON CONFLICT (orden_id, proveedor_id) DO UPDATE SET activo = true, email = COALESCE(EXCLUDED.email, ext_seguimientos.email)
-       RETURNING *`, [ordenId, pid, crypto.randomBytes(18).toString('base64url'), email, req.usuario.id]);
-    const s = rows[0];
-    const url = urlDe(s, req);
+    const s = await iniciar({ ordenId, proveedorId: pid, email, usuarioId: req.usuario.id, req });
+    const url = s.url;
     if (b.enviar) {
       const { rows: d } = await query(
         `SELECT s.*, o.codigo AS ot_codigo, o.titulo AS ot_titulo, pr.obra FROM ext_seguimientos s JOIN ordenes o ON o.id = s.orden_id
@@ -420,4 +436,4 @@ function montarGestion(app, asyncH) {
   }));
 }
 
-module.exports = { montarPublico, montarGestion, paraOT, estadoExt, recordatorios };
+module.exports = { montarPublico, montarGestion, paraOT, estadoExt, recordatorios, iniciar, urlActiva };

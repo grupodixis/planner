@@ -6,7 +6,8 @@
 //  · Previsión a final de una tarea = real si está hecha; si no, real + horas que faltan × coste/hora (el que lleva
 //    la tarea o, si aún no tiene horas, el medio).
 //  · Material, maquinaria, subcontratas y otros: presupuesto de la partida; lo real de maquinaria y subcontratas sale
-//    del parte (horas × coste/hora). El material real llegará con los precios de compra (fase 2).
+//    del parte (horas × coste/hora); las subcontratas, además, de los pedidos de subcontratación enviados (talleres
+//    externos). El material real llegará con los precios de compra (fase 2).
 const { query } = require('./db');
 const auth = require('./auth');
 const { jornada } = require('./config');
@@ -100,6 +101,7 @@ async function calcular(proyectoIds) {
             WHERE o.proyecto_id = ANY($1) ORDER BY o.codigo, t.orden_en_of, t.id`, [proyectoIds]),
     realesDe(proyectoIds, Number(aj.recargo_extra) || 0),
   ]);
+  const subPedidos = await require('./subcontratacion').costePorTarea(tareas.map((t) => t.id));
   const porTarea = new Map();
   for (const r of reales) {
     if (!porTarea.has(r.tarea_id)) porTarea.set(r.tarea_id, []);
@@ -141,6 +143,8 @@ async function calcular(proyectoIds) {
       if (r.tipo === 'maquina') x.tipos.maquinaria.real += r.coste || 0;
       if (r.tipo === 'subcontrata') x.tipos.subcontratas.real += r.coste || 0;
     }
+    // pedidos de subcontratación enviados (talleres externos): comprometido
+    x.tipos.subcontratas.real += subPedidos.get(t.id) || 0;
     // valor de lo hecho: hecha = todo lo presupuestado; en curso = proporción de horas (hasta el 90 %)
     const frac = t.estado === 'hecha' ? 1 : x.horas_est ? Math.min(0.9, hReal / x.horas_est) : 0;
     x.ganado = x.tipos.mano_obra.presup * frac;

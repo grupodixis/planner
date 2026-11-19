@@ -40,8 +40,10 @@ const SQL_PEDIDO = `
   SELECT c.*, p.nombre AS proveedor, p.email AS proveedor_email, p.cif AS proveedor_cif, p.forma_pago AS proveedor_forma_pago,
          uc.nombre AS creado_por_nombre, ua.nombre AS aprobado_por_nombre, ue.nombre AS enviado_por_nombre,
          (SELECT count(*)::int FROM pedido_compra_lineas l WHERE l.pedido_id = c.id) AS n_lineas,
-         (SELECT string_agg(DISTINCT pr.codigo, ', ') FROM pedido_compra_lineas l JOIN partida_escandallo e ON e.id = l.escandallo_id
-            JOIN partidas pa ON pa.id = e.partida_id JOIN proyectos pr ON pr.id = pa.proyecto_id WHERE l.pedido_id = c.id) AS proyectos
+         COALESCE((SELECT string_agg(DISTINCT pr.codigo, ', ') FROM pedido_compra_lineas l JOIN partida_escandallo e ON e.id = l.escandallo_id
+            JOIN partidas pa ON pa.id = e.partida_id JOIN proyectos pr ON pr.id = pa.proyecto_id WHERE l.pedido_id = c.id),
+           (SELECT '🏭 OT ' || o.codigo || ' ' || o.titulo FROM ordenes o WHERE o.id = c.orden_id)) AS proyectos,
+         (SELECT o.codigo FROM ordenes o WHERE o.id = c.orden_id) AS ot_codigo, (SELECT o.titulo FROM ordenes o WHERE o.id = c.orden_id) AS ot_titulo
     FROM pedidos_compra c LEFT JOIN proveedores p ON p.id = c.proveedor_id
     LEFT JOIN usuarios uc ON uc.id = c.creado_por LEFT JOIN usuarios ua ON ua.id = c.aprobado_por LEFT JOIN usuarios ue ON ue.id = c.enviado_por`;
 
@@ -49,7 +51,7 @@ async function pedido(id, c = { query }) {
   const { rows } = await c.query(`${SQL_PEDIDO} WHERE c.id = $1`, [id]);
   if (!rows.length) return null;
   const { rows: lineas } = await c.query(
-    `SELECT l.id, l.escandallo_id, l.descripcion, l.cantidad::float AS cantidad, l.unidad, l.precio::float AS precio, l.orden,
+    `SELECT l.id, l.escandallo_id, l.tarea_id, l.descripcion, l.cantidad::float AS cantidad, l.unidad, l.precio::float AS precio, l.orden,
             pr.codigo AS proyecto_codigo, pa.codigo AS partida_codigo, pa.nombre AS partida_nombre, e.compra, e.precio_pedido::float AS precio_pedido
        FROM pedido_compra_lineas l
        LEFT JOIN partida_escandallo e ON e.id = l.escandallo_id
@@ -95,20 +97,22 @@ async function lineasLibres(c, ids, { solicitud = null } = {}) {
 }
 
 // Crea un pedido en borrador con sus líneas; las de material quedan enlazadas al pedido
-async function crearPedido(c, { proveedor_id, lineas, fecha_entrega, referencia, usuarioId }) {
+async function crearPedido(c, { proveedor_id, lineas, fecha_entrega, referencia, usuarioId, tipo = 'material', orden_id = null, observaciones = null }) {
   const aj = await ajustes();
   let formaPago = null;
   if (proveedor_id) { const { rows } = await c.query('SELECT forma_pago FROM proveedores WHERE id = $1', [proveedor_id]); formaPago = rows[0]?.forma_pago || null; }
   const codigo = await siguienteCodigo(c);
   const { rows } = await c.query(
-    `INSERT INTO pedidos_compra (codigo, proveedor_id, fecha_entrega, entregar_en, referencia, forma_pago, creado_por)
-     VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id`,
-    [codigo, proveedor_id || null, fecha_entrega || null, aj.entregar_en, texto(referencia, 300), formaPago, usuarioId]);
+    `INSERT INTO pedidos_compra (codigo, proveedor_id, fecha_entrega, entregar_en, referencia, forma_pago, creado_por, tipo, orden_id, observaciones)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING id`,
+    [codigo, proveedor_id || null, fecha_entrega || null, tipo === 'subcontratacion' ? null : aj.entregar_en, texto(referencia, 300), formaPago, usuarioId,
+      tipo, orden_id, texto(observaciones, 3000)]);
   const pid = rows[0].id;
   let i = 0;
   for (const l of lineas) {
-    await c.query(`INSERT INTO pedido_compra_lineas (pedido_id, escandallo_id, descripcion, cantidad, unidad, precio, orden) VALUES ($1,$2,$3,$4,$5,$6,$7)`,
-      [pid, l.escandallo_id || null, l.descripcion, l.cantidad, l.unidad || null, l.precio ?? null, i++]);
+    await c.query(`INSERT INTO pedido_compra_lineas (pedido_id, escandallo_id, tarea_id, descripcion, cantidad, unidad, precio, orden) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
+      [pid, l.escandallo_id || null, l.tarea_id || null, l.descripcion, l.cantidad, l.unidad || null, l.precio ?? null, i++]);
+    if (l.tarea_id) await c.query('UPDATE tareas SET ext_pedido_id = $2, ext_solicitud_id = NULL WHERE id = $1', [l.tarea_id, pid]);
     if (l.escandallo_id) await c.query('UPDATE partida_escandallo SET pedido_compra_id = $2, solicitud_id = NULL WHERE id = $1', [l.escandallo_id, pid]);
   }
   await recalcular(c, pid);
@@ -129,7 +133,7 @@ function pdfPedido(p, aj) {
     doc.font('Helvetica-Bold').fontSize(16).fillColor('#111').text(aj.empresa.nombre, 48, 48);
     doc.font('Helvetica').fontSize(9).fillColor(gris)
       .text([aj.empresa.cif && `CIF ${aj.empresa.cif}`, aj.empresa.direccion, aj.empresa.telefono, aj.empresa.email].filter(Boolean).join(' · '), 48, 70, { width: W * 0.6 });
-    doc.font('Helvetica-Bold').fontSize(15).fillColor('#111').text('PEDIDO DE COMPRA', 48, 48, { width: W, align: 'right' });
+    doc.font('Helvetica-Bold').fontSize(15).fillColor('#111').text(p.tipo === 'subcontratacion' ? 'PEDIDO DE SUBCONTRATACIÓN' : 'PEDIDO DE COMPRA', 48, 48, { width: W, align: 'right' });
     doc.font('Helvetica').fontSize(10).fillColor('#111')
       .text(p.codigo, 48, 68, { width: W, align: 'right' })
       .text(new Date(p.enviado_en || Date.now()).toLocaleDateString('es-ES'), 48, 82, { width: W, align: 'right' });
@@ -166,6 +170,12 @@ function pdfPedido(p, aj) {
     doc.font('Helvetica-Bold').fontSize(11).text(`Total: ${eur(p.total)} + IVA`, 48, y, { width: W, align: 'right' });
     y += 30;
     if (p.observaciones) { doc.font('Helvetica-Bold').fontSize(9).text('Observaciones', 48, y); doc.font('Helvetica').text(p.observaciones, 48, y + 12, { width: W }); y = doc.y + 12; }
+    if (p.seguimiento_url) {
+      doc.font('Helvetica-Bold').fontSize(10).fillColor('#10776c').text('Seguimiento del trabajo', 48, y);
+      doc.font('Helvetica').fontSize(9).fillColor('#111').text('Indíquenos aquí cómo va (inicio, avance, fecha prevista, fotos y entrega), sin registrarse:', 48, y + 13, { width: W });
+      doc.fillColor('#10776c').text(p.seguimiento_url, 48, doc.y + 2, { width: W, link: p.seguimiento_url, underline: true });
+      y = doc.y + 14;
+    }
     if (aj.condiciones) { doc.font('Helvetica-Bold').fontSize(9).fillColor(gris).text('Condiciones', 48, y); doc.font('Helvetica').text(aj.condiciones, 48, y + 12, { width: W }); }
     doc.end();
   });
@@ -286,6 +296,7 @@ function montar(app, asyncH) {
         const fuera = p.lineas.filter((l) => !quedan.has(l.id));
         for (const l of fuera) {
           if (l.escandallo_id) await c.query('UPDATE partida_escandallo SET pedido_compra_id = NULL WHERE id = $1 AND pedido_compra_id = $2', [l.escandallo_id, id]);
+          if (l.tarea_id) await c.query('UPDATE tareas SET ext_pedido_id = NULL WHERE id = $1 AND ext_pedido_id = $2', [l.tarea_id, id]);
           await c.query('DELETE FROM pedido_compra_lineas WHERE id = $1', [l.id]);
         }
         let i = 0;
@@ -316,6 +327,7 @@ function montar(app, asyncH) {
       if (!p) throw fallo(404, 'Pedido no encontrado');
       if (!editable(p)) throw fallo(400, 'Un pedido enviado no se borra');
       await c.query('UPDATE partida_escandallo SET pedido_compra_id = NULL WHERE pedido_compra_id = $1', [id]);
+      await c.query('UPDATE tareas SET ext_pedido_id = NULL WHERE ext_pedido_id = $1', [id]);
       await c.query('DELETE FROM pedidos_compra WHERE id = $1', [id]);
     });
     res.json({ ok: true });
@@ -366,6 +378,7 @@ function montar(app, asyncH) {
   app.get('/api/compras/pedidos/:id/pdf', verPedidos, asyncH(async (req, res) => {
     const p = await pedido(Number(req.params.id));
     if (!p) throw fallo(404, 'Pedido no encontrado');
+    if (p.tipo === 'subcontratacion' && p.orden_id && auth.tiene(req.usuario, 'compras')) p.seguimiento_url = await require('./seguimiento-ext').urlActiva(p.orden_id, p.proveedor_id, req);
     const pdf = await pdfPedido(p, await ajustes());
     res.set({ 'Content-Type': 'application/pdf', 'Content-Disposition': `inline; filename="${p.codigo}.pdf"`, 'Cache-Control': 'no-store' });
     res.send(pdf);
@@ -384,18 +397,32 @@ function montar(app, asyncH) {
     if (p.necesita_aprobacion && p.estado !== 'aprobado') throw fallo(400, `Pasa de ${eur(p.limite)}: necesita la aprobación de Dirección`);
     const aj = await ajustes();
     let para = null;
+    // subcontratación: con el pedido va el enlace de seguimiento del taller para esa OT (se crea o se reactiva)
+    const sub = p.tipo === 'subcontratacion' && p.orden_id;
+    const destino = b.correo ? texto(b.para, 300) : null;
+    const seg = sub ? await require('./seguimiento-ext').iniciar({ ordenId: p.orden_id, proveedorId: p.proveedor_id, email: destino || p.proveedor_email, usuarioId: req.usuario.id, req }) : null;
     if (b.correo) {
-      para = texto(b.para, 300);
+      para = destino;
       if (!para || !/@/.test(para)) throw fallo(400, 'Falta el correo del proveedor');
-      const pdf = await pdfPedido({ ...p, enviado_en: new Date() }, aj);
+      const pdf = await pdfPedido({ ...p, enviado_en: new Date(), seguimiento_url: seg?.url }, aj);
+      let cuerpo = String(b.texto || '').slice(0, 5000);
+      if (seg && !cuerpo.includes(seg.url)) cuerpo += `\n\n— Seguimiento del trabajo: indíquenos cómo va (inicio, avance, fecha prevista, fotos y a quién lo entregan) en este enlace, sin registrarse:\n${seg.url}`;
       await correo.enviarOFallar({
         para, cc: texto(b.cc, 300), asunto: texto(b.asunto, 200) || `Pedido ${p.codigo} · ${aj.empresa.nombre}`,
-        texto: String(b.texto || '').slice(0, 5000), adjuntos: [{ nombre: `${p.codigo}.pdf`, datos: pdf, tipo: 'application/pdf' }],
+        texto: cuerpo, adjuntos: [{ nombre: `${p.codigo}.pdf`, datos: pdf, tipo: 'application/pdf' }],
       });
+      if (seg) await query('UPDATE ext_seguimientos SET enviado_en = now() WHERE id = $1', [seg.id]);
     }
     await tx(async (c) => {
       await c.query(`UPDATE pedidos_compra SET estado = 'enviado', enviado_por = $2, enviado_en = now(), enviado_a = $3, enviado_correo = $4 WHERE id = $1`,
         [id, req.usuario.id, para, !!b.correo]);
+      // subcontratación: sus tareas las hace este taller (si se cambió de proveedor, pasan a su área)
+      for (const l of p.lineas.filter((x) => x.tarea_id)) {
+        const { rows: t } = await c.query('SELECT proveedor_id FROM tareas WHERE id = $1', [l.tarea_id]);
+        if (t.length && t[0].proveedor_id !== p.proveedor_id) {
+          await c.query('UPDATE tareas SET proveedor_id = $2, linea_id = $3 WHERE id = $1', [l.tarea_id, p.proveedor_id, await require('./externos').areaExterna(c, p.proveedor_id)]);
+        }
+      }
       // sus líneas de material pasan a «Pedido»
       for (const l of p.lineas.filter((x) => x.escandallo_id)) {
         await c.query(`UPDATE partida_escandallo SET compra = 'pedido', proveedor_id = $2, fecha_prevista = $3, pedido_por = $4, pedido_en = now(),
@@ -404,6 +431,7 @@ function montar(app, asyncH) {
         [l.escandallo_id, p.proveedor_id, p.fecha_entrega ? String(p.fecha_entrega).slice(0, 10) : null, req.usuario.id, p.codigo, l.precio, id]);
       }
     });
+    if (sub) return res.json({ ...(await pedido(id)), seguimiento_url: seg?.url || null });
     notif.avisarLuego(notif.conPermiso('logistica', 'escandallo'), 'mat_pedido', {
       titulo: `Pedido ${p.codigo} enviado`,
       cuerpo: `${p.proveedor} · ${p.lineas.length} línea${p.lineas.length === 1 ? '' : 's'}${p.fecha_entrega ? ` · llega el ${ddmm(p.fecha_entrega)}` : ''}${p.proyectos ? ` · ${p.proyectos}` : ''}`,

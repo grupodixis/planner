@@ -404,6 +404,11 @@
     let caja = $('#ot-situacion');
     if (!caja) { caja = el('div', { id: 'ot-situacion' }); $('#ot-resumen').parentElement.after(caja); }
     caja.replaceChildren(situacionOT(o.situacion) || '');
+    // subcontratar: pedir presupuesto o hacer el pedido a un taller externo con tareas de esta OT
+    if (o.lista_tareas.some((t) => t.proveedor_id) && puedeSeguir() && o.estado !== 'cerrada') {
+      caja.append(el('div', { class: 'sub-barra' },
+        el('button', { type: 'button', class: 'ghost mini', onclick: () => dialogoSubcontratar(o) }, '🏭 Subcontratar… (presupuesto o pedido)')));
+    }
     pintarTareas();
   }
 
@@ -761,6 +766,9 @@
       x.recibido && est === 'sin_empezar' ? ` · material recibido ${dm(x.recibido)}` : null,
       x.entrega ? ` · entregado a ${x.entrega.a === 'nosotros' ? 'nosotros' : x.entrega.a}${x.entrega.fecha ? ` el ${dm(x.entrega.fecha)}` : ''}${x.entrega.nota ? ` · ${x.entrega.nota}` : ''}` : null,
       x.actualizado ? el('small', {}, ` · ${haceTxt(x.actualizado)}`) : null,
+      x.pedido ? el('a', { class: 'ext-doc', href: `/compras.html?pedido=${x.pedido.id}`, title: 'Abrir el pedido en Compras' },
+        `🧾 ${x.pedido.codigo} · ${({ borrador: 'borrador', por_aprobar: 'por aprobar', aprobado: 'aprobado, sin enviar', enviado: 'enviado' })[x.pedido.estado] || x.pedido.estado}${x.pedido.proveedor && x.pedido.proveedor !== t.proveedor ? ` · ${x.pedido.proveedor}` : ''}`) : null,
+      x.solicitud ? el('a', { class: 'ext-doc', href: `/compras.html?vista=precios&sol=${x.solicitud.id}`, title: 'Abrir la petición en Compras' }, `✉ pidiendo presupuesto ${x.solicitud.codigo}`) : null,
       fotos.length ? el('span', { class: 'ext-fotos' }, fotos.slice(0, 6).map((f) => el('a', { href: `/api/ext-archivos/${f.id}`, target: '_blank', rel: 'noopener', title: f.albaran ? 'Albarán' : (f.nombre || 'Foto') },
         f.tipo.startsWith('image/') ? el('img', { src: `/api/ext-archivos/${f.id}`, alt: f.albaran ? 'Albarán' : 'Foto del taller', loading: 'lazy' }) : el('span', {}, '📄')))) : null);
     const nov = (x.novedades || []).length ? el('details', { class: 'ext-nov' }, el('summary', {}, `Novedades (${x.novedades.length})`),
@@ -807,6 +815,66 @@
           if (!confirm(`¿Parar el seguimiento con ${t.proveedor}? Su enlace dejará de funcionar.`)) return;
           try { await api('PATCH', `/api/seguimientos/${s.id}`, { activo: false }); toast('Seguimiento parado'); await refrescarOT(); } catch (e) { toast(e.message, true); }
         } }, '⏹ Parar'));
+  }
+
+  // Subcontratar: tareas externas de la OT (+ líneas sueltas: transporte…) → petición de presupuesto o pedido
+  function dialogoSubcontratar(o) {
+    const ext = o.lista_tareas.filter((t) => t.proveedor_id);
+    const libre = (t) => !t.ext?.pedido && !t.ext?.solicitud;
+    const marcadas = new Set(ext.filter(libre).map((t) => t.id));
+    // primero los talleres que ya tienen tareas en esta OT
+    const enOT = new Set(ext.map((t) => t.proveedor_id));
+    const talleres = [...(estado.catalogo.talleres || [])].sort((a, b) => (enOT.has(b.id) - enOT.has(a.id)) || a.nombre.localeCompare(b.nombre));
+    let accion = 'presupuesto';
+    const dlg = el('dialog', { class: 'dlg-seg dlg-sub', 'aria-labelledby': 'sub-tit' });
+    const cuerpo = el('div');
+    const extras = el('textarea', { rows: 2, maxlength: 900, placeholder: 'Una por línea, p. ej. «Transporte Barcelona → Menorca (Ydica)»', 'aria-label': 'Otras líneas del pedido' });
+    const notas = el('textarea', { rows: 2, maxlength: 2000, placeholder: 'Opcional: lo que deben saber (planos, acabado, galvanizado, entrega…)', 'aria-label': 'Notas para el taller' });
+    const responder = el('input', { type: 'date', 'aria-label': 'Responder antes del' });
+    const selTalleres = new Set(ext.filter((t) => marcadas.has(t.id)).map((t) => t.proveedor_id));
+    const pintar = () => {
+      const opcT = talleres.map((pv) => el('label', { class: 'sub-taller' },
+        el('input', { type: accion === 'pedido' ? 'radio' : 'checkbox', name: 'sub-taller', value: pv.id, checked: selTalleres.has(pv.id),
+          onchange: (ev) => { if (accion === 'pedido') selTalleres.clear(); if (ev.target.checked) selTalleres.add(pv.id); else selTalleres.delete(pv.id); } }),
+        ` ${pv.nombre}`));
+      cuerpo.replaceChildren(
+        el('h3', {}, 'Tareas'),
+        el('ul', { class: 'sub-tareas' }, ext.map((t) => el('li', {}, el('label', {},
+          el('input', { type: 'checkbox', checked: marcadas.has(t.id), disabled: !libre(t), onchange: (ev) => { if (ev.target.checked) marcadas.add(t.id); else marcadas.delete(t.id); } }),
+          ' ', el('b', {}, t.codigo), ` ${t.nombre}`, el('small', { class: 'ayuda' }, ` · ${t.proveedor}${t.primera_fecha ? ` · ${fechaCorta(t.primera_fecha).slice(0, 5)}→${fechaCorta(t.ultima_fecha).slice(0, 5)}` : ''}${t.ext?.pedido ? ` · ya en ${t.ext.pedido.codigo}` : t.ext?.solicitud ? ` · ya pidiendo ${t.ext.solicitud.codigo}` : ''}`))))),
+        el('label', { class: 'campo-sub' }, el('span', {}, 'Otras líneas (transporte, portes…)'), extras),
+        el('div', { class: 'seg-ops' },
+          ...[['presupuesto', '✉ Pedir presupuesto', 'a uno o varios talleres; responden en su enlace y se comparan'], ['pedido', '🧾 Hacer el pedido', 'a un taller, con su precio; al enviarlo va su enlace de seguimiento']]
+            .map(([k, tit, sub]) => el('label', { class: `seg-op${accion === k ? ' on' : ''}` },
+              el('input', { type: 'radio', name: 'sub-accion', checked: accion === k, onchange: () => { accion = k; if (k === 'pedido' && selTalleres.size > 1) { const f = [...selTalleres][0]; selTalleres.clear(); selTalleres.add(f); } pintar(); } }),
+              el('b', {}, tit), el('br'), el('small', {}, sub)))),
+        el('h3', {}, accion === 'pedido' ? 'Taller' : 'Talleres a los que pedir'),
+        el('div', { class: 'sub-talleres' }, opcT),
+        accion === 'presupuesto' ? el('label', { class: 'campo-sub' }, el('span', {}, 'Responder antes del'), responder) : null,
+        el('label', { class: 'campo-sub' }, el('span', {}, 'Notas para el taller'), notas));
+    };
+    const cerrar = () => { dlg.close(); dlg.remove(); };
+    dlg.append(
+      el('h2', { id: 'sub-tit' }, `Subcontratar · OT ${o.codigo} ${o.titulo}`),
+      el('p', { class: 'ayuda' }, 'Se crea en Compras (petición de presupuesto o pedido en borrador) con estas tareas como líneas. Allí se envía, se comparan las ofertas, se ponen los precios y, si pasa del límite, lo aprueba Dirección.'),
+      cuerpo,
+      el('div', { class: 'acciones' },
+        el('button', { type: 'button', class: 'ghost', onclick: cerrar }, 'Cancelar'),
+        el('button', { type: 'button', class: 'primario', onclick: async (ev) => {
+          ev.target.disabled = true;
+          try {
+            const r = await api('POST', `/api/ordenes/${o.id}/subcontratacion`, {
+              tarea_ids: [...marcadas], extras: extras.value.split('\n').map((x) => x.trim()).filter(Boolean), accion,
+              proveedor_ids: [...selTalleres], proveedor_id: [...selTalleres][0] || null, notas: notas.value.trim() || null, responder_antes: responder.value || null,
+            });
+            cerrar();
+            location.href = r.pedido_id ? `/compras.html?pedido=${r.pedido_id}` : `/compras.html?vista=precios&sol=${r.solicitud_id}`;
+          } catch (e) { toast(e.message, true); ev.target.disabled = false; }
+        } }, 'Crear y abrir en Compras')));
+    dlg.addEventListener('cancel', (ev) => { ev.preventDefault(); cerrar(); });
+    document.body.append(dlg);
+    pintar();
+    dlg.showModal();
   }
 
   function dialogoSeguimiento(t, o, s) {

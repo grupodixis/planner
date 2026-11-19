@@ -288,6 +288,7 @@ app.patch('/api/tareas/:id', auth.permiso('planificar', 'proyectos'), asyncH(asy
 
 require('./gestion')(app, asyncH);
 require('./seguimiento-ext').montarGestion(app, asyncH);   // «Comenzar seguimiento» con los talleres externos
+require('./subcontratacion').montar(app, asyncH);   // pedir presupuesto / hacer pedido a un taller externo desde la OT
 require('./recursos')(app, asyncH);
 require('./importar')(app, asyncH);
 require('./semillero')(app, asyncH);

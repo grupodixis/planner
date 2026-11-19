@@ -109,7 +109,8 @@
         const cambia = (k) => (ev) => { l[k] = ev.target.value === '' ? null : ev.target.value; imp.textContent = l.precio == null ? '—' : eur((Number(l.cantidad) || 0) * Number(l.precio)); totalEl.textContent = eur(total()); guardar(cuerpoLineas); };
         return el('tr', {},
           el('td', {}, editable && !l.escandallo_id ? el('input', { value: l.descripcion, 'aria-label': 'Descripción', class: 'cmp-in-desc', oninput: cambia('descripcion') }) : el('span', {}, l.descripcion),
-            l.proyecto_codigo ? el('div', { class: 'sub' }, `${l.proyecto_codigo} · ${l.partida_codigo ? `${l.partida_codigo} ` : ''}${l.partida_nombre || ''}`) : el('div', { class: 'sub' }, 'Línea a mano')),
+            l.proyecto_codigo ? el('div', { class: 'sub' }, `${l.proyecto_codigo} · ${l.partida_codigo ? `${l.partida_codigo} ` : ''}${l.partida_nombre || ''}`)
+              : el('div', { class: 'sub' }, l.tarea_id ? `🏭 tarea de la OT ${p.ot_codigo || ''} (taller externo)` : 'Línea a mano')),
           el('td', { class: 'num' }, editable ? el('input', { type: 'number', min: '0', step: 'any', value: l.cantidad, class: 'cmp-in-num', 'aria-label': 'Cantidad', oninput: cambia('cantidad') }) : String(l.cantidad).replace('.', ',')),
           el('td', {}, editable && !l.escandallo_id ? el('input', { value: l.unidad || '', class: 'cmp-in-ud', 'aria-label': 'Unidad', oninput: cambia('unidad') }) : (l.unidad || '')),
           el('td', { class: 'num' }, editable ? el('input', { type: 'number', min: '0', step: '0.0001', value: l.precio ?? '', placeholder: '€', class: `cmp-in-num${l.precio == null ? ' falta' : ''}`, 'aria-label': 'Precio unitario', oninput: cambia('precio') }) : eur(l.precio)),
@@ -159,7 +160,7 @@
         campo('forma_pago', 'Forma de pago', inCampo('forma_pago', { maxlength: 120, placeholder: prov?.forma_pago || '' })),
         campo('observaciones', 'Observaciones para el proveedor', inCampo('observaciones', { tag: 'textarea', rows: 2, maxlength: 3000 }))),
       el('div', { class: 'tabla-scroll' }, el('table', { class: 'tabla-inf cmp-tabla' },
-        el('thead', {}, el('tr', {}, el('th', {}, 'Material'), el('th', { class: 'num' }, 'Cantidad'), el('th', {}, 'Ud.'), el('th', { class: 'num' }, 'Precio'), el('th', { class: 'num' }, 'Importe'), el('th', {}))),
+        el('thead', {}, el('tr', {}, el('th', {}, p.tipo === 'subcontratacion' ? 'Trabajo' : 'Material'), el('th', { class: 'num' }, 'Cantidad'), el('th', {}, 'Ud.'), el('th', { class: 'num' }, 'Precio'), el('th', { class: 'num' }, 'Importe'), el('th', {}))),
         tbody,
         el('tfoot', {}, el('tr', { class: 'fila-total' }, el('td', { colspan: '4' }, 'Total (sin IVA)'), el('td', { class: 'num' }, totalEl), el('td', {}))))),
       editable ? el('button', { type: 'button', class: 'ghost mini', onclick: () => { lineas.push({ descripcion: 'Nueva línea', cantidad: 1, unidad: 'ud', precio: null }); guardar(cuerpoLineas, 'repintar'); } }, '＋ Línea a mano') : null,
