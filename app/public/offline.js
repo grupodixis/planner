@@ -69,13 +69,15 @@
     if (navigator.onLine && /mi-dia\.html/.test(location.pathname)) {
       let ult = 0;
       try { ult = Number(localStorage.getItem('planealo-precarga')) || 0; } catch { /* */ }
-      if (Date.now() - ult > 3600e3) {
+      if (Date.now() - ult > 3600e3 || sessionStorage.getItem('planealo-precarga-v') !== '2') {
         setTimeout(async () => {
           const f = (d) => { const x = new Date(); x.setDate(x.getDate() + d); return x.toLocaleDateString('sv-SE', { timeZone: 'Europe/Madrid' }); };
-          for (const u of [`/api/mi-dia?fecha=${f(1)}`, `/api/mi-dia?fecha=${f(0)}`, '/api/mi-dia/mes', '/api/mi-dia/gestiones', '/api/compras-locales/opciones', '/api/compras-locales/mias', '/api/capturas/opciones']) {
+          for (const u of [`/api/mi-dia?fecha=${f(1)}`, `/api/mi-dia?fecha=${f(0)}`, '/api/mi-dia/mes', '/api/mi-dia/gestiones', '/api/mi-dia/perfil', '/api/mi-dia/capacidades',
+            '/api/compras-locales/opciones', '/api/compras-locales/mias', '/api/compras-locales?vista=autorizar', '/api/capturas/opciones', '/api/capturas/mias',
+            '/api/capturas?vista=mios', '/api/material/circuito', '/api/pendientes']) {
             await fetch(u, { credentials: 'same-origin' }).catch(() => {});
           }
-          try { localStorage.setItem('planealo-precarga', String(Date.now())); } catch { /* */ }
+          try { localStorage.setItem('planealo-precarga', String(Date.now())); sessionStorage.setItem('planealo-precarga-v', '2'); } catch { /* */ }
         }, 4000);
       }
     }

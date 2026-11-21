@@ -177,7 +177,7 @@
       boton.disabled = true;
       try {
         const r = await api('POST', `/api/compras-locales/${c.id}/decidir`, { decision, nota: nota.value });
-        toast(decision === 'si' ? `Autorizada · código ${r.codigo_aut}` : 'No autorizada');
+        toast(r.offline ? 'Guardado sin conexión: se enviará al volver la cobertura (el código se crea entonces)' : decision === 'si' ? `Autorizada · código ${r.codigo_aut}` : 'No autorizada');
         await cargar();
       } catch (e) { toast(e.message, true); boton.disabled = false; }
     };

@@ -9,7 +9,7 @@
 //    pedir compra local, ticket) va a una BANDEJA DE SALIDA (IndexedDB) y se envía solo, en orden, en cuanto hay red.
 //    Mientras tanto, lo pendiente se ve ya aplicado en Mi día y en Mis compras. Las fotos sin enviar llevan un id
 //    provisional negativo que se cambia por el de verdad al enviarlas.
-const VERSION = 'v5';
+const VERSION = 'v7';
 const SHELL = `planealo-shell-${VERSION}`;
 const DATOS = 'planealo-datos-v1';
 const OFFLINE = '/offline.html';
@@ -18,7 +18,7 @@ const FIJOS = ['/manifest.webmanifest', '/icono-192-v2.png', '/insignia-96.png',
 const ESPERA_DATOS = 3500;   // ms: si la red tarda más, se enseña lo guardado
 
 // Datos que se guardan para verlos sin conexión
-const GET_GUARDAR = /^\/api\/(me|mi-dia|mi-dia\/(gestiones|mes|perfil|capacidades|vacaciones\/previa)|capturas\/(opciones|mias)|compras-locales\/(opciones|mias)|pendientes)$/;
+const GET_GUARDAR = /^\/api\/(me|mi-dia|mi-dia\/(gestiones|mes|perfil|capacidades)|capturas|capturas\/(opciones|mias)|compras-locales|compras-locales\/(opciones|mias)|material\/circuito|pendientes|push\/preferencias)$/;
 // Lo que se puede apuntar sin conexión (va a la bandeja de salida)
 const COLA = [
   ['PUT', /^\/api\/mi-dia\/tramos\/\d+$/],
@@ -29,7 +29,19 @@ const COLA = [
   ['POST', /^\/api\/archivos$/],
   ['POST', /^\/api\/capturas$/],
   ['POST', /^\/api\/compras-locales\/nueva$/],
-  ['POST', /^\/api\/compras-locales\/\d+\/(ticket|anular)$/],
+  ['POST', /^\/api\/compras-locales\/\d+\/(ticket|anular|decidir)$/],
+  // gestiones del operario
+  ['POST', /^\/api\/mi-dia\/vacaciones$/],
+  ['DELETE', /^\/api\/mi-dia\/vacaciones\/-?\d+$/],
+  ['POST', /^\/api\/mi-dia\/ausencias$/],
+  ['DELETE', /^\/api\/mi-dia\/ausencias\/-?\d+$/],
+  ['POST', /^\/api\/mi-dia\/ausencias\/-?\d+\/justificante$/],
+  ['PUT', /^\/api\/mi-dia\/perfil$/],
+  ['PUT', /^\/api\/mi-dia\/capacidades\/\d+$/],
+  ['POST', /^\/api\/capturas\/\d+\/resolver$/],
+  // logística en el móvil
+  ['PUT', /^\/api\/escandallo\/\d+\/(stock|recibir)$/],
+  ['POST', /^\/api\/escandallo\/\d+\/(incidencias|archivos)$/],
 ];
 const enCola = (m, p) => COLA.some(([mm, re]) => mm === m && re.test(p));
 
@@ -127,9 +139,9 @@ async function encolar(request, url) {
     ctype: request.headers.get('Content-Type') || null, nombre: request.headers.get('X-Nombre') || null,
     creado: Date.now(), local: null, usuario: await leerUsuario(),
   };
-  if (/^\/api\/(archivos|mi-dia\/extra|compras-locales\/nueva)$/.test(url.pathname) && request.method === 'POST') op.local = siguienteLocal--;
+  if (/^\/api\/(archivos|capturas|mi-dia\/(extra|vacaciones|ausencias)|compras-locales\/nueva)$/.test(url.pathname) && request.method === 'POST') op.local = siguienteLocal--;
   // quitar algo que aún no se ha enviado: se borra de la bandeja y listo
-  const m = /^\/api\/mi-dia\/extra\/(-\d+)$/.exec(url.pathname);
+  const m = /\/(-\d+)$/.exec(url.pathname);
   if (m && request.method === 'DELETE') {
     const ops = await todos('ops');
     const suya = ops.find((o) => o.local === Number(m[1]));
@@ -140,6 +152,9 @@ async function encolar(request, url) {
   estado();
   // respuesta provisional
   let cuerpo = { ok: true, offline: true };
+  if (/^\/api\/mi-dia\/capacidades\/\d+$/.test(url.pathname)) {
+    try { cuerpo.estado = JSON.parse(new TextDecoder().decode(body)).sabe ? 'propuesta' : null; } catch { /* */ }
+  }
   if (op.local != null) {
     cuerpo = { ok: true, offline: true, id: op.local };
     if (url.pathname === '/api/compras-locales/nueva') {
@@ -246,6 +261,62 @@ async function superponer(path, datos) {
       }
     }
   }
+  if (path === '/api/mi-dia/gestiones') {
+    for (const o of ops) {
+      const b = o.body ? leer(o) : {};
+      let m;
+      if (o.method === 'POST' && o.url === '/api/mi-dia/vacaciones' && Array.isArray(datos.solicitudes)) {
+        datos.solicitudes.unshift({ id: o.local, desde: b.desde, hasta: b.hasta, dias: null, estado: 'pendiente_ops', notas: b.notas, sin_enviar: true });
+      } else if (o.method === 'POST' && o.url === '/api/mi-dia/ausencias' && Array.isArray(datos.avisos)) {
+        datos.avisos.unshift({ id: o.local, aviso_motivo: b.motivo, desde: b.desde, hasta: b.hasta || b.desde, hora_desde: b.hora_desde ?? null, hora_hasta: b.hora_hasta ?? null,
+          justificante: 'pendiente', archivos: (b.archivos || []).map((id) => ({ id })), avisado_en: new Date(o.creado).toISOString(), sin_enviar: true });
+      } else if (o.method === 'DELETE' && (m = /\/api\/mi-dia\/(vacaciones|ausencias)\/(-?\d+)$/.exec(o.url))) {
+        const k = m[1] === 'vacaciones' ? 'solicitudes' : 'avisos';
+        if (Array.isArray(datos[k])) datos[k] = datos[k].filter((x) => x.id !== Number(m[2]));
+      } else if ((m = /\/api\/mi-dia\/ausencias\/(-?\d+)\/justificante$/.exec(o.url))) {
+        for (const k of ['avisos', 'justificantes_pendientes']) {
+          const a = (datos[k] || []).find((x) => x.id === Number(m[1]));
+          if (a) a.archivos = [...(a.archivos || []), ...(b.archivos || []).map((id) => ({ id }))];
+        }
+      }
+    }
+  }
+  if (path === '/api/mi-dia/perfil') {
+    const ult = [...ops].reverse().find((o) => o.url === '/api/mi-dia/perfil');
+    if (ult) { datos.datos = { ...(datos.datos || {}), ...leer(ult) }; datos.sin_enviar = true; }
+  }
+  if (path === '/api/mi-dia/capacidades' && Array.isArray(datos.capacidades || datos)) {
+    const lista = Array.isArray(datos) ? datos : datos.capacidades;
+    for (const o of ops) {
+      const m = /\/api\/mi-dia\/capacidades\/(\d+)$/.exec(o.url);
+      if (!m) continue;
+      const b = leer(o); const k = lista.find((x) => x.id === Number(m[1]));
+      if (k) k.estado = b.sabe === false || b.marcar === false ? null : (k.estado === 'validada' ? 'validada' : 'propuesta');
+    }
+  }
+  if (path === '/api/material/circuito' && Array.isArray(datos.lineas)) {
+    for (const o of ops) {
+      const m = /\/api\/escandallo\/(\d+)\/(stock|recibir)$/.exec(o.url);
+      if (!m) continue;
+      const l = datos.lineas.find((x) => x.id === Number(m[1]));
+      if (!l) continue;
+      const b = leer(o);
+      l.estado = m[2] === 'recibir' ? 'recibido' : Number(String(b.stock).replace(',', '.')) >= Number(l.cantidad) ? 'en_stock' : 'por_pedir';
+      l.sin_enviar = true;
+    }
+  }
+  if (path === '/api/compras-locales' && Array.isArray(datos.compras)) {
+    const decididas = new Set(ops.map((o) => /\/api\/compras-locales\/(\d+)\/decidir$/.exec(o.url)).filter(Boolean).map((m) => Number(m[1])));
+    datos.compras = datos.compras.filter((c) => !(c.estado === 'pendiente' && decididas.has(c.id)));
+  }
+  if (path === '/api/capturas/mias' && Array.isArray(datos.capturas)) {
+    for (const o of ops) {
+      if (o.method === 'POST' && o.url === '/api/capturas') {
+        const b = leer(o);
+        datos.capturas.unshift({ id: o.local, texto: b.texto, categoria: b.categoria, estado: 'bandeja', creado: new Date(o.creado).toISOString(), archivos: [], sin_enviar: true });
+      }
+    }
+  }
   if (path === '/api/compras-locales/mias' && Array.isArray(datos.compras)) {
     for (const o of ops) {
       const b = o.body ? leer(o) : {};
@@ -318,14 +389,14 @@ self.addEventListener('fetch', (e) => {
       } catch {
         resp = await cache.match(clave);
         if (!resp) {
-          try { resp = await red; } catch { return json({ error: 'Sin conexión y sin datos guardados en este móvil todavía' }, 503); }
+          try { resp = await red; } catch { return json({ error: url.pathname.includes('previa') ? 'Sin conexión: los días se calcularán al enviarlo' : 'Sin conexión y sin datos guardados en este móvil todavía' }, 503); }
         } else {
           avisar({ tipo: 'sin_red', guardado: Number(resp.headers.get('X-Guardado')) || null });
           red.catch(() => {});
         }
       }
       // lo que hay en la bandeja de salida, ya aplicado
-      if (resp.ok && /^\/api\/(mi-dia|compras-locales\/mias)$/.test(url.pathname)) {
+      if (resp.ok && /^\/api\/(mi-dia|mi-dia\/(gestiones|perfil|capacidades)|compras-locales|compras-locales\/mias|material\/circuito|capturas\/mias)$/.test(url.pathname)) {
         const datos = await resp.clone().json().catch(() => null);
         const ops = await todos('ops').catch(() => []);
         if (datos && ops.length) return json(await superponer(url.pathname, datos), 200, { 'X-Guardado': resp.headers.get('X-Guardado') || '' });

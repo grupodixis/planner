@@ -236,7 +236,7 @@
       ev.preventDefault();
       try {
         const r = await api('POST', '/api/mi-dia/vacaciones', { desde: fv.desde.value, hasta: fv.hasta.value, notas: fv.notas.value });
-        toast(`Pedidos ${num(r.dias)} días: espera la respuesta`);
+        toast(r.offline ? 'Guardado sin conexión: se pide solo al volver la cobertura' : `Pedidos ${num(r.dias)} días: espera la respuesta`);
         fv.reset(); $('#vac-previa').textContent = '';
         cargarGestiones();
       } catch (e) { toast(e.message, true); }
@@ -256,7 +256,7 @@
           hora_desde: horas ? deHora(fa.hora_desde.value) : null, hora_hasta: horas ? deHora(fa.hora_hasta.value) : null,
           notas: fa.notas.value, archivos: fotosAus.ids,
         });
-        toast(`Avisado${r.afectados ? ` · tenías ${r.afectados} trabajo(s) planificado(s): el encargado lo verá` : ''}`);
+        toast(r.offline ? 'Guardado sin conexión: se avisa solo al volver la cobertura' : `Avisado${r.afectados ? ` · tenías ${r.afectados} trabajo(s) planificado(s): el encargado lo verá` : ''}`);
         fa.reset(); fotosAus.limpiar(); est.ausMotivo = null; fa.desde.value = est.g?.hoy || ''; ajustarAus();
         cargarGestiones(); ctx.recargarDia();
       } catch (e) { toast(e.message, true); }
