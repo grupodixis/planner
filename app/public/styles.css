@@ -2280,11 +2280,11 @@ h1.marca .marca-ico { width: 28px; height: 28px; flex: none; border-radius: 7px;
 .cl-decir { background: #173a35; border-radius: 8px; padding: 8px 10px; font-size: 14px; }
 .cl-desvio { color: var(--rojo); font-weight: 600; }
 /* Compras › Compras locales */
-.cl-lista { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); }
+.cl-lista { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(min(300px, 100%), 1fr)); }
 .cl-lista > li { border: 1px solid var(--linea); border-radius: 11px; padding: 11px 12px; background: var(--panel); display: grid; gap: 5px; font-size: 13.5px; }
 .cl-lista small { color: var(--suave); }
 .cl-acc { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 4px; }
-.cl-acc input { flex: 1; min-width: 140px; }
+.cl-acc input { flex: 1; min-width: 0; width: 100%; }
 .cl-tabla { width: 100%; border-collapse: collapse; font-size: 13px; }
 .cl-tabla th { font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: var(--suave); text-align: left; padding: 6px; border-bottom: 1px solid var(--linea); }
 .cl-tabla td { padding: 6px; border-bottom: 1px solid #242424; vertical-align: top; }
@@ -2299,3 +2299,20 @@ h1.marca .marca-ico { width: 28px; height: 28px; flex: none; border-radius: 7px;
 .cl-elegida { display: flex; gap: 8px; align-items: center; justify-content: space-between; background: #16334f; border: 1px solid var(--azul); border-radius: 9px; padding: 8px 10px; margin-top: 4px; }
 
 #extra li .md-ex-cl { flex-basis: 100%; margin-top: 2px; }
+
+/* Compras locales en el móvil: nada más ancho que la pantalla (un <select> con nombres largos ensanchaba la rejilla) */
+#v-compras { overflow-x: hidden; }
+#v-compras .md-form, #v-compras .md-campo, #v-compras .cl-tarjeta { grid-template-columns: minmax(0, 1fr); min-width: 0; }
+#v-compras .md-form > *, #v-compras .md-campo > *, #v-compras .cl-dos > *, #v-compras .cl-tarjeta > * { min-width: 0; max-width: 100%; }
+#v-compras .cl-dos { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+#v-compras select, #v-compras input:not([type=checkbox]):not([type=radio]), #v-compras textarea { width: 100%; max-width: 100%; box-sizing: border-box; }
+#v-compras small, #v-compras .cl-tarjeta div { overflow-wrap: anywhere; }
+#v-compras .cl-codigo { font-size: clamp(22px, 8vw, 30px); }
+#v-compras .cl-tarjeta .primario.md-grande { width: 100%; }
+/* autorizar en el móvil */
+.cl-autorizar .cl-tarjeta { border-color: #b8862a !important; }
+.cl-botones { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.cl-botones button { font: inherit; font-size: 16px; font-weight: 700; padding: 12px; border-radius: 10px; }
+.cl-botones .si { background: #2bb3a3; color: #06231f; border: 0; }
+.cl-botones .no { background: #3a1d1d; color: #ffc4c4; border: 1px solid #6b2b2b; }
+.cl-quien { font-size: 13px; color: var(--suave); }

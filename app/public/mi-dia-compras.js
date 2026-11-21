@@ -56,6 +56,7 @@
 
   async function cargar() {
     [op, { compras: mias }] = await Promise.all([op ? Promise.resolve(op) : api('GET', '/api/compras-locales/opciones'), api('GET', '/api/compras-locales/mias')]);
+    porAutorizar = op.puede_autorizar ? (await api('GET', '/api/compras-locales?vista=autorizar').catch(() => ({ compras: [] }))).compras : [];
     pintar();
   }
 
@@ -168,13 +169,37 @@
     return el('li', { class: `cl-tarjeta ${cls}` }, hijos);
   }
 
+  // Para quien autoriza (Operaciones): las que esperan, con botones grandes
+  let porAutorizar = [];
+  function tarjetaAutorizar(c) {
+    const nota = el('input', { type: 'text', maxlength: 300, placeholder: 'Nota (si es que no, el motivo)', 'aria-label': 'Nota o motivo' });
+    const decidir = async (decision, boton) => {
+      boton.disabled = true;
+      try {
+        const r = await api('POST', `/api/compras-locales/${c.id}/decidir`, { decision, nota: nota.value });
+        toast(decision === 'si' ? `Autorizada · código ${r.codigo_aut}` : 'No autorizada');
+        await cargar();
+      } catch (e) { toast(e.message, true); boton.disabled = false; }
+    };
+    return el('li', { class: 'cl-tarjeta cl-pend' },
+      el('div', { class: 'cl-cab' }, el('b', {}, c.usuario_nombre || '—'), el('small', {}, cuando(c.creado))),
+      el('div', {}, c.que, ' ', c.archivos.map((a) => el('a', { href: `/api/archivos/${a.id}`, target: '_blank', rel: 'noopener' }, '📷'))),
+      el('small', {}, [c.tienda_nombre, c.importe_aprox != null ? `≈ ${eur(c.importe_aprox)}` : null, c.para === 'manana' ? 'para mañana' : 'para ahora'].filter(Boolean).join(' · ')),
+      c.tarea_codigo ? el('small', {}, `${c.tarea_codigo} ${c.tarea_nombre} · OT ${c.ot_codigo} ${c.ot_titulo}`) : null,
+      nota,
+      el('div', { class: 'cl-botones' },
+        el('button', { type: 'button', class: 'si', onclick: (ev) => decidir('si', ev.currentTarget) }, '✔ Autorizar'),
+        el('button', { type: 'button', class: 'no', onclick: (ev) => decidir('no', ev.currentTarget) }, '✗ No')));
+  }
+
   function pintar() {
     const abiertas = mias.filter((c) => ['pendiente', 'autorizada'].includes(c.estado));
     const resto = mias.filter((c) => !['pendiente', 'autorizada'].includes(c.estado));
     $('#v-compras').replaceChildren(...[
+      porAutorizar.length ? el('section', { class: 'md-bloque cl-autorizar' }, el('h2', {}, `Por autorizar (${porAutorizar.length})`), el('ul', { class: 'md-lista' }, porAutorizar.map(tarjetaAutorizar))) : null,
       abiertas.length ? el('section', { class: 'md-bloque' }, el('h2', {}, 'Mis compras en marcha'), el('ul', { class: 'md-lista' }, abiertas.map(tarjeta))) : null,
       el('section', { class: 'md-bloque' }, el('h2', {}, '🛒 Pedir una compra'), formulario()),
-      op.puede_autorizar ? el('p', { class: 'ayuda' }, el('a', { href: '/compras.html?vista=locales' }, 'Autorizar las que piden los demás ↗')) : null,
+      op.puede_autorizar ? el('p', { class: 'ayuda' }, porAutorizar.length ? null : '✔ Nada por autorizar. ', el('a', { href: '/compras.html?vista=locales' }, 'Ver todas en Compras ↗')) : null,
       resto.length ? el('section', { class: 'md-bloque' }, el('h2', {}, 'Anteriores'), el('ul', { class: 'md-lista' }, resto.map(tarjeta))) : null].filter(Boolean));
   }
 
