@@ -1116,6 +1116,14 @@ const MIGRACIONES = [
    )`,
   `CREATE INDEX IF NOT EXISTS compras_locales_estado_idx ON compras_locales (estado, creado DESC)`,
   `CREATE INDEX IF NOT EXISTS compras_locales_usuario_idx ON compras_locales (usuario_id, creado DESC)`,
+  // permiso «pedir_compras_locales»: solo los roles que lo tengan (de inicio, Administrador, Operaciones y Encargado si existe)
+  `DO $m$ BEGIN
+     IF NOT EXISTS (SELECT 1 FROM ajustes WHERE clave = 'migr_permiso_pedir_cl') THEN
+       UPDATE roles SET permisos = array_append(permisos, 'pedir_compras_locales')
+        WHERE (clave IN ('admin', 'operaciones') OR lower(nombre) LIKE 'encargad%') AND NOT ('pedir_compras_locales' = ANY(permisos));
+       INSERT INTO ajustes (clave, valor) VALUES ('migr_permiso_pedir_cl', 'true');
+     END IF;
+   END $m$`,
   // código de autorización: aleatorio y único, se genera al autorizar; el operario lo da en la tienda
   `ALTER TABLE compras_locales ADD COLUMN IF NOT EXISTS codigo_aut TEXT`,
   `CREATE UNIQUE INDEX IF NOT EXISTS compras_locales_codigo_aut_idx ON compras_locales (codigo_aut) WHERE codigo_aut IS NOT NULL`,

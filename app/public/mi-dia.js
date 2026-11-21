@@ -189,6 +189,9 @@
       t.tarea_notas ? el('details', { class: 'md-t-notas' }, el('summary', {}, 'Notas de la tarea'), el('p', {}, t.tarea_notas)) : null,
       cerrado ? el('p', { class: 'md-ok' }, '✔ Confirmado por el encargado') : null,
       estado.d.fecha === estado.d.hoy ? el('button', { type: 'button', class: 'md-inc-link', onclick: () => window.midiaMas.incidencia(t.id) }, '＋ Capturar algo de este trabajo') : null,
+      // compra local para esta tarea (solo roles con permiso para pedirlas)
+      estado.pedirCompras && t.tarea_estado !== 'hecha' ? el('button', { type: 'button', class: 'md-inc-link md-cl-link',
+        onclick: () => window.midiaCompras?.pedirPara({ id: t.tarea_id, codigo: t.tarea_codigo || t.orden_codigo, nombre: t.tarea }) }, '🛒 Compra local para esta tarea') : null,
       estado.d.fecha > estado.d.hoy ? null : el('div', { class: 'md-botones', role: 'group', 'aria-label': 'Cómo fue' },
         boton('hecho', '✓ Hecho', 'ok'), boton('parcial', '◐ En parte', 'parcial'), boton('no', '✗ No', 'no')),
       el('div', { class: 'md-detalle' }));
@@ -310,6 +313,7 @@
       return;
     }
     $('#salir').onclick = salir;
+    estado.pedirCompras = (yo.permisos || []).some((k) => ['pedir_compras_locales', 'autorizar_compras_locales'].includes(k));
     // quien tiene otro rol además (Logística, Operaciones…) vuelve a sus pantallas desde aquí
     const otros = (yo.permisos || []).filter((k) => k !== 'mi_dia');
     if (otros.length) {
@@ -329,9 +333,9 @@
     });
     await cargar();
     const logistica = (yo.permisos || []).includes('logistica');
-    window.midiaMenu?.iniciar({ comun: !!estado.d.comun, logistica });
+    window.midiaMenu?.iniciar({ comun: !!estado.d.comun, logistica, compras: estado.pedirCompras });
     if (logistica) window.midiaStock?.iniciar();
-    window.midiaCompras?.precargar();
+    if (estado.pedirCompras) window.midiaCompras?.precargar();
     // enlaces de los avisos: /mi-dia.html?vista=compras
     const vq = new URLSearchParams(location.search).get('vista');
     if (['compras', 'capturar', 'vac', 'avisar', 'mes'].includes(vq)) window.midiaMas.mostrar(vq);

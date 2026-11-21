@@ -52,7 +52,7 @@
     return { nodo: el('div', { class: 'cl-fotos' }, boton, input, minis), ids };
   }
 
-  let op = null; let mias = []; let pidiendo = false;
+  let op = null; let mias = []; let pidiendo = false; let preTarea = null;
 
   async function cargar() {
     [op, { compras: mias }] = await Promise.all([op ? Promise.resolve(op) : api('GET', '/api/compras-locales/opciones'), api('GET', '/api/compras-locales/mias')]);
@@ -60,7 +60,10 @@
   }
 
   function formulario() {
-    const sel = { tienda: op.tiendas[0]?.id ?? 'otro', tarea: op.trabajos[0]?.id ?? 'otra', para: 'ahora', otraTarea: null };
+    // si se viene desde una tarea de Mi día, esa tarea va la primera
+    if (preTarea && !op.trabajos.some((t) => t.id === preTarea.id)) op.trabajos.unshift(preTarea);
+    const sel = { tienda: op.tiendas[0]?.id ?? 'otro', tarea: preTarea?.id ?? op.trabajos[0]?.id ?? 'otra', para: 'ahora', otraTarea: null };
+    preTarea = null;
     // «Otra tarea…»: buscador de tareas de OTs abiertas
     const elegida = el('div', { class: 'cl-elegida', hidden: true });
     const resultados = el('ul', { class: 'cl-resultados' });
@@ -178,5 +181,12 @@
   // cuántas esperan algo de mí (para el menú)
   const pendientes = () => mias.filter((c) => c.estado === 'autorizada').length;
 
-  window.midiaCompras = { cargar, pendientes, precargar: () => api('GET', '/api/compras-locales/mias').then((d) => { mias = d.compras; }).catch(() => {}) };
+  // desde el botón de una tarea de Mi día
+  function pedirPara(t) {
+    preTarea = t?.id ? t : null;
+    window.midiaMas.mostrar('compras');
+    setTimeout(() => document.querySelector('#v-compras form textarea')?.scrollIntoView({ block: 'center' }), 400);
+  }
+
+  window.midiaCompras = { pedirPara, cargar, pendientes, precargar: () => api('GET', '/api/compras-locales/mias').then((d) => { mias = d.compras; }).catch(() => {}) };
 })();

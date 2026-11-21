@@ -132,7 +132,7 @@ function montar(app, asyncH) {
       query('SELECT id, nombre FROM recursos WHERE id = $1', [recursoId]),
       query(`SELECT x.id, x.tarea_id, x.linea_id, x.hora_inicio::float AS hora_inicio, x.duracion_h::float AS duracion_h, x.cierre,
                     COALESCE(a.desde, x.hora_inicio)::float AS desde, COALESCE(a.hasta, x.hora_inicio + x.duracion_h)::float AS hasta,
-                    l.nombre AS area, t.nombre AS tarea, t.estado AS tarea_estado, t.notas AS tarea_notas,
+                    l.nombre AS area, t.nombre AS tarea, t.codigo AS tarea_codigo, t.estado AS tarea_estado, t.notas AS tarea_notas,
                     o.codigo AS orden_codigo, o.titulo AS orden_titulo, o.color, p.nombre AS proyecto, p.obra,
                     COALESCE((SELECT json_agg(r2.nombre ORDER BY r2.nombre) FROM tramo_asignaciones a2 JOIN recursos r2 ON r2.id = a2.recurso_id
                                WHERE a2.tramo_id = x.id AND r2.tipo = 'operario' AND r2.id <> $2), '[]') AS companeros,

@@ -815,7 +815,9 @@ donde también está su **zona**) que recoge en la península y lo trae a Menorc
 `src/compras-locales.js`, `public/mi-dia-compras.js`, Compras › 🛒 Compras locales. Compras pequeñas en tiendas de la isla a
 cuenta de la empresa (cuenta de crédito de la tienda), `compras_locales` (`CL-NNNN`).
 
-1. **Pedir** (cualquier operario, Mi día › Menú › 🛒 Compra local): qué, tienda (proveedores con `cuenta_credito`; si no hay
+1. **Pedir** (quien tenga el permiso **pedir_compras_locales**, que se da por roles en Usuarios › Roles; de inicio
+   Administrador, Operaciones y Encargado si existe. En Mi día: botón «🛒 Compra local para esta tarea» en cada trabajo no
+   terminado, que la deja elegida, o Menú › 🛒 Compra local; sin el permiso no sale ni el botón ni el menú): qué, tienda (proveedores con `cuenta_credito`; si no hay
    ninguno marcado, los de zona Menorca que no son transportistas), **para qué tarea de OT** (obligatorio: las suyas de hoy y
    mañana, u «Otra tarea…» con buscador `GET /api/compras-locales/tareas?q=` de tareas abiertas),
    importe aproximado, ahora / mañana, foto. Aviso `compra_local` a quien tiene **autorizar_compras_locales** (Operaciones y

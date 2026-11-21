@@ -18,6 +18,8 @@ const eur = (v) => (v == null ? '—' : `${Number(v).toLocaleString('es-ES', { m
 const DESVIO = 0.15;
 const puedeAutorizar = (u) => auth.tiene(u, 'autorizar_compras_locales');
 const puedeCompras = (u) => auth.tiene(u, 'compras');
+const puedePedir = (u) => auth.tiene(u, 'pedir_compras_locales') || puedeAutorizar(u);
+const exigePedir = (u) => { if (!puedePedir(u)) throw fallo(403, 'Tu rol no puede pedir compras locales'); };
 
 const SQL = `
   SELECT c.*, c.importe_aprox::float AS importe_aprox, c.importe_real::float AS importe_real,
@@ -74,6 +76,7 @@ async function recordatorios() {
 function montar(app, asyncH) {
   /* ---------- quien pide (todos, también operarios con PIN) ---------- */
   app.get('/api/compras-locales/opciones', asyncH(async (req, res) => {
+    exigePedir(req.usuario);
     const [{ rows: tiendas }, { rows: hoy }] = await Promise.all([
       query(`SELECT id, nombre, localidad, cuenta_credito FROM proveedores WHERE activo AND NOT transportista AND (cuenta_credito OR zona = 'menorca')
               ORDER BY cuenta_credito DESC, lower(nombre)`),
@@ -85,11 +88,12 @@ function montar(app, asyncH) {
     ]);
     // si ninguna tienda está marcada con cuenta de crédito, salen las de Menorca
     const conCuenta = tiendas.filter((t) => t.cuenta_credito);
-    res.json({ tiendas: (conCuenta.length ? conCuenta : tiendas).slice(0, 60), trabajos: hoy, puede_autorizar: puedeAutorizar(req.usuario) });
+    res.json({ tiendas: (conCuenta.length ? conCuenta : tiendas).slice(0, 60), trabajos: hoy, puede_autorizar: puedeAutorizar(req.usuario), puede_pedir: true });
   }));
 
   // Buscar tarea de OT abierta (para «Otra tarea…»): por código o nombre de tarea, OT, proyecto u obra
   app.get('/api/compras-locales/tareas', asyncH(async (req, res) => {
+    exigePedir(req.usuario);
     const q = String(req.query.q || '').trim().slice(0, 60);
     if (q.length < 2) return res.json({ tareas: [] });
     const { rows } = await query(
@@ -111,6 +115,7 @@ function montar(app, asyncH) {
 
   // { que, proveedor_id | tienda, importe_aprox, para, tarea_id, archivos: [ids] }
   app.post('/api/compras-locales/nueva', asyncH(async (req, res) => {
+    exigePedir(req.usuario);
     const b = req.body || {};
     const que = texto(b.que, 1000);
     if (!que) throw fallo(400, 'Escribe qué necesitas');
