@@ -141,7 +141,7 @@ module.exports = function (app, asyncH) {
   app.use('/api', auth.requiereSesion);
   // Los operarios (solo «mi_dia») no ven nada más que lo suyo
   app.use('/api', (req, res, next) => {
-    if (!req.usuario.solo_mi_dia || /^\/(me|logout|eventos|mi-dia(\/.*)?|archivos(\/\d+)?|capturas|capturas\/(opciones|mias)|compras-locales\/(opciones|mias|nueva|\d+\/(ticket|anular))|push\/(clave|suscribir|preferencias|prueba))$/.test(req.path)) return next();
+    if (!req.usuario.solo_mi_dia || /^\/(me|logout|eventos|mi-dia(\/.*)?|archivos(\/\d+)?|capturas|capturas\/(opciones|mias)|compras-locales\/(opciones|mias|nueva|tareas|\d+\/(ticket|anular))|push\/(clave|suscribir|preferencias|prueba))$/.test(req.path)) return next();
     res.status(403).json({ error: 'Con tu usuario solo puedes apuntar tu día' });
   });
 

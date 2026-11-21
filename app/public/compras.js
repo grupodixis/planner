@@ -697,11 +697,11 @@
     const foto = (c) => c.archivos.map((a) => el('a', { href: `/api/archivos/${a.id}`, target: '_blank', rel: 'noopener', title: a.ticket ? 'Ticket / albarán' : 'Foto' }, a.ticket ? '🧾' : '📷'));
     const cab = (c) => [el('div', { class: 'cl-cab' }, el('b', {}, `${c.codigo} · ${c.usuario_nombre || '—'}`), el('small', {}, cuando(c.creado))),
       el('div', {}, c.que, ' ', foto(c)),
-      el('small', {}, [c.tienda_nombre, c.importe_aprox != null ? `≈ ${eur(c.importe_aprox)}` : null, c.tarea_codigo ? `${c.tarea_codigo} ${c.tarea_nombre}` : 'taller / sin trabajo', c.para === 'manana' ? 'para mañana' : 'para ahora'].filter(Boolean).join(' · '))];
+      el('small', {}, [c.tienda_nombre, c.importe_aprox != null ? `≈ ${eur(c.importe_aprox)}` : null, c.tarea_codigo ? `${c.tarea_codigo} ${c.tarea_nombre} (OT ${c.ot_codigo})` : 'sin tarea', c.para === 'manana' ? 'para mañana' : 'para ahora'].filter(Boolean).join(' · '))];
     let cuerpo;
     if (v === 'autorizar' || v === 'sin_ticket') {
       cuerpo = d.compras.length ? el('ul', { class: 'cl-lista' }, d.compras.map((c) => {
-        if (v === 'sin_ticket') return el('li', {}, cab(c), el('small', {}, `Autorizada por ${c.decidido_por_nombre || '—'} ${cuando(c.decidido_en)}${c.nota_decision ? ` · «${c.nota_decision}»` : ''}`));
+        if (v === 'sin_ticket') return el('li', {}, cab(c), el('small', {}, `Código ${c.codigo_aut || '—'} · autorizada por ${c.decidido_por_nombre || '—'} ${cuando(c.decidido_en)}${c.nota_decision ? ` · «${c.nota_decision}»` : ''}`));
         const nota = el('input', { type: 'text', maxlength: 300, placeholder: 'Nota o motivo (si no se autoriza, obligatorio)', 'aria-label': 'Nota' });
         const decidir = async (decision) => {
           try { await api('POST', `/api/compras-locales/${c.id}/decidir`, { decision, nota: nota.value }); toast(decision === 'si' ? `${c.codigo} autorizada` : 'No autorizada'); pintar(); }
@@ -719,13 +719,13 @@
       const factura = el('input', { type: 'text', maxlength: 60, placeholder: 'Nº de factura de la tienda', 'aria-label': 'Número de factura' });
       cuerpo = el('div', {},
         el('table', { class: 'cl-tabla' },
-          el('thead', {}, el('tr', {}, el('th', {}), el('th', {}, 'CL'), el('th', {}, 'Qué'), el('th', {}, 'Quién · trabajo'), el('th', { class: 'num' }, 'Autoriz.'), el('th', { class: 'num' }, 'Real'), el('th', {}, 'Ticket'), el('th', {}, 'Estado'))),
+          el('thead', {}, el('tr', {}, el('th', {}), el('th', {}, 'CL'), el('th', {}, 'Código'), el('th', {}, 'Qué'), el('th', {}, 'Quién · trabajo'), el('th', { class: 'num' }, 'Autoriz.'), el('th', { class: 'num' }, 'Real'), el('th', {}, 'Ticket'), el('th', {}, 'Estado'))),
           el('tbody', {}, [...grupos].map(([tienda, cs]) => [
-            el('tr', { class: 'grupo' }, el('td', { colspan: 5 }, `🏪 ${tienda}`), el('td', { class: 'num' }, eur(cs.reduce((s, c) => s + (c.importe_real || 0), 0))), el('td', { colspan: 2 },
+            el('tr', { class: 'grupo' }, el('td', { colspan: 6 }, `🏪 ${tienda}`), el('td', { class: 'num' }, eur(cs.reduce((s, c) => s + (c.importe_real || 0), 0))), el('td', { colspan: 2 },
               [...new Set(cs.map((c) => c.factura).filter(Boolean))].map((f) => `✔ ${f}`).join(' · '))),
             ...cs.map((c) => el('tr', {},
               el('td', {}, d.puede_cuadrar && ['comprada', 'cuadrada'].includes(c.estado) ? el('input', { type: 'checkbox', 'aria-label': `Marcar ${c.codigo}`, onchange: (ev) => (ev.target.checked ? marcados.add(c.id) : marcados.delete(c.id)) }) : null),
-              el('td', {}, c.codigo), el('td', {}, c.que),
+              el('td', {}, c.codigo), el('td', {}, el('b', {}, c.codigo_aut || '—')), el('td', {}, c.que),
               el('td', {}, `${c.usuario_nombre || '—'}${c.tarea_codigo ? ` · ${c.tarea_codigo}` : ''}`),
               el('td', { class: 'num' }, c.importe_aprox != null ? eur(c.importe_aprox) : ''),
               el('td', { class: `num${c.importe_aprox && c.importe_real > c.importe_aprox * (1 + d.desvio) ? ' tarde' : ''}` }, c.importe_real != null ? eur(c.importe_real) : '—'),

@@ -816,11 +816,13 @@ donde también está su **zona**) que recoge en la península y lo trae a Menorc
 cuenta de la empresa (cuenta de crédito de la tienda), `compras_locales` (`CL-NNNN`).
 
 1. **Pedir** (cualquier operario, Mi día › Menú › 🛒 Compra local): qué, tienda (proveedores con `cuenta_credito`; si no hay
-   ninguno marcado, los de zona Menorca que no son transportistas), para qué trabajo (los suyos de hoy y mañana, o taller),
+   ninguno marcado, los de zona Menorca que no son transportistas), **para qué tarea de OT** (obligatorio: las suyas de hoy y
+   mañana, u «Otra tarea…» con buscador `GET /api/compras-locales/tareas?q=` de tareas abiertas),
    importe aproximado, ahora / mañana, foto. Aviso `compra_local` a quien tiene **autorizar_compras_locales** (Operaciones y
    Administrador; contador en el menú Compras).
-2. **Autorizar** (Compras › Compras locales › Por autorizar): ✔ / ✗ con nota (motivo obligatorio si no); aviso al momento a
-   quien la pidió, con el código que dice en la tienda.
+2. **Autorizar** (Compras › Compras locales › Por autorizar): ✔ / ✗ con nota (motivo obligatorio si no). Al autorizar se
+   genera el **código de autorización** (`codigo_aut`): 6 caracteres al azar sin los que se confunden («7KP-3XM»), único;
+   el operario lo ve en grande y lo da en la tienda; sale en la lista y en el cuadre. Aviso al momento con el código.
 3. **Ticket**: foto del ticket o albarán (obligatoria), importe real y nº. Si pasa más de un **15 %** de lo autorizado,
    aviso a Operaciones (no bloquea). Autorizada y sin ticket a los 2 días: recordatorio diario al móvil.
 4. **Cuadrar** (permiso compras): por tienda y mes, marcar las de una factura y poner su número (`cuadrada`).

@@ -60,7 +60,27 @@
   }
 
   function formulario() {
-    const sel = { tienda: op.tiendas[0]?.id ?? 'otro', tarea: op.trabajos[0]?.id ?? '', para: 'ahora' };
+    const sel = { tienda: op.tiendas[0]?.id ?? 'otro', tarea: op.trabajos[0]?.id ?? 'otra', para: 'ahora', otraTarea: null };
+    // «Otra tarea…»: buscador de tareas de OTs abiertas
+    const elegida = el('div', { class: 'cl-elegida', hidden: true });
+    const resultados = el('ul', { class: 'cl-resultados' });
+    let tBusca;
+    const busca = el('input', { type: 'search', placeholder: 'Busca por OT, tarea u obra (p. ej. 61.03 o «pérgola»)', 'aria-label': 'Buscar tarea', hidden: sel.tarea !== 'otra',
+      oninput: () => {
+        clearTimeout(tBusca);
+        tBusca = setTimeout(async () => {
+          try {
+            const { tareas } = await api('GET', `/api/compras-locales/tareas?q=${encodeURIComponent(busca.value)}`);
+            resultados.replaceChildren(...tareas.map((t) => el('li', {}, el('button', { type: 'button', onclick: () => {
+              sel.otraTarea = t; resultados.replaceChildren(); busca.hidden = true;
+              elegida.hidden = false;
+              elegida.replaceChildren(el('span', {}, el('b', {}, t.codigo), ` ${t.nombre}`, el('small', {}, ` · OT ${t.ot_codigo} ${t.ot_titulo}${t.obra ? ` · ${t.obra}` : ''}`)),
+                el('button', { type: 'button', class: 'ghost mini', onclick: () => { sel.otraTarea = null; elegida.hidden = true; busca.hidden = false; busca.focus(); } }, 'Cambiar'));
+            } }, el('b', {}, t.codigo), ` ${t.nombre}`, el('small', {}, ` · OT ${t.ot_codigo} ${t.ot_titulo}${t.obra ? ` · ${t.obra}` : ''}`)))));
+            if (!tareas.length && busca.value.trim().length >= 2) resultados.replaceChildren(el('li', { class: 'ayuda' }, 'No hay tareas abiertas con eso.'));
+          } catch (e) { toast(e.message, true); }
+        }, 250);
+      } });
     const que = el('textarea', { rows: 3, maxlength: 1000, placeholder: 'p. ej. 2 cajas de tacos químicos 12 mm y 4 discos de corte inox', 'aria-label': 'Qué necesitas', required: '' });
     const otra = el('input', { type: 'text', maxlength: 120, placeholder: 'Nombre de la tienda', 'aria-label': 'Otra tienda', hidden: sel.tienda !== 'otro' });
     const imp = el('input', { type: 'number', inputmode: 'decimal', min: 0, step: '0.01', placeholder: '≈ €', 'aria-label': 'Importe aproximado' });
@@ -72,11 +92,12 @@
     const form = el('form', { class: 'md-form', onsubmit: async (ev) => {
       ev.preventDefault();
       if (pidiendo) return;
+      if (sel.tarea === 'otra' && !sel.otraTarea) { toast('Elige para qué tarea es', true); busca.focus(); return; }
       pidiendo = true;
       try {
         const r = await api('POST', '/api/compras-locales/nueva', {
           que: que.value, proveedor_id: sel.tienda === 'otro' ? null : sel.tienda, tienda: sel.tienda === 'otro' ? otra.value : null,
-          importe_aprox: imp.value, para: sel.para, tarea_id: sel.tarea || null, archivos: f.ids,
+          importe_aprox: imp.value, para: sel.para, tarea_id: sel.tarea === 'otra' ? sel.otraTarea?.id : sel.tarea, archivos: f.ids,
         });
         toast(`${r.codigo}: pedida. Te avisamos cuando la autoricen`);
         await cargar();
@@ -89,8 +110,13 @@
         : el('select', { 'aria-label': 'Tienda', onchange: (ev) => { sel.tienda = ev.target.value === 'otro' ? 'otro' : Number(ev.target.value); otra.hidden = sel.tienda !== 'otro'; if (!otra.hidden) otra.focus(); } },
           op.tiendas.map((t) => el('option', { value: t.id }, `${t.nombre}${t.localidad ? ` · ${t.localidad}` : ''}`)), el('option', { value: 'otro' }, 'Otra…')),
       otra),
-    el('div', { class: 'md-campo' }, el('span', {}, 'Para'),
-      chips([...op.trabajos.map((t) => [t.id, `${t.codigo} ${t.nombre}`]), ['', 'Taller / sin trabajo']], 'tarea')),
+    el('div', { class: 'md-campo' }, el('span', {}, '¿Para qué tarea?'),
+      chips([...op.trabajos.map((t) => [t.id, `${t.codigo} ${t.nombre}`]), ['otra', 'Otra tarea…']], 'tarea', () => {
+        const otra = sel.tarea === 'otra';
+        busca.hidden = !otra || !!sel.otraTarea; elegida.hidden = !otra || !sel.otraTarea; resultados.hidden = !otra;
+        if (otra && !sel.otraTarea) busca.focus();
+      }),
+      busca, resultados, elegida),
     el('div', { class: 'cl-dos' },
       el('label', { class: 'md-campo' }, el('span', {}, 'Importe aprox.'), imp),
       el('div', { class: 'md-campo' }, el('span', {}, '¿Para cuándo?'), chips([['ahora', 'Ahora'], ['manana', 'Mañana']], 'para'))),
@@ -109,7 +135,7 @@
     ];
     if (c.nota_decision) hijos.push(el('div', { class: c.estado === 'rechazada' ? 'cl-motivo no' : 'cl-motivo' }, `${c.decidido_por_nombre || 'Operaciones'}: «${c.nota_decision}»`));
     if (c.estado === 'autorizada') {
-      hijos.push(el('div', { class: 'cl-decir' }, 'Di en la tienda: ', el('b', {}, `a cuenta de la empresa · ${c.codigo}`)));
+      hijos.push(el('div', { class: 'cl-decir' }, 'Da este código en la tienda (a cuenta de la empresa):', el('div', { class: 'cl-codigo' }, c.codigo_aut || c.codigo)));
       const f = fotos('📷 Foto del ticket o albarán');
       const imp = el('input', { type: 'number', inputmode: 'decimal', min: 0, step: '0.01', placeholder: '€', 'aria-label': 'Importe del ticket' });
       const alb = el('input', { type: 'text', maxlength: 60, placeholder: 'nº', 'aria-label': 'Número de albarán' });
@@ -129,7 +155,7 @@
           catch (e) { toast(e.message, true); ev.target.disabled = false; }
         } }, 'Ya lo he comprado'));
     }
-    if (c.estado === 'comprada' || c.estado === 'cuadrada') hijos.push(el('small', {}, `Ticket: ${eur(c.importe_real)}${c.num_albaran ? ` · albarán ${c.num_albaran}` : ''}`));
+    if (c.estado === 'comprada' || c.estado === 'cuadrada') hijos.push(el('small', {}, `Ticket: ${eur(c.importe_real)}${c.num_albaran ? ` · albarán ${c.num_albaran}` : ''}${c.codigo_aut ? ` · código ${c.codigo_aut}` : ''}`));
     if (['pendiente', 'autorizada'].includes(c.estado)) {
       hijos.push(el('button', { type: 'button', class: 'ghost mini', onclick: async () => {
         if (!confirm('¿Ya no hace falta? Se anula la petición.')) return;

@@ -5,6 +5,7 @@
 //  3. El operario compra diciendo el código (CL-0042), sube la foto del ticket o albarán, el importe real y el nº.
 //     Si se pasa más de un 15 % de lo autorizado, aviso a Operaciones (no bloquea). Sin ticket a los 2 días: recordatorio.
 //  4. Compras las cuadra con la factura mensual de cada tienda. El importe real cuenta como material de la tarea.
+const crypto = require('crypto');
 const { query, tx } = require('./db');
 const auth = require('./auth');
 const notif = require('./notificaciones');
@@ -37,6 +38,13 @@ async function una(id) {
 async function siguienteCodigo(c) {
   const { rows } = await c.query(`SELECT max(substring(codigo from '\\d+$')::int) AS n FROM compras_locales`);
   return `CL-${String((rows[0].n || 0) + 1).padStart(4, '0')}`;
+}
+// Código de autorización: 6 caracteres al azar sin los que se confunden (0/O, 1/I/L), «7KP-3XM»; único
+const ALFA = '23456789ABCDEFGHJKMNPQRSTUVWXYZ';
+function codigoAut() {
+  const b = crypto.randomBytes(6);
+  const s = [...b].map((x) => ALFA[x % ALFA.length]).join('');
+  return `${s.slice(0, 3)}-${s.slice(3)}`;
 }
 // archivos subidos por esa persona (POST /api/archivos) que pasan a ser de la compra
 async function adjuntar(c, ids, compraId, ref, usuarioId) {
@@ -80,6 +88,20 @@ function montar(app, asyncH) {
     res.json({ tiendas: (conCuenta.length ? conCuenta : tiendas).slice(0, 60), trabajos: hoy, puede_autorizar: puedeAutorizar(req.usuario) });
   }));
 
+  // Buscar tarea de OT abierta (para «Otra tarea…»): por código o nombre de tarea, OT, proyecto u obra
+  app.get('/api/compras-locales/tareas', asyncH(async (req, res) => {
+    const q = String(req.query.q || '').trim().slice(0, 60);
+    if (q.length < 2) return res.json({ tareas: [] });
+    const { rows } = await query(
+      `SELECT t.id, t.codigo, t.nombre, o.codigo AS ot_codigo, o.titulo AS ot_titulo, pr.obra
+         FROM tareas t JOIN ordenes o ON o.id = t.orden_id AND o.estado <> 'cerrada' LEFT JOIN proyectos pr ON pr.id = o.proyecto_id
+        WHERE NOT t.baja_presupuesto AND t.estado <> 'hecha' AND (pr.id IS NULL OR pr.estado = 'activo')
+          AND (t.codigo ILIKE $1 || '%' OR o.codigo ILIKE $1 || '%' OR translate(lower(t.nombre || ' ' || o.titulo || ' ' || COALESCE(pr.nombre, '') || ' ' || COALESCE(pr.obra, '')), 'áéíóúàèìòùüïñç', 'aeiouaeiouuinc')
+               LIKE '%' || translate(lower($1), 'áéíóúàèìòùüïñç', 'aeiouaeiouuinc') || '%')
+        ORDER BY t.codigo LIMIT 30`, [q]);
+    res.json({ tareas: rows });
+  }));
+
   app.get('/api/compras-locales/mias', asyncH(async (req, res) => {
     const { rows } = await query(
       `${SQL} WHERE c.usuario_id = $1 AND (c.estado IN ('pendiente','autorizada') OR c.creado > now() - interval '45 days')
@@ -97,11 +119,17 @@ function montar(app, asyncH) {
     if (!pid && !tienda) throw fallo(400, 'Elige la tienda');
     const imp = num(b.importe_aprox);
     if (imp != null && !(imp >= 0 && imp < 100000)) throw fallo(400, 'Importe no válido');
+    // siempre para una tarea de una OT (así el gasto va a su coste)
+    const tid = Number(b.tarea_id);
+    if (!tid) throw fallo(400, 'Elige para qué tarea es');
+    const { rows: tt } = await query(
+      `SELECT 1 FROM tareas t JOIN ordenes o ON o.id = t.orden_id WHERE t.id = $1 AND o.estado <> 'cerrada' AND NOT t.baja_presupuesto`, [tid]);
+    if (!tt.length) throw fallo(400, 'Esa tarea no está abierta');
     const id = await tx(async (c) => {
       const { rows } = await c.query(
         `INSERT INTO compras_locales (codigo, usuario_id, proveedor_id, tienda, que, importe_aprox, para, tarea_id)
          VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id`,
-        [await siguienteCodigo(c), req.usuario.id, pid, tienda, que, imp, b.para === 'manana' ? 'manana' : 'ahora', Number(b.tarea_id) || null]);
+        [await siguienteCodigo(c), req.usuario.id, pid, tienda, que, imp, b.para === 'manana' ? 'manana' : 'ahora', tid]);
       await adjuntar(c, b.archivos, rows[0].id, 'compra_local', req.usuario.id);
       return rows[0].id;
     });
@@ -176,13 +204,19 @@ function montar(app, asyncH) {
     if (!['si', 'no'].includes(b.decision)) throw fallo(400, 'Autoriza o no');
     const nota = texto(b.nota, 300);
     if (b.decision === 'no' && !nota) throw fallo(400, 'Di el motivo (lo verá quien la pidió)');
-    const { rows } = await query(
-      `UPDATE compras_locales SET estado = $2, decidido_por = $3, decidido_en = now(), nota_decision = $4 WHERE id = $1 AND estado = 'pendiente' RETURNING id`,
-      [id, b.decision === 'si' ? 'autorizada' : 'rechazada', req.usuario.id, nota]);
-    if (!rows.length) throw fallo(409, 'Ya no está pendiente (la ha decidido otra persona o se anuló)');
+    let rows = [];
+    for (let i = 0; i < 5 && !rows.length; i++) {
+      try {
+        ({ rows } = await query(
+          `UPDATE compras_locales SET estado = $2, decidido_por = $3, decidido_en = now(), nota_decision = $4, codigo_aut = $5
+            WHERE id = $1 AND estado = 'pendiente' RETURNING id`,
+          [id, b.decision === 'si' ? 'autorizada' : 'rechazada', req.usuario.id, nota, b.decision === 'si' ? codigoAut() : null]));
+        if (!rows.length) throw fallo(409, 'Ya no está pendiente (la ha decidido otra persona o se anuló)');
+      } catch (e) { if (e.code !== '23505') throw e; }   // código repetido (rarísimo): otro
+    }
     const cl = await una(id);
     notif.avisarLuego([cl.usuario_id], 'compra_local', {
-      titulo: b.decision === 'si' ? `✔ Autorizada ${cl.codigo}: di en la tienda «a cuenta, ${cl.codigo}»` : `✗ No autorizada: ${cl.que.slice(0, 60)}`,
+      titulo: b.decision === 'si' ? `✔ Autorizada · código ${cl.codigo_aut}: dalo en la tienda` : `✗ No autorizada: ${cl.que.slice(0, 60)}`,
       cuerpo: `${linea(cl)}${nota ? ` · ${req.usuario.nombre}: «${nota}»` : ''}`,
       url: '/mi-dia.html?vista=compras', tag: `cl-${id}`, urgente: true,
     });
