@@ -2316,3 +2316,10 @@ h1.marca .marca-ico { width: 28px; height: 28px; flex: none; border-radius: 7px;
 .cl-botones .si { background: #2bb3a3; color: #06231f; border: 0; }
 .cl-botones .no { background: #3a1d1d; color: #ffc4c4; border: 1px solid #6b2b2b; }
 .cl-quien { font-size: 13px; color: var(--suave); }
+
+/* ---------- sin conexión (app del móvil) ---------- */
+.sin-red { position: sticky; top: 0; z-index: 900; background: #3b2f10; color: #ffe2a6; border-bottom: 1px solid #6b5520; padding: 7px 12px; font-size: 13.5px; line-height: 1.35; }
+.sin-red.ok { background: #173a35; color: #bff0e8; border-color: #2bb3a3; }
+.sin-red.con-fallo { background: #3a1d1d; color: #ffd0d0; border-color: #6b2b2b; }
+.sin-red-fallo { margin-top: 4px; }
+.sin-red button { font: inherit; font-size: 13px; padding: 2px 10px; border-radius: 8px; border: 1px solid currentColor; background: transparent; color: inherit; margin-left: 6px; }

@@ -133,7 +133,7 @@
   function tarjeta(c) {
     const [txt, cls] = EST[c.estado] || [c.estado, ''];
     const hijos = [
-      el('div', { class: 'cl-cab' }, el('b', {}, c.codigo), el('span', { class: `cl-est ${cls}` }, txt)),
+      el('div', { class: 'cl-cab' }, el('b', {}, c.codigo), el('span', { class: `cl-est ${cls}` }, c.sin_enviar ? '⏳ sin enviar' : txt)),
       el('div', {}, c.que),
       el('small', {}, [c.tienda_nombre, c.importe_aprox != null ? `≈ ${eur(c.importe_aprox)}` : null, c.tarea_codigo ? `${c.tarea_codigo} ${c.tarea_nombre}` : null, cuando(c.creado)].filter(Boolean).join(' · ')),
     ];
@@ -213,5 +213,6 @@
     setTimeout(() => document.querySelector('#v-compras form textarea')?.scrollIntoView({ block: 'center' }), 400);
   }
 
+  window.addEventListener('planealo:sincronizado', () => { if (!document.querySelector('#v-compras')?.hidden) cargar().catch(() => {}); });
   window.midiaCompras = { pedirPara, cargar, pendientes, precargar: () => api('GET', '/api/compras-locales/mias').then((d) => { mias = d.compras; }).catch(() => {}) };
 })();

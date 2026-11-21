@@ -37,6 +37,9 @@
   const estado = { fecha: null, d: null, abiertos: new Set() };
   const puede = () => estado.d?.editable;
 
+  // al enviarse lo que estaba apuntado sin conexión, se vuelve a cargar el día
+  window.addEventListener('planealo:sincronizado', () => { cargar().catch(() => {}); });
+
   async function salir() {
     await fetch('/api/logout', { method: 'POST' }).catch(() => {});
     location.replace('/pin.html');

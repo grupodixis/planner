@@ -536,6 +536,26 @@ con PIN (si el móvil está autorizado) o con email.
   `sw.js` (service worker mínimo: no guarda nada en caché salvo la página «Sin conexión») e
   `inicio.html` (a dónde va cada uno al abrir la app).
 
+## Sin conexión (app del móvil)
+
+`public/sw.js` (service worker) y `public/offline.js` (barra de estado, en Mi día y Capturar).
+
+- **Arranque rápido**: Mi día, Capturar, entrar con PIN e inicio se guardan en el móvil con su código y estilos; se abren
+  al instante y sin red (la red se usa si contesta en < 3,5 s y se renueva por detrás). El código con versión (`?v=…`) se
+  sirve siempre del móvil en todas las pantallas (no cambia), así que también el ordenador va más rápido.
+- **Datos**: Mi día (hoy, mañana, el mes), gestiones, capturas, compras locales, `me` y pendientes: primero la red; si no
+  contesta en 3,5 s o no hay, la última copia (barra «📴 Sin conexión · datos de las 07:42»). Con red, una vez por hora se
+  dejan guardados mañana y el mes.
+- **Bandeja de salida** (IndexedDB `planealo-salida`): lo que se apunta sin red — Mi día (hecho / en parte / no / terminada),
+  trabajo no planificado (y quitarlo), enviar mi día, material y herramientas preparados, fotos/audio/vídeo, capturas,
+  pedir compra local, ticket y anular — se guarda y se envía solo, en orden, al volver la cobertura (evento online, cada
+  30 s, Background Sync en Android; en iPhone al abrir la app). Mientras, se ve ya aplicado en Mi día y Mis compras
+  («⏳ sin enviar»). Las fotos sin enviar llevan un id provisional negativo que se cambia por el real al enviarlas.
+  Lo que el servidor no acepte (p. ej. día ya cerrado por el encargado) se aparta y se avisa en la barra.
+- **Por persona**: la página le dice al service worker quién usa el móvil; lo apuntado solo se envía con la sesión de esa
+  persona (tablet común) y al cambiar de persona o salir se borran los datos guardados.
+- Sigue necesitando red: autorizar compras (el código lo da el servidor), entrar la primera vez, el tablero y la oficina.
+
 ## Avisos al móvil (notificaciones)
 
 Notificaciones push (Web Push, claves VAPID propias que se crean solas y se guardan en la
