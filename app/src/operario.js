@@ -106,7 +106,7 @@ function montar(app, asyncH) {
                FROM ausencias a WHERE a.recurso_id = $1 AND a.tipo = 'falta' AND a.justificante = 'pendiente' ORDER BY a.desde DESC`, [recursoId]),
       query(`SELECT c.id, c.creado::date AS fecha, c.categoria AS tipo, c.texto, c.estado, c.resolucion, c.nota, m.nombre AS maquina, t.nombre AS tarea
                FROM capturas c LEFT JOIN recursos m ON m.id = c.maquina_id LEFT JOIN tareas t ON t.id = c.tarea_id
-              WHERE c.usuario_id = $1 AND (c.estado IN ('bandeja','asunto') OR c.creado > now() - interval '14 days') ORDER BY c.creado DESC`, [req.usuario.id]),
+              WHERE c.usuario_id = $1 AND c.estado <> 'descartada' AND (c.estado IN ('bandeja','asunto') OR c.creado > now() - interval '14 days') ORDER BY c.creado DESC`, [req.usuario.id]),
       query(`SELECT id, nombre FROM recursos WHERE tipo = 'maquina' AND activo ORDER BY nombre`),
       query(`SELECT x.id, o.codigo || ' · ' || t.nombre AS nombre, x.tarea_id FROM tramos x
                JOIN tramo_asignaciones a ON a.tramo_id = x.id AND a.recurso_id = $1

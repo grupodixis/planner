@@ -26,7 +26,8 @@
   const AYUDA = {
     bandeja: 'Lo capturado por todos, por orden de llegada. Decide qué es cada cosa: una tarea nueva en una OT (pasa a «Por planificar»), un asunto con responsable y fecha, información para el proyecto, o descártalo.',
     asuntos: 'Asuntos con responsable, pendientes de resolver. Los más urgentes primero.',
-    todas: 'Todo lo capturado en los últimos 120 días y en qué quedó.',
+    todas: 'Todo lo capturado en los últimos 120 días y en qué quedó (sin lo descartado).',
+    descartadas: 'Lo descartado: no sale en ningún otro sitio (ni a quien lo capturó). Solo lo ve quien administra; «Volver a la bandeja» lo recupera.',
   };
 
   const est = { vista: 'bandeja', datos: null, op: null, cl: null, abierta: null };
@@ -153,7 +154,8 @@
       return;
     }
     const q = new URLSearchParams(location.search);
-    if (['bandeja', 'asuntos', 'todas'].includes(q.get('vista'))) est.vista = q.get('vista');
+    $('#tab-descartadas').hidden = !window.s360.tiene('usuarios');
+    if (['bandeja', 'asuntos', 'todas'].includes(q.get('vista')) || (q.get('vista') === 'descartadas' && window.s360.tiene('usuarios'))) est.vista = q.get('vista');
     [est.op, est.cl] = await Promise.all([api('GET', '/api/capturas/opciones'), api('GET', '/api/capturas/opciones-clasificar')]);
     $('#filtro-proyecto').replaceChildren(el('option', { value: '' }, 'Todos los proyectos'), ...est.op.proyectos.map((p) => el('option', { value: p.id }, `${p.codigo} · ${p.nombre || ''}`)));
     $('#filtro-proyecto').onchange = () => cargar().catch((e) => toast(e.message, true));

@@ -131,22 +131,25 @@ function montar(app, asyncH) {
   // Lo que he capturado yo (y en qué ha quedado)
   app.get('/api/capturas/mias', asyncH(async (req, res) => {
     const { rows } = await query(
-      `${SQL} WHERE c.usuario_id = $1 AND (c.estado IN ('bandeja','asunto') OR c.creado > now() - interval '30 days')
+      `${SQL} WHERE c.usuario_id = $1 AND c.estado <> 'descartada' AND (c.estado IN ('bandeja','asunto') OR c.creado > now() - interval '30 days')
        ORDER BY c.creado DESC LIMIT 100`, [req.usuario.id]);
     res.json({ capturas: await conArchivos(rows), categorias: CATEGORIAS, estados: ESTADOS });
   }));
 
   /* ---------- Bandeja (quien planifica) y asuntos (su responsable) ---------- */
-  // vista: bandeja | asuntos | mios (asuntos de los que soy responsable) | todas
+  // vista: bandeja | asuntos | mios (asuntos de los que soy responsable) | todas (sin lo descartado) |
+  //        descartadas (solo quien administra usuarios: lo descartado no sale en ningún otro sitio)
   app.get('/api/capturas', asyncH(async (req, res) => {
-    const vista = ['bandeja', 'asuntos', 'mios', 'todas'].includes(req.query.vista) ? req.query.vista : 'bandeja';
+    const vista = ['bandeja', 'asuntos', 'mios', 'todas', 'descartadas'].includes(req.query.vista) ? req.query.vista : 'bandeja';
+    if (vista === 'descartadas' && !auth.tiene(req.usuario, 'usuarios')) throw fallo(403, 'Lo descartado solo lo ve quien administra');
     const puede = auth.tiene(req.usuario, 'planificar');
     if (!puede && vista !== 'mios') throw fallo(403, 'La bandeja la clasifica quien planifica');
     const cond = [], vals = [];
     if (vista === 'bandeja') cond.push(`c.estado = 'bandeja'`);
     if (vista === 'asuntos') cond.push(`c.estado = 'asunto'`);
     if (vista === 'mios') { vals.push(req.usuario.id); cond.push(`c.estado = 'asunto' AND c.responsable_id = $${vals.length}`); }
-    if (vista === 'todas') cond.push(`c.creado > now() - interval '120 days'`);
+    if (vista === 'todas') cond.push(`c.creado > now() - interval '120 days' AND c.estado <> 'descartada'`);
+    if (vista === 'descartadas') cond.push(`c.estado = 'descartada'`);
     if (req.query.proyecto_id) { vals.push(Number(req.query.proyecto_id)); cond.push(`c.proyecto_id = $${vals.length}`); }
     if (req.query.orden_id) { vals.push(Number(req.query.orden_id)); cond.push(`c.orden_id = $${vals.length}`); }
     const orden = vista === 'bandeja' ? 'c.creado' : `(c.prioridad = 'alta') DESC, c.fecha_limite NULLS LAST, c.creado DESC`;
