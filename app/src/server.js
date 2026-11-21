@@ -291,6 +291,7 @@ require('./gestion')(app, asyncH);
 require('./seguimiento-ext').montarGestion(app, asyncH);   // «Comenzar seguimiento» con los talleres externos
 require('./subcontratacion').montar(app, asyncH);   // pedir presupuesto / hacer pedido a un taller externo desde la OT
 require('./transportes').montarGestion(app, asyncH);   // envíos península → Menorca
+require('./compras-locales').montar(app, asyncH);   // compras locales: pedir, autorizar, ticket, cuadrar
 require('./recursos')(app, asyncH);
 require('./importar')(app, asyncH);
 require('./semillero')(app, asyncH);

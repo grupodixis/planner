@@ -471,6 +471,7 @@
           el('label', { class: 'cmp-campo' }, el('span', {}, 'Zona'), el('select', { disabled: !editar, onchange: (ev) => guardarCampo('zona', ev.target.value) },
             [['menorca', 'Menorca'], ['peninsula', 'Península (llega por transporte a Menorca)'], ['baleares', 'Baleares'], ['online', 'Online / paquetería']].map(([v, t]) => el('option', { value: v, selected: x.zona === v }, t))))),
         el('label', { class: 'chk' }, el('input', { type: 'checkbox', checked: x.transportista, disabled: !editar, onchange: (ev) => guardarCampo('transportista', ev.target.checked) }), ' Es transportista (península → Menorca: sale en Transportes)'),
+        el('label', { class: 'chk' }, el('input', { type: 'checkbox', checked: x.cuenta_credito, disabled: !editar, onchange: (ev) => guardarCampo('cuenta_credito', ev.target.checked) }), ' Tiene cuenta de crédito (sale para las compras locales del móvil)'),
         editar ? el('label', { class: 'chk' }, el('input', { type: 'checkbox', checked: x.activo, onchange: (ev) => guardarCampo('activo', ev.target.checked) }), ' Activo (sale para elegir en los pedidos)') : null,
       ] : el('p', { class: 'ayuda' }, 'Sin proveedores todavía.'))));
   }
@@ -687,10 +688,76 @@
         } }, 'Anular')) : null));
   }
 
+  /* ================= Compras locales (ferretería…) ================= */
+  const CL_VISTAS = [['autorizar', 'Por autorizar'], ['sin_ticket', 'Autorizadas sin ticket'], ['cuadrar', 'Por cuadrar con factura'], ['todas', 'Todas']];
+  async function pintarLocales() {
+    if (!estado.cl) estado.cl = { vista: tiene('autorizar_compras_locales') ? 'autorizar' : 'cuadrar', mes: new Date().toISOString().slice(0, 7) };
+    const v = estado.cl.vista;
+    const d = await api('GET', `/api/compras-locales?vista=${v}${['cuadrar', 'todas'].includes(v) ? `&mes=${estado.cl.mes}` : ''}`);
+    const foto = (c) => c.archivos.map((a) => el('a', { href: `/api/archivos/${a.id}`, target: '_blank', rel: 'noopener', title: a.ticket ? 'Ticket / albarán' : 'Foto' }, a.ticket ? '🧾' : '📷'));
+    const cab = (c) => [el('div', { class: 'cl-cab' }, el('b', {}, `${c.codigo} · ${c.usuario_nombre || '—'}`), el('small', {}, cuando(c.creado))),
+      el('div', {}, c.que, ' ', foto(c)),
+      el('small', {}, [c.tienda_nombre, c.importe_aprox != null ? `≈ ${eur(c.importe_aprox)}` : null, c.tarea_codigo ? `${c.tarea_codigo} ${c.tarea_nombre}` : 'taller / sin trabajo', c.para === 'manana' ? 'para mañana' : 'para ahora'].filter(Boolean).join(' · '))];
+    let cuerpo;
+    if (v === 'autorizar' || v === 'sin_ticket') {
+      cuerpo = d.compras.length ? el('ul', { class: 'cl-lista' }, d.compras.map((c) => {
+        if (v === 'sin_ticket') return el('li', {}, cab(c), el('small', {}, `Autorizada por ${c.decidido_por_nombre || '—'} ${cuando(c.decidido_en)}${c.nota_decision ? ` · «${c.nota_decision}»` : ''}`));
+        const nota = el('input', { type: 'text', maxlength: 300, placeholder: 'Nota o motivo (si no se autoriza, obligatorio)', 'aria-label': 'Nota' });
+        const decidir = async (decision) => {
+          try { await api('POST', `/api/compras-locales/${c.id}/decidir`, { decision, nota: nota.value }); toast(decision === 'si' ? `${c.codigo} autorizada` : 'No autorizada'); pintar(); }
+          catch (e) { toast(e.message, true); }
+        };
+        return el('li', {}, cab(c), d.puede_autorizar ? el('div', { class: 'cl-acc' }, nota,
+          el('button', { type: 'button', class: 'primario', onclick: () => decidir('si') }, '✔ Autorizar'),
+          el('button', { type: 'button', class: 'ghost borrar', onclick: () => decidir('no') }, '✗ No')) : el('small', {}, 'La autoriza Operaciones'));
+      })) : el('p', { class: 'vacio' }, v === 'autorizar' ? '✔ Nada por autorizar.' : 'Nada pendiente de ticket.');
+    } else {
+      // tabla por tienda (y mes)
+      const marcados = new Set();
+      const grupos = new Map();
+      for (const c of d.compras) { const k = c.tienda_nombre || '—'; if (!grupos.has(k)) grupos.set(k, []); grupos.get(k).push(c); }
+      const factura = el('input', { type: 'text', maxlength: 60, placeholder: 'Nº de factura de la tienda', 'aria-label': 'Número de factura' });
+      cuerpo = el('div', {},
+        el('table', { class: 'cl-tabla' },
+          el('thead', {}, el('tr', {}, el('th', {}), el('th', {}, 'CL'), el('th', {}, 'Qué'), el('th', {}, 'Quién · trabajo'), el('th', { class: 'num' }, 'Autoriz.'), el('th', { class: 'num' }, 'Real'), el('th', {}, 'Ticket'), el('th', {}, 'Estado'))),
+          el('tbody', {}, [...grupos].map(([tienda, cs]) => [
+            el('tr', { class: 'grupo' }, el('td', { colspan: 5 }, `🏪 ${tienda}`), el('td', { class: 'num' }, eur(cs.reduce((s, c) => s + (c.importe_real || 0), 0))), el('td', { colspan: 2 },
+              [...new Set(cs.map((c) => c.factura).filter(Boolean))].map((f) => `✔ ${f}`).join(' · '))),
+            ...cs.map((c) => el('tr', {},
+              el('td', {}, d.puede_cuadrar && ['comprada', 'cuadrada'].includes(c.estado) ? el('input', { type: 'checkbox', 'aria-label': `Marcar ${c.codigo}`, onchange: (ev) => (ev.target.checked ? marcados.add(c.id) : marcados.delete(c.id)) }) : null),
+              el('td', {}, c.codigo), el('td', {}, c.que),
+              el('td', {}, `${c.usuario_nombre || '—'}${c.tarea_codigo ? ` · ${c.tarea_codigo}` : ''}`),
+              el('td', { class: 'num' }, c.importe_aprox != null ? eur(c.importe_aprox) : ''),
+              el('td', { class: `num${c.importe_aprox && c.importe_real > c.importe_aprox * (1 + d.desvio) ? ' tarde' : ''}` }, c.importe_real != null ? eur(c.importe_real) : '—'),
+              el('td', {}, foto(c), c.num_albaran ? ` ${c.num_albaran}` : ''),
+              el('td', {}, ({ pendiente: 'por autorizar', autorizada: 'sin ticket', rechazada: 'no autorizada', comprada: 'con ticket', cuadrada: `facturada${c.factura ? ` (${c.factura})` : ''}`, anulada: 'anulada' })[c.estado])))]))),
+        !d.compras.length ? el('p', { class: 'vacio' }, 'Nada este mes.') : null,
+        d.puede_cuadrar && v === 'cuadrar' ? el('div', { class: 'cl-acc' }, factura,
+          el('button', { type: 'button', class: 'primario', onclick: async () => {
+            if (!marcados.size) return toast('Marca las compras de esa factura', true);
+            if (!factura.value.trim()) return toast('Pon el nº de factura', true);
+            try { await api('POST', '/api/compras-locales/cuadrar', { ids: [...marcados], factura: factura.value }); toast('Cuadradas'); pintar(); } catch (e) { toast(e.message, true); }
+          } }, '✔ Cuadrar lo marcado con esta factura'),
+          el('button', { type: 'button', class: 'ghost', onclick: async () => {
+            if (!marcados.size) return toast('Marca las compras', true);
+            try { await api('POST', '/api/compras-locales/cuadrar', { ids: [...marcados], factura: null }); pintar(); } catch (e) { toast(e.message, true); }
+          } }, 'Deshacer')) : null);
+    }
+    $('#panel-compras').replaceChildren(el('section', { class: 'panel' },
+      el('div', { class: 'cab-panel' }, el('h2', {}, '🛒 Compras locales'),
+        el('span', { class: 'ayuda' }, 'Las piden los operarios desde el móvil (Mi día › Compra local), las autoriza Operaciones y se compran a cuenta. Al subir el ticket, el importe va a costes de la tarea.')),
+      el('div', { class: 'cl-acc', role: 'tablist' }, CL_VISTAS.map(([k, t]) => el('button', {
+        type: 'button', role: 'tab', class: `llv-tab${k === v ? ' activa' : ''}`, 'aria-selected': k === v ? 'true' : 'false',
+        onclick: () => { estado.cl.vista = k; pintar(); },
+      }, t, d.cuentas[k] ? el('span', { class: 'llv-n' }, String(d.cuentas[k])) : null)),
+      ['cuadrar', 'todas'].includes(v) ? el('input', { type: 'month', value: estado.cl.mes, 'aria-label': 'Mes', onchange: (ev) => { estado.cl.mes = ev.target.value; pintar(); } }) : null),
+      cuerpo));
+  }
+
   /* ================= General ================= */
   function pintar() {
     for (const b of document.querySelectorAll('.llv-tab')) b.setAttribute('aria-selected', String(b.dataset.vista === estado.vista));
-    const f = { pedidos: pintarPedidos, precios: pintarSolicitudes, proveedores: pintarProveedores, ajustes: pintarAjustes, transportes: pintarTransportes }[estado.vista] || pintarPedidos;
+    const f = { pedidos: pintarPedidos, precios: pintarSolicitudes, proveedores: pintarProveedores, ajustes: pintarAjustes, transportes: pintarTransportes, locales: pintarLocales }[estado.vista] || pintarPedidos;
     return f().catch((e) => toast(e.message, true));
   }
 
@@ -702,6 +769,7 @@
     $('#tab-pedidos').hidden = !(tiene('compras') || tiene('aprobar_compras') || tiene('logistica'));
     $('#tab-precios').hidden = $('#tab-pedidos').hidden;
     $('#tab-transportes').hidden = !(tiene('compras') || tiene('logistica') || tiene('aprobar_compras') || tiene('planificar'));
+    $('#tab-locales').hidden = !(tiene('compras') || tiene('autorizar_compras_locales') || tiene('costes'));
     if ($('#tab-pedidos').hidden && estado.vista === 'pedidos') estado.vista = 'proveedores';
     for (const b of document.querySelectorAll('.llv-tab')) b.addEventListener('click', () => { estado.vista = b.dataset.vista; guardarURL(); pintar(); });
     try { estado.ajustes = await api('GET', '/api/compras/ajustes'); } catch { /* sin permiso: no hace falta */ }

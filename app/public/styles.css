@@ -2262,3 +2262,32 @@ h1.marca .marca-ico { width: 28px; height: 28px; flex: none; border-radius: 7px;
 .trp-tarde { color: var(--rojo); font-weight: 600; }
 .trp-nota { margin: 8px 0 0; }
 .trp-arch { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+
+/* ---------- Mi día › Compras locales ---------- */
+.cl-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.cl-chips button { font: inherit; font-size: 14px; border: 1px solid var(--borde); border-radius: 18px; padding: 7px 12px; background: #1f1f1f; color: var(--texto); }
+.cl-chips button.on { background: #16334f; border-color: var(--azul); color: #fff; }
+.cl-dos { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.cl-fotos { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.cl-tarjeta { gap: 6px !important; }
+.cl-tarjeta.cl-aut { border-color: #2bb3a3 !important; }
+.cl-cab { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; }
+.cl-est { font-size: 12px; border-radius: 10px; padding: 1px 8px; white-space: nowrap; }
+.cl-pend { background: #3b2f10; color: #ffd98a; } .cl-aut .cl-est, .cl-est.cl-aut { background: #173a35; color: #9ee6da; }
+.cl-ok { background: #1f3a1f; color: #a6e3a6; } .cl-no { background: #3a1d1d; color: #ffc4c4; } .cl-anul { background: #2b2b2b; color: #999; }
+.cl-tarjeta.cl-ok, .cl-tarjeta.cl-no, .cl-tarjeta.cl-anul, .cl-tarjeta.cl-pend { background: transparent; color: inherit; }
+.cl-motivo { font-size: 13px; color: #9ee6da; } .cl-motivo.no { color: #ffc4c4; }
+.cl-decir { background: #173a35; border-radius: 8px; padding: 8px 10px; font-size: 14px; }
+.cl-desvio { color: var(--rojo); font-weight: 600; }
+/* Compras › Compras locales */
+.cl-lista { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); }
+.cl-lista > li { border: 1px solid var(--linea); border-radius: 11px; padding: 11px 12px; background: var(--panel); display: grid; gap: 5px; font-size: 13.5px; }
+.cl-lista small { color: var(--suave); }
+.cl-acc { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 4px; }
+.cl-acc input { flex: 1; min-width: 140px; }
+.cl-tabla { width: 100%; border-collapse: collapse; font-size: 13px; }
+.cl-tabla th { font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: var(--suave); text-align: left; padding: 6px; border-bottom: 1px solid var(--linea); }
+.cl-tabla td { padding: 6px; border-bottom: 1px solid #242424; vertical-align: top; }
+.cl-tabla .num { text-align: right; font-variant-numeric: tabular-nums; }
+.cl-tabla tr.grupo td { background: #202020; font-weight: 700; }
+.cl-tabla .tarde { color: var(--rojo); font-weight: 600; }

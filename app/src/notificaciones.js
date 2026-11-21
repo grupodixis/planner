@@ -25,6 +25,7 @@ const TIPOS = {
   mat_pedido: { txt: 'Material pedido al proveedor (cuándo llega)', para: (u) => auth.tiene(u, 'logistica') || auth.tiene(u, 'escandallo') },
   mat_incidencia: { txt: 'Incidencia con un material (dañado, incompleto, no llegó…)', para: (u) => auth.tiene(u, 'compras') || auth.tiene(u, 'escandallo') },
   mat_recibido: { txt: 'Ya ha llegado el material de mis tareas', para: () => true },
+  compra_local: { txt: 'Compras locales: pedir autorización, autorizada o no, falta el ticket', para: () => true },
   ext_seguimiento: { txt: 'Un taller externo dice cómo va (retrasos, entregas, fotos) o no da noticias', para: (u) => auth.tiene(u, 'planificar') },
   oferta_recibida: { txt: 'Un proveedor responde una petición de precio en la plataforma', para: (u) => auth.tiene(u, 'compras') },
 };

@@ -111,6 +111,7 @@
     ['Proyectos', [['/proyectos.html', 'Proyectos y OTs', null, 'Partidas, OTs, tareas, escandallo e importación']]],
     ['Compras', [['/logistica.html', 'Material de las partidas', ['logistica', 'compras', 'escandallo'], 'Stock, por pedir, pedido y recepción'],
       ['/compras.html', 'Pedidos de compra', ['compras', 'aprobar_compras', 'logistica'], 'Preparar, aprobar y enviar pedidos a proveedores'],
+      ['/compras.html?vista=locales', 'Compras locales', ['compras', 'autorizar_compras_locales'], 'Autorizar y cuadrar lo que piden los operarios (ferretería…)'],
       ['/compras.html?vista=proveedores', 'Proveedores', ['compras', 'logistica', 'escandallo', 'aprobar_compras'], 'Fichas, contactos y lo que sirve cada uno']]],
     ['Recursos', [['/recursos.html', 'Operarios, máquinas y subcontratas', null, 'Fichas, vacaciones y festivos, tipos'],
       ['/recursos.html?tipo=areas', 'Áreas de trabajo', null, 'Zonas del taller, puestos, cabina y su equipo fijo'],
@@ -275,6 +276,7 @@
     // y dentro de Recursos, en la pestaña donde está
     marcar(document.getElementById('tab-calendario'), nRec, tRec);
     poner('/bandeja.html', p.bandeja || 0, `${p.bandeja} captura(s) por clasificar`);
+    poner('/compras.html?vista=locales', p.cl_autorizar || 0, `${p.cl_autorizar} compra(s) local(es) por autorizar`);
     // los asuntos que me han asignado (aunque no planifique): en «＋ Capturar» › Mis asuntos
     poner('/capturar.html', p.mis_asuntos || 0, `${p.mis_asuntos} asunto(s) a tu cargo`);
     poner('/capacidades.html', p.cap_validar || 0, `${p.cap_validar} capacidad(es) que dicen saber los operarios, por validar`);

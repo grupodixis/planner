@@ -810,6 +810,27 @@ donde también está su **zona**) que recoge en la península y lo trae a Menorc
   `POST /api/envios/:id/enviar {para}`, `POST /api/envios/:id/enlace {nuevo}`; pública `GET·PUT /api/envio/:t`,
   `POST·GET·DELETE /api/envio/:t/archivos[/:id]`.
 
+## Compras locales (ferretería…) desde el móvil
+
+`src/compras-locales.js`, `public/mi-dia-compras.js`, Compras › 🛒 Compras locales. Compras pequeñas en tiendas de la isla a
+cuenta de la empresa (cuenta de crédito de la tienda), `compras_locales` (`CL-NNNN`).
+
+1. **Pedir** (cualquier operario, Mi día › Menú › 🛒 Compra local): qué, tienda (proveedores con `cuenta_credito`; si no hay
+   ninguno marcado, los de zona Menorca que no son transportistas), para qué trabajo (los suyos de hoy y mañana, o taller),
+   importe aproximado, ahora / mañana, foto. Aviso `compra_local` a quien tiene **autorizar_compras_locales** (Operaciones y
+   Administrador; contador en el menú Compras).
+2. **Autorizar** (Compras › Compras locales › Por autorizar): ✔ / ✗ con nota (motivo obligatorio si no); aviso al momento a
+   quien la pidió, con el código que dice en la tienda.
+3. **Ticket**: foto del ticket o albarán (obligatoria), importe real y nº. Si pasa más de un **15 %** de lo autorizado,
+   aviso a Operaciones (no bloquea). Autorizada y sin ticket a los 2 días: recordatorio diario al móvil.
+4. **Cuadrar** (permiso compras): por tienda y mes, marcar las de una factura y poner su número (`cuadrada`).
+   El importe real suma como **material** de la tarea en el control de costes.
+
+Estados: pendiente → autorizada / rechazada → comprada → cuadrada (o anulada). API: `GET /api/compras-locales/opciones`,
+`GET /api/compras-locales/mias`, `POST /api/compras-locales/nueva`, `POST /api/compras-locales/:id/ticket`,
+`POST /api/compras-locales/:id/anular` (estas, también para operarios con PIN); `GET /api/compras-locales?vista=autorizar|sin_ticket|cuadrar|todas&mes=`,
+`POST /api/compras-locales/:id/decidir {decision: si|no, nota}`, `POST /api/compras-locales/cuadrar {ids, factura}`.
+
 ## Control de costes (Informes › Control de costes)
 
 Solo con el permiso **costes** (Administrador, Operaciones y Dirección; el rol Dirección se crea

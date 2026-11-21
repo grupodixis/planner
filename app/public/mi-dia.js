@@ -331,6 +331,10 @@
     const logistica = (yo.permisos || []).includes('logistica');
     window.midiaMenu?.iniciar({ comun: !!estado.d.comun, logistica });
     if (logistica) window.midiaStock?.iniciar();
+    window.midiaCompras?.precargar();
+    // enlaces de los avisos: /mi-dia.html?vista=compras
+    const vq = new URLSearchParams(location.search).get('vista');
+    if (['compras', 'capturar', 'vac', 'avisar', 'mes'].includes(vq)) window.midiaMas.mostrar(vq);
     // ayuda: novedades y recorrido de la primera vez (el «?» está en el menú)
     window.s360ayuda?.iniciar({ sinBoton: true, permisos: yo.permisos || [] }).catch(() => {});
     if (estado.d.comun) vigilarInactividad();

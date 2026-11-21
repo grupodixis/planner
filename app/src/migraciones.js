@@ -1087,6 +1087,43 @@ const MIGRACIONES = [
   `CREATE INDEX IF NOT EXISTS envio_lineas_envio_idx ON envio_lineas (envio_id, orden)`,
   `CREATE INDEX IF NOT EXISTS envio_lineas_tarea_idx ON envio_lineas (tarea_id) WHERE tarea_id IS NOT NULL`,
   `CREATE INDEX IF NOT EXISTS envio_lineas_pedido_idx ON envio_lineas (pedido_id) WHERE pedido_id IS NOT NULL`,
+
+  // 2026-11 · Compras locales (ferretería…): el operario pide desde el móvil, Operaciones autoriza, compra a cuenta
+  // (cuenta de crédito de la tienda), sube el ticket y compras lo cuadra con la factura mensual.
+  `ALTER TABLE proveedores ADD COLUMN IF NOT EXISTS cuenta_credito BOOLEAN NOT NULL DEFAULT FALSE`,
+  `CREATE TABLE IF NOT EXISTS compras_locales (
+     id             SERIAL PRIMARY KEY,
+     codigo         TEXT NOT NULL UNIQUE,
+     usuario_id     INT REFERENCES usuarios(id) ON DELETE SET NULL,
+     proveedor_id   INT REFERENCES proveedores(id) ON DELETE SET NULL,
+     tienda         TEXT,
+     que            TEXT NOT NULL,
+     importe_aprox  NUMERIC(10,2),
+     para           TEXT NOT NULL DEFAULT 'ahora' CHECK (para IN ('ahora','manana')),
+     tarea_id       INT REFERENCES tareas(id) ON DELETE SET NULL,
+     estado         TEXT NOT NULL DEFAULT 'pendiente' CHECK (estado IN ('pendiente','autorizada','rechazada','comprada','cuadrada','anulada')),
+     decidido_por   INT REFERENCES usuarios(id) ON DELETE SET NULL,
+     decidido_en    TIMESTAMPTZ,
+     nota_decision  TEXT,
+     importe_real   NUMERIC(10,2),
+     num_albaran    TEXT,
+     comprado_en    TIMESTAMPTZ,
+     factura        TEXT,
+     cuadrado_por   INT REFERENCES usuarios(id) ON DELETE SET NULL,
+     cuadrado_en    TIMESTAMPTZ,
+     recordatorio_en DATE,
+     creado         TIMESTAMPTZ NOT NULL DEFAULT now()
+   )`,
+  `CREATE INDEX IF NOT EXISTS compras_locales_estado_idx ON compras_locales (estado, creado DESC)`,
+  `CREATE INDEX IF NOT EXISTS compras_locales_usuario_idx ON compras_locales (usuario_id, creado DESC)`,
+  // permiso «autorizar_compras_locales»: Operaciones y Administrador (una vez)
+  `DO $m$ BEGIN
+     IF NOT EXISTS (SELECT 1 FROM ajustes WHERE clave = 'migr_permiso_compras_locales') THEN
+       UPDATE roles SET permisos = array_append(permisos, 'autorizar_compras_locales')
+        WHERE clave IN ('admin', 'operaciones') AND NOT ('autorizar_compras_locales' = ANY(permisos));
+       INSERT INTO ajustes (clave, valor) VALUES ('migr_permiso_compras_locales', 'true');
+     END IF;
+   END $m$`,
 ];
 
 async function migrar() {

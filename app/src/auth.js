@@ -18,6 +18,7 @@ const PERMISOS = {
   logistica: 'Logística: revisar stock y recibir material',
   compras: 'Compras: pedir a proveedores lo que falta',
   aprobar_compras: 'Aprobar pedidos de compra por encima del límite',
+  autorizar_compras_locales: 'Autorizar compras locales (ferretería…) que piden los operarios',
   mi_dia: 'Apuntar su propio día (Mi día). Solo, sin otros permisos: no ve nada más',
 };
 // Permisos de un usuario «u»: los de su rol más los de sus roles añadidos (varios roles)

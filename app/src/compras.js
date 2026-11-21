@@ -235,6 +235,7 @@ function montar(app, asyncH) {
     if ('materiales' in b) { vals.push((Array.isArray(b.materiales) ? b.materiales : []).map((x) => texto(x, 60)).filter(Boolean).slice(0, 30)); sets.push(`materiales = $${vals.length}`); }
     if ('activo' in b) { vals.push(!!b.activo); sets.push(`activo = $${vals.length}`); }
     if ('transportista' in b) { vals.push(!!b.transportista); sets.push(`transportista = $${vals.length}`); }
+    if ('cuenta_credito' in b) { vals.push(!!b.cuenta_credito); sets.push(`cuenta_credito = $${vals.length}`); }
     if ('zona' in b) { vals.push(['menorca', 'peninsula', 'baleares', 'online'].includes(b.zona) ? b.zona : 'menorca'); sets.push(`zona = $${vals.length}`); }
     if (!sets.length) return res.json({ ok: true });
     const { rowCount } = await query(`UPDATE proveedores SET ${sets.join(', ')} WHERE id = $1`, vals);

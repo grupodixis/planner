@@ -381,6 +381,7 @@ window.S360_AYUDA = {
         },
       ],
       secciones: [
+        { titulo: '🛒 Compra local', texto: 'Menú › <b>Compra local</b>: si necesitas algo de la ferretería u otra tienda, escribe qué, elige la tienda, para qué trabajo, el importe aproximado y si es para ahora o mañana, y pulsa <b>Pedir autorización</b>. Operaciones te contesta y te llega un aviso. Si está autorizada, di en la tienda «a cuenta de la empresa» y el código (CL-0042). Después haz la <b>foto del ticket</b>, pon el importe y pulsa «Ya lo he comprado».' },
         {
           titulo: 'Mi día paso a paso',
           pasos: ['Mira tus trabajos y lo que necesitas.', 'Marca el material recibido y las herramientas preparadas.', 'Al acabar cada trabajo: ✓ Hecho, ◐ En parte o ✗ No.', 'Pulsa <b>Enviar mi día</b>.'],
@@ -430,6 +431,7 @@ window.S360_AYUDA = {
       ],
       secciones: [
         { titulo: '🚚 Transportes península → Menorca', texto: 'Pestaña <b>Transportes</b>. A la izquierda, <b>Para enviar a Menorca</b>: sale solo lo que espera transporte — las OT cuya tarea de transporte la hace un transportista (Ydica, Tragina…; se marca en su ficha de Proveedores) cuando el taller ya ha terminado o se lo ha entregado (en gris, lo que aún está en el taller) y los pedidos a proveedores de <b>península</b> que no han llegado. Se marca y <b>＋ Nuevo envío</b> (o se arrastra a un envío). En el envío: transportista, recogida, llegada a Maó, bultos y kg, y el <b>coste</b>, que se reparte por kg (o a mano) y cuenta en costes de la OT. <b>✉ Enviar al transportista</b> le manda su enlace (sin usuario) para marcar recogido / en barco / en Maó / entregado, la llegada y el CMR. La tarea de transporte y la situación de la OT se actualizan solas, el material de los pedidos pasa a llegar ese día y, si llega después de lo que se necesita (montaje), el tablero avisa. Si se pasa la fecha sin noticias, recordatorio diario por correo.' },
+        { titulo: '🛒 Compras locales', texto: 'Pestaña <b>Compras locales</b>: lo que piden los operarios desde el móvil (ferretería, almacén de la isla…) a cuenta de la empresa. <b>Por autorizar</b>: Operaciones pulsa ✔ Autorizar o ✗ No (con motivo); a quien la pidió le llega al momento. <b>Autorizadas sin ticket</b>: falta la foto del ticket (a los 2 días se le recuerda). <b>Por cuadrar con factura</b>: por tienda y mes; marca las de una factura, pon su número y «Cuadrar». En rojo, lo que pasó más de un 15 % de lo autorizado. El importe del ticket cuenta como material de la tarea en el control de costes. En la ficha del proveedor, «Tiene cuenta de crédito» decide qué tiendas salen en el móvil.' },
         {
           titulo: 'Preparar y enviar', si: 'compras',
           pasos: [
@@ -596,5 +598,6 @@ window.S360_AYUDA = {
     { id: 15, fecha: '2026-11-19', si: ['planificar', 'proyectos'], titulo: 'Seguimiento de los talleres externos', texto: 'En la OT, debajo de cada tarea de fuera, <b>▶ Comenzar seguimiento</b> manda al taller un enlace (sin usuario) para que nos diga cómo va: estado, avance, cuándo termina, fotos y a quién lo entrega. Te avisa al móvil, la situación del producto se actualiza sola y, si se pasa su fecha sin noticias, le recordamos por correo cada día.', ir: '/proyectos.html' },
     { id: 16, fecha: '2026-11-19', si: ['planificar', 'proyectos', 'compras'], titulo: 'Subcontratar a talleres externos', texto: 'En la OT, <b>🏭 Subcontratar…</b> pide presupuesto a uno o varios talleres (o hace el pedido) con las tareas de fuera y el transporte. Va por Compras como cualquier pedido, y al enviarlo el taller recibe también su enlace de seguimiento. El importe cuenta en el control de costes.', ir: '/proyectos.html' },
     { id: 17, fecha: '2026-11-19', si: ['compras', 'logistica', 'planificar'], titulo: 'Transportes a Menorca', texto: 'En <b>Compras › 🚚 Transportes</b>, los envíos de península a Menorca: lo que espera transporte sale solo (piezas de los talleres y pedidos de península), se agrupa en un envío y el transportista dice en su enlace cuándo lo recoge, en qué barco va y cuándo llega. La situación de la OT y el tablero se actualizan solos y el coste se reparte entre las OT.', ir: '/compras.html?vista=transportes' },
+    { id: 18, fecha: '2026-11-21', titulo: 'Compras locales desde el móvil', texto: 'En Mi día › Menú › <b>🛒 Compra local</b> pides autorización para comprar en la ferretería u otra tienda a cuenta de la empresa. Operaciones la autoriza desde Compras › Compras locales y te avisa; después subes la foto del ticket.' },
   ],
 };
