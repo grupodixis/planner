@@ -153,7 +153,7 @@ function montar(app, asyncH) {
                LEFT JOIN proyectos p ON p.id = o.proyecto_id LEFT JOIN lineas l ON l.id = x.linea_id
               WHERE x.fecha = $1 ORDER BY desde, x.id`, [fecha, recursoId]),
       query(`SELECT d.id, d.tipo, d.tarea_id, d.desde::float AS desde, d.hasta::float AS hasta, d.motivo, d.notas, d.resuelto,
-                    t.nombre AS tarea, o.codigo AS orden_codigo
+                    t.nombre AS tarea, t.codigo AS tarea_codigo, t.estado AS tarea_estado, o.codigo AS orden_codigo
                FROM declaraciones d LEFT JOIN tareas t ON t.id = d.tarea_id LEFT JOIN ordenes o ON o.id = t.orden_id
               WHERE d.fecha = $1 AND d.recurso_id = $2 AND d.tipo <> 'tramo' ORDER BY d.desde`, [fecha, recursoId]),
       query('SELECT enviado_en FROM dias_enviados WHERE fecha = $1 AND recurso_id = $2', [fecha, recursoId]),

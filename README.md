@@ -817,7 +817,7 @@ cuenta de la empresa (cuenta de crédito de la tienda), `compras_locales` (`CL-N
 
 1. **Pedir** (quien tenga el permiso **pedir_compras_locales**, que se da por roles en Usuarios › Roles; de inicio
    Administrador, Operaciones y Encargado si existe. En Mi día: botón «🛒 Compra local para esta tarea» en cada trabajo no
-   terminado, que la deja elegida, o Menú › 🛒 Compra local; sin el permiso no sale ni el botón ni el menú): qué, tienda (proveedores con `cuenta_credito`; si no hay
+   terminado (planificado o apuntado como trabajo no planificado), que la deja elegida, o Menú › 🛒 Compra local; sin el permiso no sale ni el botón ni el menú): qué, tienda (proveedores con `cuenta_credito`; si no hay
    ninguno marcado, los de zona Menorca que no son transportistas), **para qué tarea de OT** (obligatorio: las suyas de hoy y
    mañana, u «Otra tarea…» con buscador `GET /api/compras-locales/tareas?q=` de tareas abiertas),
    importe aproximado, ahora / mañana, foto. Aviso `compra_local` a quien tiene **autorizar_compras_locales** (Operaciones y

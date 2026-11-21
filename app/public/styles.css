@@ -1228,7 +1228,7 @@ dialog.dlg-pregunta { width: min(460px, calc(100vw - 32px)); }
 .md-bloque { border-top: 1px solid var(--linea); padding-top: 10px; }
 .md-bloque h2 { font-size: 15px; margin: 0 0 8px; }
 .md-extra, .md-manana { list-style: none; margin: 0 0 8px; padding: 0; display: grid; gap: 6px; }
-.md-extra li { display: flex; align-items: center; gap: 8px; font-size: 14px; }
+.md-extra li { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 14px; }
 .md-ex-h { font-family: var(--mono); color: var(--suave); }
 .md-ex-que { flex: 1; min-width: 0; }
 .md-manana li { font-size: 14px; color: var(--suave); }
@@ -2297,3 +2297,5 @@ h1.marca .marca-ico { width: 28px; height: 28px; flex: none; border-radius: 7px;
 .cl-resultados button { width: 100%; text-align: left; font: inherit; font-size: 14px; background: #1f1f1f; color: var(--texto); border: 1px solid var(--borde); border-radius: 9px; padding: 8px 10px; }
 .cl-resultados small, .cl-elegida small { color: var(--suave); }
 .cl-elegida { display: flex; gap: 8px; align-items: center; justify-content: space-between; background: #16334f; border: 1px solid var(--azul); border-radius: 9px; padding: 8px 10px; margin-top: 4px; }
+
+#extra li .md-ex-cl { flex-basis: 100%; margin-top: 2px; }

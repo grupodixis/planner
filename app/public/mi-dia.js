@@ -89,7 +89,10 @@
       el('span', { class: 'md-ex-que' }, x.tipo === 'productivo' ? `${x.orden_codigo} · ${x.tarea}` : d.no_productivo[x.motivo] || x.motivo,
         x.notas ? el('small', {}, ` · ${x.notas}`) : null),
       x.resuelto ? el('span', { class: 'md-ok' }, x.resuelto === 'confirmado' ? '✔' : 'descartado')
-        : puede() ? el('button', { type: 'button', class: 'ghost mini', 'aria-label': 'Quitar', onclick: () => quitarExtra(x) }, '✕') : null)));
+        : puede() ? el('button', { type: 'button', class: 'ghost mini', 'aria-label': 'Quitar', onclick: () => quitarExtra(x) }, '✕') : null,
+      // compra local también para la tarea de un trabajo no planificado
+      estado.pedirCompras && x.tarea_id && x.tarea_estado !== 'hecha' ? el('button', { type: 'button', class: 'md-inc-link md-cl-link md-ex-cl',
+        onclick: () => window.midiaCompras?.pedirPara({ id: x.tarea_id, codigo: x.tarea_codigo || x.orden_codigo, nombre: x.tarea }) }, '🛒 Compra local para esta tarea') : null)));
     $('#extra-abrir').hidden = !puede();
     if (!puede()) $('#form-extra').hidden = true;
 
