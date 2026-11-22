@@ -2323,3 +2323,36 @@ h1.marca .marca-ico { width: 28px; height: 28px; flex: none; border-radius: 7px;
 .sin-red.con-fallo { background: #3a1d1d; color: #ffd0d0; border-color: #6b2b2b; }
 .sin-red-fallo { margin-top: 4px; }
 .sin-red button { font: inherit; font-size: 13px; padding: 2px 10px; border-radius: 8px; border: 1px solid currentColor; background: transparent; color: inherit; margin-left: 6px; }
+
+/* Mi día › Supervisar (Recibir envíos, Parte de hoy, Aprobar, Dónde está cada cosa) */
+.md-menu-sec { grid-column: 1 / -1; margin: 6px 2px -2px; font-size: 11.5px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--suave); }
+#v-recibir, #v-parte, #v-aprobar, #v-donde { overflow-x: hidden; }
+.sv-lista { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.sv-card { border: 1px solid var(--linea); border-radius: 12px; padding: 10px 11px; background: var(--panel, #1c1c1c); display: grid; gap: 6px; font-size: 13.5px; min-width: 0; }
+.sv-card > * { min-width: 0; max-width: 100%; }
+.sv-card small { color: var(--suave); display: block; }
+.sv-card.az { border-color: #2b4766; background: #18222e; }
+.sv-card.am { border-color: #6b5520; background: #1f1b12; }
+.sv-card.ro { border-color: #6b2b2b; background: #221616; }
+.sv-cab { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; }
+.sv-cab b { font-size: 14px; min-width: 0; }
+.sv-est { font-size: 11.5px; border-radius: 10px; padding: 1px 8px; white-space: nowrap; background: #3b2f10; color: #ffd98a; flex: none; }
+.sv-card.az .sv-est { background: #16334f; color: #bcdcff; }
+.sv-cod { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-weight: 700; background: #2a3d3a; color: #bff0e8; border-radius: 5px; padding: 0 6px; font-size: 12px; }
+.sv-cod.mat { background: #3b2510; color: #ffd7a8; }
+.sv-linea { display: flex; gap: 9px; align-items: center; border-top: 1px solid #2a2a2a; padding: 7px 0; }
+.sv-linea input[type=checkbox] { width: 22px; height: 22px; flex: none; accent-color: #2bb3a3; }
+.sv-linea.hecha { opacity: .6; }
+.sv-l-txt { flex: 1; min-width: 0; }
+.sv-bu { display: flex; align-items: center; gap: 2px; flex: none; color: var(--suave); font-size: 12.5px; }
+.sv-bultos { width: 52px !important; padding: 5px 6px !important; text-align: center; }
+.sv-card input[type=text] { width: 100%; }
+.sv-decl, .sv-avisos { list-style: none; margin: 0; padding: 0; display: grid; gap: 3px; font-size: 13px; }
+.sv-avisos li { color: #ffd98a; }
+.sv-ok { color: #a6e3a6 !important; }
+.sv-tarde { color: #f07070 !important; font-weight: 600; }
+.sv-tabs { margin-bottom: 10px; }
+.sv-pc { text-align: center; text-decoration: none; display: flex; align-items: center; justify-content: center; }
+.cl-botones a.sv-pc { font-size: 15px; font-weight: 600; padding: 12px; border-radius: 10px; background: #1e1e1e; color: #ddd; border: 1px solid #444; }
+.sv-card .primario.md-grande { width: 100%; }
+.md-menu-sec:empty { margin: 0; height: 1px; background: var(--linea); }

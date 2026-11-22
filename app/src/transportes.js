@@ -491,4 +491,6 @@ function montarGestion(app, asyncH) {
   }));
 }
 
-module.exports = { montarPublico, montarGestion, deOrdenes, costePorTarea, ESTADO_TXT };
+const aplicarEstado = (c, e, estado, quien) => aplicar(c, e, { estado }, quien);
+
+module.exports = { montarPublico, montarGestion, deOrdenes, costePorTarea, ESTADO_TXT, aplicarEstado };

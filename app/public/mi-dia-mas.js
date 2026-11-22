@@ -39,10 +39,10 @@
   const est = { vista: 'dia', mes: null, g: null, ctx: null, ausMotivo: null, incTipo: null };
 
   /* ---------- pestañas ---------- */
-  const TITULOS = { mes: 'Mi mes', vac: 'Vacaciones', avisar: 'Avisar', capturar: 'Capturar', perfil: 'Mi perfil', caps: 'Mis capacidades', stock: 'Material', compras: 'Compras locales' };
+  const TITULOS = { mes: 'Mi mes', vac: 'Vacaciones', avisar: 'Avisar', capturar: 'Capturar', perfil: 'Mi perfil', caps: 'Mis capacidades', stock: 'Material', compras: 'Compras locales', recibir: 'Recibir envíos', parte: 'Parte de hoy', aprobar: 'Aprobar', donde: 'Dónde está cada cosa' };
   function mostrar(vista) {
     est.vista = vista;
-    for (const v of ['dia', 'mes', 'vac', 'avisar', 'capturar', 'perfil', 'caps', 'stock', 'compras']) $(`#v-${v}`).hidden = v !== vista;
+    for (const v of ['dia', 'mes', 'vac', 'avisar', 'capturar', 'perfil', 'caps', 'stock', 'compras', 'recibir', 'parte', 'aprobar', 'donde']) { const n = $(`#v-${v}`); if (n) n.hidden = v !== vista; }
     document.querySelectorAll('.md-tabs button').forEach((b) => {
       if (b.dataset.vista === vista) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
     });
@@ -54,6 +54,7 @@
     if (vista === 'perfil' || vista === 'caps') window.midiaMenu?.cargar(vista).catch((e) => toast(e.message, true));
     if (vista === 'stock') window.midiaStock?.cargar().catch((e) => toast(e.message, true));
     if (vista === 'compras') window.midiaCompras?.cargar().catch((e) => toast(e.message, true));
+    if (['recibir', 'parte', 'aprobar', 'donde'].includes(vista)) window.midiaSuper?.cargar(vista)?.catch((e) => toast(e.message, true));
     if (vista === 'vac' || vista === 'avisar') cargarGestiones().catch((e) => toast(e.message, true));
     if (vista === 'capturar') {
       if (!est.captura) est.captura = window.Captura.montar($('#v-capturar'), { toast });
@@ -274,5 +275,5 @@
   }
 
   window.midiaMas = { iniciar, mostrar, incidencia, cambiarPin, vista: () => est.vista,
-    recargar: () => (est.vista === 'mes' ? cargarMes() : ['dia', 'perfil', 'caps'].includes(est.vista) ? null : est.vista === 'stock' ? window.midiaStock?.cargar() : est.vista === 'compras' ? window.midiaCompras?.cargar() : est.vista === 'capturar' ? est.captura?.recargar() : cargarGestiones()) };
+    recargar: () => (est.vista === 'mes' ? cargarMes() : ['dia', 'perfil', 'caps'].includes(est.vista) ? null : est.vista === 'stock' ? window.midiaStock?.cargar() : est.vista === 'compras' ? window.midiaCompras?.cargar() : ['recibir', 'parte', 'aprobar', 'donde'].includes(est.vista) ? window.midiaSuper?.cargar(est.vista) : est.vista === 'capturar' ? est.captura?.recargar() : cargarGestiones()) };
 })();

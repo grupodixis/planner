@@ -1116,6 +1116,13 @@ const MIGRACIONES = [
    )`,
   `CREATE INDEX IF NOT EXISTS compras_locales_estado_idx ON compras_locales (estado, creado DESC)`,
   `CREATE INDEX IF NOT EXISTS compras_locales_usuario_idx ON compras_locales (usuario_id, creado DESC)`,
+  // 2026-11 · Recibir en el móvil: envíos (por línea y bultos, albarán, incidencia) y piezas que trae un taller
+  `ALTER TABLE envio_lineas ADD COLUMN IF NOT EXISTS recibido_en TIMESTAMPTZ, ADD COLUMN IF NOT EXISTS bultos_recibidos INT,
+     ADD COLUMN IF NOT EXISTS recibido_por INT REFERENCES usuarios(id) ON DELETE SET NULL`,
+  `ALTER TABLE envios ADD COLUMN IF NOT EXISTS num_albaran TEXT, ADD COLUMN IF NOT EXISTS incidencia TEXT,
+     ADD COLUMN IF NOT EXISTS incidencia_resuelta BOOLEAN NOT NULL DEFAULT FALSE`,
+  `ALTER TABLE tareas ADD COLUMN IF NOT EXISTS ext_recibido_en TIMESTAMPTZ, ADD COLUMN IF NOT EXISTS ext_recibido_por INT REFERENCES usuarios(id) ON DELETE SET NULL,
+     ADD COLUMN IF NOT EXISTS ext_recepcion_nota TEXT`,
   // permiso «pedir_compras_locales»: solo los roles que lo tengan (de inicio, Administrador, Operaciones y Encargado si existe)
   `DO $m$ BEGIN
      IF NOT EXISTS (SELECT 1 FROM ajustes WHERE clave = 'migr_permiso_pedir_cl') THEN

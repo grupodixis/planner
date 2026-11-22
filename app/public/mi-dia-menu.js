@@ -50,6 +50,7 @@
       // logística: confirmar desde el móvil (pedir a proveedores se hace en el ordenador)
       ctx.logistica ? ['📦', 'Revisar stock', () => { cerrar(); window.midiaStock.ver('revisar'); }, cuentaTxt(ctx.cuentas?.revisar, 'por revisar'), !!ctx.cuentas?.revisar] : null,
       ctx.logistica ? ['🚚', 'Recibir material', () => { cerrar(); window.midiaStock.ver('recibir'); }, cuentaTxt(ctx.cuentas?.recibir, 'por llegar'), !!ctx.cuentas?.recibir] : null,
+      ...(window.midiaSuper?.opcionesMenu(ir) || []).reduce((a, o, i, t) => [...a, ...(i ? [] : [['§', 'Supervisar']]), o, ...(i === t.length - 1 ? [['§', '']] : [])], []),
       ctx.comun ? null : ['🔔', 'Avisos al móvil', () => { cerrar(); window.s360pwa?.ajustes(); }],
       ['❓', 'Ayuda', () => { cerrar(); window.s360ayuda?.abrirPanel(); }, 'Cómo se usa'],
       ['🚪', 'Salir', () => { cerrar(); $('#salir').click(); }],
@@ -57,11 +58,11 @@
   }
   function abrir() {
     const vista = window.midiaMas.vista();
-    const mapa = { 'Mi día': 'dia', 'Mi mes': 'mes', Capturar: 'capturar', Vacaciones: 'vac', Avisar: 'avisar', 'Mi perfil': 'perfil', 'Mis capacidades': 'caps', 'Compra local': 'compras' };
+    const mapa = { 'Mi día': 'dia', 'Mi mes': 'mes', Capturar: 'capturar', Vacaciones: 'vac', Avisar: 'avisar', 'Mi perfil': 'perfil', 'Mis capacidades': 'caps', 'Compra local': 'compras', 'Recibir envíos': 'recibir', 'Parte de hoy': 'parte', Aprobar: 'aprobar', 'Dónde está cada cosa': 'donde' };
     if (ctx.logistica) ctx.cuentas = window.midiaStock?.cuentasYa() || null;
-    $('#md-menu-grid').replaceChildren(...opciones().map(([ico, txt, fn, sub, aviso]) => el('button', {
+    $('#md-menu-grid').replaceChildren(...opciones().map(([ico, txt, fn, sub, aviso]) => (ico === '§' ? el('h3', { class: 'md-menu-sec', 'aria-hidden': txt ? null : 'true' }, txt) : el('button', {
       type: 'button', class: `md-menu-op${mapa[txt] === vista ? ' actual' : ''}${aviso ? ' aviso' : ''}`, onclick: fn,
-    }, el('span', { class: 'md-menu-ico', 'aria-hidden': 'true' }, ico), el('b', {}, txt), sub ? el('small', {}, sub) : null)));
+    }, el('span', { class: 'md-menu-ico', 'aria-hidden': 'true' }, ico), el('b', {}, txt), sub ? el('small', {}, sub) : null))));
     const d = $('#md-menu');
     if (!d.open) d.showModal();
   }

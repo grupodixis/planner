@@ -860,6 +860,19 @@ Estados: pendiente → autorizada / rechazada → comprada → cuadrada (o anula
 `POST /api/compras-locales/:id/anular` (estas, también para operarios con PIN); `GET /api/compras-locales?vista=autorizar|sin_ticket|cuadrar|todas&mes=`,
 `POST /api/compras-locales/:id/decidir {decision: si|no, nota}`, `POST /api/compras-locales/cuadrar {ids, factura}`.
 
+## Supervisar desde el móvil (Mi día › Menú › Supervisar)
+
+Para encargados, logística, Operaciones y Dirección que también usan Mi día. Cada apartado sale solo con su permiso:
+
+| Apartado | Permiso | Qué hace |
+|---|---|---|
+| 📦 Recibir envíos | `logistica` o `planificar` | Envíos en Maó (y en barco) por líneas: marcar lo recibido, bultos, nº de albarán, fotos, incidencia («falta 1 bulto…»). Con todas las líneas recibidas el envío pasa a **entregado** (tareas de transporte hechas, la OT vuelve a «en taller HAM»). El material de un pedido de la línea queda **recibido**. También piezas que un taller marcó «entregado a nosotros». Avisa a quien planifica. Funciona sin cobertura (bandeja de salida). |
+| 🧾 Parte de hoy | `planificar` | Lo apuntado hoy por tramo con sus avisos; ✔ Confirmar (usa la propuesta, como en el ordenador), «Confirmar todo lo que no tiene avisos», aceptar/descartar lo no planificado, quién está sin apuntar. Corregir horas y cerrar el día siguen en Parte. |
+| ✔ Aprobar | `aprobar_compras`, `vacaciones_ops`/`vacaciones_rrhh`, `autorizar_compras_locales` | Pedidos por aprobar, vacaciones en tu paso, compras locales pendientes; ✗ No pide el motivo. |
+| 📍 Dónde está cada cosa | `planificar` o `proyectos` | OT con algo fuera (taller o envío), retrasos primero, cuándo se necesita aquí y aviso si el taller o el envío no llegan a tiempo. |
+
+API nueva: `GET /api/supervision/resumen` (contadores del menú), `GET /api/supervision/recibir`, `POST /api/envios/:id/recibir` `{lineas:[{id,recibido,bultos}], num_albaran, archivos, incidencia}`, `POST /api/tareas/:id/recibir-pieza` `{nota, archivos}`, `GET /api/supervision/donde`. Columnas nuevas: `envio_lineas.recibido_en/recibido_por/bultos_recibidos`, `envios.num_albaran/incidencia/incidencia_resuelta`, `tareas.ext_recibido_en/ext_recibido_por/ext_recepcion_nota`.
+
 ## Control de costes (Informes › Control de costes)
 
 Solo con el permiso **costes** (Administrador, Operaciones y Dirección; el rol Dirección se crea

@@ -9,7 +9,7 @@
 //    pedir compra local, ticket) va a una BANDEJA DE SALIDA (IndexedDB) y se envía solo, en orden, en cuanto hay red.
 //    Mientras tanto, lo pendiente se ve ya aplicado en Mi día y en Mis compras. Las fotos sin enviar llevan un id
 //    provisional negativo que se cambia por el de verdad al enviarlas.
-const VERSION = 'v8';
+const VERSION = 'v9';
 const SHELL = `planealo-shell-${VERSION}`;
 const DATOS = 'planealo-datos-v1';
 const OFFLINE = '/offline.html';
@@ -18,7 +18,7 @@ const FIJOS = ['/manifest.webmanifest', '/icono-192-v2.png', '/insignia-96.png',
 const ESPERA_DATOS = 3500;   // ms: si la red tarda más, se enseña lo guardado
 
 // Datos que se guardan para verlos sin conexión
-const GET_GUARDAR = /^\/api\/(me|mi-dia|mi-dia\/(gestiones|mes|perfil|capacidades)|capturas|capturas\/(opciones|mias)|compras-locales|compras-locales\/(opciones|mias)|material\/circuito|pendientes|push\/preferencias)$/;
+const GET_GUARDAR = /^\/api\/(me|mi-dia|mi-dia\/(gestiones|mes|perfil|capacidades)|capturas|capturas\/(opciones|mias)|compras-locales|compras-locales\/(opciones|mias)|material\/circuito|pendientes|push\/preferencias|supervision\/(resumen|recibir|donde)|parte|compras\/pedidos|solicitudes-vacaciones)$/;
 // Lo que se puede apuntar sin conexión (va a la bandeja de salida)
 const COLA = [
   ['PUT', /^\/api\/mi-dia\/tramos\/\d+$/],
@@ -30,6 +30,9 @@ const COLA = [
   ['POST', /^\/api\/capturas$/],
   ['POST', /^\/api\/compras-locales\/nueva$/],
   ['POST', /^\/api\/compras-locales\/\d+\/(ticket|anular|decidir)$/],
+  // supervisar: recibir en el almacén del transportista o en el taller (sin cobertura)
+  ['POST', /^\/api\/envios\/\d+\/recibir$/],
+  ['POST', /^\/api\/tareas\/\d+\/recibir-pieza$/],
   // gestiones del operario
   ['POST', /^\/api\/mi-dia\/vacaciones$/],
   ['DELETE', /^\/api\/mi-dia\/vacaciones\/-?\d+$/],
@@ -304,6 +307,19 @@ async function superponer(path, datos) {
       l.estado = m[2] === 'recibir' ? 'recibido' : Number(String(b.stock).replace(',', '.')) >= Number(l.cantidad) ? 'en_stock' : 'por_pedir';
       l.sin_enviar = true;
     }
+  }
+  if (path === '/api/supervision/recibir' && Array.isArray(datos.envios)) {
+    for (const o of ops) {
+      const m = /\/api\/envios\/(\d+)\/recibir$/.exec(o.url);
+      const e = m && datos.envios.find((x) => x.id === Number(m[1]));
+      if (!e) continue;
+      for (const l of leer(o).lineas || []) {
+        const x = e.lineas.find((y) => y.id === Number(l.id));
+        if (x && l.recibido) { x.recibido_en = x.recibido_en || 'sin enviar'; x.bultos_recibidos = l.bultos ?? x.bultos_recibidos; }
+      }
+    }
+    const piezas = new Set(ops.map((o) => /\/api\/tareas\/(\d+)\/recibir-pieza$/.exec(o.url)).filter(Boolean).map((m) => Number(m[1])));
+    if (Array.isArray(datos.piezas)) datos.piezas = datos.piezas.filter((p) => !piezas.has(p.id));
   }
   if (path === '/api/compras-locales' && Array.isArray(datos.compras)) {
     const decididas = new Set(ops.map((o) => /\/api\/compras-locales\/(\d+)\/decidir$/.exec(o.url)).filter(Boolean).map((m) => Number(m[1])));
