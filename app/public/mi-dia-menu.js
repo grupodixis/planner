@@ -42,7 +42,9 @@
       ['＋', 'Capturar', ir('capturar')],
       ['🌴', 'Vacaciones', ir('vac')],
       ['🙋', 'Avisar', ir('avisar'), 'No vengo, llego tarde, justificantes'],
-      ctx.compras && ['🛒', 'Compra local', ir('compras'), window.midiaCompras?.pendientes() ? `${window.midiaCompras.pendientes()} autorizada(s): sube el ticket` : 'Ferretería… con autorización', !!window.midiaCompras?.pendientes()],
+      ctx.compras && ['🛒', 'Compra local', ir('compras'),
+        [window.midiaCompras?.porAutorizarN() ? `${window.midiaCompras.porAutorizarN()} por autorizar` : null, window.midiaCompras?.pendientes() ? `${window.midiaCompras.pendientes()} autorizada(s): sube el ticket` : null].filter(Boolean).join(' · ') || 'Ferretería… con autorización',
+        !!(window.midiaCompras?.pendientes() || window.midiaCompras?.porAutorizarN())],
       ['👤', 'Mi perfil', ir('perfil'), faltanPerfil.length ? `Faltan ${faltanPerfil.length} dato(s)` : 'Tus datos', !!faltanPerfil.length],
       ['🧠', 'Mis capacidades', ir('caps'), 'Lo que sabes hacer'],
       // logística: confirmar desde el móvil (pedir a proveedores se hace en el ordenador)

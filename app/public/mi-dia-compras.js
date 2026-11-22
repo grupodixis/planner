@@ -214,5 +214,10 @@
   }
 
   window.addEventListener('planealo:sincronizado', () => { if (!document.querySelector('#v-compras')?.hidden) cargar().catch(() => {}); });
-  window.midiaCompras = { pedirPara, cargar, pendientes, precargar: () => api('GET', '/api/compras-locales/mias').then((d) => { mias = d.compras; }).catch(() => {}) };
+  const porAutorizarN = () => porAutorizar.length;
+  const precargar = () => Promise.all([
+    api('GET', '/api/compras-locales/mias').then((d) => { mias = d.compras; }).catch(() => {}),
+    api('GET', '/api/compras-locales?vista=autorizar').then((d) => { porAutorizar = d.compras || []; }).catch(() => {}),
+  ]);
+  window.midiaCompras = { pedirPara, cargar, pendientes, porAutorizarN, precargar };
 })();

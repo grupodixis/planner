@@ -54,6 +54,17 @@ async function adjuntar(c, ids, compraId, ref, usuarioId) {
   if (!lista.length) return;
   await c.query(`UPDATE archivos SET ref_tipo = $1, ref_id = $2 WHERE id = ANY($3) AND creado_por = $4 AND ref_tipo IS NULL`, [ref, compraId, lista, usuarioId]);
 }
+// Aviso a quien autoriza: si usa la app del móvil (tiene ficha de operario), se abre Mi día › Compra local
+// (con «Por autorizar» arriba); si no, Compras › Compras locales.
+async function avisarAutorizadores(msg) {
+  const ids = await notif.conPermiso('autorizar_compras_locales');
+  if (!ids.length) return;
+  const { rows } = await query('SELECT id, recurso_id IS NOT NULL AS movil FROM usuarios WHERE id = ANY($1)', [ids]);
+  const movil = rows.filter((r) => r.movil).map((r) => r.id);
+  const resto = rows.filter((r) => !r.movil).map((r) => r.id);
+  if (movil.length) notif.avisarLuego(movil, 'compra_local', { ...msg, url: '/mi-dia.html?vista=compras' });
+  if (resto.length) notif.avisarLuego(resto, 'compra_local', { ...msg, url: '/compras.html?vista=locales' });
+}
 const linea = (c) => `${c.que.slice(0, 80)}${c.tienda_nombre ? ` · ${c.tienda_nombre}` : ''}${c.importe_aprox != null ? ` · ≈ ${eur(c.importe_aprox)}` : ''}`;
 
 // Recordatorio: autorizada hace más de 2 días y sin ticket → aviso al móvil de quien la pidió (uno al día)
@@ -139,10 +150,10 @@ function montar(app, asyncH) {
       return rows[0].id;
     });
     const cl = await una(id);
-    notif.avisarLuego(notif.conPermiso('autorizar_compras_locales'), 'compra_local', {
+    avisarAutorizadores({
       titulo: `🛒 ${cl.usuario_nombre} pide comprar${cl.importe_aprox != null ? ` · ≈ ${eur(cl.importe_aprox)}` : ''}`,
       cuerpo: `${cl.tienda_nombre} · ${cl.que.slice(0, 90)}${cl.tarea_codigo ? ` · ${cl.tarea_codigo} ${cl.tarea_nombre}` : ''}${cl.para === 'manana' ? ' · para mañana' : ''}`,
-      url: '/compras.html?vista=locales', tag: `cl-${id}`, urgente: cl.para === 'ahora',
+      tag: `cl-${id}`, urgente: cl.para === 'ahora',
     });
     require('./eventos').emitir({ ruta: 'compras-locales', quien: req.usuario.nombre });
     res.status(201).json(cl);
@@ -166,10 +177,10 @@ function montar(app, asyncH) {
     });
     const cl = await una(id);
     if (cl.importe_aprox && imp > cl.importe_aprox * (1 + DESVIO)) {
-      notif.avisarLuego(notif.conPermiso('autorizar_compras_locales'), 'compra_local', {
+      avisarAutorizadores({
         titulo: `⚠ ${cl.codigo}: ${eur(imp)} (autorizado ≈ ${eur(cl.importe_aprox)})`,
         cuerpo: `${cl.usuario_nombre} · ${cl.tienda_nombre} · +${Math.round((imp / cl.importe_aprox - 1) * 100)} % sobre lo autorizado`,
-        url: '/compras.html?vista=locales', tag: `cl-${id}`,
+        tag: `cl-${id}`,
       });
     }
     res.json(cl);
