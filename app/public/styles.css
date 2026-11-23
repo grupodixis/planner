@@ -2404,3 +2404,4 @@ h1.marca .marca-ico { width: 28px; height: 28px; flex: none; border-radius: 7px;
 .mat-ico.incid { background: var(--rojo-bg); color: #ffc4c4; outline: 1px solid var(--rojo); font-weight: 700; }
 .det-incid { flex-basis: 100%; color: #ffb37a; font-weight: 600; font-size: 12.5px; margin-top: 2px; }
 .det-incid small { color: var(--suave); font-weight: 400; }
+.md-ll-est.incid { outline: 1.5px solid var(--rojo); outline-offset: 0; }

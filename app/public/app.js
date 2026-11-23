@@ -1635,7 +1635,7 @@
         const tarde = tr && m.fecha_prevista && m.fecha_prevista > tr.fecha;
         return el('li', {}, el('span', {}, el('b', {}, cantM(m.cantidad, m.unidad)), ` ${m.descripcion}`),
           m.recibido_por?.length ? el('span', { class: 'md-ll-est ok' }, `✔ recibido: ${m.recibido_por.join(', ')}`) : null,
-          el('span', { class: `md-ll-est ${tarde ? 'falta' : { disponible: 'ok', pedido: 'pedido', por_pedir: 'falta', sin_revisar: 'revisar' }[m.estado]}` },
+          el('span', { class: `md-ll-est ${tarde ? 'falta' : { disponible: 'ok', pedido: 'pedido', por_pedir: 'falta', sin_revisar: 'revisar' }[m.estado]}${m.incidencias?.length ? ' incid' : ''}` },
             m.estado === 'pedido' ? `${tarde ? '⚠ ' : '🚚 '}${m.fecha_prevista ? `llega ${ddmm(m.fecha_prevista)}` : 'pedido, sin fecha'}${m.proveedor ? ` · ${m.proveedor}` : ''}` : MAT_TXT[m.estado]),
           (m.incidencias || []).map((i) => el('div', { class: 'det-incid' }, `⚠ ${i.texto}`, el('small', {}, ` · ${i.autor || ''} ${fechaCorta(String(i.creado).slice(0, 10))}`))));
       }))) : null,
@@ -2286,6 +2286,8 @@
     });
     $('#hoy').onclick = () => irA(hoyISO());
     $('#fecha-input').onchange = (ev) => ev.target.value && irA(ev.target.value);
+    // pulsar la fecha abre el calendario del navegador
+    $('#fecha-input').addEventListener('click', (ev) => { try { ev.currentTarget.showPicker(); } catch { /* navegador sin showPicker: abre con su icono */ } });
     $('#buscar').oninput = (ev) => { estado.filtro = ev.target.value; aplicarFiltro(); };
     $('#rec-libres').onchange = (ev) => { guardarPref('rec_libres', ev.target.checked ? '1' : '0'); pintarRecursos(); aplicarFiltro(); };
     $('#rec-plegar').onclick = () => {
