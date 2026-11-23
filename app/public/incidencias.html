@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <meta name="theme-color" content="#141414">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="apple-touch-icon" href="/apple-touch-icon-v2.png">
+  <title>Planéalo · Incidencias</title>
+  <link rel="stylesheet" href="styles.css?v=202611232125">
+</head>
+<body class="inc-pant">
+  <header class="top">
+    <h1 class="marca"><img src="/logo.svg" alt="" class="marca-ico">Planéalo <span>· incidencias</span></h1>
+    <nav class="menu" aria-label="Pantallas">
+      <a href="/">Tablero</a>
+      <a href="/proyectos.html">Proyectos</a>
+    </nav>
+    <div class="usuario"><span id="usuario-nombre"></span> <button id="salir" class="ghost">Salir</button></div>
+  </header>
+
+  <div class="pestanas" role="tablist" aria-label="Qué ver" id="inc-tabs">
+    <button role="tab" data-vista="mias">Mías</button>
+    <button role="tab" data-vista="abiertas">Abiertas</button>
+    <button role="tab" data-vista="esperando">Esperando proveedor</button>
+    <button role="tab" data-vista="por_cerrar">Por cerrar</button>
+    <button role="tab" data-vista="cerradas">Cerradas</button>
+    <span class="inf-rango"><select id="inc-filtro-tipo" aria-label="Filtrar por tipo"></select>
+      <button type="button" class="primario" id="inc-nueva">＋ Nueva incidencia</button></span>
+  </div>
+
+  <main class="inc-main">
+    <section class="panel inc-lista-caja"><ul class="inc-lista" id="inc-lista"></ul></section>
+    <section class="panel inc-ficha" id="inc-ficha"><p class="ayuda">Elige una incidencia de la lista.</p></section>
+  </main>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <script src="pwa.js?v=202611232125"></script>
+  <script src="comun.js?v=202611232125"></script>
+  <script src="ayuda-textos.js?v=202611232125"></script>
+  <script src="ayuda.js?v=202611232125"></script>
+  <script src="incidencias.js?v=202611232125"></script>
+</body>
+</html>

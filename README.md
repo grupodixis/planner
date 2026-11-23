@@ -862,6 +862,42 @@ Estados: pendiente → autorizada / rechazada → comprada → cuadrada (o anula
 `POST /api/compras-locales/:id/anular` (estas, también para operarios con PIN); `GET /api/compras-locales?vista=autorizar|sin_ticket|cuadrar|todas&mes=`,
 `POST /api/compras-locales/:id/decidir {decision: si|no, nota}`, `POST /api/compras-locales/cuadrar {ids, factura}`.
 
+## Incidencias (Planificación › Incidencias)
+
+`src/incidencias.js`, `public/incidencias.js` (lista + ficha), `public/incidencia.html/js` (enlace del proveedor). Tablas
+`gestion_incidencias` (`INC-AAAA-NNNN`) y `gestion_incidencia_eventos` (historial). (La tabla `incidencias` es la antigua del
+operario, ya pasada a capturas.)
+
+- **Un solo sistema** para material, transporte, calidad, avería, seguridad, proveedor u otro. De qué es: material
+  (`escandallo_id`), envío, pedido, proyecto, OT, tarea, máquina y **contraparte** (`proveedor_id`: proveedor, transportista
+  o subcontrata). Gravedad leve / importante / **crítica** (avisa al momento a Dirección). **Área responsable** por tipo
+  (material y proveedor → Compras, transporte → Logística, calidad → Producción, avería y seguridad → Operaciones) y
+  responsable opcional. **Afecta a**: tareas de la incidencia, las que usan el material, las del pedido o las del envío.
+- Se abren desde Logística (⚠ Incidencia del material, también en el móvil), al **recibir un envío** con algo que falta
+  o dañado (tipo transporte, contra el transportista), o con «＋ Nueva incidencia» (tipo, gravedad, tarea u OT por código,
+  proveedor, fotos). Las de antes (`escandallo_incidencias`, `envios.incidencia`) se pasaron solas.
+- **Estados**: abierta → en curso («Me encargo») → **esperando** (reclamada) → resuelta → **cerrada**. Cierran el
+  responsable del área y Operaciones (dos firmas); en calidad, con causa y acción para que no se repita.
+- **Reclamar** (`POST /api/incidencias/:id/reclamar {pedimos: reponer|cambiar|abono, abono_pedido, necesario_el,
+  plazo_dias, mensaje, canal: correo|whatsapp|enlace, email}`): correo con el **informe PDF** (datos, fotos y enlace),
+  **WhatsApp** (`wa.me` con el texto y el enlace; lo envía la persona) o copiar el enlace. El proveedor responde en
+  `incidencia.html?t=` (firma HMAC sobre `nonce`): qué hará y **fecha de resolución** (obligatoria), comentario, importe si
+  abona. **Aceptar fecha** (`/aceptar-fecha`) o **No es aceptable / Decidir** (`/decidir {decision: otra_fecha|
+  otro_proveedor|stock|abono|otro, texto, importe}`, queda escrito; stock y abono resuelven).
+- **Recordatorios** (cada 10 min, laborables 9–19 h): sin respuesta pasado el plazo → correo cada 2 días laborables + aviso al
+  responsable; el día de la **fecha acordada** → recordatorio al responsable y correo al proveedor; pasado un día laborable
+  sin resolver → aviso al responsable y a Operaciones.
+- **Resolución automática**: al marcar «Recibido» el material en Logística, sus incidencias abiertas quedan resueltas.
+  «Marcar resuelta» con texto y abono opcional.
+- **Tablero**: aviso `incidencia` en los tramos (hoy en adelante, sin cerrar) de las tareas afectadas, con «Solucionar →
+  Abrir la incidencia»; el material con incidencia sigue con «🧰 ⚠».
+- Contador en el menú (`pendientes.incidencias`: las mías por gestionar + las que me toca cerrar). Aviso push `incidencia`.
+- API: `GET /api/incidencias?vista=mias|abiertas|esperando|por_cerrar|cerradas&tipo=`, `GET·PATCH /api/incidencias/:id`,
+  `POST /api/incidencias`, `/:id/nota|en-curso|resolver|cerrar|reabrir`, `GET /:id/pdf`, `GET /api/incidencias-buscar?q=`;
+  pública `GET·PUT /api/incidencia-ext/:t`, `GET /api/incidencia-ext/:t/archivos/:id|pdf`.
+- **Fase 2** (pendiente): calidad desde la OT / tarea y el móvil, tarea de retrabajo con su coste, captura de la Bandeja →
+  incidencia, informes (por proveedor, tiempo de cierre, coste de no calidad).
+
 ## Excedente, turnos y horas extra
 
 `src/horas-extra.js`, `public/recursos-extras.js` (Recursos › **Turnos y horas extra**).

@@ -1191,6 +1191,78 @@ const MIGRACIONES = [
        INSERT INTO ajustes (clave, valor) VALUES ('migr_permiso_horas_extra', 'true');
      END IF;
    END $m$`,
+  // ===== Incidencias (sistema unificado): material, transporte, calidad, avería, seguridad, proveedor… =====
+  `CREATE TABLE IF NOT EXISTS gestion_incidencias (
+     id SERIAL PRIMARY KEY, codigo TEXT NOT NULL UNIQUE,
+     tipo TEXT NOT NULL CHECK (tipo IN ('material','transporte','calidad','averia','seguridad','proveedor','otro')),
+     gravedad TEXT NOT NULL DEFAULT 'importante' CHECK (gravedad IN ('leve','importante','critica')),
+     estado TEXT NOT NULL DEFAULT 'abierta' CHECK (estado IN ('abierta','en_curso','esperando','resuelta','cerrada')),
+     titulo TEXT NOT NULL, texto TEXT,
+     -- de qué es
+     escandallo_id INT REFERENCES partida_escandallo(id) ON DELETE SET NULL,
+     envio_id INT REFERENCES envios(id) ON DELETE SET NULL,
+     pedido_id INT REFERENCES pedidos_compra(id) ON DELETE SET NULL,
+     proyecto_id INT REFERENCES proyectos(id) ON DELETE SET NULL,
+     orden_id INT REFERENCES ordenes(id) ON DELETE SET NULL,
+     tarea_id INT REFERENCES tareas(id) ON DELETE SET NULL,
+     recurso_id INT REFERENCES recursos(id) ON DELETE SET NULL,
+     proveedor_id INT REFERENCES proveedores(id) ON DELETE SET NULL,
+     -- quién
+     area TEXT NOT NULL DEFAULT 'planificar',
+     responsable_id INT REFERENCES usuarios(id) ON DELETE SET NULL,
+     creado_por INT REFERENCES usuarios(id) ON DELETE SET NULL, creado TIMESTAMPTZ NOT NULL DEFAULT now(),
+     fecha_limite DATE,
+     -- reclamación al proveedor
+     pedimos TEXT CHECK (pedimos IN ('reponer','cambiar','abono')), abono_pedido NUMERIC(12,2), necesario_el DATE,
+     reclamado_en TIMESTAMPTZ, plazo_respuesta DATE, email_reclamacion TEXT,
+     nonce TEXT, visto_en TIMESTAMPTZ,
+     prov_accion TEXT, prov_fecha DATE, prov_comentario TEXT, prov_importe NUMERIC(12,2), prov_respondido_en TIMESTAMPTZ,
+     fecha_acordada DATE, aceptada_en TIMESTAMPTZ, aceptada_por INT REFERENCES usuarios(id) ON DELETE SET NULL,
+     recordatorio_en DATE, n_recordatorios INT NOT NULL DEFAULT 0, aviso_fecha_en DATE, aviso_vencida_en DATE,
+     -- resolución y cierre
+     decision TEXT, abono_importe NUMERIC(12,2),
+     resuelta_en TIMESTAMPTZ, resuelta_por INT REFERENCES usuarios(id) ON DELETE SET NULL, resolucion TEXT,
+     causa TEXT, accion_preventiva TEXT,
+     cerrada_resp_por INT REFERENCES usuarios(id) ON DELETE SET NULL, cerrada_resp_en TIMESTAMPTZ,
+     cerrada_ops_por INT REFERENCES usuarios(id) ON DELETE SET NULL, cerrada_ops_en TIMESTAMPTZ,
+     cerrada_en TIMESTAMPTZ)`,
+  `CREATE INDEX IF NOT EXISTS gi_estado_idx ON gestion_incidencias (estado)`,
+  `CREATE INDEX IF NOT EXISTS gi_escandallo_idx ON gestion_incidencias (escandallo_id) WHERE escandallo_id IS NOT NULL`,
+  `CREATE INDEX IF NOT EXISTS gi_tarea_idx ON gestion_incidencias (tarea_id) WHERE tarea_id IS NOT NULL`,
+  `CREATE TABLE IF NOT EXISTS gestion_incidencia_eventos (
+     id SERIAL PRIMARY KEY, incidencia_id INT NOT NULL REFERENCES gestion_incidencias(id) ON DELETE CASCADE,
+     tipo TEXT NOT NULL, texto TEXT, datos JSONB,
+     usuario_id INT REFERENCES usuarios(id) ON DELETE SET NULL, externo TEXT,
+     creado TIMESTAMPTZ NOT NULL DEFAULT now())`,
+  `CREATE INDEX IF NOT EXISTS gie_inc_idx ON gestion_incidencia_eventos (incidencia_id, creado)`,
+  // pasar las de antes (material desde logística, envíos al recibir) al sistema nuevo (una vez)
+  `DO $m$ DECLARE r RECORD; n INT := 0; nid INT; BEGIN
+     IF NOT EXISTS (SELECT 1 FROM ajustes WHERE clave = 'migr_incidencias_unificadas') THEN
+       FOR r IN SELECT i.*, e.descripcion, e.proveedor_id, pa.proyecto_id FROM escandallo_incidencias i
+                  JOIN partida_escandallo e ON e.id = i.escandallo_id JOIN partidas pa ON pa.id = e.partida_id ORDER BY i.creado LOOP
+         n := n + 1;
+         INSERT INTO gestion_incidencias (codigo, tipo, estado, titulo, texto, escandallo_id, proyecto_id, proveedor_id, area, creado_por, creado,
+                                  resuelta_en, resuelta_por, cerrada_en, resolucion)
+         VALUES ('INC-' || to_char(r.creado, 'YYYY') || '-' || lpad(n::text, 4, '0'), 'material',
+                 CASE WHEN r.resuelta_en IS NULL THEN 'abierta' ELSE 'cerrada' END,
+                 left(r.descripcion || ': ' || r.texto, 200), r.texto, r.escandallo_id, r.proyecto_id, r.proveedor_id, 'compras', r.creado_por, r.creado,
+                 r.resuelta_en, r.resuelta_por, r.resuelta_en, CASE WHEN r.resuelta_en IS NOT NULL THEN 'Resuelta (antes del sistema de incidencias)' END)
+         RETURNING id INTO nid;
+         INSERT INTO gestion_incidencia_eventos (incidencia_id, tipo, texto, usuario_id, creado) VALUES (nid, 'abierta', r.texto, r.creado_por, r.creado);
+       END LOOP;
+       FOR r IN SELECT e.* FROM envios e WHERE e.incidencia IS NOT NULL LOOP
+         n := n + 1;
+         INSERT INTO gestion_incidencias (codigo, tipo, estado, titulo, texto, envio_id, proveedor_id, area, creado, cerrada_en)
+         VALUES ('INC-' || to_char(now(), 'YYYY') || '-' || lpad(n::text, 4, '0'), 'transporte',
+                 CASE WHEN r.incidencia_resuelta THEN 'cerrada' ELSE 'abierta' END,
+                 left(r.codigo || ': ' || r.incidencia, 200), r.incidencia, r.id, r.transportista_id, 'logistica', now(),
+                 CASE WHEN r.incidencia_resuelta THEN now() END)
+         RETURNING id INTO nid;
+         INSERT INTO gestion_incidencia_eventos (incidencia_id, tipo, texto) VALUES (nid, 'abierta', r.incidencia);
+       END LOOP;
+       INSERT INTO ajustes (clave, valor) VALUES ('migr_incidencias_unificadas', 'true');
+     END IF;
+   END $m$`,
 ];
 
 async function migrar() {

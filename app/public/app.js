@@ -1760,7 +1760,7 @@
     const [a, b] = c.ids.map(tramo);
     return a && b && b.hora_inicio < a.hora_inicio ? a.id : c.ids[1];
   }
-  const tieneSolucion = (c) => ['horas_extra', 'operarios', 'capacidad', 'requisito', 'requisito_tipo', 'solape', 'jornada', 'exceso', 'dependencia', 'puesto', 'ausencia'].includes(c.tipo);
+  const tieneSolucion = (c) => ['incidencia', 'horas_extra', 'operarios', 'capacidad', 'requisito', 'requisito_tipo', 'solape', 'jornada', 'exceso', 'dependencia', 'puesto', 'ausencia'].includes(c.tipo);
   const recurso = (id) => estado.datos.recursos.find((r) => r.id === id);
   const activos = (tipo) => estado.datos.recursos.filter((r) => r.activo !== false && (!tipo || r.tipo === tipo));
   // Dónde está ocupado un recurso ese día (sin contar el tramo indicado)
@@ -1891,6 +1891,8 @@
           }, `Recortar hasta las ${hhmm(J().fin)} (${durTxt(fuera)} quedan pendientes)`) : null,
           el('span', { class: 'ayuda' }, ' Si son horas extra previstas, puedes dejarlo así.'));
       }
+      case 'incidencia':
+        return caja(...(c.incidencias || []).map((id) => el('a', { class: 'boton primario mini', href: `/incidencias.html?id=${id}` }, 'Abrir la incidencia')));
       case 'horas_extra': {
         const pend = (tr.extras || []).filter((x) => x.estado === 'pendiente');
         const sinPedir = pend.some((x) => !x.avisado);

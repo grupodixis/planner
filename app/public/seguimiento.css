@@ -32,3 +32,11 @@ main { max-width: 720px; }
 .guardar { display: block; width: 100%; font-size: 16px; padding: 13px; }
 .vencida { margin-bottom: 12px; }
 .ok-msg { color: var(--acento); font-weight: 600; text-align: center; margin: 10px 0 0; }
+/* respuesta a una incidencia (incidencia.html) */
+.inc-ops { display: grid; gap: 6px; }
+.inc-op { display: flex; gap: 8px; align-items: center; border: 1px solid var(--linea); border-radius: 9px; padding: 9px 11px; cursor: pointer; background: var(--campo); }
+.inc-op.on { border-color: var(--acento); background: var(--acento-2); font-weight: 600; }
+.inc-fotos-ext { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0; }
+.inc-fotos-ext img { width: 120px; height: 90px; object-fit: cover; border-radius: 8px; border: 1px solid var(--linea); }
+.ok-msg { background: var(--acento-2); color: var(--acento); border-radius: 9px; padding: 10px 12px; font-weight: 600; }
+[hidden] { display: none !important; }

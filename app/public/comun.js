@@ -107,7 +107,9 @@
   // [href, texto, permiso(s) o null = todos, descripción]
   const GRUPOS = [
     ['Planificación', [['/', 'Tablero', null, 'Planificar tareas en áreas y operarios'], ['/parte.html', 'Supervisión de partes', 'planificar', 'Revisar y confirmar lo hecho cada día'],
-      ['/bandeja.html', 'Bandeja', 'planificar', 'Capturas por clasificar'], ['/mi-dia.html', 'Mi día', 'mi_dia', 'Apuntar mi propio día']]],
+      ['/bandeja.html', 'Bandeja', 'planificar', 'Capturas por clasificar'],
+      ['/incidencias.html', 'Incidencias', ['planificar', 'compras', 'logistica', 'proyectos', 'escandallo', 'aprobar_compras'], 'Material, transporte, calidad, averías…: seguimiento y cierre'],
+      ['/mi-dia.html', 'Mi día', 'mi_dia', 'Apuntar mi propio día']]],
     ['Proyectos', [['/proyectos.html', 'Proyectos y OTs', null, 'Partidas, OTs, tareas, escandallo e importación']]],
     ['Compras', [['/logistica.html', 'Material de las partidas', ['logistica', 'compras', 'escandallo'], 'Stock, por pedir, pedido y recepción'],
       ['/compras.html', 'Pedidos de compra', ['compras', 'aprobar_compras', 'logistica'], 'Preparar, aprobar y enviar pedidos a proveedores'],
@@ -278,6 +280,7 @@
     marcar(document.getElementById('tab-calendario'), nRec, tRec);
     marcar(document.getElementById('tab-extras'), p.horas_extra || 0, tExt);
     poner('/bandeja.html', p.bandeja || 0, `${p.bandeja} captura(s) por clasificar`);
+    poner('/incidencias.html', p.incidencias || 0, `${p.incidencias} incidencia(s) tuyas por gestionar o cerrar`);
     poner('/compras.html?vista=locales', p.cl_autorizar || 0, `${p.cl_autorizar} compra(s) local(es) por autorizar`);
     // los asuntos que me han asignado (aunque no planifique): en «＋ Capturar» › Mis asuntos
     poner('/capturar.html', p.mis_asuntos || 0, `${p.mis_asuntos} asunto(s) a tu cargo`);

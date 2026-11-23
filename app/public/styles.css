@@ -2405,3 +2405,44 @@ h1.marca .marca-ico { width: 28px; height: 28px; flex: none; border-radius: 7px;
 .det-incid { flex-basis: 100%; color: #ffb37a; font-weight: 600; font-size: 12.5px; margin-top: 2px; }
 .det-incid small { color: var(--suave); font-weight: 400; }
 .md-ll-est.incid { outline: 1.5px solid var(--rojo); outline-offset: 0; }
+
+/* ===== Incidencias ===== */
+.inc-main { display: grid; grid-template-columns: minmax(320px, 420px) minmax(0, 1fr); gap: 14px; padding: 12px 16px; align-items: start; }
+@media (max-width: 900px) { .inc-main { grid-template-columns: 1fr; } }
+.inc-lista-caja { padding: 8px; max-height: calc(100vh - 150px); overflow: auto; }
+.inc-lista { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.inc-item { border: 1px solid var(--borde); border-radius: 10px; padding: 8px 10px; cursor: pointer; display: grid; gap: 3px; }
+.inc-item:hover, .inc-item:focus-visible { border-color: #3e6b66; }
+.inc-item.sel { border-color: var(--acento, #2bb3a3); background: #142624; }
+.inc-item.crit { border-left: 4px solid var(--rojo); }
+.inc-item-1 { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+.inc-item-tit { font-size: 13.5px; }
+.inc-item small, .inc-ficha small { color: var(--suave); }
+.inc-pant .chip, .inc-ficha .chip { padding: 0 8px; margin: 0; font-size: 11.5px; border: 0; }
+.c-ro { background: #3a1d1d; color: #ffc4c4; } .c-or { background: #3b2f10; color: #ffd98a; } .c-az { background: #16334f; color: #bcdcff; }
+.c-ve { background: #1f3a1f; color: #a6e3a6; } .c-gr { background: #2a2a2a; color: #ccc; } .c-tipo { background: #23303a; color: #cfe3f2; }
+.inc-ficha { padding: 14px 16px; }
+.inc-cab { display: flex; justify-content: space-between; gap: 10px; align-items: center; }
+.inc-cab h2 { margin: 0; font-size: 18px; }
+.inc-tit { margin: 4px 0 8px; font-size: 15px; font-weight: 600; }
+.inc-pasos { list-style: none; display: flex; padding: 0; margin: 6px 0 12px; }
+.inc-pasos li { flex: 1; text-align: center; font-size: 11.5px; color: var(--suave); border-top: 3px solid #333; padding-top: 4px; }
+.inc-pasos li.ok { border-color: var(--acento, #2bb3a3); color: #bff0e8; } .inc-pasos li.act { border-color: #f59e0b; color: #ffd98a; font-weight: 700; }
+.inc-dl { display: grid; grid-template-columns: 130px minmax(0, 1fr); gap: 6px 10px; margin: 0 0 10px; }
+.inc-dl dt { color: var(--suave); } .inc-dl dd { margin: 0; min-width: 0; } .inc-dl select { max-width: 100%; }
+.inc-texto { white-space: pre-wrap; background: #1b1b1b; border-radius: 8px; padding: 8px 10px; }
+.inc-fotos { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0; } .inc-fotos img { width: 110px; height: 82px; object-fit: cover; border-radius: 8px; border: 1px solid var(--borde); }
+.inc-caja { border-radius: 10px; padding: 10px 12px; margin: 10px 0; display: grid; gap: 5px; border: 1px solid; }
+.inc-caja.am { border-color: #6b5520; background: #1f1b12; } .inc-caja.az { border-color: #2b4766; background: #18222e; } .inc-caja.ro { border-color: #6b2b2b; background: #221616; }
+.inc-tarde { color: #ffb3b3; font-weight: 600; }
+.inc-btns { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; align-items: center; }
+.inc-h3 { margin: 14px 0 6px; font-size: 12.5px; text-transform: uppercase; letter-spacing: .05em; color: var(--suave); }
+.inc-hist { list-style: none; margin: 0; padding: 0 0 0 12px; border-left: 2px solid #333; display: grid; gap: 8px; }
+.inc-hist li { font-size: 13px; } .inc-hist small { display: block; }
+.inc-hist .ev-respuesta div, .inc-hist .ev-fecha_aceptada div { color: #bcdcff; } .inc-hist .ev-vencida div { color: #ffb3b3; } .inc-hist .ev-cerrada div { color: #a6e3a6; }
+.inc-dlg { width: min(560px, 94vw); }
+.inc-dlg .inc-campo { display: grid; gap: 3px; margin: 8px 0; } .inc-dlg .inc-campo > span { color: var(--suave); font-size: 12.5px; }
+.inc-dlg input, .inc-dlg select, .inc-dlg textarea { width: 100%; }
+button.wa { background: #1f7a3a; color: #eaffef; border-color: #1f7a3a; }
+.inc-minis { display: flex; flex-wrap: wrap; gap: 4px; }
+.inc-cod-link { font-weight: 700; color: #ffb37a; }

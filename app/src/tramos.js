@@ -308,15 +308,21 @@ module.exports = function montar(app, asyncH) {
         conflictos.push({ tipo: 'material', ids: [tr.id], fecha: tr.fecha,
           mensaje: `${t.codigo || t.orden_codigo} ${t.nombre}: el material llega el ${dm(ult)} (${corta(tarde)})` });
       }
-      const conInc = L.materiales.filter((m) => m.incidencias?.length);
-      if (conInc.length) {
-        conflictos.push({ tipo: 'material', ids: [tr.id], fecha: tr.fecha, incidencia: true,
-          mensaje: `${t.codigo || t.orden_codigo} ${t.nombre}: ⚠ incidencia con el material — ${conInc.slice(0, 2).map((m) => `${m.descripcion}: «${m.incidencias[m.incidencias.length - 1].texto}»`).join('; ')}${conInc.length > 2 ? ` y ${conInc.length - 2} más` : ''}` });
-      }
       if (sinPedir.length) {
         conflictos.push({ tipo: 'material', ids: [tr.id], fecha: tr.fecha, leve: true,
           mensaje: `${t.codigo || t.orden_codigo} ${t.nombre}: falta material sin pedir (${corta(sinPedir)})` });
       }
+    }
+
+    // Incidencias abiertas (material, transporte, calidad, subcontrata…) que afectan a la tarea: aviso en sus tramos de hoy en adelante
+    const incT = await require('./incidencias').porTareas(tareas.rows.map((t) => t.id));
+    for (const t of tareas.rows) t.incidencias = incT.get(t.id) || [];
+    for (const tr of tramos.rows) {
+      const t = porTarea.get(tr.tarea_id);
+      if (!t?.incidencias.length || tr.cierre || t.estado === 'hecha' || tr.fecha < hoyM) continue;
+      const g = t.incidencias.some((x) => x.gravedad !== 'leve');
+      conflictos.push({ tipo: 'incidencia', ids: [tr.id], fecha: tr.fecha, leve: !g, incidencias: t.incidencias.map((x) => x.id),
+        mensaje: `${t.codigo || t.orden_codigo} ${t.nombre}: ⚠ ${t.incidencias.slice(0, 2).map((x) => `${x.codigo} ${x.titulo}${x.estado === 'esperando' && x.fecha_acordada ? ` (resuelto el ${dm(x.fecha_acordada)})` : ''}`).join('; ')}${t.incidencias.length > 2 ? ` y ${t.incidencias.length - 2} más` : ''}` });
     }
 
     // El taller externo dice que termina más tarde de lo planificado: aviso (no se mueve nada solo)

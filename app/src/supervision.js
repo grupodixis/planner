@@ -76,6 +76,8 @@ async function recibirEnvio(req, id) {
     }
     await c.query(`UPDATE envios SET num_albaran = COALESCE($2, num_albaran), incidencia = COALESCE($3, incidencia), incidencia_resuelta = CASE WHEN $3 IS NULL THEN incidencia_resuelta ELSE false END WHERE id = $1`,
       [id, texto(b.num_albaran, 60), inc]);
+    // lo que falta o llega dañado va al sistema de incidencias (tipo transporte, contra el transportista)
+    if (inc) await require('./incidencias').crear(c, { tipo: 'transporte', envio_id: id, resumen: inc, texto: inc }, req.usuario);
     if (Array.isArray(b.archivos) && b.archivos.length) {
       await c.query(`UPDATE archivos SET ref_tipo = 'envio', ref_id = $1 WHERE id = ANY($2) AND creado_por = $3 AND ref_tipo IS NULL`,
         [id, b.archivos.map(Number).filter(Number.isInteger), req.usuario.id]);

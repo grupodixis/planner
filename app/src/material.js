@@ -58,10 +58,11 @@ const SQL_LINEAS = `
 async function lineas(where, params) {
   const { rows } = await query(`${SQL_LINEAS} WHERE ${where} ORDER BY p.codigo, pa.orden, pa.id, e.orden, e.id`, params);
   const arch = await archivos.de('escandallo', rows.map((l) => l.id));
+  // incidencias (sistema unificado) de cada línea: abiertas, y las cerradas de los últimos 7 días
   const { rows: inc } = rows.length ? await query(
-    `SELECT i.id, i.escandallo_id, i.texto, i.creado, i.resuelta_en, u.nombre AS por, ur.nombre AS resuelta_por
-       FROM escandallo_incidencias i LEFT JOIN usuarios u ON u.id = i.creado_por LEFT JOIN usuarios ur ON ur.id = i.resuelta_por
-      WHERE i.escandallo_id = ANY($1::int[]) AND (i.resuelta_en IS NULL OR i.resuelta_en > now() - interval '7 days')
+    `SELECT i.id, i.codigo, i.estado, i.escandallo_id, COALESCE(i.texto, i.titulo) AS texto, i.creado, i.resuelta_en, u.nombre AS por, ur.nombre AS resuelta_por
+       FROM gestion_incidencias i LEFT JOIN usuarios u ON u.id = i.creado_por LEFT JOIN usuarios ur ON ur.id = i.resuelta_por
+      WHERE i.escandallo_id = ANY($1::int[]) AND (i.estado NOT IN ('resuelta','cerrada') OR COALESCE(i.resuelta_en, i.cerrada_en) > now() - interval '7 days')
       ORDER BY i.creado`, [rows.map((l) => l.id)]) : { rows: [] };
   for (const l of rows) {
     l.archivos = arch.get(l.id) || [];
@@ -256,6 +257,8 @@ function montar(app, asyncH) {
       [id, req.usuario.id, texto(b.num_albaran, 60)]);
     // el albarán en foto o PDF, si lo adjuntan
     if (Array.isArray(b.archivos) && b.archivos.length) await tx((c) => archivos.enlazar(c, b.archivos, 'escandallo', id, req.usuario.id));
+    // si había incidencias abiertas de este material (faltaba, llegó dañado…), al llegar quedan resueltas
+    await tx((c) => require('./incidencias').resolverAuto(c, 'escandallo_id = $1', [id], 'Material recibido en Logística', req.usuario)).catch((e) => console.warn('resolver incidencia', e.message));
     const l = await linea(id);
     const tareas = l.tareas.map((t) => `«${t.tarea}»`).join(', ');
     notif.avisarLuego(interesadosRecepcion(id), 'mat_recibido', {
@@ -294,30 +297,18 @@ function montar(app, asyncH) {
     const t = texto((req.body || {}).texto, 1000);
     const fotos = Array.isArray(req.body?.archivos) ? req.body.archivos : [];
     if (!t && !fotos.length) throw fallo(400, 'Escribe qué pasa o saca una foto');
-    await tx(async (c) => {
-      await c.query('INSERT INTO escandallo_incidencias (escandallo_id, texto, creado_por) VALUES ($1, $2, $3)', [id, t || '(foto)', req.usuario.id]);
-      if (fotos.length) await archivos.enlazar(c, fotos, 'escandallo', id, req.usuario.id);
-    });
-    // avisa a compras, al técnico y a Operaciones (rol «operaciones»); con las tareas afectadas y su primer día planificado
-    const { rows: afect } = await query(
-      `SELECT t.codigo, t.nombre, (SELECT min(x.fecha) FROM tramos x WHERE x.tarea_id = t.id AND x.fecha >= CURRENT_DATE) AS dia
-         FROM tarea_material tm JOIN tareas t ON t.id = tm.tarea_id WHERE tm.escandallo_id = $1 AND t.estado <> 'hecha' ORDER BY 3 NULLS LAST`, [id]);
-    const aQuien = Promise.all([notif.conPermiso('compras', 'escandallo'),
-      query(`SELECT id FROM usuarios WHERE activo AND (rol = 'operaciones' OR 'operaciones' = ANY(COALESCE(roles_extra, '{}')))`).then((r) => r.rows.map((x) => x.id))])
-      .then(([a, b]) => [...new Set([...a, ...b])].filter((u) => u !== req.usuario.id));
-    const dia = afect.find((a) => a.dia)?.dia;
-    notif.avisarLuego(aQuien, 'mat_incidencia', {
-      titulo: `⚠ Incidencia: ${l0.descripcion}`,
-      cuerpo: `${t || 'Con foto'} · ${req.usuario.nombre} · ${l0.proyecto_codigo} ${l0.partida_nombre}`
-        + (afect.length ? ` · afecta a ${afect.slice(0, 2).map((a) => a.codigo).join(', ')}${dia ? ` (planificada el ${String(dia).slice(8, 10)}/${String(dia).slice(5, 7)})` : ''}` : ''),
-      url: `/logistica.html?vista=todo&partida=${l0.partida_id}`, tag: `inc-${id}`,
-    });
+    // va al sistema unificado de incidencias (avisa a Compras y Operaciones; se ve en el tablero)
+    await tx((c) => require('./incidencias').crear(c, { tipo: 'material', escandallo_id: id, titulo: l0.descripcion, resumen: t || 'ver foto', texto: t || '(foto)', archivos: fotos }, req.usuario));
     res.status(201).json(await linea(id));
   }));
+  // (compatibilidad) «✔ Resuelta» desde Logística: resuelve la incidencia
   app.put('/api/escandallo-incidencias/:id/resolver', pArchivos, asyncH(async (req, res) => {
-    const deshacer = !!(req.body || {}).deshacer;
-    await query(`UPDATE escandallo_incidencias SET resuelta_en = ${deshacer ? 'NULL' : 'now()'}, resuelta_por = ${deshacer ? 'NULL' : '$2'} WHERE id = $1`,
-      deshacer ? [Number(req.params.id)] : [Number(req.params.id), req.usuario.id]);
+    const id = Number(req.params.id);
+    await tx(async (c) => {
+      if ((req.body || {}).deshacer) {
+        await c.query(`UPDATE gestion_incidencias SET estado = 'en_curso', resuelta_en = NULL, resuelta_por = NULL WHERE id = $1 AND estado = 'resuelta'`, [id]);
+      } else await require('./incidencias').resolverAuto(c, 'id = $1', [id], 'Resuelta desde Logística', req.usuario);
+    });
     res.json({ ok: true });
   }));
 
@@ -483,9 +474,10 @@ async function deTareas(ids, recursoId = null) {
     query(`SELECT m.id, m.tarea_id, m.cantidad::float, e.descripcion, e.unidad, e.stock::float, e.compra, e.cantidad::float AS total,
                   e.fecha_prevista, pr.nombre AS proveedor, e.recibido_en,
                   -- incidencias sin resolver del material (dañado, incompleto, no llegó…)
-                  COALESCE((SELECT json_agg(json_build_object('id', i.id, 'texto', i.texto, 'autor', u.nombre, 'creado', i.creado) ORDER BY i.creado)
-                              FROM escandallo_incidencias i LEFT JOIN usuarios u ON u.id = i.creado_por
-                             WHERE i.escandallo_id = e.id AND i.resuelta_en IS NULL), '[]') AS incidencias
+                  COALESCE((SELECT json_agg(json_build_object('id', i.id, 'codigo', i.codigo, 'texto', COALESCE(i.texto, i.titulo), 'autor', u.nombre, 'creado', i.creado,
+                                                         'estado', i.estado, 'fecha', i.fecha_acordada) ORDER BY i.creado)
+                              FROM gestion_incidencias i LEFT JOIN usuarios u ON u.id = i.creado_por
+                             WHERE i.escandallo_id = e.id AND i.estado IN ('abierta','en_curso','esperando')), '[]') AS incidencias
              FROM tarea_material m JOIN partida_escandallo e ON e.id = m.escandallo_id LEFT JOIN proveedores pr ON pr.id = e.proveedor_id
             WHERE m.tarea_id = ANY($1::int[]) ORDER BY e.orden, e.id`, [ids]),
     query(`SELECT id, tarea_id, descripcion, cantidad::float FROM tarea_herramienta WHERE tarea_id = ANY($1::int[]) ORDER BY id`, [ids]),

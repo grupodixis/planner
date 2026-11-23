@@ -159,12 +159,14 @@
           l.compra === 'recibido' && `Recibido${l.recibido_por ? ` por ${l.recibido_por}` : ''}${l.recibido_en ? ` el ${fecha(l.recibido_en)}` : ''}${l.num_pedido ? ` · pedido nº ${l.num_pedido}` : ''}${l.num_albaran ? ` · albarán nº ${l.num_albaran}` : ''}`,
           l.nota_logistica && `Nota: ${l.nota_logistica}`].filter(Boolean).join(' · ')) : null,
       // incidencias (desde el móvil: llegó una parte, dañado…): se ven hasta que alguien las da por resueltas
-      (l.incidencias || []).length ? el('ul', { class: 'log-incs' }, l.incidencias.map((i) => el('li', { class: i.resuelta_en ? 'resuelta' : '' },
-        el('span', {}, i.resuelta_en ? '✔ ' : '⚠ ', i.texto, el('span', { class: 'ayuda' }, ` · ${i.por || ''} ${fecha(i.creado)}${i.resuelta_en ? ` · resuelta${i.resuelta_por ? ` por ${i.resuelta_por}` : ''}` : ''}`)),
-        el('button', { type: 'button', class: 'ghost mini', onclick: async () => {
-          try { await api('PUT', `/api/escandallo-incidencias/${i.id}/resolver`, i.resuelta_en ? { deshacer: true } : {}); toast(i.resuelta_en ? 'Reabierta' : 'Incidencia resuelta'); await cargar(); }
-          catch (e) { toast(e.message, true); }
-        } }, i.resuelta_en ? 'Reabrir' : '✔ Resuelta')))) : null,
+      (l.incidencias || []).length ? el('ul', { class: 'log-incs' }, l.incidencias.map((i) => {
+        const hecha = ['resuelta', 'cerrada'].includes(i.estado);
+        const EST = { abierta: 'abierta', en_curso: 'en curso', esperando: 'esperando al proveedor', resuelta: 'resuelta', cerrada: 'cerrada' };
+        return el('li', { class: hecha ? 'resuelta' : '' },
+          el('span', {}, hecha ? '✔ ' : '⚠ ', el('a', { href: `/incidencias.html?id=${i.id}`, class: 'inc-cod-link', title: 'Abrir la incidencia: reclamar al proveedor, resolver, cerrar' }, i.codigo || 'incidencia'), ` ${i.texto}`,
+            el('span', { class: 'ayuda' }, ` · ${EST[i.estado] || ''} · ${i.por || ''} ${fecha(i.creado)}`)),
+          el('a', { class: 'boton ghost mini', href: `/incidencias.html?id=${i.id}` }, hecha ? 'Ver' : 'Gestionar →'));
+      })) : null,
       // fotos y enlaces: los del técnico se ven; logística puede añadir fotos con la cámara o de la galería
       window.s360mat.adjuntosLinea(l, { subir: puede.logistica || puede.compras, camara: true }),
       acciones(l));

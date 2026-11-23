@@ -275,6 +275,37 @@ window.S360_AYUDA = {
       ],
     },
 
+    '/incidencias.html': {
+      titulo: 'Incidencias',
+      para_que: 'Todas las incidencias de la empresa en un sitio (material, transporte, calidad, averías, seguridad, proveedores), con responsable, seguimiento y cierre.',
+      esquema: {
+        titulo: 'De la incidencia al cierre',
+        pasos: [
+          { que: 'Se abre', quien: 'Logística, al recibir, en el móvil o aquí' },
+          { que: 'En curso', quien: 'Responsable del área', aqui: true },
+          { que: 'Esperando proveedor', quien: 'Reclamación con su enlace' },
+          { que: 'Resuelta', quien: 'Al recibir, con abono o a mano' },
+          { que: 'Cerrada', quien: 'Responsable + Operaciones' },
+        ],
+      },
+      recorridos: [
+        {
+          id: 'inc-basico', version: 1, ofrecer: true, duracion: '40 s',
+          titulo: 'Gestionar una incidencia',
+          pasos: [
+            { sel: '#inc-tabs', texto: '<b>Mías</b>: las de tu área o a tu nombre. <b>Esperando proveedor</b>: reclamadas, con su plazo o la fecha acordada. <b>Por cerrar</b>: resueltas que te toca firmar.' },
+            { sel: '#inc-lista', texto: 'Cada incidencia con su tipo, gravedad, a qué tareas afecta y cómo va. Pulsa una para ver su ficha.' },
+            { sel: '#inc-ficha', texto: '<b>Reclamar al proveedor</b>: correo con el informe PDF, WhatsApp o enlace; él contesta qué hará y la <b>fecha</b>. <b>Aceptar fecha</b> programa los recordatorios; si no es aceptable, decides y queda escrito. La cierran el responsable y Operaciones.', opcional: true },
+            { sel: '#inc-nueva', texto: 'Abre una incidencia nueva (calidad en una tarea, avería, seguridad…). Las críticas avisan al momento a Dirección.' },
+          ],
+        },
+      ],
+      secciones: [
+        { titulo: 'Reclamar y esperar', texto: 'Al reclamar se pide <b>reponer</b>, <b>cambiar</b> o un <b>abono</b>, para cuándo lo necesitamos y un plazo de respuesta (2 días laborables por defecto). El proveedor, transportista o subcontrata contesta en su enlace (sin cuenta) qué hará y la <b>fecha de resolución</b> (obligatoria). Sin respuesta en el plazo: correo de recordatorio cada 2 días laborables y aviso al responsable. Con la fecha aceptada: ese día, recordatorio a los dos; si pasa sin resolver, aviso al responsable y a Operaciones para decidir.' },
+        { titulo: 'Resolver y cerrar', texto: 'Las de material se resuelven solas cuando Logística marca «Recibido». Si no, «Marcar resuelta» (con el abono, si lo hubo) o «Decidir» (otro proveedor, stock, abono…). Después firman el cierre el responsable del área y Operaciones; en calidad hay que poner la causa y qué se hará para que no se repita.' },
+        { titulo: 'En el tablero', texto: 'Las tareas afectadas llevan el aviso «⚠ INC-…» en sus tramos de hoy en adelante, con «Solucionar → Abrir la incidencia».' },
+      ],
+    },
     '/bandeja.html': {
       titulo: 'Bandeja de capturas',
       para_que: 'Todo lo que la gente apunta en el momento (una avería, falta material, una idea…) llega aquí para que alguien decida qué hacer con ello.',
@@ -606,5 +637,6 @@ window.S360_AYUDA = {
     { id: 19, fecha: '2026-11-21', si: ['mi_dia'], titulo: 'Mi día funciona sin cobertura', texto: 'Sin conexión, la app abre igual con lo último que tenías y puedes apuntar tu día, trabajo no planificado, capturas con fotos y compras locales. Arriba verás «📴 Sin conexión · N por enviar»; se envía solo cuando vuelve la cobertura.' },
     { id: 20, fecha: '2026-11-22', si: ['logistica', 'planificar', 'proyectos', 'aprobar_compras', 'vacaciones_ops', 'vacaciones_rrhh', 'autorizar_compras_locales'], titulo: 'Supervisar desde el móvil', texto: 'En Mi día › Menú › <b>Supervisar</b>: <b>recibir envíos y piezas</b> (por líneas y bultos, albarán, fotos, lo que falta), <b>parte de hoy</b> para confirmar, <b>aprobar</b> pedidos, vacaciones y compras locales, y <b>dónde está cada cosa</b>. Cada apartado sale solo si tu rol lo tiene.' },
     { id: 21, fecha: '2026-11-23', si: ['planificar', 'autorizar_horas_extra', 'recursos'], titulo: 'Excedente, turnos y horas extra', texto: 'Al <b>alargar un tramo</b> por encima de lo estimado, la estimación no cambia: el excedente se ve rayado («+1h excedente»). Al terminar una tarea se ve si costó menos o más de lo previsto. Lo que queda <b>fuera del turno</b> de cada persona son <b>horas extra</b> y las autoriza <b>Dirección</b> (en Recursos › Turnos y horas extra o en el móvil, Supervisar › Aprobar). Los turnos se definen allí y cada operario tiene el suyo. En costes solo llevan recargo las autorizadas.' },
+    { id: 22, fecha: '2026-11-23', si: ['planificar', 'compras', 'logistica', 'proyectos', 'escandallo'], titulo: 'Incidencias: un solo sitio para todas', texto: 'Menú Planificación › <b>Incidencias</b>: material, transporte, calidad, averías… con responsable, <b>reclamación al proveedor</b> (correo con informe PDF, WhatsApp o enlace donde responde qué hará y la fecha), <b>recordatorios</b> automáticos y <b>cierre</b> por el responsable y Operaciones. Las que afectan a tareas se ven en el tablero.' },
   ],
 };
