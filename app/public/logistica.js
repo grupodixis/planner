@@ -81,13 +81,15 @@
 
   // líneas marcadas para un pedido de compra: barra abajo con el proveedor y «Crear pedido»
   const marcadas = new Set();
+  let provBarra = null;   // proveedor elegido en la barra azul (se mantiene al repintar y sale marcado en «Pedir precio»)
   function barraPedido() {
     const caja = $('#barra-pedido');
     if (!caja) return;
     for (const id of [...marcadas]) if (!d.lineas.some((l) => l.id === id && l.estado === 'por_pedir' && !l.pedido_compra && !l.solicitud)) marcadas.delete(id);
     if (!marcadas.size) { caja.replaceChildren(); caja.className = ''; return; }
-    const prov = el('select', { 'aria-label': 'Proveedor del pedido' }, el('option', { value: '' }, 'Proveedor (se puede elegir después)…'),
-      d.proveedores.map((p) => el('option', { value: p.id }, p.nombre)));
+    const prov = el('select', { 'aria-label': 'Proveedor del pedido', onchange: (ev) => { provBarra = Number(ev.target.value) || null; } },
+      el('option', { value: '' }, 'Proveedor (se puede elegir después)…'),
+      d.proveedores.map((p) => el('option', { value: p.id, selected: p.id === provBarra }, p.nombre)));
     caja.className = 'log-barra-pedido';
     caja.replaceChildren(el('b', {}, `${marcadas.size} línea${marcadas.size === 1 ? '' : 's'} marcada${marcadas.size === 1 ? '' : 's'}`), prov,
       el('button', { type: 'button', class: 'primario', onclick: async () => {
@@ -101,18 +103,20 @@
   }
 
   // pedir precio de las líneas marcadas a varios proveedores (sugeridos por lo que sirven)
+  // el proveedor elegido en la barra azul sale ya marcado y el primero
   function dialogoPedirPrecio() {
     const ls = d.lineas.filter((l) => marcadas.has(l.id));
     const texto = norm(ls.map((l) => l.descripcion).join(' '));
     // palabras de «lo que sirve» de cada proveedor que aparecen en el material (inox, tubo, tornillo…)
     const sugerido = (p) => (p.materiales || []).some((m) => norm(m).split(/[^a-z0-9]+/).some((w) => w.length >= 4 && texto.includes(w.replace(/s$/, ''))));
-    const provs = [...d.proveedores].sort((a, b) => Number(sugerido(b)) - Number(sugerido(a)) || a.nombre.localeCompare(b.nombre));
-    const elegidos = new Set();
+    const provs = [...d.proveedores].sort((a, b) => Number(b.id === provBarra) - Number(a.id === provBarra)
+      || Number(sugerido(b)) - Number(sugerido(a)) || a.nombre.localeCompare(b.nombre));
+    const elegidos = new Set(provBarra && d.proveedores.some((p) => p.id === provBarra) ? [provBarra] : []);
     const necesaria = ls.map((l) => l.fecha_necesaria).filter(Boolean).sort()[0] || '';
     const resp = el('input', { type: 'date', min: hoy, 'aria-label': 'Responder antes del' });
     const nec = el('input', { type: 'date', value: necesaria, 'aria-label': 'Lo necesitamos el' });
     const ul = el('ul', { class: 'log-provs-elegir' }, provs.map((p) => el('li', {}, el('label', {},
-      el('input', { type: 'checkbox', onchange: (ev) => (ev.target.checked ? elegidos.add(p.id) : elegidos.delete(p.id)) }),
+      el('input', { type: 'checkbox', checked: elegidos.has(p.id), onchange: (ev) => (ev.target.checked ? elegidos.add(p.id) : elegidos.delete(p.id)) }),
       ` ${p.nombre}`, sugerido(p) ? el('span', { class: 'chip-sug' }, 'sirve esto') : null,
       el('small', { class: 'ayuda' }, ` ${(p.materiales || []).slice(0, 3).join(', ')}`)))));
     const dlg = el('dialog', { class: 'dlg-cos' },
