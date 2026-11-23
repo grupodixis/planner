@@ -175,6 +175,15 @@ function pdfPedido(p, aj) {
     y += 6;
     doc.font('Helvetica-Bold').fontSize(11).text(`Total: ${eur(p.total)} + IVA`, 48, y, { width: W, align: 'right' });
     y += 30;
+    // cómo llega (almacén del transportista con su leyenda, recogida o agencia)
+    const trp = require('./pedido-transporte').lineasPdf(p);
+    if (trp.length) { doc.font('Helvetica-Bold').fontSize(9).fillColor('#111').text('Transporte', 48, y); doc.font('Helvetica').text(trp.join('\n'), 48, y + 12, { width: W }); y = doc.y + 12; }
+    if (p.seg_url && !p.seguimiento_url) {
+      doc.font('Helvetica-Bold').fontSize(10).fillColor('#10776c').text('Confirmación y seguimiento del pedido', 48, y);
+      doc.font('Helvetica').fontSize(9).fillColor('#111').text('Confirme el pedido y díganos cómo y cuándo lo envía en este enlace, sin registrarse:', 48, y + 13, { width: W });
+      doc.fillColor('#10776c').text(p.seg_url, 48, doc.y + 2, { width: W, link: p.seg_url, underline: true }); doc.fillColor('#111');
+      y = doc.y + 14;
+    }
     if (p.observaciones) { doc.font('Helvetica-Bold').fontSize(9).text('Observaciones', 48, y); doc.font('Helvetica').text(p.observaciones, 48, y + 12, { width: W }); y = doc.y + 12; }
     if (p.seguimiento_url) {
       doc.font('Helvetica-Bold').fontSize(10).fillColor('#10776c').text('Seguimiento del trabajo', 48, y);
@@ -261,7 +270,7 @@ function montar(app, asyncH) {
   app.get('/api/compras/pedidos/:id', verPedidos, asyncH(async (req, res) => {
     const p = await pedido(Number(req.params.id));
     if (!p) throw fallo(404, 'Pedido no encontrado');
-    res.json(p);
+    res.json(await require('./pedido-transporte').completar(p, req));
   }));
 
   // Nuevo pedido: { proveedor_id?, escandallo_ids?: [] } (líneas de «Por pedir»)
@@ -388,6 +397,7 @@ function montar(app, asyncH) {
     const p = await pedido(Number(req.params.id));
     if (!p) throw fallo(404, 'Pedido no encontrado');
     if (p.tipo === 'subcontratacion' && p.orden_id && auth.tiene(req.usuario, 'compras')) p.seguimiento_url = await require('./seguimiento-ext').urlActiva(p.orden_id, p.proveedor_id, req);
+    await require('./pedido-transporte').completar(p, req);
     const pdf = await pdfPedido(p, await ajustes());
     res.set({ 'Content-Type': 'application/pdf', 'Content-Disposition': `inline; filename="${p.codigo}.pdf"`, 'Cache-Control': 'no-store' });
     res.send(pdf);
@@ -413,8 +423,10 @@ function montar(app, asyncH) {
     if (b.correo) {
       para = destino;
       if (!para || !/@/.test(para)) throw fallo(400, 'Falta el correo del proveedor');
+      await require('./pedido-transporte').completar(p, req);
       const pdf = await pdfPedido({ ...p, enviado_en: new Date(), seguimiento_url: seg?.url }, aj);
       let cuerpo = String(b.texto || '').slice(0, 5000);
+      if (p.seg_url && !seg && !cuerpo.includes(p.seg_url)) cuerpo += `\n\n— Confirmación y seguimiento: confírmenos el pedido y díganos cómo y cuándo lo envía (agencia y nº de seguimiento, entrega en el almacén del transportista o día de recogida) en este enlace, sin registrarse:\n${p.seg_url}`;
       if (seg && !cuerpo.includes(seg.url)) cuerpo += `\n\n— Seguimiento del trabajo: indíquenos cómo va (inicio, avance, fecha prevista, fotos y a quién lo entregan) en este enlace, sin registrarse:\n${seg.url}`;
       await correo.enviarOFallar({
         para, cc: texto(b.cc, 300), asunto: texto(b.asunto, 200) || `Pedido ${p.codigo} · ${aj.empresa.nombre}`,

@@ -1263,6 +1263,73 @@ const MIGRACIONES = [
        INSERT INTO ajustes (clave, valor) VALUES ('migr_incidencias_unificadas', 'true');
      END IF;
    END $m$`,
+  // ===== Transporte de cada pedido: lo trae el proveedor / lo vamos a buscar / al almacén del transportista =====
+  `CREATE TABLE IF NOT EXISTS transportista_almacenes (
+     id SERIAL PRIMARY KEY, transportista_id INT NOT NULL REFERENCES proveedores(id) ON DELETE CASCADE,
+     nombre TEXT NOT NULL, direccion TEXT, telefono TEXT, email TEXT, horario TEXT, leyenda TEXT,
+     activo BOOLEAN NOT NULL DEFAULT TRUE, creado TIMESTAMPTZ NOT NULL DEFAULT now())`,
+  `ALTER TABLE pedidos_compra
+     ADD COLUMN IF NOT EXISTS entrega_modo TEXT CHECK (entrega_modo IN ('proveedor','recogida','almacen')),
+     ADD COLUMN IF NOT EXISTS transportista_id INT REFERENCES proveedores(id) ON DELETE SET NULL,
+     ADD COLUMN IF NOT EXISTS almacen_id INT REFERENCES transportista_almacenes(id) ON DELETE SET NULL,
+     ADD COLUMN IF NOT EXISTS fecha_almacen DATE,
+     ADD COLUMN IF NOT EXISTS agencia TEXT, ADD COLUMN IF NOT EXISTS agencia_otra TEXT, ADD COLUMN IF NOT EXISTS tracking TEXT,
+     ADD COLUMN IF NOT EXISTS fecha_salida DATE,
+     ADD COLUMN IF NOT EXISTS recogida_direccion TEXT, ADD COLUMN IF NOT EXISTS recogida_contacto TEXT,
+     ADD COLUMN IF NOT EXISTS recogida_telefono TEXT, ADD COLUMN IF NOT EXISTS recogida_horario TEXT, ADD COLUMN IF NOT EXISTS recogida_fecha DATE,
+     ADD COLUMN IF NOT EXISTS bultos INT, ADD COLUMN IF NOT EXISTS kg NUMERIC(10,2),
+     ADD COLUMN IF NOT EXISTS seg_nonce TEXT, ADD COLUMN IF NOT EXISTS seg_activo BOOLEAN NOT NULL DEFAULT FALSE,
+     ADD COLUMN IF NOT EXISTS seg_visto_en TIMESTAMPTZ, ADD COLUMN IF NOT EXISTS prov_confirmado_en TIMESTAMPTZ,
+     ADD COLUMN IF NOT EXISTS prov_actualizado_en TIMESTAMPTZ, ADD COLUMN IF NOT EXISTS prov_comentario TEXT,
+     ADD COLUMN IF NOT EXISTS entregado_almacen DATE, ADD COLUMN IF NOT EXISTS listo_recogida DATE,
+     ADD COLUMN IF NOT EXISTS recordatorio_trp DATE, ADD COLUMN IF NOT EXISTS aviso_recogida_en DATE,
+     ADD COLUMN IF NOT EXISTS incidencia_trp_id INT`,
+  `CREATE TABLE IF NOT EXISTS pedido_eventos (
+     id SERIAL PRIMARY KEY, pedido_id INT NOT NULL REFERENCES pedidos_compra(id) ON DELETE CASCADE,
+     texto TEXT NOT NULL, usuario_id INT REFERENCES usuarios(id) ON DELETE SET NULL, externo TEXT,
+     creado TIMESTAMPTZ NOT NULL DEFAULT now())`,
+  `CREATE INDEX IF NOT EXISTS pedido_eventos_idx ON pedido_eventos (pedido_id, creado)`,
+  `ALTER TABLE proveedores ADD COLUMN IF NOT EXISTS entrega_modo_def TEXT,
+     ADD COLUMN IF NOT EXISTS transportista_def_id INT REFERENCES proveedores(id) ON DELETE SET NULL`,
+  // transportistas: Menorca Tragina (recibe en Idyca, Gavà) y Luchana Logística (Sant Feliu de Llobregat). Ydica deja de
+  // ser transportista: es el almacén de Tragina en Gavà (una vez)
+  `DO $m$ DECLARE tr INT; yd INT; lu INT; BEGIN
+     IF NOT EXISTS (SELECT 1 FROM ajustes WHERE clave = 'migr_transportistas_almacenes') THEN
+       SELECT id INTO tr FROM proveedores WHERE nombre ILIKE '%tragina%' ORDER BY id LIMIT 1;
+       SELECT id INTO yd FROM proveedores WHERE nombre ILIKE '%ydica%' OR nombre ILIKE '%idyca%' ORDER BY id LIMIT 1;
+       IF tr IS NULL AND yd IS NOT NULL THEN
+         UPDATE proveedores SET nombre = 'Menorca Tragina', transportista = TRUE, zona = 'menorca',
+                localidad = COALESCE(NULLIF(localidad, ''), 'Sant Lluís'),
+                notas = trim(both from COALESCE(notas, '') || ' Polígono de Sant Lluís. Recibe en la península en Idyca (Gavà).') WHERE id = yd;
+         UPDATE lineas SET nombre = 'Menorca Tragina' WHERE proveedor_id = yd AND tipo = 'externo';
+         tr := yd; yd := NULL;
+       ELSIF tr IS NULL THEN
+         INSERT INTO proveedores (nombre, transportista, zona, localidad, notas, activo)
+         VALUES ('Menorca Tragina', TRUE, 'menorca', 'Sant Lluís', 'Polígono de Sant Lluís. Recibe en la península en Idyca (Gavà).', TRUE) RETURNING id INTO tr;
+       ELSE
+         UPDATE proveedores SET transportista = TRUE WHERE id = tr;
+       END IF;
+       IF yd IS NOT NULL AND yd <> tr THEN
+         UPDATE envios SET transportista_id = tr WHERE transportista_id = yd;
+         UPDATE tareas SET proveedor_id = tr WHERE proveedor_id = yd;
+         UPDATE proveedores SET transportista = FALSE,
+                notas = trim(both from COALESCE(notas, '') || ' Es el almacén de Menorca Tragina en Gavà (Idyca).') WHERE id = yd;
+       END IF;
+       SELECT id INTO lu FROM proveedores WHERE nombre ILIKE '%luchana%' ORDER BY id LIMIT 1;
+       IF lu IS NULL THEN
+         INSERT INTO proveedores (nombre, transportista, zona, localidad, telefono, email, web, notas, activo)
+         VALUES ('Luchana Logística', TRUE, 'menorca', 'Maó', '971 351 531', 'mah@luchanalogistica.com', 'https://www.luchanalogistica.com',
+                 'Pol. Ind. Poima, C/ S''era Alta 64-D, 07701 Maó. Recogidas Menorca: recogidasmah@luchanalogistica.com', TRUE) RETURNING id INTO lu;
+       ELSE
+         UPDATE proveedores SET transportista = TRUE WHERE id = lu;
+       END IF;
+       INSERT INTO transportista_almacenes (transportista_id, nombre, direccion, telefono, email, leyenda)
+       VALUES (tr, 'Idyca · Gavà', 'C/ Energia 9-13, Pol. Ind. Barnasud, 08850 Gavà (Barcelona)', '93 638 40 40', 'info@idyca.com', 'Para Dixis Menorca'),
+              (lu, 'Luchana · Sant Feliu de Llobregat', 'Pol. Ind. El Pla, C/ Industria 31-33, 08980 Sant Feliu de Llobregat (Barcelona)', '932 230 303',
+               'recogidasbcn@luchanalogistica.com', NULL);
+       INSERT INTO ajustes (clave, valor) VALUES ('migr_transportistas_almacenes', 'true');
+     END IF;
+   END $m$`,
 ];
 
 async function migrar() {

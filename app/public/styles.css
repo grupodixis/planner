@@ -2222,7 +2222,7 @@ h1.marca .marca-ico { width: 28px; height: 28px; flex: none; border-radius: 7px;
 .pin-caja h1.marca span { color: var(--suave); font-weight: 400; }
 
 /* ---------- Compras › Transportes (península → Menorca) ---------- */
-.trp-tablero { display: grid; grid-template-columns: minmax(260px, 1.3fr) repeat(5, minmax(170px, 1fr)); gap: 10px; align-items: start; overflow-x: auto; }
+.trp-tablero { display: grid; grid-template-columns: minmax(240px, 1.1fr) minmax(260px, 1.3fr) repeat(5, minmax(170px, 1fr)); gap: 10px; align-items: start; overflow-x: auto; }
 .trp-col { background: var(--panel); border: 1px solid var(--linea); border-radius: 12px; padding: 10px; min-height: 120px; }
 .trp-col h3 { font-size: 13px; margin: 0 0 8px; }
 .trp-col ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 7px; }
@@ -2446,3 +2446,23 @@ h1.marca .marca-ico { width: 28px; height: 28px; flex: none; border-radius: 7px;
 button.wa { background: #1f7a3a; color: #eaffef; border-color: #1f7a3a; }
 .inc-minis { display: flex; flex-wrap: wrap; gap: 4px; }
 .inc-cod-link { font-weight: 700; color: #ffb37a; }
+
+/* Cómo llega cada pedido */
+.trp-pedido { border-top: 1px solid var(--borde); margin-top: 12px; padding-top: 8px; }
+.trp-modos { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 6px 0 10px; }
+@media (max-width: 700px) { .trp-modos { grid-template-columns: 1fr; } }
+.trp-modo { text-align: left; display: grid; gap: 2px; border: 1px solid var(--borde); border-radius: 10px; padding: 8px 10px; background: transparent; color: var(--texto); }
+.trp-modo small { color: var(--suave); font-weight: 400; }
+.trp-modo.on { border-color: var(--acento, #2bb3a3); background: #132a27; }
+.trp-modo.sug { border-style: dashed; border-color: #3e6b66; }
+.trp-sit { background: #18222e; border: 1px solid #2b4766; border-radius: 9px; padding: 7px 10px; margin: 8px 0; }
+.trp-sit.mal { background: #221616; border-color: #6b2b2b; }
+.cmp-acciones.izq { justify-content: flex-start; }
+.trp-hist summary { cursor: pointer; color: var(--suave); font-size: 12.5px; }
+.trp-hist ul { margin: 6px 0 0; padding-left: 18px; font-size: 12.5px; }
+.trp-item.tarde { border-color: #6b2b2b; }
+.trp-almacenes { margin: 10px 0; } .trp-almacenes h3 { font-size: 13px; margin: 0 0 6px; }
+.trp-almacenes ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.trp-almacenes li { display: grid; grid-template-columns: minmax(0,1.2fr) minmax(0,2fr) minmax(0,1fr) minmax(0,1fr) minmax(0,1.4fr) auto; gap: 6px; }
+.trp-almacenes li input { width: 100%; min-width: 0; }
+@media (max-width: 900px) { .trp-almacenes li { grid-template-columns: 1fr; } }

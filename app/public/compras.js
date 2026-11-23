@@ -61,6 +61,105 @@
     return el('div', { class: 'sub' }, partes);
   }
 
+
+  /* ================= Transporte de un pedido ================= */
+  async function trpDatos() {
+    if (!estado.trp) estado.trp = await api('GET', '/api/transportistas');
+    return estado.trp;
+  }
+  // almacenes del transportista en la península (donde los proveedores dejan el material)
+  function almacenesDe(x, editar) {
+    const caja = el('div', { class: 'trp-almacenes' }, el('h3', {}, '🏬 Almacenes en la península (los proveedores entregan aquí)'));
+    trpDatos().then((d) => {
+      const t = d.transportistas.find((y) => y.id === x.id);
+      const fila = (a) => {
+        const inp = (k, ph, w) => el('input', { type: 'text', value: a?.[k] || '', placeholder: ph, disabled: !editar, class: w || '', 'aria-label': ph,
+          onchange: async (ev) => { if (!a) return; try { await api('PUT', `/api/almacenes/${a.id}`, { ...a, [k]: ev.target.value }); a[k] = ev.target.value; estado.trp = null; toast('Guardado'); } catch (e) { toast(e.message, true); } } });
+        const n = inp('nombre', 'Nombre (p. ej. Idyca · Gavà)'); const di = inp('direccion', 'Dirección', 'ancho'); const te = inp('telefono', 'Teléfono');
+        const ho = inp('horario', 'Horario'); const le = inp('leyenda', 'Leyenda en el pedido (p. ej. Para Dixis Menorca)');
+        return el('li', {}, n, di, te, ho, le,
+          !a && editar ? el('button', { type: 'button', class: 'primario mini', onclick: async () => {
+            try { await api('POST', `/api/transportistas/${x.id}/almacenes`, { nombre: n.value, direccion: di.value, telefono: te.value, horario: ho.value, leyenda: le.value }); estado.trp = null; toast('Almacén añadido'); pintar(); } catch (e) { toast(e.message, true); }
+          } }, 'Añadir') : null);
+      };
+      caja.append(el('ul', {}, (t?.almacenes || []).map(fila), editar ? fila(null) : null));
+    }).catch(() => {});
+    return caja;
+  }
+
+  function seccionTransporte(p) {
+    const caja = el('section', { class: 'trp-pedido' });
+    const editar = tiene('compras') || tiene('logistica');
+    const guardarT = async (cuerpo, repintar = true) => {
+      try { await api('PUT', `/api/compras/pedidos/${p.id}/transporte`, cuerpo); toast('Guardado'); if (repintar) pintar(); } catch (e) { toast(e.message, true); }
+    };
+    trpDatos().then((d) => {
+      const modo = p.entrega_modo;
+      const sug = !modo && p.modo_sugerido ? p.modo_sugerido : null;
+      const ICON = { proveedor: '📦', recogida: '🚚', almacen: '🏬' };
+      const SUB = { proveedor: 'su transporte o agencia', recogida: 'recogida en un domicilio', almacen: 'y nos lo trae a Menorca' };
+      const botones = el('div', { class: 'trp-modos', role: 'radiogroup', 'aria-label': 'Cómo llega' }, Object.entries(d.modos).map(([k, t]) => el('button', {
+        type: 'button', role: 'radio', 'aria-checked': k === modo ? 'true' : 'false', class: `trp-modo${k === modo ? ' on' : ''}${k === sug ? ' sug' : ''}`, disabled: !editar,
+        onclick: () => guardarT({ entrega_modo: k, ...(k === 'almacen' && !p.almacen_id && p.transportista_sugerido ? {} : {}) }),
+      }, el('b', {}, `${ICON[k]} ${t}`), el('small', {}, k === sug ? 'lo habitual con este proveedor' : SUB[k]))));
+      const fIn = (k, txt, attrs = {}) => el('label', { class: 'cmp-campo' }, el('span', {}, txt),
+        el(attrs.tag || 'input', { ...attrs, tag: null, value: p[k] == null ? '' : String(p[k]).slice(0, attrs.type === 'date' ? 10 : 300), disabled: !editar, onchange: (ev) => guardarT({ [k]: ev.target.value }) }));
+      const campos = [];
+      if (modo === 'proveedor') {
+        const ag = el('select', { disabled: !editar, onchange: (ev) => guardarT({ agencia: ev.target.value }) }, el('option', { value: '' }, '—'),
+          Object.entries(d.agencias).map(([k, t]) => el('option', { value: k, selected: k === p.agencia }, t)));
+        campos.push(fIn('fecha_entrega', 'Entrega pactada (llega)', { type: 'date' }), el('label', { class: 'cmp-campo' }, el('span', {}, 'Agencia'), ag),
+          p.agencia === 'otra' ? fIn('agencia_otra', '¿Cuál?', { maxlength: 80 }) : null, fIn('tracking', 'Nº de seguimiento', { maxlength: 80 }), fIn('fecha_salida', 'Salió el', { type: 'date' }));
+      }
+      if (modo === 'almacen') {
+        const alm = el('select', { disabled: !editar, onchange: (ev) => guardarT({ almacen_id: ev.target.value }) }, el('option', { value: '' }, '— Elige almacén —'),
+          d.transportistas.map((t) => t.almacenes.length ? el('optgroup', { label: t.nombre }, t.almacenes.map((a) => el('option', { value: a.id, selected: a.id === p.almacen_id }, a.nombre))) : null));
+        campos.push(el('label', { class: 'cmp-campo' }, el('span', {}, 'Entregar en'), alm), fIn('fecha_almacen', 'Entrega en el almacén pactada', { type: 'date' }),
+          fIn('fecha_entrega', 'Llega a Menorca (prevista)', { type: 'date' }), fIn('entregado_almacen', 'Entregado en el almacén el', { type: 'date' }), fIn('bultos', 'Bultos', { type: 'number', min: 0 }));
+      }
+      if (modo === 'recogida') {
+        const tr = el('select', { disabled: !editar, onchange: (ev) => guardarT({ transportista_id: ev.target.value }) }, el('option', { value: '' }, '— Transportista —'),
+          d.transportistas.map((t) => el('option', { value: t.id, selected: t.id === p.transportista_id }, t.nombre)));
+        campos.push(el('label', { class: 'cmp-campo' }, el('span', {}, 'Transportista'), tr), fIn('recogida_fecha', 'Recogida el', { type: 'date' }),
+          fIn('recogida_direccion', 'Recoger en (dirección)', { maxlength: 300 }), fIn('recogida_contacto', 'Contacto', { maxlength: 120 }), fIn('recogida_telefono', 'Teléfono', { maxlength: 60 }),
+          fIn('recogida_horario', 'Horario', { maxlength: 120 }), fIn('bultos', 'Bultos', { type: 'number', min: 0 }), fIn('kg', 'Kg', { type: 'number', min: 0, step: 'any' }),
+          fIn('fecha_entrega', 'Llega a Menorca (prevista)', { type: 'date' }));
+      }
+      const acc = [];
+      if (modo && editar) {
+        acc.push(el('button', { type: 'button', class: p.seg_activo ? 'ghost' : 'primario', onclick: async () => {
+          try {
+            const r = await api('POST', `/api/compras/pedidos/${p.id}/seguimiento`, { activar: !p.seg_activo });
+            if (r.url) { try { await navigator.clipboard.writeText(r.url); toast('Seguimiento activado: enlace copiado'); } catch { prompt('Enlace del proveedor:', r.url); } } else toast('Seguimiento parado');
+            pintar();
+          } catch (e) { toast(e.message, true); }
+        } }, p.seg_activo ? '⏹ Parar seguimiento' : '▶ Activar seguimiento'));
+        if (p.seg_url) {
+          acc.push(el('button', { type: 'button', class: 'ghost', onclick: async () => { try { await navigator.clipboard.writeText(p.seg_url); toast('Enlace copiado'); } catch { prompt('Enlace del proveedor:', p.seg_url); } } }, '🔗 Copiar enlace'));
+          if (p.estado === 'enviado') acc.push(el('button', { type: 'button', class: 'ghost', onclick: async () => {
+            const para = prompt('Enviar el enlace al correo:', p.proveedor_email || ''); if (!para) return;
+            try { await api('POST', `/api/compras/pedidos/${p.id}/seguimiento`, { activar: true, enviar: true, email: para }); toast('Enlace enviado'); pintar(); } catch (e) { toast(e.message, true); }
+          } }, '✉ Enviar enlace'));
+        }
+      }
+      if (p.tracking_url) acc.push(el('a', { class: 'boton ghost', href: p.tracking_url, target: '_blank', rel: 'noopener' }, `📦 Seguir en ${d.agencias[p.agencia] || 'la agencia'} ↗`));
+      if (p.incidencia_trp_id) acc.push(el('a', { class: 'boton ghost peligro', href: `/incidencias.html?id=${p.incidencia_trp_id}` }, '⚠ Incidencia de transporte'));
+      caja.replaceChildren(...[
+        el('h3', { class: 'cmp-h3' }, '🚚 Cómo llega'),
+        botones,
+        modo === 'almacen' && p.almacen ? el('p', { class: 'ayuda' }, `${p.almacen.direccion || ''}${p.almacen.telefono ? ` · ${p.almacen.telefono}` : ''}${p.almacen.leyenda ? ` · en el pedido: «${p.almacen.leyenda}»` : ''} · lo trae ${p.almacen.transportista}`) : null,
+        campos.length ? el('div', { class: 'cmp-campos' }, campos.filter(Boolean)) : null,
+        p.situacion_trp ? el('p', { class: `trp-sit${p.incidencia_trp_id ? ' mal' : ''}` }, p.situacion_trp) : null,
+        p.seg_activo ? el('p', { class: 'ayuda' }, [p.prov_confirmado_en ? `✔ el proveedor confirmó el pedido ${cuando(p.prov_confirmado_en)}` : 'el proveedor aún no ha confirmado', p.seg_visto_en ? `abrió el enlace ${cuando(p.seg_visto_en)}` : null,
+          p.estado !== 'enviado' ? 'el enlace irá en el correo y el PDF del pedido' : null].filter(Boolean).join(' · ')) : null,
+        acc.length ? el('div', { class: 'cmp-acciones izq' }, acc) : null,
+        (p.eventos_trp || []).length ? el('details', { class: 'trp-hist' }, el('summary', {}, `Historial del transporte (${p.eventos_trp.length})`),
+          el('ul', {}, p.eventos_trp.map((e) => el('li', {}, e.texto, el('small', {}, ` · ${cuando(e.creado)} · ${e.usuario || e.externo || 'automático'}`))))) : null,
+      ].filter(Boolean));
+    }).catch((e) => caja.append(el('p', { class: 'ayuda' }, e.message)));
+    return caja;
+  }
+
   /* ================= Pedidos ================= */
   async function pintarPedidos() {
     const [d, provs] = await Promise.all([api('GET', '/api/compras/pedidos'), api('GET', '/api/proveedores')]);
@@ -180,6 +279,7 @@
         el('tfoot', {}, el('tr', { class: 'fila-total' }, el('td', { colspan: '4' }, 'Total (sin IVA)'), el('td', { class: 'num' }, totalEl), el('td', {}))))),
       editable ? el('button', { type: 'button', class: 'ghost mini', onclick: () => { lineas.push({ descripcion: 'Nueva línea', cantidad: 1, unidad: 'ud', precio: null }); guardar(cuerpoLineas, 'repintar'); } }, '＋ Línea a mano') : null,
       p.necesita_aprobacion && !p.aprobado_en ? el('p', { class: 'aviso-coste' }, `Pasa de ${eur(p.limite)}: necesita la aprobación de Dirección antes de enviarlo.`) : null,
+      seccionTransporte(p),
       el('div', { class: 'cmp-acciones' }, acciones)].filter(Boolean));
   }
 
@@ -489,6 +589,7 @@
           el('label', { class: 'cmp-campo' }, el('span', {}, 'Zona'), el('select', { disabled: !editar, onchange: (ev) => guardarCampo('zona', ev.target.value) },
             [['menorca', 'Menorca'], ['peninsula', 'Península (llega por transporte a Menorca)'], ['baleares', 'Baleares'], ['online', 'Online / paquetería']].map(([v, t]) => el('option', { value: v, selected: x.zona === v }, t))))),
         el('label', { class: 'chk' }, el('input', { type: 'checkbox', checked: x.transportista, disabled: !editar, onchange: (ev) => guardarCampo('transportista', ev.target.checked) }), ' Es transportista (península → Menorca: sale en Transportes)'),
+        x.transportista ? almacenesDe(x, editar) : null,
         el('label', { class: 'chk' }, el('input', { type: 'checkbox', checked: x.cuenta_credito, disabled: !editar, onchange: (ev) => guardarCampo('cuenta_credito', ev.target.checked) }), ' Tiene cuenta de crédito (sale para las compras locales del móvil)'),
         editar ? el('label', { class: 'chk' }, el('input', { type: 'checkbox', checked: x.activo, onchange: (ev) => guardarCampo('activo', ev.target.checked) }), ' Activo (sale para elegir en los pedidos)') : null,
       ] : el('p', { class: 'ayuda' }, 'Sin proveedores todavía.'))));
@@ -586,10 +687,18 @@
           ? `🏭 ${r.prev_taller || '—'}${r.prev_localidad ? ` · ${r.prev_localidad}` : ''} · ${r.recibido ? `entregado a ${r.transportista} ${cuando(r.recibido)}` : 'listo'}${r.prev_nota ? ` · ${r.prev_nota}` : ''}`
           : `aún en ${r.prev_taller} (${r.prev_codigo} ${r.prev_nombre}${r.prev_fin || r.prev_plan_fin ? `, termina ~${cuando(r.prev_fin || r.prev_plan_fin)}` : ''})`),
         el('small', {}, `🚚 ${r.transportista}${r.plan_desde ? ` · transporte planificado ${cuando(r.plan_desde)}` : ''}`)));
-    const itemPed = (r) => el('li', { class: 'trp-item', draggable: editar ? 'true' : null, ondragstart: (ev) => ev.dataTransfer.setData('text/plain', JSON.stringify({ pedido_id: r.pedido_id })) },
+    const itemPed = (r) => el('li', { class: `trp-item${r.listo ? '' : ' no-listo'}`, draggable: editar ? 'true' : null, ondragstart: (ev) => ev.dataTransfer.setData('text/plain', JSON.stringify({ pedido_id: r.pedido_id })) },
       editar ? el('input', { type: 'checkbox', 'aria-label': `Marcar ${r.codigo}`, onchange: (ev) => (ev.target.checked ? marcados.add(`p${r.pedido_id}`) : marcados.delete(`p${r.pedido_id}`)) }) : null,
-      el('div', {}, el('b', {}, el('span', { class: 'cod-chip mat' }, r.codigo), ` ${r.proveedor}`),
-        el('small', {}, `📦 Material · ${[r.localidad, r.fecha_entrega ? `listo ~${cuando(r.fecha_entrega)}` : null, r.proyectos].filter(Boolean).join(' · ')}`)));
+      el('div', {}, el('b', {}, el('a', { class: 'cod-chip mat', href: `/compras.html?pedido=${r.pedido_id}` }, r.codigo), ` ${r.proveedor}`),
+        el('small', {}, r.entrega_modo === 'almacen'
+          ? (r.entregado_almacen ? `🏬 en ${r.almacen || 'el almacén'} desde ${cuando(r.entregado_almacen)}${r.bultos ? ` · ${r.bultos} bultos` : ''}` : `🏬 el proveedor lo lleva a ${r.almacen || 'el almacén'}${r.fecha_almacen ? ` · pactado ${cuando(r.fecha_almacen)}` : ''}`)
+          : r.entrega_modo === 'recogida' ? `🚚 recoger en ${r.recogida_direccion || r.proveedor}${r.recogida_fecha ? ` · ${cuando(r.recogida_fecha)}` : ''}${r.listo_recogida ? ` · listo ${cuando(r.listo_recogida)}` : ''}${r.transportista ? ` · ${r.transportista}` : ''}`
+            : `📦 Material · ${[r.localidad, r.fecha_entrega ? `listo ~${cuando(r.fecha_entrega)}` : null].filter(Boolean).join(' · ')}`),
+        r.proyectos ? el('small', {}, r.proyectos) : null));
+    const itemTraen = (r) => el('li', { class: `trp-item${r.fecha_entrega && r.fecha_entrega < hoy ? ' tarde' : ''}` },
+      el('div', {}, el('b', {}, el('a', { class: 'cod-chip mat', href: `/compras.html?pedido=${r.pedido_id}` }, r.codigo), ` ${r.proveedor}`),
+        el('small', {}, r.tracking ? ['📦 ', `${d.agencias?.[r.agencia] || r.agencia_otra || r.agencia || 'agencia'} ${r.tracking}`, r.tracking_url ? [' · ', el('a', { href: r.tracking_url, target: '_blank', rel: 'noopener' }, 'seguir ↗')] : null] : '📦 sin nº de seguimiento'),
+        el('small', {}, [r.fecha_entrega ? `${r.fecha_entrega < hoy ? '⚠ pactado' : 'llega'} ${cuando(r.fecha_entrega)}` : 'sin fecha', r.seg_activo ? (r.prov_confirmado_en ? 'confirmado' : 'sin confirmar') : null, r.incidencia_trp_id ? '⚠ incidencia' : null, r.proyectos].filter(Boolean).join(' · '))));
     const items = () => [...marcados].map((k) => (k[0] === 't' ? { tarea_id: Number(k.slice(1)) } : { pedido_id: Number(k.slice(1)) }));
     const selEnvio = el('select', { 'aria-label': 'Añadir a un envío' }, el('option', { value: '' }, 'Añadir lo marcado a…'),
       d.envios.filter((e) => !['entregado', 'anulado'].includes(e.estado)).map((e) => el('option', { value: e.id }, `${e.codigo} · ${e.transportista || ''}`)));
@@ -600,19 +709,26 @@
     };
     const nuevo = async (its) => {
       try {
-        const e = await api('POST', '/api/envios', { transportista_id: d.transportistas[0]?.id || null, items: its });
+        // transportista: el de los pedidos marcados si coinciden; si no, el primero
+        const ts = [...new Set(its.map((it) => it.pedido_id && d.pendientes.pedidos.find((r) => r.pedido_id === it.pedido_id)?.transportista_id).filter(Boolean))];
+        const e = await api('POST', '/api/envios', { transportista_id: (ts.length === 1 ? ts[0] : null) || d.transportistas[0]?.id || null, items: its });
         estado.envio = e.id; guardarURL(); toast(`${e.codigo} creado`); pintar();
       } catch (er) { toast(er.message, true); }
     };
     const pool = el('section', { class: 'trp-col trp-pool' },
       el('h3', {}, '📦 Para enviar a Menorca ', el('span', { class: 'llv-n' }, String(d.pendientes.ots.length + d.pendientes.pedidos.length))),
-      el('ul', {}, d.pendientes.ots.filter((r) => r.listo).map(itemOT), d.pendientes.pedidos.map(itemPed),
-        d.pendientes.ots.filter((r) => !r.listo).map(itemOT)),
+      el('ul', {}, d.pendientes.ots.filter((r) => r.listo).map(itemOT), d.pendientes.pedidos.filter((r) => r.listo).map(itemPed),
+        d.pendientes.ots.filter((r) => !r.listo).map(itemOT), d.pendientes.pedidos.filter((r) => !r.listo).map(itemPed)),
       !d.pendientes.ots.length && !d.pendientes.pedidos.length ? el('p', { class: 'ayuda' }, 'Nada pendiente.') : null,
       editar ? el('div', { class: 'trp-acc' },
         el('button', { type: 'button', class: 'primario mini', onclick: () => (marcados.size ? nuevo(items()) : toast('Marca lo que va en el envío', true)) }, '＋ Nuevo envío con lo marcado'),
         selEnvio) : null,
-      el('p', { class: 'ayuda' }, 'Sale solo: las OTs cuya tarea de transporte la hace un transportista (cuando el taller ha terminado o se lo ha entregado; en gris, lo que aún está en el taller) y los pedidos a proveedores de península sin llegar. Se arrastra a un envío o se marca y se añade.'));
+      el('p', { class: 'ayuda' }, 'Sale solo: las OTs cuya tarea de transporte la hace un transportista (en gris, lo que aún está en el taller), los pedidos «🏬 al almacén del transportista» (en gris hasta que el proveedor lo entrega) y los «🚚 lo vamos a buscar». Se arrastra a un envío o se marca y se añade.'));
+    const traen = el('section', { class: 'trp-col trp-pool' },
+      el('h3', {}, '📦 Lo traen los proveedores ', el('span', { class: 'llv-n' }, String((d.pendientes.traen || []).length))),
+      el('ul', {}, (d.pendientes.traen || []).map(itemTraen)),
+      !(d.pendientes.traen || []).length ? el('p', { class: 'ayuda' }, 'Ningún pedido con «Lo trae el proveedor» pendiente de llegar.') : null,
+      el('p', { class: 'ayuda' }, 'Su transporte o agencia (MRW, Ecoscooting, UPS, Correos…): con su nº de seguimiento. Sin noticias pasada la fecha: recordatorio y luego incidencia.'));
     const tarjeta = (e) => el('li', {}, el('button', {
       type: 'button', class: `trp-env${e.id === estado.envio ? ' actual' : ''}${e.llegada_prevista && e.llegada_prevista < hoy && ['recogido', 'en_barco'].includes(e.estado) ? ' tarde' : ''}`,
       onclick: () => { estado.envio = e.id; guardarURL(); pintar(); },
@@ -629,8 +745,8 @@
       el('ul', {}, d.envios.filter((e) => e.estado === k).map(tarjeta)),
       k === 'preparando' && editar ? el('button', { type: 'button', class: 'ghost mini', onclick: () => nuevo([]) }, '＋ Envío vacío') : null));
     const ficha = el('div', { class: 'trp-ficha-caja' });
-    $('#panel-compras').replaceChildren(el('div', { class: 'trp-tablero' }, pool, ...cols), ficha);
-    if (!d.transportistas.length) ficha.append(el('p', { class: 'ayuda' }, 'No hay ningún proveedor marcado como transportista: márcalo en Proveedores (p. ej. Ydica).'));
+    $('#panel-compras').replaceChildren(el('div', { class: 'trp-tablero' }, traen, pool, ...cols), ficha);
+    if (!d.transportistas.length) ficha.append(el('p', { class: 'ayuda' }, 'No hay ningún proveedor marcado como transportista: márcalo en Proveedores (p. ej. Menorca Tragina o Luchana).'));
     const e = d.envios.find((x) => x.id === estado.envio);
     if (e) pintarEnvio(ficha, e, d, editar);
   }

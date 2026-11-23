@@ -62,18 +62,37 @@ async function pendientes() {
         AND NOT EXISTS (SELECT 1 FROM envio_lineas l JOIN envios e ON e.id = l.envio_id WHERE l.tarea_id = t.id AND e.estado <> 'anulado')
       ORDER BY o.codigo, t.orden_en_of`);
   for (const r of ots) r.listo = !!r.recibido || !r.prev_id || r.prev_estado === 'hecha';
-  // pedidos de material a proveedores de península, enviados y aún sin llegar
+  // pedidos que trae un transportista nuestro: recogida en un domicilio, en el almacén del transportista (Idyca Gavà, Luchana…)
+  // o, si no se ha dicho cómo llega, los de proveedores de península; enviados y aún sin llegar ni en un envío
   const { rows: pedidos } = await query(
     `SELECT c.id AS pedido_id, c.codigo, c.fecha_entrega::text AS fecha_entrega, c.referencia, p.nombre AS proveedor, p.localidad,
+            c.entrega_modo, c.transportista_id, tp.nombre AS transportista, a.nombre AS almacen, c.fecha_almacen::text AS fecha_almacen,
+            c.entregado_almacen::text AS entregado_almacen, c.recogida_direccion, c.recogida_fecha::text AS recogida_fecha,
+            c.listo_recogida::text AS listo_recogida, c.bultos, c.kg::float AS kg,
             (SELECT count(*)::int FROM pedido_compra_lineas l WHERE l.pedido_id = c.id) AS n_lineas,
             (SELECT string_agg(DISTINCT pr.codigo, ', ') FROM pedido_compra_lineas l JOIN partida_escandallo e ON e.id = l.escandallo_id
                JOIN partidas pa ON pa.id = e.partida_id JOIN proyectos pr ON pr.id = pa.proyecto_id WHERE l.pedido_id = c.id) AS proyectos
-       FROM pedidos_compra c JOIN proveedores p ON p.id = c.proveedor_id AND p.zona = 'peninsula'
-      WHERE c.estado = 'enviado' AND c.tipo = 'material' AND c.enviado_en > now() - interval '120 days'
-        AND EXISTS (SELECT 1 FROM partida_escandallo e WHERE e.pedido_compra_id = c.id AND e.compra = 'pedido')
+       FROM pedidos_compra c JOIN proveedores p ON p.id = c.proveedor_id
+       LEFT JOIN proveedores tp ON tp.id = c.transportista_id LEFT JOIN transportista_almacenes a ON a.id = c.almacen_id
+      WHERE c.estado = 'enviado' AND c.enviado_en > now() - interval '120 days'
+        AND (c.entrega_modo IN ('recogida','almacen') OR (c.entrega_modo IS NULL AND c.tipo = 'material' AND p.zona = 'peninsula'))
+        AND (c.tipo <> 'material' OR EXISTS (SELECT 1 FROM partida_escandallo e WHERE e.pedido_compra_id = c.id AND e.compra = 'pedido'))
         AND NOT EXISTS (SELECT 1 FROM envio_lineas l JOIN envios e ON e.id = l.envio_id WHERE l.pedido_id = c.id AND e.estado <> 'anulado')
+      ORDER BY c.entregado_almacen NULLS LAST, c.fecha_entrega NULLS LAST, c.id`);
+  for (const r of pedidos) r.listo = r.entrega_modo !== 'almacen' || !!r.entregado_almacen;
+  // lo traen los proveedores (su transporte o agencia), aún sin llegar
+  const { rows: traen } = await query(
+    `SELECT c.id AS pedido_id, c.codigo, c.fecha_entrega::text AS fecha_entrega, p.nombre AS proveedor, c.agencia, c.agencia_otra, c.tracking,
+            c.seg_activo, c.prov_confirmado_en, c.incidencia_trp_id,
+            (SELECT string_agg(DISTINCT pr.codigo, ', ') FROM pedido_compra_lineas l JOIN partida_escandallo e ON e.id = l.escandallo_id
+               JOIN partidas pa ON pa.id = e.partida_id JOIN proyectos pr ON pr.id = pa.proyecto_id WHERE l.pedido_id = c.id) AS proyectos
+       FROM pedidos_compra c JOIN proveedores p ON p.id = c.proveedor_id
+      WHERE c.estado = 'enviado' AND c.entrega_modo = 'proveedor' AND c.enviado_en > now() - interval '120 days'
+        AND (c.tipo <> 'material' OR EXISTS (SELECT 1 FROM partida_escandallo e WHERE e.pedido_compra_id = c.id AND e.compra = 'pedido'))
       ORDER BY c.fecha_entrega NULLS LAST, c.id`);
-  return { ots, pedidos };
+  const pt = require('./pedido-transporte');
+  for (const r of traen) r.tracking_url = pt.urlTracking(r.agencia, r.tracking);
+  return { ots, pedidos, traen };
 }
 
 /* ---------- un envío ---------- */
@@ -129,12 +148,16 @@ async function lineaDe(c, item, envioId) {
       bultos: bultos ? Number(bultos[1]) : null, kg: kg ? Number(kg[1].replace(',', '.')) : null };
   }
   if (item.pedido_id) {
-    const { rows } = await c.query(`SELECT c.id, c.codigo, p.nombre, p.localidad, c.referencia FROM pedidos_compra c LEFT JOIN proveedores p ON p.id = c.proveedor_id WHERE c.id = $1`, [Number(item.pedido_id)]);
+    const { rows } = await c.query(`SELECT c.id, c.codigo, p.nombre, p.localidad, c.referencia, c.entrega_modo, c.recogida_direccion, c.bultos, c.kg::float AS kg, a.nombre AS almacen
+                                      FROM pedidos_compra c LEFT JOIN proveedores p ON p.id = c.proveedor_id LEFT JOIN transportista_almacenes a ON a.id = c.almacen_id WHERE c.id = $1`, [Number(item.pedido_id)]);
     if (!rows.length) throw fallo(400, 'Pedido no encontrado');
     const { rows: ya } = await c.query(`SELECT e.codigo FROM envio_lineas l JOIN envios e ON e.id = l.envio_id WHERE l.pedido_id = $1 AND e.estado <> 'anulado' AND e.id <> $2`, [rows[0].id, envioId || 0]);
     if (ya.length) throw fallo(400, `${rows[0].codigo} ya va en ${ya[0].codigo}`);
     return { pedido_id: rows[0].id, descripcion: `Pedido ${rows[0].codigo} · ${rows[0].nombre}${rows[0].referencia ? ` · ${rows[0].referencia}` : ''}`.slice(0, 300),
-      origen: `${rows[0].nombre}${rows[0].localidad ? ` · ${rows[0].localidad}` : ''}` };
+      origen: rows[0].entrega_modo === 'almacen' && rows[0].almacen ? `🏬 ${rows[0].almacen} (${rows[0].nombre})`
+        : rows[0].entrega_modo === 'recogida' && rows[0].recogida_direccion ? `Recoger en ${rows[0].recogida_direccion}`.slice(0, 300)
+          : `${rows[0].nombre}${rows[0].localidad ? ` · ${rows[0].localidad}` : ''}`,
+      bultos: rows[0].bultos ?? null, kg: rows[0].kg ?? null };
   }
   const d = texto(item.descripcion, 300);
   if (!d) throw fallo(400, 'Falta qué va');
@@ -364,7 +387,7 @@ function montarGestion(app, asyncH) {
     const envios = [];
     for (const { id } of rows) envios.push(await envio(id));
     const { rows: tr } = await query('SELECT id, nombre, email FROM proveedores WHERE transportista AND activo ORDER BY lower(nombre)');
-    res.json({ pendientes: await pendientes(), envios, transportistas: tr, correo: correo.configurado() });
+    res.json({ pendientes: await pendientes(), envios, transportistas: tr, correo: correo.configurado(), agencias: require('./pedido-transporte').AGENCIAS });
   }));
 
   app.get('/api/envios/:id', ver, asyncH(async (req, res) => {

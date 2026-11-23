@@ -27,8 +27,9 @@ app.get('/health', (req, res) => res.json({ ok: true, version: VERSION }));
 require('./pin').publico(app, asyncH);   // entrar con PIN desde un dispositivo autorizado (sin sesión)
 require('./ofertas-portal').montar(app, asyncH);   // el proveedor responde la petición de precio (enlace sin sesión)
 require('./seguimiento-ext').montarPublico(app, asyncH);   // el taller externo cuenta cómo van sus tareas (enlace sin sesión)
-require('./transportes').montarPublico(app, asyncH);
-require('./incidencias').montarPublico(app, asyncH);   // el proveedor responde a una incidencia (enlace sin sesión)   // el transportista dice cómo va el envío a Menorca (enlace sin sesión)
+require('./transportes').montarPublico(app, asyncH);   // el transportista dice cómo va el envío a Menorca (enlace sin sesión)
+require('./incidencias').montarPublico(app, asyncH);   // el proveedor responde a una incidencia (enlace sin sesión)
+require('./pedido-transporte').montarPublico(app, asyncH);   // el proveedor confirma el pedido y cómo lo envía (enlace sin sesión)
 require('./usuarios')(app, asyncH);   // entrar, recuperar contraseña, Mi cuenta, usuarios y roles
 require('./pin').gestion(app, asyncH);   // PIN de operarios y dispositivos autorizados
 require('./archivos').montar(app, asyncH);   // fotos y documentos (justificantes, incidencias)
@@ -294,8 +295,9 @@ require('./subcontratacion').montar(app, asyncH);   // pedir presupuesto / hacer
 require('./transportes').montarGestion(app, asyncH);   // envíos península → Menorca
 require('./compras-locales').montar(app, asyncH);   // compras locales: pedir, autorizar, ticket, cuadrar
 require('./supervision').montar(app, asyncH);   // supervisar desde el móvil: recibir, parte, aprobar, dónde está
-require('./horas-extra').montar(app, asyncH);
-require('./incidencias').montar(app, asyncH);   // incidencias: material, transporte, calidad… con reclamación y cierre   // turnos, excedentes y horas extra (autoriza Dirección)
+require('./horas-extra').montar(app, asyncH);   // turnos, excedentes y horas extra (autoriza Dirección)
+require('./incidencias').montar(app, asyncH);   // incidencias: material, transporte, calidad… con reclamación y cierre
+require('./pedido-transporte').montar(app, asyncH);   // cómo llega cada pedido: proveedor, recogida o almacén del transportista
 require('./recursos')(app, asyncH);
 require('./importar')(app, asyncH);
 require('./semillero')(app, asyncH);

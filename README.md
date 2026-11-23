@@ -836,6 +836,37 @@ donde también está su **zona**) que recoge en la península y lo trae a Menorc
   `POST /api/envios/:id/enviar {para}`, `POST /api/envios/:id/enlace {nuevo}`; pública `GET·PUT /api/envio/:t`,
   `POST·GET·DELETE /api/envio/:t/archivos[/:id]`.
 
+## Cómo llega cada pedido (transporte del pedido)
+
+`src/pedido-transporte.js`, sección **🚚 Cómo llega** en la ficha del pedido (Compras), `public/pedido.html/js` (enlace del
+proveedor). Columnas nuevas en `pedidos_compra` (`entrega_modo`, `transportista_id`, `almacen_id`, `fecha_almacen`, `agencia`,
+`tracking`, `fecha_salida`, `recogida_*`, `bultos`, `kg`, `seg_*`, `prov_*`, `entregado_almacen`, `listo_recogida`…),
+`transportista_almacenes`, `pedido_eventos` (historial) y `proveedores.entrega_modo_def / transportista_def_id` (lo habitual
+con ese proveedor, se recuerda solo).
+
+- **📦 Lo trae el proveedor** (su transporte o agencia): entrega pactada, **agencia** (MRW, Ecoscooting, UPS, Correos u otra) y
+  **nº de seguimiento** → botón «Seguir en MRW ↗» (MRW, UPS y Correos abren con el número; Ecoscooting abre su web).
+- **🚚 Lo vamos a buscar**: transportista (Menorca Tragina o Luchana Logística), día de recogida, dirección (la del proveedor
+  por defecto u otra), contacto, horario, bultos y kg. Sale en «Para enviar a Menorca»; al meterlo en un envío con fecha de
+  recogida se avisa al proveedor por correo del día.
+- **🏬 Al almacén del transportista**: almacenes en la ficha del transportista (**Idyca · Gavà**, C/ Energia 9-13, Pol. Ind.
+  Barnasud, para Menorca Tragina, con la leyenda «Para Dixis Menorca»; **Luchana · Sant Feliu de Llobregat**, Pol. Ind. El Pla,
+  C/ Industria 31-33). Al elegirlo, el pedido (si aún no se ha enviado) pone «Entregar en» y la leyenda en las observaciones
+  (PDF y correo). Cuando el proveedor lo entrega, pasa a «Para enviar a Menorca» como listo (en gris mientras no).
+- **▶ Activar seguimiento** (`POST /api/compras/pedidos/:id/seguimiento {activar, nuevo, enviar, email}`): enlace del proveedor
+  (firma HMAC sobre `seg_nonce`), va en el correo y el PDF del pedido o se copia / envía aparte. En él confirma el pedido y,
+  según el modo, fecha y agencia + tracking, «ya lo hemos entregado en el almacén» (fecha, bultos, kg, albarán) o cuándo estará
+  listo para recoger. La fecha de llegada que da pasa al material (`fecha_prevista`), así el tablero avisa si llega tarde.
+- **Recordatorios** (laborables 9–19 h, con el seguimiento activo): sin nº de seguimiento a 1 día de la fecha; pasada la fecha
+  sin llegar (o sin entregar en el almacén) → correo cada 2 días laborables y aviso a Compras; la segunda vez, **incidencia de
+  transporte** contra el proveedor (`incidencia_trp_id`).
+- **Transportes** (Compras): columna nueva **📦 Lo traen los proveedores** (con tracking, ⚠ si pasó la fecha) y en «Para enviar a
+  Menorca» los pedidos de recogida y de almacén; el envío nuevo toma su transportista.
+- **Transportistas**: Menorca Tragina (Polígono de Sant Lluís) y Luchana Logística (Maó). Ydica dejó de ser transportista: es
+  el almacén de Tragina en Gavà (Idyca).
+- API: `PUT /api/compras/pedidos/:id/transporte`, `GET /api/transportistas`, `POST /api/transportistas/:id/almacenes`,
+  `PUT /api/almacenes/:id`; pública `GET·PUT /api/pedido-ext/:t`, `POST·GET /api/pedido-ext/:t/archivos[/:id]`.
+
 ## Compras locales (ferretería…) desde el móvil
 
 `src/compras-locales.js`, `public/mi-dia-compras.js`, Compras › 🛒 Compras locales. Compras pequeñas en tiendas de la isla a
