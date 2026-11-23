@@ -89,6 +89,10 @@ const SQL_TAREAS = `
                                                      'duracion_h', x.duracion_h) ORDER BY x.fecha, x.hora_inicio, x.id)
                      FROM tramos x WHERE x.tarea_id = t.id), '[]') AS tramos,
          COALESCE((SELECT sum(duracion_h) FROM tramos x WHERE x.tarea_id = t.id), 0)::float AS horas_planificadas,
+         t.duracion_inicial_h::float AS estimado_original, t.hecha_en,
+         -- horas reales (del parte) de personas: para comparar con las previstas (estimado × operarios)
+         COALESCE((SELECT sum(g.horas) FROM registros g JOIN recursos r ON r.id = g.recurso_id AND r.tipo = 'operario'
+                    WHERE g.tarea_id = t.id), 0)::float AS real_h,
          COALESCE((SELECT sum(COALESCE(a.hasta, x.hora_inicio + x.duracion_h) - COALESCE(a.desde, x.hora_inicio))
                      FROM tramos x JOIN tramo_asignaciones a ON a.tramo_id = x.id
                      JOIN recursos r ON r.id = a.recurso_id AND r.tipo = 'operario'
@@ -233,6 +237,9 @@ module.exports = function montar(app, asyncH) {
       tr.indice = i + 1;
       const acumulado = t ? t.tramos.slice(0, i + 1).reduce((s, x) => s + x.duracion_h, 0) : 0;
       tr.exceso = t ? Math.max(0, Math.min(tr.duracion_h, r1(acumulado - t.duracion_h))) : 0;
+      // para verlo rayado: lo que pasa del estimado ORIGINAL (aunque luego se reestimara en el parte)
+      const est0 = t ? (t.estimado_original || t.duracion_h) : 0;
+      tr.excedente = t ? Math.max(0, Math.min(tr.duracion_h, r1(acumulado - est0))) : 0;
     }
     // Tipos de recurso de los que hay al menos un recurso activo (para distinguir «sin asignar»
     // de «no hay ninguno dado de alta»)
@@ -407,25 +414,11 @@ module.exports = function montar(app, asyncH) {
       const soloMover = 'hora_inicio' in cambios && !('duracion_h' in cambios);
       await ajustarFranjas(c, id, soloMover ? ini - prev[0].hora_inicio : 0);
 
-      let t = await horasTarea(c, prev[0].tarea_id);
+      const t = await horasTarea(c, prev[0].tarea_id);
       await registrar(c, req.usuario.id, prev[0].tarea_id, 'mover', { tramo_id: id, ...cambios });
-      // Excedente: al alargar el tramo por encima de lo estimado, la tarea crece con lo que hace falta (queda registrado)
-      let excedente = null;
-      if (dur > Number(prev[0].duracion_h) + 1e-6 && t.pendientes < -1e-6) {
-        const add = r1(Math.min(-t.pendientes, dur - Number(prev[0].duracion_h)));   // solo lo que ha crecido ahora
-        const antes = Number(t.duracion_h);
-        await c.query(`UPDATE tareas SET duracion_inicial_h = COALESCE(duracion_inicial_h, duracion_h), duracion_h = duracion_h + $2 WHERE id = $1`,
-          [prev[0].tarea_id, add]);
-        const { rows: ex } = await c.query(
-          `INSERT INTO tarea_excedentes (tarea_id, tramo_id, horas, antes, despues, usuario_id) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
-          [prev[0].tarea_id, id, add, antes, r1(antes + add), req.usuario.id]);
-        await registrar(c, req.usuario.id, prev[0].tarea_id, 'excedente', { tramo_id: id, horas: add, antes, despues: r1(antes + add) });
-        const { rows: op } = await c.query('SELECT GREATEST(operarios_req, 1) AS n FROM tareas WHERE id = $1', [prev[0].tarea_id]);
-        excedente = { id: ex[0].id, horas: add, antes, despues: r1(antes + add), operarios: op[0].n };
-        t = await horasTarea(c, prev[0].tarea_id);
-      }
+      // Lo que pase de lo estimado NO cambia la estimación: queda como excedente sin estimar (rayado en el tablero)
       const ex = await extras.sincronizar(c, id, req.usuario);
-      return { ...rows[0], exceso: Math.max(0, r1(-t.pendientes)), excedente, extras: ex };
+      return { ...rows[0], exceso: Math.max(0, r1(-t.pendientes)), extras: ex };
     });
     res.json(out);
   }));

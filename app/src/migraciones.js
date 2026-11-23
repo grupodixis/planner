@@ -1174,6 +1174,15 @@ const MIGRACIONES = [
   `CREATE UNIQUE INDEX IF NOT EXISTS horas_extra_tramo_idx ON horas_extra (tramo_id, recurso_id) WHERE tramo_id IS NOT NULL`,
   `CREATE INDEX IF NOT EXISTS horas_extra_fecha_idx ON horas_extra (fecha, recurso_id)`,
   `CREATE INDEX IF NOT EXISTS horas_extra_pend_idx ON horas_extra (estado) WHERE estado = 'pendiente'`,
+  // El excedente ya no sube la estimación (se ve rayado como «sin estimar»): se deshace lo que se sumó (una vez)
+  `DO $m$ BEGIN
+     IF NOT EXISTS (SELECT 1 FROM ajustes WHERE clave = 'migr_deshacer_excedentes') THEN
+       UPDATE tareas t SET duracion_h = GREATEST(0.5, t.duracion_h - x.h)
+         FROM (SELECT tarea_id, sum(horas) AS h FROM tarea_excedentes WHERE NOT deshecho GROUP BY 1) x WHERE x.tarea_id = t.id;
+       UPDATE tarea_excedentes SET deshecho = TRUE WHERE NOT deshecho;
+       INSERT INTO ajustes (clave, valor) VALUES ('migr_deshacer_excedentes', 'true');
+     END IF;
+   END $m$`,
   // permiso «autorizar_horas_extra»: Dirección y Administrador (una vez)
   `DO $m$ BEGIN
      IF NOT EXISTS (SELECT 1 FROM ajustes WHERE clave = 'migr_permiso_horas_extra') THEN

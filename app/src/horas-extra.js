@@ -261,17 +261,6 @@ function montar(app, asyncH) {
     res.json({ ok: true });
   }));
 
-  // Deshacer un excedente (la tarea vuelve a la estimación de antes)
-  app.delete('/api/excedentes/:id', auth.permiso('planificar'), asyncH(async (req, res) => {
-    await tx(async (c) => {
-      const { rows } = await c.query('SELECT * FROM tarea_excedentes WHERE id = $1 AND NOT deshecho FOR UPDATE', [Number(req.params.id)]);
-      if (!rows.length) throw fallo(404, 'Ya estaba deshecho');
-      await c.query('UPDATE tareas SET duracion_h = GREATEST(0.5, duracion_h - $2) WHERE id = $1', [rows[0].tarea_id, rows[0].horas]);
-      await c.query('UPDATE tarea_excedentes SET deshecho = TRUE WHERE id = $1', [rows[0].id]);
-    });
-    res.json({ ok: true });
-  }));
-
   // Pedir (con el motivo) las extra que acaba de crear un cambio del tablero
   app.post('/api/tramos/:id/horas-extra/pedir', auth.permiso('planificar'), asyncH(async (req, res) => {
     const id = Number(req.params.id);

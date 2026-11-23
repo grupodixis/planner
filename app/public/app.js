@@ -153,32 +153,33 @@
     if (r.status === 401) { location.href = '/login.html'; throw new Error('No autenticado'); }
     const data = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error(data.error || `Error ${r.status}`);
-    // tras un cambio del tablero: excedente de la tarea (aviso con Deshacer) y horas extra por pedir (diálogo)
+    // tras un cambio del tablero: horas extra por pedir (diálogo)
     if (metodo !== 'GET') {
       const tid = Number((/\/api\/tramos\/(\d+)/.exec(url) || [])[1]) || data.tramo?.id;
-      if (data.excedente) estado.excedente = { ...data.excedente, tramo_id: tid };
       if (Array.isArray(data.extras) && data.extras.some((x) => x.estado === 'pendiente' && !x.avisado)) estado.extrasPorPedir = { tramo_id: tid, extras: data.extras };
     }
     return data;
   }
 
-  /* ---------- excedente y horas extra ---------- */
-  function avisoExcedente(x) {
-    const t = tarea(tramo(x.tramo_id)?.tarea_id);
-    const caja = $('#aviso-excedente');
-    const hp = (h) => durTxt(+(h * x.operarios).toFixed(1));
-    caja.replaceChildren(
-      el('span', {}, `✔ ${t ? `${t.codigo || ''} ` : ''}+${durTxt(x.horas)} de excedente: la tarea pasa de ${durTxt(x.antes)} a ${durTxt(x.despues)}`
-        + (x.operarios > 1 ? ` (${hp(x.antes)} → ${hp(x.despues)} h-persona)` : '')),
-      el('button', { type: 'button', class: 'ghost', onclick: async () => {
-        caja.hidden = true;
-        await accion(async () => { await api('DELETE', `/api/excedentes/${x.id}`); return 'Excedente deshecho: la tarea vuelve a su estimación (el tramo sigue igual; acórtalo si sobra)'; });
-      } }, 'Deshacer'),
-      el('button', { type: 'button', class: 'ghost', 'aria-label': 'Cerrar', onclick: () => { caja.hidden = true; } }, '✕'));
-    caja.hidden = false;
-    clearTimeout(avisoExcedente._t); avisoExcedente._t = setTimeout(() => { caja.hidden = true; }, 12000);
+  /* ---------- estimado frente a real ---------- */
+  // previstas = estimado original (si se reestimó en el parte) × operarios; real = horas del parte
+  function balance(t) {
+    const prev = (t.estimado_original || t.duracion_h) * Math.max(1, t.operarios_req || 1);
+    return { prev, real: +(t.real_h || 0).toFixed(1), dif: +((t.real_h || 0) - prev).toFixed(1) };
+  }
+  function realTxt(t) {
+    const b = balance(t);
+    if (t.estado === 'hecha') {
+      if (!b.real) return el('span', {}, '✔ terminada (sin horas en el parte)');
+      return el('span', {}, `✔ terminada con ${durTxt(b.real)} de ${durTxt(b.prev)} previstas · `,
+        b.dif < -0.05 ? el('b', { class: 'ok-txt' }, `${durTxt(-b.dif)} menos (−${Math.round((-b.dif / b.prev) * 100)}%)`)
+          : b.dif > 0.05 ? el('b', { class: 'exc' }, `+${durTxt(b.dif)} más (+${Math.round((b.dif / b.prev) * 100)}%)`) : el('b', {}, 'justo lo previsto'));
+    }
+    return el('span', {}, `llevas ${durTxt(b.real)} de ${durTxt(b.prev)} previstas`,
+      b.dif > 0.05 ? el('b', { class: 'exc' }, ` · +${durTxt(b.dif)} sobre lo previsto`) : ` · ${Math.round((b.real / b.prev) * 100)}%`);
   }
 
+  /* ---------- horas extra ---------- */
   function dialogoExtras(p) {
     const pend = p.extras.filter((x) => x.estado === 'pendiente');
     const tr = tramo(p.tramo_id); const t = tr && tarea(tr.tarea_id);
@@ -201,7 +202,6 @@
   }
 
   function revisarExtras() {
-    if (estado.excedente) { const x = estado.excedente; estado.excedente = null; avisoExcedente(x); }
     if (!estado.extrasPorPedir) return;
     // espera a que se cierre otro diálogo modal (p. ej. «¿Empujar lo siguiente?»); el detalle flotante no cuenta
     const abierto = [...document.querySelectorAll('dialog[open]')].find((d) => d.matches(':modal'));
@@ -520,7 +520,11 @@
 
   function cabeceraHoras() {
     const horas = el('div', { class: 'horas' });
+    // con muchos turnos el día es largo: si no caben, una hora sí y otra no
+    const paso = (H_FIN() - H_INI()) > 12 ? 2 : 1;
     for (let h = H_INI(); h <= H_FIN(); h++) {
+      if ((h - H_INI()) % paso && h !== H_FIN()) continue;
+      if (paso > 1 && h === H_FIN() - 1) continue;
       const s = el('span', { class: h > J().fin ? 'extra' : '' }, hhmm(h));
       s.style.left = pct(h);
       if (h === H_INI()) s.style.transform = 'none';
@@ -747,10 +751,22 @@
     b.style.height = `${altoBloque(tr)}px`;
 
     // exceso sobre lo estimado: cola rayada al final del bloque
-    if (tr.exceso > 0) {
-      const ex = el('div', { class: 'exceso', title: `${durTxt(tr.exceso)} por encima de lo estimado` });
-      ex.style.width = `${(tr.exceso / tr.duracion_h) * 100}%`;
-      b.append(ex);
+    // excedente sin estimar: lo que pasa del estimado original, rayado hasta el final real del tramo
+    const exc = tr.excedente ?? tr.exceso;
+    if (exc > 0) {
+      const ex = el('div', { class: 'exceso', title: `${durTxt(exc)} de excedente: por encima de lo estimado (${durTxt(tarea(tr.tarea_id)?.estimado_original || tarea(tr.tarea_id)?.duracion_h || 0)})` });
+      ex.style.width = `${(exc / tr.duracion_h) * 100}%`;
+      b.append(ex, el('span', { class: 'exc-tag' }, `+${durTxt(exc)} excedente`));
+    }
+    // tarea terminada: en su último tramo, cuánto menos (verde) o más (rojo) de lo previsto costó
+    const tt = tarea(tr.tarea_id);
+    if (tt && tt.estado === 'hecha' && !tt.proveedor_id && tt.tramos?.length && tt.tramos[tt.tramos.length - 1].id === tr.id) {
+      const bl = balance(tt);
+      if (bl.real && Math.abs(bl.dif) > 0.05) {
+        b.append(el('span', { class: `fin-tag ${bl.dif < 0 ? 'menos' : 'mas'}`,
+          title: `Terminada con ${durTxt(bl.real)} de ${durTxt(bl.prev)} previstas (horas-persona del parte)` },
+        `✔ ${bl.dif < 0 ? '−' : '+'}${durTxt(Math.abs(bl.dif))} ${bl.dif < 0 ? 'menos' : 'más'}`));
+      }
     }
 
     // horas extra (fuera del turno de cada persona): franja rayada en rojo sin autorizar, en verde autorizadas
@@ -1600,7 +1616,7 @@
         el('div', {}, `${durTxt(t.horas_planificadas)} de ${durTxt(t.duracion_h)}`,
           pend ? el('b', { class: 'pend' }, ` · quedan ${durTxt(pend)}`)
             : t.horas_planificadas > t.duracion_h
-              ? el('b', { class: 'exc' }, ` · +${durTxt(+(t.horas_planificadas - t.duracion_h).toFixed(1))} (${Math.round(((t.horas_planificadas - t.duracion_h) / t.duracion_h) * 100)}%) sobre lo estimado`)
+              ? el('b', { class: 'exc' }, ` · +${durTxt(+(t.horas_planificadas - t.duracion_h).toFixed(1))} (${Math.round(((t.horas_planificadas - t.duracion_h) / t.duracion_h) * 100)}%) de excedente sin estimar`)
               : ' · completa'),
         el('span', { class: 'tc-barra', 'aria-hidden': 'true', style: `--c:${t.orden_color}` },
           el('span', { style: `width:${Math.min(100, (t.horas_planificadas / t.duracion_h) * 100)}%` }))),
@@ -1641,8 +1657,12 @@
       t.baja_presupuesto ? el('dt', {}, 'Presupuesto') : null,
       t.baja_presupuesto ? el('dd', { class: 'baja-txt' }, 'Ya no está en el presupuesto (se conserva por tener planificación)') : null,
       t.operarios_req && !t.proveedor_id ? el('dt', {}, 'Horas-persona') : null,
-      t.operarios_req && !t.proveedor_id ? el('dd', {}, `${durTxt(+t.horas_persona.toFixed(1))} de ${durTxt(t.duracion_h * t.operarios_req)} previstas`,
-        el('span', { class: 'ayuda' }, ` (${durTxt(t.duracion_h)} × ${t.operarios_req} op)`)) : null,
+      t.operarios_req && !t.proveedor_id ? el('dd', {}, `${durTxt(+t.horas_persona.toFixed(1))} planificadas de ${durTxt(t.duracion_h * t.operarios_req)} previstas`,
+        el('span', { class: 'ayuda' }, ` (${durTxt(t.duracion_h)} × ${t.operarios_req} op)`),
+        t.estimado_original && Math.abs(t.estimado_original - t.duracion_h) > 0.05
+          ? el('div', { class: 'ayuda' }, `Estimado original: ${durTxt(t.estimado_original)} × ${t.operarios_req} op = ${durTxt(t.estimado_original * t.operarios_req)} (reestimada en el parte)`) : null) : null,
+      !t.proveedor_id && (t.real_h || t.estado === 'hecha') ? el('dt', {}, 'Real') : null,
+      !t.proveedor_id && (t.real_h || t.estado === 'hecha') ? el('dd', {}, realTxt(t)) : null,
     ];
 
     const partes = [el('dl', {}, filas)];

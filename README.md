@@ -864,10 +864,13 @@ Estados: pendiente → autorizada / rechazada → comprada → cuadrada (o anula
 
 `src/horas-extra.js`, `public/recursos-extras.js` (Recursos › **Turnos y horas extra**).
 
-- **Excedente**: al **alargar un tramo** (o su inicio hacia atrás) y pasar de lo estimado, lo que hace falta se suma a la
-  tarea (`tareas.duracion_h`; la primera vez se guarda `duracion_inicial_h`) y queda en `tarea_excedentes` (horas, antes,
-  después, quién, cuándo). Solo cuenta lo que ha crecido en ese cambio. En el tablero sale «+1h de excedente: la tarea pasa
-  de 7h a 8h (14h → 16h h-persona)» con **Deshacer** (`DELETE /api/excedentes/:id`: la tarea vuelve a su estimación).
+- **Excedente**: alargar un tramo **no cambia la estimación**. Lo que pasa del estimado **original** (`duracion_inicial_h`
+  si se reestimó en el parte; si no, `duracion_h`) se ve **rayado** en el bloque con «+1h excedente» (`tramos[].excedente`
+  en `/api/tablero`; el aviso leve «exceso» sigue midiendo contra la estimación actual). En el detalle de la tarea:
+  «Planificado 8h de 7h · +1h de excedente sin estimar» y **Real**: horas-persona del parte frente a las previstas
+  (estimado original × operarios) — «llevas 9h de 26h» o, terminada, «✔ terminada con 20h de 26h · 6h menos (−23 %)».
+  El **último tramo de una tarea terminada** lleva «✔ −3h menos» (verde) o «✔ +2h más» (rojo). (`tarea_excedentes` quedó
+  de la primera versión, que sí subía la estimación; una migración deshizo lo sumado.)
 - **Turnos** (`turnos`: nombre, inicio, fin, por defecto; «Normal» 07:00–15:00 se crea solo): se gestionan en la pestaña;
   cada operario tiene el suyo en su ficha (`recursos.turno_id`, vacío = el por defecto). El tablero enseña desde el inicio
   más temprano hasta el fin más tardío + 2 h.
