@@ -52,7 +52,13 @@ async function pedido(id, c = { query }) {
   if (!rows.length) return null;
   const { rows: lineas } = await c.query(
     `SELECT l.id, l.escandallo_id, l.tarea_id, l.descripcion, l.cantidad::float AS cantidad, l.unidad, l.precio::float AS precio, l.orden,
-            pr.codigo AS proyecto_codigo, pa.codigo AS partida_codigo, pa.nombre AS partida_nombre, e.compra, e.precio_pedido::float AS precio_pedido
+            pr.codigo AS proyecto_codigo, pa.codigo AS partida_codigo, pa.nombre AS partida_nombre, e.compra, e.precio_pedido::float AS precio_pedido,
+            pr.id AS proyecto_id, pa.id AS partida_id,
+            -- a qué tareas está asignado ese material (o la tarea de la línea, si es de subcontratación): para enlazarlas
+            COALESCE((SELECT json_agg(json_build_object('id', t.id, 'codigo', t.codigo, 'nombre', t.nombre, 'ot_id', o.id, 'ot_codigo', o.codigo,
+                                                        'proyecto_id', o.proyecto_id) ORDER BY t.codigo)
+                        FROM tareas t JOIN ordenes o ON o.id = t.orden_id
+                       WHERE t.id = l.tarea_id OR t.id IN (SELECT tm.tarea_id FROM tarea_material tm WHERE tm.escandallo_id = l.escandallo_id)), '[]') AS tareas
        FROM pedido_compra_lineas l
        LEFT JOIN partida_escandallo e ON e.id = l.escandallo_id
        LEFT JOIN partidas pa ON pa.id = e.partida_id LEFT JOIN proyectos pr ON pr.id = pa.proyecto_id

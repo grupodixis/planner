@@ -47,6 +47,20 @@
     history.replaceState(null, '', `${location.pathname}${u.toString() ? `?${u}` : ''}`);
   };
 
+  // De dónde es una línea, con enlaces: a la tarea (o tareas) si el material está asignado; si no, al proyecto
+  function origenLinea(l, p) {
+    const aProy = (pid, txt, q = '') => el('a', { href: `/proyectos.html?p=${pid}${q}`, class: 'enlace-sub', title: 'Abrir en Proyectos y OTs' }, txt);
+    const tareas = l.tareas || [];
+    const partes = [];
+    if (l.proyecto_codigo) partes.push(aProy(l.proyecto_id, l.proyecto_codigo), ` · ${l.partida_codigo ? `${l.partida_codigo} ` : ''}${l.partida_nombre || ''}`);
+    if (tareas.length) {
+      partes.push(partes.length ? ' · ' : '', tareas.length > 1 ? 'tareas ' : 'tarea ');
+      tareas.forEach((t, i) => partes.push(i ? ', ' : '', aProy(t.proyecto_id, `${t.codigo || t.ot_codigo} ${t.nombre}`, `&ot=${t.ot_id}&tarea=${t.id}`)));
+    } else if (l.tarea_id) partes.push(`🏭 tarea de la OT ${p.ot_codigo || ''} (taller externo)`);
+    if (!partes.length) partes.push('Línea a mano');
+    return el('div', { class: 'sub' }, partes);
+  }
+
   /* ================= Pedidos ================= */
   async function pintarPedidos() {
     const [d, provs] = await Promise.all([api('GET', '/api/compras/pedidos'), api('GET', '/api/proveedores')]);
@@ -111,8 +125,7 @@
         const cambia = (k) => (ev) => { l[k] = ev.target.value === '' ? null : ev.target.value; imp.textContent = l.precio == null ? '—' : eur((Number(l.cantidad) || 0) * Number(l.precio)); totalEl.textContent = eur(total()); guardar(cuerpoLineas); };
         return el('tr', {},
           el('td', {}, editable && !l.escandallo_id ? el('input', { value: l.descripcion, 'aria-label': 'Descripción', class: 'cmp-in-desc', oninput: cambia('descripcion') }) : el('span', {}, l.descripcion),
-            l.proyecto_codigo ? el('div', { class: 'sub' }, `${l.proyecto_codigo} · ${l.partida_codigo ? `${l.partida_codigo} ` : ''}${l.partida_nombre || ''}`)
-              : el('div', { class: 'sub' }, l.tarea_id ? `🏭 tarea de la OT ${p.ot_codigo || ''} (taller externo)` : 'Línea a mano')),
+            origenLinea(l, p)),
           el('td', { class: 'num' }, editable ? el('input', { type: 'number', min: '0', step: 'any', value: l.cantidad, class: 'cmp-in-num', 'aria-label': 'Cantidad', oninput: cambia('cantidad') }) : String(l.cantidad).replace('.', ',')),
           el('td', {}, editable && !l.escandallo_id ? el('input', { value: l.unidad || '', class: 'cmp-in-ud', 'aria-label': 'Unidad', oninput: cambia('unidad') }) : (l.unidad || '')),
           el('td', { class: 'num' }, editable ? el('input', { type: 'number', min: '0', step: '0.0001', value: l.precio ?? '', placeholder: '€', class: `cmp-in-num${l.precio == null ? ' falta' : ''}`, 'aria-label': 'Precio unitario', oninput: cambia('precio') }) : eur(l.precio)),

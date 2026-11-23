@@ -2399,3 +2399,4 @@ h1.marca .marca-ico { width: 28px; height: 28px; flex: none; border-radius: 7px;
 .cmp-comp td.cmp-no label { color: var(--suave); align-items: center; }
 .cmp-comp td.cmp-no.sel label { background: #2a2a2a; color: var(--texto, #e6e6e6); }
 .cmp-comp th.cmp-col-no { white-space: nowrap; }
+.enlace-sub { color: inherit; text-decoration: underline; text-decoration-color: #6b6b6b; text-underline-offset: 2px; } .enlace-sub:hover { color: var(--acento, #2bb3a3); text-decoration-color: currentColor; }
