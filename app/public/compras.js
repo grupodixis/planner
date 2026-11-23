@@ -271,7 +271,7 @@
         const t = s.lineas.length && p.fecha_entrega ? s.lineas.every((l) => llega(p, l) !== false) : null;
         return el('th', { class: 'cmp-col-prov' }, el('b', {}, p.proveedor),
           el('div', { class: 'sub' }, p.estado === 'respondida' ? [p.ref_oferta ? `oferta ${p.ref_oferta} · ` : '', p.fecha_entrega ? `llega ${fecha(p.fecha_entrega)} ` : 'sin fecha ', t === true ? el('span', { class: 'pos' }, '✓ a tiempo') : t === false ? el('span', { class: 'neg' }, '⚠ tarde') : null] : (EST_SP[p.estado] || [p.estado])[0]));
-      }));
+      }), el('th', { class: 'cmp-col-no' }, el('b', {}, 'No pedir'), el('div', { class: 'sub' }, 'vuelve a «Por pedir»')));
     const filas = s.lineas.map((l) => el('tr', {},
       el('td', {}, l.descripcion, el('div', { class: 'sub' }, [l.proyecto_codigo, l.partida_codigo, l.necesaria ? `hace falta ${fecha(l.necesaria)}` : null].filter(Boolean).join(' · '))),
       el('td', { class: 'num' }, `${String(l.cantidad).replace('.', ',')} ${l.unidad || ''}`),
@@ -284,10 +284,14 @@
           onchange: () => { elegido[l.id] = p.id; actualizarPies(); guardarEleccion(); pintarSel(); } });
         return el('td', { class: `cmp-oferta${mejor.get(l.id) === p.id ? ' mejor' : ''}`, 'data-l': l.id, 'data-p': p.id },
           el('label', {}, radio, el('span', {}, el('b', {}, eur(pr)), ` /${l.unidad || 'ud'}`, el('div', { class: 'sub' }, `total ${eur(pr * l.cantidad)}${mejor.get(l.id) === p.id ? ' · mejor' : ''}`), alt)));
-      })));
-    const pintarSel = () => { for (const td of caja.querySelectorAll('.cmp-oferta')) td.classList.toggle('sel', elegido[td.dataset.l] === Number(td.dataset.p)); };
+      }),
+      // quitar la línea de esta compra: no se pide a nadie y vuelve a «Por pedir» al crear los pedidos
+      el('td', { class: 'cmp-oferta cmp-no', 'data-l': l.id, 'data-p': '0' },
+        el('label', {}, el('input', { type: 'radio', name: `l${l.id}`, checked: !elegido[l.id], disabled: !abierta, 'aria-label': `No pedir ${l.descripcion}`,
+          onchange: () => { elegido[l.id] = null; actualizarPies(); guardarEleccion(); pintarSel(); } }), el('span', {}, 'No pedir')))));
+    const pintarSel = () => { for (const td of caja.querySelectorAll('.cmp-oferta')) td.classList.toggle('sel', (elegido[td.dataset.l] || 0) === Number(td.dataset.p)); };
     const pie = el('tr', { class: 'fila-total' }, el('td', { colspan: '2' }, 'Total elegido (con portes)'),
-      ...s.proveedores.map((p) => { const t = el('b'); pies.set(p.id, t); return el('td', {}, t, p.portes ? el('div', { class: 'sub' }, `portes ${eur(p.portes)}`) : null); }));
+      ...s.proveedores.map((p) => { const t = el('b'); pies.set(p.id, t); return el('td', {}, t, p.portes ? el('div', { class: 'sub' }, `portes ${eur(p.portes)}`) : null); }), el('td'));
 
     const tarjetaProv = (p) => {
       const [txt, cls] = EST_SP[p.estado] || [p.estado, ''];
@@ -319,11 +323,12 @@
       el('h3', { class: 'cmp-h3' }, 'Proveedores'),
       el('div', { class: 'cmp-provs-sol' }, s.proveedores.map(tarjetaProv), abierta ? selAdd : null),
       el('h3', { class: 'cmp-h3' }, 'Comparar y elegir'),
-      el('p', { class: 'ayuda' }, 'Marca qué proveedor se queda cada línea. En verde, lo más barato que llega a tiempo.'),
+      el('p', { class: 'ayuda' }, 'Marca qué proveedor se queda cada línea, o «No pedir» para dejarla fuera (vuelve a «Por pedir»). En verde, lo más barato que llega a tiempo.'),
       el('div', { class: 'tabla-scroll' }, el('table', { class: 'tabla-inf cmp-comp' }, el('thead', {}, cab), el('tbody', {}, filas), el('tfoot', {}, pie))),
       abierta ? el('div', { class: 'cmp-acciones' },
         el('a', { class: 'boton ghost', href: `/api/compras/solicitudes/${s.id}/pdf`, target: '_blank', rel: 'noopener' }, '📄 PDF de la petición'),
-        el('button', { type: 'button', class: 'ghost peligro', onclick: () => { if (confirm(`¿Anular ${s.codigo}? Las líneas vuelven a «Por pedir».`)) hacer(() => api('DELETE', `/api/compras/solicitudes/${s.id}`), 'Petición anulada'); } }, 'Anular'),
+        el('button', { type: 'button', class: 'ghost peligro', title: 'Cancela esta petición de precio sin pedir nada: todas sus líneas vuelven a «Por pedir» y los enlaces de los proveedores dejan de admitir cambios',
+          onclick: () => { if (confirm(`¿Anular la petición ${s.codigo} sin pedir nada?\n\nTodas sus líneas vuelven a «Por pedir» y los proveedores ya no podrán cambiar su oferta. Las ofertas recibidas se conservan para consulta.`)) hacer(() => api('DELETE', `/api/compras/solicitudes/${s.id}`), 'Petición anulada'); } }, '✕ Anular petición'),
         el('button', { type: 'button', class: 'primario', onclick: async () => {
           const n = new Set(s.lineas.filter((l) => elegido[l.id]).map((l) => elegido[l.id])).size;
           if (!n) { toast('Elige proveedor en alguna línea', true); return; }

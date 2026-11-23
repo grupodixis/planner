@@ -713,9 +713,10 @@ compositor los use.
   **✉ Pedir precio…** → proveedores (primero los que sirven ese material) y fechas. A cada proveedor
   se le envía el **PDF de la petición** (por correo o a mano) y se le puede **recordar**. Su oferta
   se apunta (precio por línea, entrega, portes, su referencia y PDF). **Comparativo** línea ×
-  proveedor con lo más barato que llega a tiempo marcado; se elige proveedor por línea y **Crear
+  proveedor con lo más barato que llega a tiempo marcado; se elige proveedor por línea (o **No pedir**: la línea queda
+  fuera) y **Crear
   pedidos** hace un pedido por proveedor con esos precios (y los portes). Lo no elegido vuelve a
-  «Por pedir». Mientras pide precio, la línea sale en logística como «✉ Pidiendo precio».
+  «Por pedir». **✕ Anular petición** la cancela sin pedir nada (todo vuelve a «Por pedir»; las ofertas se conservan). Mientras pide precio, la línea sale en logística como «✉ Pidiendo precio».
 - **El proveedor responde en la plataforma** (`/oferta.html?t=…`, `src/ofertas-portal.js`): el correo
   y el PDF de la petición llevan un **enlace personal** por proveedor y petición (también «🔗 Enlace»
   en su tarjeta, para WhatsApp). Sin cuenta: ve los datos de la empresa y el material y pone **precio
