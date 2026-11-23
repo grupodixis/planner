@@ -308,6 +308,11 @@ module.exports = function montar(app, asyncH) {
         conflictos.push({ tipo: 'material', ids: [tr.id], fecha: tr.fecha,
           mensaje: `${t.codigo || t.orden_codigo} ${t.nombre}: el material llega el ${dm(ult)} (${corta(tarde)})` });
       }
+      const conInc = L.materiales.filter((m) => m.incidencias?.length);
+      if (conInc.length) {
+        conflictos.push({ tipo: 'material', ids: [tr.id], fecha: tr.fecha, incidencia: true,
+          mensaje: `${t.codigo || t.orden_codigo} ${t.nombre}: ⚠ incidencia con el material — ${conInc.slice(0, 2).map((m) => `${m.descripcion}: «${m.incidencias[m.incidencias.length - 1].texto}»`).join('; ')}${conInc.length > 2 ? ` y ${conInc.length - 2} más` : ''}` });
+      }
       if (sinPedir.length) {
         conflictos.push({ tipo: 'material', ids: [tr.id], fecha: tr.fecha, leve: true,
           mensaje: `${t.codigo || t.orden_codigo} ${t.nombre}: falta material sin pedir (${corta(sinPedir)})` });

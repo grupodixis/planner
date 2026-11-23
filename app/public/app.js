@@ -635,7 +635,7 @@
   /* ---------- material y herramientas de la tarea ---------- */
   const MAT_TXT = { disponible: 'en almacén', pedido: 'pedido', por_pedir: 'falta (sin pedir)', sin_revisar: 'sin revisar por logística' };
   const cantM = (n, u) => `${String(Math.round(n * 1000) / 1000).replace('.', ',')}${u ? ` ${u}` : ''}`;
-  const matLinea = (m) => `${cantM(m.cantidad, m.unidad)} ${m.descripcion} — ${m.estado === 'pedido' && m.fecha_prevista ? `pedido${m.proveedor ? ` a ${m.proveedor}` : ''}, llega el ${ddmm(m.fecha_prevista)}` : MAT_TXT[m.estado]}${m.recibido_por?.length ? ` · ✔ recibido (${m.recibido_por.join(', ')})` : ''}`;
+  const matLinea = (m) => `${cantM(m.cantidad, m.unidad)} ${m.descripcion} — ${m.estado === 'pedido' && m.fecha_prevista ? `pedido${m.proveedor ? ` a ${m.proveedor}` : ''}, llega el ${ddmm(m.fecha_prevista)}` : MAT_TXT[m.estado]}${m.recibido_por?.length ? ` · ✔ recibido (${m.recibido_por.join(', ')})` : ''}${(m.incidencias || []).map((i) => ` · ⚠ INCIDENCIA: ${i.texto}`).join('')}`;
   function textoLlevar(L) {
     return [L.materiales.length ? `Material:\n· ${L.materiales.map(matLinea).join('\n· ')}` : null,
       L.herramientas.length ? `Herramientas:\n· ${L.herramientas.map((h) => `${h.cantidad > 1 ? `${cantM(h.cantidad)}× ` : ''}${h.descripcion}${h.preparado_por?.length ? ` · ✔ (${h.preparado_por.join(', ')})` : ''}`).join('\n· ')}` : null].filter(Boolean).join('\n');
@@ -694,6 +694,7 @@
     if (!L || (!L.materiales.length && !L.herramientas.length)) return null;
     if (!L.materiales.length) return el('span', { class: 'mat-ico herr', title: textoLlevar(L) }, '🔧');
     const tarde = fecha && L.llega && L.llega > fecha;
+    if (L.incidencias) return el('span', { class: 'mat-ico incid', title: `⚠ Incidencia con el material\n${textoLlevar(L)}` }, '🧰 ⚠');
     const txt = tarde ? `🧰 llega ${ddmm(L.llega)}`
       : { disponible: '🧰 ✔', pedido: `🧰 ${L.llega ? ddmm(L.llega) : 'pedido'}`, por_pedir: '🧰 falta', sin_revisar: '🧰 ?' }[L.estado];
     return el('span', { class: `mat-ico ${tarde ? 'tarde' : L.estado}`, title: (tarde ? `⚠ El material llega el ${ddmm(L.llega)}, después de este día\n` : '') + textoLlevar(L) }, txt);
@@ -1635,7 +1636,8 @@
         return el('li', {}, el('span', {}, el('b', {}, cantM(m.cantidad, m.unidad)), ` ${m.descripcion}`),
           m.recibido_por?.length ? el('span', { class: 'md-ll-est ok' }, `✔ recibido: ${m.recibido_por.join(', ')}`) : null,
           el('span', { class: `md-ll-est ${tarde ? 'falta' : { disponible: 'ok', pedido: 'pedido', por_pedir: 'falta', sin_revisar: 'revisar' }[m.estado]}` },
-            m.estado === 'pedido' ? `${tarde ? '⚠ ' : '🚚 '}${m.fecha_prevista ? `llega ${ddmm(m.fecha_prevista)}` : 'pedido, sin fecha'}${m.proveedor ? ` · ${m.proveedor}` : ''}` : MAT_TXT[m.estado]));
+            m.estado === 'pedido' ? `${tarde ? '⚠ ' : '🚚 '}${m.fecha_prevista ? `llega ${ddmm(m.fecha_prevista)}` : 'pedido, sin fecha'}${m.proveedor ? ` · ${m.proveedor}` : ''}` : MAT_TXT[m.estado]),
+          (m.incidencias || []).map((i) => el('div', { class: 'det-incid' }, `⚠ ${i.texto}`, el('small', {}, ` · ${i.autor || ''} ${fechaCorta(String(i.creado).slice(0, 10))}`))));
       }))) : null,
       t.llevar?.herramientas.length ? el('dt', {}, 'Herramientas') : null,
       t.llevar?.herramientas.length ? el('dd', { class: 'det-llevar' }, el('ul', {}, t.llevar.herramientas.map((h) => el('li', {},

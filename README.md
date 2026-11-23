@@ -416,8 +416,9 @@ pedido (PDF o foto); al recibir (ordenador o móvil) logística pone el **nº de
 albarán. Se ven en la línea («Pedido nº … · albarán nº …») y se pueden corregir después
 (`partida_escandallo.num_pedido / num_albaran`, `PUT /api/escandallo/:id/documentos`).
 Botón **⚠ Incidencia** (en Recibir junto a «Ha llegado», y en Revisar stock): comentario + fotos con la
-cámara; se guarda en `escandallo_incidencias` (las fotos van a la línea), avisa a compras y al técnico
-(`mat_incidencia`) y en Logística y compras se ve en naranja hasta que alguien pulsa «✔ Resuelta»
+cámara; se guarda en `escandallo_incidencias` (las fotos van a la línea), avisa a compras, al técnico y a Operaciones
+(`mat_incidencia`, con las tareas afectadas y su primer día planificado); en el **tablero** la tarea que usa ese material lleva
+«🧰 ⚠», un aviso grave con el texto de la incidencia y la incidencia en el material del detalle (y en Mi día), hasta que se resuelve y en Logística y compras se ve en naranja hasta que alguien pulsa «✔ Resuelta»
 (`POST /api/escandallo/:id/incidencias`, `PUT /api/escandallo-incidencias/:id/resolver`).
 
 **Mi perfil** (`GET/PUT /api/mi-dia/perfil`): teléfono, email, DNI/NIE, nacimiento, dirección, C.P.,

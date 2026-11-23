@@ -298,9 +298,18 @@ function montar(app, asyncH) {
       await c.query('INSERT INTO escandallo_incidencias (escandallo_id, texto, creado_por) VALUES ($1, $2, $3)', [id, t || '(foto)', req.usuario.id]);
       if (fotos.length) await archivos.enlazar(c, fotos, 'escandallo', id, req.usuario.id);
     });
-    notif.avisarLuego(notif.conPermiso('compras', 'escandallo'), 'mat_incidencia', {
+    // avisa a compras, al técnico y a Operaciones (rol «operaciones»); con las tareas afectadas y su primer día planificado
+    const { rows: afect } = await query(
+      `SELECT t.codigo, t.nombre, (SELECT min(x.fecha) FROM tramos x WHERE x.tarea_id = t.id AND x.fecha >= CURRENT_DATE) AS dia
+         FROM tarea_material tm JOIN tareas t ON t.id = tm.tarea_id WHERE tm.escandallo_id = $1 AND t.estado <> 'hecha' ORDER BY 3 NULLS LAST`, [id]);
+    const aQuien = Promise.all([notif.conPermiso('compras', 'escandallo'),
+      query(`SELECT id FROM usuarios WHERE activo AND (rol = 'operaciones' OR 'operaciones' = ANY(COALESCE(roles_extra, '{}')))`).then((r) => r.rows.map((x) => x.id))])
+      .then(([a, b]) => [...new Set([...a, ...b])].filter((u) => u !== req.usuario.id));
+    const dia = afect.find((a) => a.dia)?.dia;
+    notif.avisarLuego(aQuien, 'mat_incidencia', {
       titulo: `⚠ Incidencia: ${l0.descripcion}`,
-      cuerpo: `${t || 'Con foto'} · ${req.usuario.nombre} · ${l0.proyecto_codigo} ${l0.partida_nombre}`,
+      cuerpo: `${t || 'Con foto'} · ${req.usuario.nombre} · ${l0.proyecto_codigo} ${l0.partida_nombre}`
+        + (afect.length ? ` · afecta a ${afect.slice(0, 2).map((a) => a.codigo).join(', ')}${dia ? ` (planificada el ${String(dia).slice(8, 10)}/${String(dia).slice(5, 7)})` : ''}` : ''),
       url: `/logistica.html?vista=todo&partida=${l0.partida_id}`, tag: `inc-${id}`,
     });
     res.status(201).json(await linea(id));
@@ -472,7 +481,11 @@ async function deTareas(ids, recursoId = null) {
   if (!ids.length) return out;
   const [{ rows: mats }, { rows: herr }] = await Promise.all([
     query(`SELECT m.id, m.tarea_id, m.cantidad::float, e.descripcion, e.unidad, e.stock::float, e.compra, e.cantidad::float AS total,
-                  e.fecha_prevista, pr.nombre AS proveedor, e.recibido_en
+                  e.fecha_prevista, pr.nombre AS proveedor, e.recibido_en,
+                  -- incidencias sin resolver del material (dañado, incompleto, no llegó…)
+                  COALESCE((SELECT json_agg(json_build_object('id', i.id, 'texto', i.texto, 'autor', u.nombre, 'creado', i.creado) ORDER BY i.creado)
+                              FROM escandallo_incidencias i LEFT JOIN usuarios u ON u.id = i.creado_por
+                             WHERE i.escandallo_id = e.id AND i.resuelta_en IS NULL), '[]') AS incidencias
              FROM tarea_material m JOIN partida_escandallo e ON e.id = m.escandallo_id LEFT JOIN proveedores pr ON pr.id = e.proveedor_id
             WHERE m.tarea_id = ANY($1::int[]) ORDER BY e.orden, e.id`, [ids]),
     query(`SELECT id, tarea_id, descripcion, cantidad::float FROM tarea_herramienta WHERE tarea_id = ANY($1::int[]) ORDER BY id`, [ids]),
@@ -491,7 +504,8 @@ async function deTareas(ids, recursoId = null) {
     const x = de(m.tarea_id);
     const est = estado({ stock: m.stock, cantidad: m.total, compra: m.compra });
     x.materiales.push({ id: m.id, recibido_por: quien('material', m.id), mio: mio('material', m.id), descripcion: m.descripcion, cantidad: m.cantidad, unidad: m.unidad, estado: est,
-      fecha_prevista: est === 'pedido' ? m.fecha_prevista : null, proveedor: est === 'pedido' ? m.proveedor : null });
+      fecha_prevista: est === 'pedido' ? m.fecha_prevista : null, proveedor: est === 'pedido' ? m.proveedor : null, incidencias: m.incidencias });
+    if (m.incidencias.length) x.incidencias = (x.incidencias || 0) + m.incidencias.length;
     if (!x.estado || PESO[est] > PESO[x.estado]) x.estado = est;
     if (est === 'pedido' && m.fecha_prevista && (!x.llega || m.fecha_prevista > x.llega)) x.llega = m.fecha_prevista;
   }

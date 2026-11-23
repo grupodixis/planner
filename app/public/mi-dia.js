@@ -155,7 +155,8 @@
         const tarde = m.estado === 'pedido' && m.fecha_prevista && m.fecha_prevista > dia;
         const [cl, txt] = m.mio ? ['ok', '✔ recibido'] : tarde ? ['falta', ''] : EST_MAT[m.estado] || ['', ''];
         return fila('material', m, [el('b', {}, cantTxt(m.cantidad, m.unidad)), ` ${m.descripcion}`],
-          el('span', { class: `md-ll-est ${cl}` }, !m.mio && m.estado === 'pedido' && m.fecha_prevista ? `${tarde ? '⚠' : '🚚'} llega ${diaTxt(m.fecha_prevista)}` : txt));
+          el('span', { class: `md-ll-est ${m.incidencias?.length && !m.mio ? 'falta' : cl}` }, m.incidencias?.length && !m.mio ? `⚠ ${m.incidencias[m.incidencias.length - 1].texto}`
+            : !m.mio && m.estado === 'pedido' && m.fecha_prevista ? `${tarde ? '⚠' : '🚚'} llega ${diaTxt(m.fecha_prevista)}` : txt));
       })) : null,
       nPrep ? el('div', { class: 'md-ll-sub' }, `Herramientas y equipos · preparados ${prep}/${nPrep}`) : null,
       nPrep ? el('ul', { class: 'md-ll-lista herr' },
