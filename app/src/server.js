@@ -293,6 +293,7 @@ require('./subcontratacion').montar(app, asyncH);   // pedir presupuesto / hacer
 require('./transportes').montarGestion(app, asyncH);   // envíos península → Menorca
 require('./compras-locales').montar(app, asyncH);   // compras locales: pedir, autorizar, ticket, cuadrar
 require('./supervision').montar(app, asyncH);   // supervisar desde el móvil: recibir, parte, aprobar, dónde está
+require('./horas-extra').montar(app, asyncH);   // turnos, excedentes y horas extra (autoriza Dirección)
 require('./recursos')(app, asyncH);
 require('./importar')(app, asyncH);
 require('./semillero')(app, asyncH);

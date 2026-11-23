@@ -62,8 +62,8 @@
       o.push(['🧾', 'Parte de hoy', ir('parte'), [n ? `${n} por confirmar` : 'Nada por confirmar', p.sin_apuntar ? `${p.sin_apuntar} sin apuntar` : null].filter(Boolean).join(' · '), !!n]);
     }
     if (res.aprobar) {
-      const a = res.aprobar; const n = a.pedidos + a.vacaciones + a.locales;
-      o.push(['✔', 'Aprobar', ir('aprobar'), n ? [a.pedidos ? `${a.pedidos} pedido(s)` : null, a.vacaciones ? `${a.vacaciones} vacaciones` : null, a.locales ? `${a.locales} compra(s) local(es)` : null].filter(Boolean).join(' · ') : 'Nada por aprobar', !!n]);
+      const a = res.aprobar; const n = a.pedidos + a.vacaciones + a.locales + (a.extras || 0);
+      o.push(['✔', 'Aprobar', ir('aprobar'), n ? [a.extras ? `${a.extras} horas extra` : null, a.pedidos ? `${a.pedidos} pedido(s)` : null, a.vacaciones ? `${a.vacaciones} vacaciones` : null, a.locales ? `${a.locales} compra(s) local(es)` : null].filter(Boolean).join(' · ') : 'Nada por aprobar', !!n]);
     }
     if (res.donde) o.push(['📍', 'Dónde está cada cosa', ir('donde'), res.donde.n ? `${res.donde.n} OT fuera${res.donde.retrasos ? ` · ⚠ ${res.donde.retrasos} retraso(s)` : ''}` : 'Nada fuera', !!res.donde.retrasos]);
     return o;
@@ -201,11 +201,13 @@
   async function cargarAprobar() {
     const p = permisos;
     const tiene = (k) => p.includes(k);
-    const [ped, vac, loc] = await Promise.all([
+    const [ped, vac, loc, hx] = await Promise.all([
       tiene('aprobar_compras') ? api('GET', '/api/compras/pedidos?estado=por_aprobar').catch(() => null) : null,
       tiene('vacaciones_ops') || tiene('vacaciones_rrhh') ? api('GET', '/api/solicitudes-vacaciones').catch(() => null) : null,
       tiene('autorizar_compras_locales') ? api('GET', '/api/compras-locales?vista=autorizar').catch(() => null) : null,
+      tiene('autorizar_horas_extra') ? api('GET', '/api/horas-extra?vista=pendientes').catch(() => null) : null,
     ]);
+    const extras = hx?.peticiones || [];
     const caja = $('#v-aprobar');
     const decide = (url, cuerpoSi, cuerpoNo, pideMotivo) => [
       el('button', { type: 'button', class: 'si', onclick: async (ev) => {
@@ -220,8 +222,15 @@
     const vacs = (vac?.solicitudes || []).filter((s) => (s.estado === 'pendiente_ops' && vac.puedo.ops) || (s.estado === 'pendiente_rrhh' && vac.puedo.rrhh));
     const locs = loc?.compras || [];
     caja.replaceChildren(el('section', { class: 'md-bloque' }, el('h2', {}, '✔ Aprobar'),
-      !pedidos.length && !vacs.length && !locs.length ? vacio('✔ Nada por aprobar.') : null,
+      !pedidos.length && !vacs.length && !locs.length && !extras.length ? vacio('✔ Nada por aprobar.') : null,
       el('ul', { class: 'md-lista sv-lista' },
+        extras.map((g) => el('li', { class: 'sv-card' },
+          el('div', { class: 'sv-cab' }, el('b', {}, `Horas extra · ${ddmm(g.fecha)}`), el('span', { class: 'sv-est' }, `${String(g.horas).replace('.', ',')} h · ≈ ${eur(g.coste)}`)),
+          el('small', {}, g.tarea_codigo ? [cod(g.tarea_codigo), ` ${g.tarea}${g.area ? ` · ${g.area}` : ''}`] : 'Trabajo fuera del plan'),
+          el('small', {}, `${g.desde < 99 ? `${hhmm(g.desde)}–${hhmm(g.hasta)} · ` : ''}${g.personas.map((x) => x.nombre).join(', ')}`),
+          el('small', {}, [g.pedido_por_nombre ? `Pidió: ${g.pedido_por_nombre}` : null, g.motivo ? `«${g.motivo}»` : null].filter(Boolean).join(' · ')),
+          g.personas.filter((x) => x.mes).length ? el('small', { class: 'sv-mes' }, g.personas.filter((x) => x.mes).map((x) => `${x.nombre} lleva ${String(x.mes).replace('.', ',')} h extra este mes`).join(' · ')) : null,
+          el('div', { class: 'cl-botones' }, decide({ si: '/api/horas-extra/decidir', no: '/api/horas-extra/decidir' }, () => ({ ids: g.ids, decision: 'si' }), (m) => ({ ids: g.ids, decision: 'no', nota: m }), 'Motivo (lo verá quien lo pidió; el tramo vuelve al fin de turno)')))),
         pedidos.map((x) => el('li', { class: 'sv-card' },
           el('div', { class: 'sv-cab' }, el('b', {}, `Pedido ${x.codigo}`), el('span', { class: 'sv-est' }, eur(x.total))),
           el('small', {}, [x.proveedor, x.proyectos, x.referencia, x.creado_por_nombre ? `preparó: ${x.creado_por_nombre}` : null].filter(Boolean).join(' · ')),

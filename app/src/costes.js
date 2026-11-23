@@ -11,6 +11,7 @@
 const { query } = require('./db');
 const auth = require('./auth');
 const { jornada } = require('./config');
+const extras = require('./horas-extra');
 
 const fallo = (status, msg) => Object.assign(new Error(msg), { status });
 const r2 = (x) => Math.round((x || 0) * 100) / 100;
@@ -31,11 +32,15 @@ async function costeMedio() {
 // Horas y coste reales por tarea y recurso (con el recargo de horas extra)
 async function realesDe(proyectoIds, recargo) {
   const { rows } = await query(
-    `WITH dia AS (SELECT recurso_id, fecha, sum(horas)::float AS tot FROM registros GROUP BY 1, 2)
+    // horas extra = las trabajadas fuera del turno de cada persona, y solo las AUTORIZADAS (horas_extra) llevan recargo
+    `WITH ext AS (${extras.SQL_EXTRA_DIA('TRUE')}),
+          aut AS (SELECT recurso_id, fecha, sum(horas)::float AS h FROM horas_extra WHERE estado = 'autorizada' GROUP BY 1, 2),
+          dia AS (SELECT ext.recurso_id, ext.fecha, ext.tot, LEAST(ext.ext, COALESCE(aut.h, 0)) AS ex_aut
+                    FROM ext LEFT JOIN aut ON aut.recurso_id = ext.recurso_id AND aut.fecha = ext.fecha)
      SELECT g.tarea_id, g.recurso_id, r.nombre, r.tipo, r.vinculo,
             sum(g.horas)::float AS h,
-            sum(g.horas * GREATEST(0, d.tot - $2) / d.tot)::float AS h_extra,
-            sum(g.horas * COALESCE(g.coste_hora, r.coste_hora) * (1 + $3 * GREATEST(0, d.tot - $2) / d.tot))::float AS coste,
+            sum(g.horas * d.ex_aut / NULLIF(d.tot, 0))::float AS h_extra,
+            sum(g.horas * COALESCE(g.coste_hora, r.coste_hora) * (1 + $2 * COALESCE(d.ex_aut / NULLIF(d.tot, 0), 0)))::float AS coste,
             bool_or(COALESCE(g.coste_hora, r.coste_hora) IS NULL) AS sin_coste,
             min(g.fecha) AS desde, max(g.fecha) AS hasta
        FROM registros g
@@ -43,7 +48,7 @@ async function realesDe(proyectoIds, recargo) {
        JOIN dia d ON d.recurso_id = g.recurso_id AND d.fecha = g.fecha
        JOIN tareas t ON t.id = g.tarea_id JOIN ordenes o ON o.id = t.orden_id
       WHERE g.tipo = 'productivo' AND o.proyecto_id = ANY($1)
-      GROUP BY 1, 2, 3, 4, 5`, [proyectoIds, jornada.horas, recargo]);
+      GROUP BY 1, 2, 3, 4, 5`, [proyectoIds, recargo]);
   return rows;
 }
 

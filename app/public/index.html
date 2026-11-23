@@ -11,7 +11,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
   <meta name="apple-mobile-web-app-title" content="Planéalo">
   <title>Planéalo · Tablero de planificación</title>
-  <link rel="stylesheet" href="styles.css?v=202611222010">
+  <link rel="stylesheet" href="styles.css?v=202611231506">
 </head>
 <body>
   <header class="top">
@@ -117,13 +117,26 @@
     </div>
   </dialog>
 
+  <dialog id="dlg-extras" aria-labelledby="extras-tit">
+    <h2 id="extras-tit">Horas extra</h2>
+    <p class="ayuda">Esto queda fuera del turno de estas personas. Son horas extra: las autoriza Dirección (te llegará la respuesta).</p>
+    <ul id="extras-lista" class="empujar-lista"></ul>
+    <label class="campo"><span>Motivo (lo verá Dirección)</span><input type="text" id="extras-motivo" maxlength="500" placeholder="p. ej. dejarlo montado antes del hormigonado"></label>
+    <div class="acciones dlg-acciones">
+      <button type="button" id="extras-pedir" class="primario">Pedir autorización</button>
+      <button type="button" id="extras-recortar" class="ghost">Solo hasta el fin de su turno</button>
+      <button type="button" id="extras-luego" class="ghost">Luego</button>
+    </div>
+  </dialog>
+
+  <div id="aviso-excedente" class="aviso-excedente" role="status" hidden></div>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
-  <script src="pwa.js?v=202611222010"></script>
-  <script src="comun.js?v=202611222010"></script>
-  <script src="ayuda-textos.js?v=202611222010"></script>
-  <script src="ayuda.js?v=202611222010"></script>
-  <script src="ordenar.js?v=202611222010"></script>
-  <script src="areas-ui.js?v=202611222010"></script>
-  <script src="app.js?v=202611222010"></script>
+  <script src="pwa.js?v=202611231506"></script>
+  <script src="comun.js?v=202611231506"></script>
+  <script src="ayuda-textos.js?v=202611231506"></script>
+  <script src="ayuda.js?v=202611231506"></script>
+  <script src="ordenar.js?v=202611231506"></script>
+  <script src="areas-ui.js?v=202611231506"></script>
+  <script src="app.js?v=202611231506"></script>
 </body>
 </html>

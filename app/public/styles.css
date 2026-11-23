@@ -2356,3 +2356,36 @@ h1.marca .marca-ico { width: 28px; height: 28px; flex: none; border-radius: 7px;
 .cl-botones a.sv-pc { font-size: 15px; font-weight: 600; padding: 12px; border-radius: 10px; background: #1e1e1e; color: #ddd; border: 1px solid #444; }
 .sv-card .primario.md-grande { width: 100%; }
 .md-menu-sec:empty { margin: 0; height: 1px; background: var(--linea); }
+
+/* Horas extra y excedente (tablero, Recursos › Turnos y horas extra) */
+.hx-zona { position: absolute; top: 0; bottom: 0; pointer-events: none; border-left: 1.5px dashed var(--rojo); }
+.hx-zona.pend { background: repeating-linear-gradient(135deg, #f0707055 0 5px, transparent 5px 10px); }
+.hx-zona.ok { border-left-color: var(--verde); background: repeating-linear-gradient(135deg, #4fb35f33 0 5px, transparent 5px 10px); }
+.hx-tag { position: absolute; right: 4px; bottom: 3px; font-size: 10.5px; font-weight: 700; border-radius: 8px; padding: 0 6px; pointer-events: none; z-index: 2; white-space: nowrap; }
+.hx-tag.pend { background: var(--rojo-bg); color: #ffc4c4; border: 1px solid var(--rojo); }
+.hx-tag.ok { background: var(--verde-bg); color: #b8f0c0; border: 1px solid var(--verde); }
+.bloque.hx-pend { outline: 1.5px dashed var(--rojo); outline-offset: 1px; }
+.hx-det.pendiente { color: #ffc4c4; } .hx-det.autorizada { color: #b8f0c0; } .hx-det.rechazada { color: var(--suave); text-decoration: line-through; }
+.aviso-excedente { position: fixed; left: 50%; bottom: 64px; transform: translateX(-50%); z-index: 60; display: flex; gap: 10px; align-items: center;
+  background: #1f2a28; border: 1px solid #2b5a53; border-radius: 10px; padding: 8px 10px 8px 14px; font-size: 13.5px; box-shadow: 0 6px 24px #0008; max-width: min(760px, 94vw); }
+.aviso-excedente button { padding: 4px 10px; }
+#dlg-extras .campo { display: grid; gap: 4px; margin: 10px 0; } #dlg-extras .campo input { width: 100%; }
+#extras-lista .total { font-weight: 700; list-style: none; margin-top: 4px; }
+.extras-pant { padding: 12px 16px; display: grid; gap: 14px; max-width: 1100px; }
+.hx-sec .cab-panel { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: baseline; }
+.hx-lista { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); }
+.hx-card { border: 1px solid var(--borde); border-radius: 10px; padding: 10px 12px; display: grid; gap: 4px; font-size: 13.5px; }
+.hx-card small { color: var(--suave); }
+.hx-cab { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; }
+.hx-h { font-size: 12px; border-radius: 10px; padding: 1px 8px; background: #3b2f10; color: #ffd98a; white-space: nowrap; }
+.hx-cod { font-family: ui-monospace, Menlo, monospace; font-weight: 700; background: #2a3d3a; color: #bff0e8; border-radius: 5px; padding: 0 6px; font-size: 12px; }
+.hx-pers { display: flex; flex-wrap: wrap; gap: 4px 10px; }
+.hx-btns { display: flex; gap: 8px; margin-top: 6px; }
+.hx-tabla { width: 100%; margin-top: 8px; }
+.hx-tabla td.num { text-align: right; white-space: nowrap; }
+.hx-tabla tr.hx-no td { color: var(--suave); }
+.hx-turnos input { width: 100%; min-width: 0; } .hx-turnos .hx-hora { width: 80px; }
+.hx-resumen { margin: 6px 0 0; }
+.md-t-extra { font-size: 13px; font-weight: 600; margin: 2px 0; }
+.md-t-extra.autorizada { color: #a6e3a6; } .md-t-extra.pendiente { color: #ffc4c4; }
+.sv-mes { color: #ffd98a !important; }

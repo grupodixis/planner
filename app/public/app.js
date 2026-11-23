@@ -127,7 +127,7 @@
 
   // Rango visible del día (viene del servidor: jornada + horas extra)
   const J = () => estado.datos.jornada;
-  const H_INI = () => J().inicio;
+  const H_INI = () => J().vistaIni ?? J().inicio;
   const H_FIN = () => J().vistaFin;
   const SPAN = () => H_FIN() - H_INI();
   const pct = (h) => `${((h - H_INI()) / SPAN()) * 100}%`;
@@ -153,7 +153,61 @@
     if (r.status === 401) { location.href = '/login.html'; throw new Error('No autenticado'); }
     const data = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error(data.error || `Error ${r.status}`);
+    // tras un cambio del tablero: excedente de la tarea (aviso con Deshacer) y horas extra por pedir (diálogo)
+    if (metodo !== 'GET') {
+      const tid = Number((/\/api\/tramos\/(\d+)/.exec(url) || [])[1]) || data.tramo?.id;
+      if (data.excedente) estado.excedente = { ...data.excedente, tramo_id: tid };
+      if (Array.isArray(data.extras) && data.extras.some((x) => x.estado === 'pendiente' && !x.avisado)) estado.extrasPorPedir = { tramo_id: tid, extras: data.extras };
+    }
     return data;
+  }
+
+  /* ---------- excedente y horas extra ---------- */
+  function avisoExcedente(x) {
+    const t = tarea(tramo(x.tramo_id)?.tarea_id);
+    const caja = $('#aviso-excedente');
+    const hp = (h) => durTxt(+(h * x.operarios).toFixed(1));
+    caja.replaceChildren(
+      el('span', {}, `✔ ${t ? `${t.codigo || ''} ` : ''}+${durTxt(x.horas)} de excedente: la tarea pasa de ${durTxt(x.antes)} a ${durTxt(x.despues)}`
+        + (x.operarios > 1 ? ` (${hp(x.antes)} → ${hp(x.despues)} h-persona)` : '')),
+      el('button', { type: 'button', class: 'ghost', onclick: async () => {
+        caja.hidden = true;
+        await accion(async () => { await api('DELETE', `/api/excedentes/${x.id}`); return 'Excedente deshecho: la tarea vuelve a su estimación (el tramo sigue igual; acórtalo si sobra)'; });
+      } }, 'Deshacer'),
+      el('button', { type: 'button', class: 'ghost', 'aria-label': 'Cerrar', onclick: () => { caja.hidden = true; } }, '✕'));
+    caja.hidden = false;
+    clearTimeout(avisoExcedente._t); avisoExcedente._t = setTimeout(() => { caja.hidden = true; }, 12000);
+  }
+
+  function dialogoExtras(p) {
+    const pend = p.extras.filter((x) => x.estado === 'pendiente');
+    const tr = tramo(p.tramo_id); const t = tr && tarea(tr.tarea_id);
+    const dlg = $('#dlg-extras');
+    const total = +pend.reduce((s, x) => s + x.horas, 0).toFixed(1);
+    $('#extras-tit').textContent = `Horas extra${t ? ` · ${t.codigo || ''} ${t.nombre}` : ''}`;
+    $('#extras-lista').replaceChildren(...pend.map((x) => el('li', {}, `${x.nombre}: ${hhmm(x.desde)}–${hhmm(x.hasta)} · ${durTxt(x.horas)}`)),
+      el('li', { class: 'total' }, `Total ${durTxt(total)} fuera de su turno`));
+    const motivo = $('#extras-motivo'); motivo.value = '';
+    $('#extras-pedir').onclick = async () => {
+      dlg.close();
+      await accion(async () => { await api('POST', `/api/tramos/${p.tramo_id}/horas-extra/pedir`, { motivo: motivo.value }); return 'Horas extra pedidas a Dirección'; });
+    };
+    $('#extras-recortar').onclick = async () => {
+      dlg.close();
+      await accion(async () => { await api('POST', `/api/tramos/${p.tramo_id}/horas-extra/recortar`, {}); return 'Recortado al fin del turno: lo que sobra queda en «Por planificar»'; });
+    };
+    $('#extras-luego').onclick = () => dlg.close();
+    dlg.showModal(); motivo.focus();
+  }
+
+  function revisarExtras() {
+    if (estado.excedente) { const x = estado.excedente; estado.excedente = null; avisoExcedente(x); }
+    if (!estado.extrasPorPedir) return;
+    // espera a que se cierre otro diálogo modal (p. ej. «¿Empujar lo siguiente?»); el detalle flotante no cuenta
+    const abierto = [...document.querySelectorAll('dialog[open]')].find((d) => d.matches(':modal'));
+    if (abierto) { abierto.addEventListener('close', () => setTimeout(revisarExtras, 50), { once: true }); return; }
+    const p = estado.extrasPorPedir; estado.extrasPorPedir = null;
+    dialogoExtras(p);
   }
 
   /* ---------- datos ---------- */
@@ -164,6 +218,7 @@
       if (datos.desde !== rangoCarga()[0]) return;   // llegó tarde: el usuario ya cambió de periodo
       estado.datos = datos;
       pintar();
+      setTimeout(revisarExtras, 0);
     } catch (e) { if (e.message !== 'No autenticado') toast(e.message, true); }
   }
 
@@ -696,6 +751,20 @@
       const ex = el('div', { class: 'exceso', title: `${durTxt(tr.exceso)} por encima de lo estimado` });
       ex.style.width = `${(tr.exceso / tr.duracion_h) * 100}%`;
       b.append(ex);
+    }
+
+    // horas extra (fuera del turno de cada persona): franja rayada en rojo sin autorizar, en verde autorizadas
+    const hx = (tr.extras || []).filter((x) => x.estado !== 'rechazada');
+    if (hx.length) {
+      const pend = hx.some((x) => x.estado === 'pendiente');
+      const d0 = Math.max(ini, Math.min(...hx.map((x) => x.desde))); const d1 = Math.min(fin, Math.max(...hx.map((x) => x.hasta)));
+      const tot = +hx.reduce((s2, x) => s2 + x.horas, 0).toFixed(1);
+      const z = el('div', { class: `hx-zona ${pend ? 'pend' : 'ok'}`,
+        title: `${pend ? 'Horas extra sin autorizar' : 'Horas extra autorizadas'}: ${hx.map((x) => `${x.nombre} ${hhmm(x.desde)}–${hhmm(x.hasta)}${x.estado === 'pendiente' ? ' (sin autorizar)' : ''}`).join(', ')}` });
+      z.style.left = `${((d0 - ini) / (fin - ini)) * 100}%`;
+      z.style.width = `${((d1 - d0) / (fin - ini)) * 100}%`;
+      b.append(z, el('span', { class: `hx-tag ${pend ? 'pend' : 'ok'}` }, `⏱ ${durTxt(tot)} extra ${pend ? '⏳' : '✔'}`));
+      b.classList.toggle('hx-pend', pend);
     }
 
     // una barra por operario con su franja (redimensionable) + resto de recursos en una línea
@@ -1669,7 +1738,7 @@
     const [a, b] = c.ids.map(tramo);
     return a && b && b.hora_inicio < a.hora_inicio ? a.id : c.ids[1];
   }
-  const tieneSolucion = (c) => ['operarios', 'capacidad', 'requisito', 'requisito_tipo', 'solape', 'jornada', 'exceso', 'dependencia', 'puesto', 'ausencia'].includes(c.tipo);
+  const tieneSolucion = (c) => ['horas_extra', 'operarios', 'capacidad', 'requisito', 'requisito_tipo', 'solape', 'jornada', 'exceso', 'dependencia', 'puesto', 'ausencia'].includes(c.tipo);
   const recurso = (id) => estado.datos.recursos.find((r) => r.id === id);
   const activos = (tipo) => estado.datos.recursos.filter((r) => r.activo !== false && (!tipo || r.tipo === tipo));
   // Dónde está ocupado un recurso ese día (sin contar el tramo indicado)
@@ -1800,6 +1869,20 @@
           }, `Recortar hasta las ${hhmm(J().fin)} (${durTxt(fuera)} quedan pendientes)`) : null,
           el('span', { class: 'ayuda' }, ' Si son horas extra previstas, puedes dejarlo así.'));
       }
+      case 'horas_extra': {
+        const pend = (tr.extras || []).filter((x) => x.estado === 'pendiente');
+        const sinPedir = pend.some((x) => !x.avisado);
+        const puedo = window.s360.tiene('autorizar_horas_extra');
+        return caja(
+          puedo ? el('button', { type: 'button', class: 'primario mini',
+            onclick: () => accion(async () => { await api('POST', '/api/horas-extra/decidir', { ids: pend.map((x) => x.id), decision: 'si' }); return 'Horas extra autorizadas'; }),
+          }, 'Autorizarlas') : sinPedir ? el('button', { type: 'button', class: 'primario mini',
+            onclick: () => dialogoExtras({ tramo_id: tr.id, extras: tr.extras }) }, 'Pedir autorización a Dirección')
+            : el('span', { class: 'ayuda' }, 'Pedidas a Dirección; esperando respuesta. '),
+          el('button', { type: 'button', class: 'ghost mini',
+            onclick: () => accion(async () => { await api('POST', `/api/tramos/${tr.id}/horas-extra/recortar`, {}); return 'Recortado al fin del turno: lo que sobra queda en «Por planificar»'; }),
+          }, 'Recortar al fin de su turno'));
+      }
       case 'exceso': {
         const nueva = Math.ceil(t.horas_planificadas / PASO) * PASO;
         return caja(
@@ -1900,6 +1983,11 @@
       el('h4', {}, `Tramo ${tr.indice} de ${t.tramos.length}${pend ? '+' : ''}`),
       el('dl', {},
         el('dt', {}, 'Cuándo'), el('dd', {}, `${fechaLarga(tr.fecha)} · ${hhmm(tr.hora_inicio)}–${hhmm(tr.hora_inicio + tr.duracion_h)}`),
+        (tr.extras || []).length ? el('dt', {}, 'Horas extra') : null,
+        (tr.extras || []).length ? el('dd', {}, (tr.extras || []).map((x) => el('div', { class: `hx-det ${x.estado}` },
+          `${x.nombre}: ${hhmm(x.desde)}–${hhmm(x.hasta)} · ${durTxt(x.horas)} · `,
+          x.estado === 'autorizada' ? '✔ autorizadas' : x.estado === 'rechazada' ? `✗ no autorizadas${x.nota ? ` («${x.nota}»)` : ''}` : x.avisado ? '⏳ pedidas a Dirección' : '⏳ sin pedir',
+          x.motivo ? ` · «${x.motivo}»` : ''))) : null,
         tr.exceso ? el('dt', {}, 'Exceso') : null,
         tr.exceso ? el('dd', { class: 'exc' }, `${durTxt(tr.exceso)} de este tramo van por encima de lo estimado`) : null,
         el('dt', {}, 'Asignado'), el('dd', {},

@@ -188,6 +188,9 @@
         el('span', { class: 'md-t-hora' }, `${hhmm(t.desde)}–${hhmm(t.hasta)}`),
         el('span', { class: 'md-t-area' }, t.area || '')),
       el('div', { class: 'md-t-tarea' }, el('b', {}, t.orden_codigo), ` ${t.tarea}`),
+      t.horas_extra && t.horas_extra.estado !== 'rechazada' ? el('div', { class: `md-t-extra ${t.horas_extra.estado}` },
+        t.horas_extra.estado === 'autorizada' ? `⏱ ${hhmm(t.horas_extra.desde)}–${hhmm(t.horas_extra.hasta)} horas extra autorizadas`
+          : `⏳ ${hhmm(t.horas_extra.desde)}–${hhmm(t.horas_extra.hasta)} horas extra pendientes de autorizar`) : null,
       t.companeros.length || otrosEquipos(t).length ? el('div', { class: 'md-t-con' },
         t.companeros.length ? `con ${t.companeros.join(', ')}` : null,
         otrosEquipos(t).length ? el('span', {}, `${t.companeros.length ? ' · ' : ''}${otrosEquipos(t).join(', ')}`) : null) : null,

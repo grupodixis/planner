@@ -17,7 +17,7 @@ const ddmm = (f) => (f ? `${String(f).slice(8, 10)}/${String(f).slice(5, 7)}` : 
 const puede = {
   recibir: (u) => auth.tiene(u, 'logistica') || auth.tiene(u, 'planificar'),
   parte: (u) => auth.tiene(u, 'planificar'),
-  aprobar: (u) => ['aprobar_compras', 'vacaciones_ops', 'vacaciones_rrhh', 'autorizar_compras_locales'].some((k) => auth.tiene(u, k)),
+  aprobar: (u) => ['aprobar_compras', 'vacaciones_ops', 'vacaciones_rrhh', 'autorizar_compras_locales', 'autorizar_horas_extra'].some((k) => auth.tiene(u, k)),
   donde: (u) => auth.tiene(u, 'planificar') || auth.tiene(u, 'proyectos'),
 };
 
@@ -166,7 +166,8 @@ async function resumen(u) {
     out.parte = r;
   }
   if (puede.aprobar(u)) {
-    const a = { pedidos: 0, vacaciones: 0, locales: 0 };
+    const a = { pedidos: 0, vacaciones: 0, locales: 0, extras: 0 };
+    if (auth.tiene(u, 'autorizar_horas_extra')) a.extras = await require('./horas-extra').contarPendientes();
     if (auth.tiene(u, 'aprobar_compras')) a.pedidos = (await q1(`SELECT count(*)::int AS n FROM pedidos_compra WHERE estado = 'por_aprobar'`)).n;
     if (auth.tiene(u, 'vacaciones_ops')) a.vacaciones += (await q1(`SELECT count(*)::int AS n FROM solicitudes_vacaciones WHERE estado = 'pendiente_ops'`)).n;
     if (auth.tiene(u, 'vacaciones_rrhh')) a.vacaciones += (await q1(`SELECT count(*)::int AS n FROM solicitudes_vacaciones WHERE estado = 'pendiente_rrhh'`)).n;

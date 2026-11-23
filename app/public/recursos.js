@@ -38,6 +38,7 @@
 
   const fechaCorta = (iso) => (iso ? iso.split('-').reverse().join('/') : '');
   const durTxt = (h) => `${String(Math.round(h * 10) / 10).replace('.', ',')}h`;
+  const hhmmR = (h) => `${String(Math.floor(h)).padStart(2, '0')}:${String(Math.round((h % 1) * 60)).padStart(2, '0')}`;
 
   // Qué se pide de cada tipo de recurso. Los campos que no aparecen aquí no se usan en ese tipo.
   const TIPOS = {
@@ -54,6 +55,7 @@
         { k: 'coste_hora', e: 'Coste €/h', ancho: 'c1', tipo: 'number' },
         { k: 'departamento_id', e: 'Departamento', ancho: 'c2', departamentos: true },
         { k: 'linea_id', e: 'Puesto / área habitual', ancho: 'c2', areas: true, ayuda: 'Al planificar en ese puesto se le propone primero' },
+        { k: 'turno_id', e: 'Turno', ancho: 'c2', turnos: true, ayuda: 'Lo que se le planifique fuera de su turno son horas extra (las autoriza Dirección)' },
         { k: 'dias_vacaciones', e: 'Vacaciones (días/año)', ancho: 'c1', tipo: 'number', placeholder: 'convenio', si: (r) => r.vinculo !== 'subcontratado', ayuda: 'Vacío = los de convenio' },
         { k: 'notas', e: 'Notas', ancho: 'c4', max: 2000, filas: 2 },
       ],
@@ -91,6 +93,7 @@
   TIPOS.tipos = { titulo: 'Tipos de recurso', singular: 'tipo', alta: 'Nombre del tipo (p. ej. Soldadora MIG)', catalogo: true };
   TIPOS.calendario = { titulo: 'Vacaciones y festivos', calendario: true };
   TIPOS.areas = { titulo: 'Áreas de trabajo', areas: true };
+  TIPOS.extras = { titulo: 'Turnos y horas extra', extras: true };
   let areasUI = null;
   const CLASE_TXT = { operario: 'Categoría de operario', maquina: 'Tipo de máquina', subcontrata: 'Tipo de subcontrata / alquiler' };
   const CLASE_PLURAL = { operario: 'Categorías de operario', maquina: 'Tipos de máquina', subcontrata: 'Subcontratas / alquileres' };
@@ -152,8 +155,9 @@
     if (def.tipos) return selectorTipos(def, r, guardar);
     const id = `c-${def.k}`;
     let input;
-    if (def.opciones || def.areas || def.departamentos) {
-      const ops = def.areas ? { '': '—', ...Object.fromEntries(estado.areas.map((a) => [a.id, a.departamento ? `${a.nombre} · ${a.departamento.replace(/^Departamento (de |)/, '')}` : a.nombre])) }
+    if (def.opciones || def.areas || def.departamentos || def.turnos) {
+      const ops = def.turnos ? { '': `Por defecto (${(estado.turnos || []).find((t) => t.por_defecto)?.nombre || 'Normal'})`, ...Object.fromEntries((estado.turnos || []).filter((t) => !t.por_defecto).map((t) => [t.id, `${t.nombre} · ${hhmmR(t.inicio)}–${hhmmR(t.fin)}`])) }
+        : def.areas ? { '': '—', ...Object.fromEntries(estado.areas.map((a) => [a.id, a.departamento ? `${a.nombre} · ${a.departamento.replace(/^Departamento (de |)/, '')}` : a.nombre])) }
         : def.departamentos ? { '': '—', ...Object.fromEntries(estado.departamentos.map((d) => [d.id, d.nombre])) } : def.opciones;
       input = el('select', { id }, Object.entries(ops).map(([v, t]) => el('option', { value: v, selected: String(v) === String(valor ?? '') }, t)));
     } else if (def.filas) {
@@ -184,16 +188,22 @@
   async function cargar() {
     const cal = !!TIPOS[estado.tipo].calendario;
     const areas = !!TIPOS[estado.tipo].areas;
-    $('#panel-recursos').hidden = cal || areas;
+    const extras = !!TIPOS[estado.tipo].extras;
+    $('#panel-recursos').hidden = cal || areas || extras;
     $('#panel-calendario').hidden = !cal;
     $('#panel-areas').hidden = !areas;
-    if (cal || areas) {
+    $('#panel-extras').hidden = !extras;
+    if (cal || areas || extras) {
       document.querySelectorAll('[role=tab]').forEach((b) => {
         const activo = b.dataset.tipo === estado.tipo;
         b.setAttribute('aria-selected', activo ? 'true' : 'false');
         b.tabIndex = activo ? 0 : -1;
       });
       guardarURL();
+      if (extras) {
+        return window.s360extras.pintar($('#extras-raiz'), { api, toast, puede: (k) => window.s360.tiene(k) })
+          .then(async () => { estado.turnos = (await api('GET', '/api/turnos')).turnos; });
+      }
       if (areas) {
         if (!areasUI) areasUI = window.s360areas.montar($('#areas-raiz'));
         else await areasUI.recargar();
@@ -760,6 +770,7 @@
     const cat = await api('GET', '/api/catalogo');
     estado.areas = cat.areas;
     estado.departamentos = cat.departamentos || [];
+    estado.turnos = (await api('GET', '/api/turnos').catch(() => ({ turnos: [] }))).turnos;
     await cargar();
   }
 

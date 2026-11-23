@@ -1142,6 +1142,46 @@ const MIGRACIONES = [
        INSERT INTO ajustes (clave, valor) VALUES ('migr_permiso_compras_locales', 'true');
      END IF;
    END $m$`,
+  // Turnos: cada persona tiene el suyo (de inicio «Normal» 07:00–15:00); lo de fuera de su turno son horas extra
+  `CREATE TABLE IF NOT EXISTS turnos (
+     id SERIAL PRIMARY KEY, nombre TEXT NOT NULL UNIQUE,
+     inicio NUMERIC(4,2) NOT NULL, fin NUMERIC(4,2) NOT NULL CHECK (fin > inicio),
+     por_defecto BOOLEAN NOT NULL DEFAULT FALSE, activo BOOLEAN NOT NULL DEFAULT TRUE,
+     creado TIMESTAMPTZ NOT NULL DEFAULT now())`,
+  `INSERT INTO turnos (nombre, inicio, fin, por_defecto)
+     SELECT 'Normal', 7, 15, TRUE WHERE NOT EXISTS (SELECT 1 FROM turnos)`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS turnos_por_defecto_idx ON turnos ((true)) WHERE por_defecto`,
+  `ALTER TABLE recursos ADD COLUMN IF NOT EXISTS turno_id INT REFERENCES turnos(id) ON DELETE SET NULL`,
+  // Excedente: al alargar un tramo por encima de lo estimado, la tarea crece (queda registrado)
+  `CREATE TABLE IF NOT EXISTS tarea_excedentes (
+     id SERIAL PRIMARY KEY, tarea_id INT NOT NULL REFERENCES tareas(id) ON DELETE CASCADE,
+     tramo_id INT REFERENCES tramos(id) ON DELETE SET NULL,
+     horas NUMERIC(6,2) NOT NULL, antes NUMERIC(6,2) NOT NULL, despues NUMERIC(6,2) NOT NULL,
+     deshecho BOOLEAN NOT NULL DEFAULT FALSE,
+     usuario_id INT REFERENCES usuarios(id) ON DELETE SET NULL, creado TIMESTAMPTZ NOT NULL DEFAULT now())`,
+  `CREATE INDEX IF NOT EXISTS tarea_excedentes_tarea_idx ON tarea_excedentes (tarea_id)`,
+  // Horas extra: por persona y tramo (planificadas) o por persona y día (hechas sin pedir, origen parte)
+  `CREATE TABLE IF NOT EXISTS horas_extra (
+     id SERIAL PRIMARY KEY,
+     tramo_id INT REFERENCES tramos(id) ON DELETE CASCADE,
+     recurso_id INT NOT NULL REFERENCES recursos(id) ON DELETE CASCADE,
+     fecha DATE NOT NULL, desde NUMERIC(4,2), hasta NUMERIC(4,2), horas NUMERIC(5,2) NOT NULL,
+     origen TEXT NOT NULL DEFAULT 'plan' CHECK (origen IN ('plan', 'parte')),
+     estado TEXT NOT NULL DEFAULT 'pendiente' CHECK (estado IN ('pendiente', 'autorizada', 'rechazada')),
+     motivo TEXT, avisado BOOLEAN NOT NULL DEFAULT FALSE,
+     pedido_por INT REFERENCES usuarios(id) ON DELETE SET NULL, pedido_en TIMESTAMPTZ NOT NULL DEFAULT now(),
+     decidido_por INT REFERENCES usuarios(id) ON DELETE SET NULL, decidido_en TIMESTAMPTZ, nota TEXT)`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS horas_extra_tramo_idx ON horas_extra (tramo_id, recurso_id) WHERE tramo_id IS NOT NULL`,
+  `CREATE INDEX IF NOT EXISTS horas_extra_fecha_idx ON horas_extra (fecha, recurso_id)`,
+  `CREATE INDEX IF NOT EXISTS horas_extra_pend_idx ON horas_extra (estado) WHERE estado = 'pendiente'`,
+  // permiso «autorizar_horas_extra»: Dirección y Administrador (una vez)
+  `DO $m$ BEGIN
+     IF NOT EXISTS (SELECT 1 FROM ajustes WHERE clave = 'migr_permiso_horas_extra') THEN
+       UPDATE roles SET permisos = array_append(permisos, 'autorizar_horas_extra')
+        WHERE clave IN ('admin', 'direccion') AND NOT ('autorizar_horas_extra' = ANY(permisos));
+       INSERT INTO ajustes (clave, valor) VALUES ('migr_permiso_horas_extra', 'true');
+     END IF;
+   END $m$`,
 ];
 
 async function migrar() {

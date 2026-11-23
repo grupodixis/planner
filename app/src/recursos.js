@@ -27,6 +27,7 @@ function leer(b, parcial) {
     }
   }
   if (!parcial || 'linea_id' in b) r.linea_id = b.linea_id ? Number(b.linea_id) : null;
+  if ('turno_id' in b) r.turno_id = b.turno_id ? Number(b.turno_id) : null;   // vacío = el turno por defecto
   if ('fijo_area' in b) r.fijo_area = b.fijo_area === true || b.fijo_area === 'true';
   if ('departamento_id' in b) r.departamento_id = b.departamento_id ? Number(b.departamento_id) : null;
   if ('activo' in b) r.activo = !!b.activo;

@@ -170,6 +170,7 @@ function montar(app, asyncH) {
                FROM ausencias WHERE desde <= $2 AND hasta >= $1`, [desde, hasta]),
       query('SELECT fecha FROM festivos WHERE fecha BETWEEN $1 AND $2', [desde, hasta]),
     ]);
+    const hx = await require('./horas-extra').resumenReal(desde, hasta);
     const festivos = new Set(fest.map((f) => f.fecha));
     const esLaborable = (f) => { const d = new Date(`${f}T00:00:00Z`).getUTCDay(); return d > 0 && d < 6 && !festivos.has(f); };
     const diasLab = [];
@@ -181,7 +182,9 @@ function montar(app, asyncH) {
       const suyos = regs.filter((g) => g.recurso_id === o.id);
       const porDia = new Map();
       for (const g of suyos) porDia.set(g.fecha, (porDia.get(g.fecha) || 0) + g.horas);
-      const extra = [...porDia.values()].reduce((s, h) => s + Math.max(0, h - jornada.horas), 0);
+      // horas extra: trabajadas fuera de su turno; autorizadas (Dirección) y sin autorizar
+      const ex = hx.get(o.id) || { autorizadas: 0, sin_autorizar: 0 };
+      const extra = ex.autorizadas;
       const prod = suyos.filter((g) => g.tipo === 'productivo');
       const noProd = {};
       for (const g of suyos.filter((x) => x.tipo === 'no_productivo')) noProd[g.motivo] = r2((noProd[g.motivo] || 0) + g.horas);
@@ -203,7 +206,7 @@ function montar(app, asyncH) {
       const horasNo = suyos.filter((g) => g.tipo === 'no_productivo').reduce((s, g) => s + g.horas, 0);
       return {
         id: o.id, nombre: o.nombre, vinculo: o.vinculo, coste_hora: o.coste_hora,
-        productivas: r2(horasProd), no_productivas: r2(horasNo), no_productivo: noProd, extra: r2(extra),
+        productivas: r2(horasProd), no_productivas: r2(horasNo), no_productivo: noProd, extra: r2(extra), extra_sin: r2(ex.sin_autorizar),
         dias: porDia.size, coste: r2(suyos.reduce((s, g) => s + g.horas * (g.coste_hora || 0), 0)),
         sin_coste: suyos.some((g) => g.coste_hora == null),
         ausencias, proyectos: [...proy.values()].map((p) => ({ ...p, h: r2(p.h), coste: r2(p.coste) })).sort((a, b) => b.h - a.h),

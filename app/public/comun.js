@@ -267,14 +267,16 @@
       if (!a) return;
       a.dataset.n = n || 0;
       // con algo pendiente, el enlace lleva directamente a donde está
-      a.href = n && href === '/recursos.html' ? '/recursos.html?tipo=calendario' : href;
+      a.href = n && href === '/recursos.html' ? (p.horas_extra && !(p.vacaciones || p.justificantes) ? '/recursos.html?tipo=extras' : '/recursos.html?tipo=calendario') : href;
       marcar(a, n, titulo);
     };
     const nRec = (p.vacaciones || 0) + (p.justificantes || 0);
     const tRec = [p.vacaciones && `${p.vacaciones} petición(es) de vacaciones por aprobar`, p.justificantes && `${p.justificantes} justificante(s) por revisar`].filter(Boolean).join('\n');
-    poner('/recursos.html', nRec, tRec ? `${tRec}\n(en Vacaciones y festivos)` : '');
+    const tExt = p.horas_extra ? `${p.horas_extra} petición(es) de horas extra por autorizar` : '';
+    poner('/recursos.html', nRec + (p.horas_extra || 0), [tRec && `${tRec}\n(en Vacaciones y festivos)`, tExt && `${tExt}\n(en Turnos y horas extra)`].filter(Boolean).join('\n'));
     // y dentro de Recursos, en la pestaña donde está
     marcar(document.getElementById('tab-calendario'), nRec, tRec);
+    marcar(document.getElementById('tab-extras'), p.horas_extra || 0, tExt);
     poner('/bandeja.html', p.bandeja || 0, `${p.bandeja} captura(s) por clasificar`);
     poner('/compras.html?vista=locales', p.cl_autorizar || 0, `${p.cl_autorizar} compra(s) local(es) por autorizar`);
     // los asuntos que me han asignado (aunque no planifique): en «＋ Capturar» › Mis asuntos

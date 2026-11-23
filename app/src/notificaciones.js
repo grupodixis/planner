@@ -27,6 +27,7 @@ const TIPOS = {
   mat_recibido: { txt: 'Ya ha llegado el material de mis tareas', para: () => true },
   compra_local: { txt: 'Compras locales: pedir autorización, autorizada o no, falta el ticket', para: () => true },
   ext_seguimiento: { txt: 'Un taller externo dice cómo va (retrasos, entregas, fotos) o no da noticias', para: (u) => auth.tiene(u, 'planificar') },
+  horas_extra: { txt: 'Horas extra: por autorizar (Dirección) o la respuesta a las que pedí', para: (u) => auth.tiene(u, 'autorizar_horas_extra') || auth.tiene(u, 'planificar') },
   oferta_recibida: { txt: 'Un proveedor responde una petición de precio en la plataforma', para: (u) => auth.tiene(u, 'compras') },
 };
 const SILENCIO = { desde: 21, hasta: 7 };

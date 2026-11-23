@@ -147,7 +147,9 @@ function montar(app, asyncH) {
                     COALESCE((SELECT json_agg(r3.nombre ORDER BY r3.nombre) FROM recursos r3
                                WHERE r3.linea_id = x.linea_id AND r3.fijo_area AND r3.activo), '[]') AS area_maquinas,
                     (SELECT row_to_json(d) FROM (SELECT estado, desde::float, hasta::float, terminada, motivo, notas, resuelto
-                       FROM declaraciones WHERE tramo_id = x.id AND recurso_id = $2) d) AS declaracion
+                       FROM declaraciones WHERE tramo_id = x.id AND recurso_id = $2) d) AS declaracion,
+                    (SELECT row_to_json(h) FROM (SELECT estado, desde::float, hasta::float, horas::float, nota
+                       FROM horas_extra WHERE tramo_id = x.id AND recurso_id = $2) h) AS horas_extra
                FROM tramos x JOIN tramo_asignaciones a ON a.tramo_id = x.id AND a.recurso_id = $2
                JOIN tareas t ON t.id = x.tarea_id JOIN ordenes o ON o.id = t.orden_id
                LEFT JOIN proyectos p ON p.id = o.proyecto_id LEFT JOIN lineas l ON l.id = x.linea_id

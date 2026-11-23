@@ -40,6 +40,7 @@ window.S360_AYUDA = {
         },
       ],
       secciones: [
+        { titulo: '⏱ Excedente y horas extra', texto: 'Si <b>alargas un tramo</b> más allá de lo estimado, la diferencia se <b>suma a la tarea</b> como excedente (sale un aviso con «Deshacer»; se guarda la estimación original). Si queda <b>fuera del turno</b> de alguien (por defecto 07:00–15:00; cada persona puede tener el suyo), son <b>horas extra</b>: sale «Horas extra» para poner el motivo y <b>Pedir autorización</b> a Dirección, o «Solo hasta el fin de su turno». Mientras no se autorizan, el bloque lleva la parte extra rayada en rojo y «⏱ 2h extra ⏳»; autorizadas, en verde. Si Dirección dice que no, la franja vuelve al fin de su turno. Si tienes el permiso de autorizar, quedan autorizadas al momento.' },
         { titulo: '🏭 Talleres externos', texto: 'Al final del tablero, el bloque <b>Talleres externos</b>: una fila por taller de fuera mientras tenga tareas activas (como las obras). Sus tareas se planifican ahí, arrastrándolas, y no ocupan a nadie de aquí (sin avisos de operarios ni jornada). Si el montaje está planificado antes de que termine lo de fuera, sale un aviso en rojo. Al pulsar una tarea ves la <b>📍 situación</b> de la OT y puedes poner su avance.' },
         {
           titulo: 'Planificar una tarea', si: 'planificar',
@@ -230,6 +231,7 @@ window.S360_AYUDA = {
         },
       ],
       secciones: [
+        { titulo: '⏱ Turnos y horas extra', texto: 'Pestaña <b>Turnos y horas extra</b>. <b>Turnos</b>: «Normal» 07:00–15:00 por defecto; añade otros (Tarde, Obra…) y ponle a cada operario el suyo en su ficha (campo Turno). Lo que se le planifique fuera de su turno son horas extra. <b>Por autorizar</b> (Dirección, permiso «Autorizar horas extra»): cada petición con la tarea, el día, las horas, quiénes, el coste aproximado, cuántas llevan en el mes y el motivo; ✔ Autorizar o ✗ No (con motivo: su franja vuelve al fin de su turno y lo que sobra queda en «Por planificar»). <b>Hechas fuera del turno sin autorizar</b>: del parte; dices si son extra (con recargo) o no. Abajo, lo decidido en el mes por persona.' },
         {
           titulo: 'Vacaciones: cómo se aprueban',
           pasos: ['El operario las pide desde Mi día.', '<b>Operaciones</b> da el visto bueno.', '<b>RRHH</b> las aprueba (o las rechaza con motivo).', 'Pasan solas al calendario de ausencias.'],
@@ -329,6 +331,7 @@ window.S360_AYUDA = {
         },
       ],
       secciones: [
+        { titulo: '⏱ Horas extra en Operarios', texto: '«Extra» son las horas trabajadas <b>fuera del turno</b> de cada uno que <b>Dirección autorizó</b> (llevan el recargo en Control de costes). «Sin aut.» son las trabajadas fuera de su turno sin autorizar: se deciden en Recursos › Turnos y horas extra.' },
         {
           titulo: 'Qué significa…',
           terminos: [
@@ -602,5 +605,6 @@ window.S360_AYUDA = {
     { id: 18, fecha: '2026-11-21', titulo: 'Compras locales desde el móvil', texto: 'En Mi día › Menú › <b>🛒 Compra local</b> pides autorización para comprar en la ferretería u otra tienda a cuenta de la empresa. Operaciones la autoriza desde Compras › Compras locales y te avisa; después subes la foto del ticket.' },
     { id: 19, fecha: '2026-11-21', si: ['mi_dia'], titulo: 'Mi día funciona sin cobertura', texto: 'Sin conexión, la app abre igual con lo último que tenías y puedes apuntar tu día, trabajo no planificado, capturas con fotos y compras locales. Arriba verás «📴 Sin conexión · N por enviar»; se envía solo cuando vuelve la cobertura.' },
     { id: 20, fecha: '2026-11-22', si: ['logistica', 'planificar', 'proyectos', 'aprobar_compras', 'vacaciones_ops', 'vacaciones_rrhh', 'autorizar_compras_locales'], titulo: 'Supervisar desde el móvil', texto: 'En Mi día › Menú › <b>Supervisar</b>: <b>recibir envíos y piezas</b> (por líneas y bultos, albarán, fotos, lo que falta), <b>parte de hoy</b> para confirmar, <b>aprobar</b> pedidos, vacaciones y compras locales, y <b>dónde está cada cosa</b>. Cada apartado sale solo si tu rol lo tiene.' },
+    { id: 21, fecha: '2026-11-23', si: ['planificar', 'autorizar_horas_extra', 'recursos'], titulo: 'Excedente, turnos y horas extra', texto: 'Al <b>alargar un tramo</b> por encima de lo estimado, lo que falta se suma a la tarea (excedente, con «Deshacer»). Lo que queda <b>fuera del turno</b> de cada persona son <b>horas extra</b> y las autoriza <b>Dirección</b> (en Recursos › Turnos y horas extra o en el móvil, Supervisar › Aprobar). Los turnos se definen allí y cada operario tiene el suyo. En costes solo llevan recargo las autorizadas.' },
   ],
 };

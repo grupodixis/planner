@@ -860,6 +860,38 @@ Estados: pendiente → autorizada / rechazada → comprada → cuadrada (o anula
 `POST /api/compras-locales/:id/anular` (estas, también para operarios con PIN); `GET /api/compras-locales?vista=autorizar|sin_ticket|cuadrar|todas&mes=`,
 `POST /api/compras-locales/:id/decidir {decision: si|no, nota}`, `POST /api/compras-locales/cuadrar {ids, factura}`.
 
+## Excedente, turnos y horas extra
+
+`src/horas-extra.js`, `public/recursos-extras.js` (Recursos › **Turnos y horas extra**).
+
+- **Excedente**: al **alargar un tramo** (o su inicio hacia atrás) y pasar de lo estimado, lo que hace falta se suma a la
+  tarea (`tareas.duracion_h`; la primera vez se guarda `duracion_inicial_h`) y queda en `tarea_excedentes` (horas, antes,
+  después, quién, cuándo). Solo cuenta lo que ha crecido en ese cambio. En el tablero sale «+1h de excedente: la tarea pasa
+  de 7h a 8h (14h → 16h h-persona)» con **Deshacer** (`DELETE /api/excedentes/:id`: la tarea vuelve a su estimación).
+- **Turnos** (`turnos`: nombre, inicio, fin, por defecto; «Normal» 07:00–15:00 se crea solo): se gestionan en la pestaña;
+  cada operario tiene el suyo en su ficha (`recursos.turno_id`, vacío = el por defecto). El tablero enseña desde el inicio
+  más temprano hasta el fin más tardío + 2 h.
+- **Horas extra** (`horas_extra`, una fila por persona y tramo): al planificar (crear, estirar, mover, repartir, empujar,
+  asignar, cambiar franja) se calcula lo que cae fuera del turno de cada operario. Queda **pendiente**, o **autorizada** al
+  momento si quien planifica tiene el permiso nuevo **autorizar_horas_extra** (Dirección y Administrador). Si las horas
+  crecen sobre lo ya decidido, se vuelve a pedir. En el tablero:
+  - diálogo «Horas extra» con el motivo → **Pedir autorización** (aviso `horas_extra` a Dirección: móvil › Supervisar ›
+    Aprobar, u ordenador › Recursos) o **Solo hasta el fin de su turno** (recorta);
+  - la parte extra del bloque rayada en rojo con «⏱ 4h extra ⏳» (verde ✔ autorizadas), aviso `horas_extra` con
+    «Solucionar» (pedir, autorizar o recortar) y detalle por persona en la ficha del tramo. El aviso «fuera de jornada»
+    ya no sale en tramos con operarios (se mide con su turno).
+- **Decidir** (`POST /api/horas-extra/decidir {ids, decision: si|no, nota}`): autorizar avisa a quien lo pidió y a los
+  operarios (Mi día muestra «⏱ 15:00–17:00 horas extra autorizadas» o «⏳ … pendientes de autorizar»). No (con motivo):
+  la franja de esas personas vuelve a su turno, el tramo se acorta si ya nadie pasa de ahí y lo que sobra vuelve a «Por
+  planificar».
+- **Hechas fuera del turno sin autorizar**: del parte (registros con su hora de/a, o lo que pase de la duración del turno
+  en el día) menos lo pedido o decidido. Dirección dice si son extra o no (`POST /api/horas-extra/parte`, filas
+  `origen = 'parte'`).
+- **Costes e informes**: el recargo de la hora extra (Control de costes) se aplica solo a las **autorizadas** (con tope en
+  lo trabajado fuera del turno). Informes › Operarios: «Extra» (autorizadas) y «Sin aut.».
+- API: `GET·POST /api/turnos`, `PUT·DELETE /api/turnos/:id`, `POST /api/tramos/:id/horas-extra/pedir {motivo}`,
+  `POST /api/tramos/:id/horas-extra/recortar`, `GET /api/horas-extra?vista=pendientes|sin_autorizar|mes&mes=`.
+
 ## Supervisar desde el móvil (Mi día › Menú › Supervisar)
 
 Para encargados, logística, Operaciones y Dirección que también usan Mi día. Cada apartado sale solo con su permiso:

@@ -20,6 +20,7 @@ const PERMISOS = {
   aprobar_compras: 'Aprobar pedidos de compra por encima del límite',
   pedir_compras_locales: 'Pedir compras locales (ferretería…) desde el móvil',
   autorizar_compras_locales: 'Autorizar compras locales (ferretería…) que piden los operarios',
+  autorizar_horas_extra: 'Autorizar horas extra (fuera del turno de cada persona)',
   mi_dia: 'Apuntar su propio día (Mi día). Solo, sin otros permisos: no ve nada más',
 };
 // Permisos de un usuario «u»: los de su rol más los de sus roles añadidos (varios roles)

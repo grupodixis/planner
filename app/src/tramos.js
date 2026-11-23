@@ -6,6 +6,7 @@
 const { query, tx } = require('./db');
 const auth = require('./auth');
 const { jornada } = require('./config');
+const extras = require('./horas-extra');
 const { calcularConflictos } = require('./conflictos');
 const avance = require('./avance');
 const material = require('./material');
@@ -258,9 +259,30 @@ module.exports = function montar(app, asyncH) {
       const externa = !!t?.proveedor_id || externas.has(tr.linea_id);
       porDia.get(tr.fecha).push({ ...t, ...tr, externa, asignados: [...tr.asignados, ...fijas], duracion_h_tarea: t?.duracion_h });
     }
+    // Horas extra de cada tramo (por persona, fuera de su turno): pendientes / autorizadas / no autorizadas
+    const { rows: hx } = await query(
+      `SELECT he.id, he.tramo_id, he.recurso_id, r.nombre, he.desde::float AS desde, he.hasta::float AS hasta, he.horas::float AS horas,
+              he.estado, he.motivo, he.nota, he.avisado
+         FROM horas_extra he JOIN recursos r ON r.id = he.recurso_id WHERE he.tramo_id = ANY($1) ORDER BY r.nombre`,
+      [tramos.rows.map((t) => t.id)]);
+    const extrasDe = new Map();
+    for (const x of hx) extrasDe.set(x.tramo_id, [...(extrasDe.get(x.tramo_id) || []), x]);
+    for (const tr of tramos.rows) tr.extras = extrasDe.get(tr.id) || [];
+    const conOperarios = new Set(tramos.rows.filter((tr) => tr.asignados.some((r) => r.tipo === 'operario')).map((tr) => tr.id));
     const conflictos = [...porDia].flatMap(([f, lista]) =>
       calcularConflictos(lista, jornada, tiposDisponibles, exclusivas,
-        { ausencias: ausDia.get(f), festivo: festivoDe.get(f), fecha: f, capacidadesConGente }).map((c) => ({ ...c, fecha: f })));
+        { ausencias: ausDia.get(f), festivo: festivoDe.get(f), fecha: f, capacidadesConGente }).map((c) => ({ ...c, fecha: f })))
+      // con operarios, lo de fuera de jornada se mide con el turno de cada uno (horas extra), no con la jornada general
+      .filter((c) => !(c.tipo === 'jornada' && c.ids.every((i) => conOperarios.has(i))));
+    for (const tr of tramos.rows) {
+      if (tr.cierre) continue;
+      const pend = tr.extras.filter((x) => x.estado === 'pendiente');
+      if (!pend.length) continue;
+      const t = porTarea.get(tr.tarea_id);
+      const h = Math.round(pend.reduce((s, x) => s + x.horas, 0) * 10) / 10;
+      conflictos.push({ tipo: 'horas_extra', ids: [tr.id], fecha: tr.fecha, extra_ids: pend.map((x) => x.id),
+        mensaje: `${t ? `${t.codigo || t.orden_codigo} ${t.nombre}` : 'Tramo'}: ${String(h).replace('.', ',')}h extra sin autorizar (${pend.map((x) => x.nombre).join(', ')})` });
+    }
 
     // Material y herramientas de cada tarea (icono 🧰) y avisos si el material no llega a tiempo
     const llevar = await material.deTareas(tareas.rows.map((t) => t.id));
@@ -302,7 +324,12 @@ module.exports = function montar(app, asyncH) {
     // situación del producto de cada OT que tiene algo fuera (taller, tarea, avance, hasta cuándo)
     const sit = await require('./externos').situaciones(ordenIds);
 
-    res.json({ fecha: desde, desde, hasta, jornada, lineas: lineas.rows, recursos: recursos.rows,
+    // rango visible: el de todos los turnos activos (+ 2 h para extra)
+    const { rows: tu } = await query('SELECT min(inicio)::float AS ini, max(fin)::float AS fin FROM turnos WHERE activo');
+    const vista = { ...jornada,
+      vistaIni: Math.min(jornada.inicio, tu[0].ini ?? jornada.inicio),
+      vistaFin: Math.min(24, Math.max(jornada.vistaFin, (tu[0].fin ?? 0) + 2)) };
+    res.json({ fecha: desde, desde, hasta, jornada: vista, lineas: lineas.rows, recursos: recursos.rows,
       tareas: tareas.rows, tramos: tramos.rows, conflictos, ausencias, festivos,
       dias_cerrados: cerrados.rows.map((r) => r.fecha),
       avance: { ordenes: av.ordenes, proyectos: avP.proyectos }, situaciones: Object.fromEntries(sit) });
@@ -345,7 +372,8 @@ module.exports = function montar(app, asyncH) {
           [tramo.id, tareaId, req.usuario.id]);
       }
       await registrar(c, req.usuario.id, tareaId, 'planificar', { tramo_id: tramo.id, fecha, hora_inicio: h, duracion_h: dur });
-      return { tramo, pendientes: t.pendientes - dur };
+      const ex = await extras.sincronizar(c, tramo.id, req.usuario);
+      return { tramo, pendientes: t.pendientes - dur, extras: ex };
     });
     res.status(201).json(out);
   }));
@@ -379,9 +407,25 @@ module.exports = function montar(app, asyncH) {
       const soloMover = 'hora_inicio' in cambios && !('duracion_h' in cambios);
       await ajustarFranjas(c, id, soloMover ? ini - prev[0].hora_inicio : 0);
 
-      const t = await horasTarea(c, prev[0].tarea_id);
+      let t = await horasTarea(c, prev[0].tarea_id);
       await registrar(c, req.usuario.id, prev[0].tarea_id, 'mover', { tramo_id: id, ...cambios });
-      return { ...rows[0], exceso: Math.max(0, r1(-t.pendientes)) };
+      // Excedente: al alargar el tramo por encima de lo estimado, la tarea crece con lo que hace falta (queda registrado)
+      let excedente = null;
+      if (dur > Number(prev[0].duracion_h) + 1e-6 && t.pendientes < -1e-6) {
+        const add = r1(Math.min(-t.pendientes, dur - Number(prev[0].duracion_h)));   // solo lo que ha crecido ahora
+        const antes = Number(t.duracion_h);
+        await c.query(`UPDATE tareas SET duracion_inicial_h = COALESCE(duracion_inicial_h, duracion_h), duracion_h = duracion_h + $2 WHERE id = $1`,
+          [prev[0].tarea_id, add]);
+        const { rows: ex } = await c.query(
+          `INSERT INTO tarea_excedentes (tarea_id, tramo_id, horas, antes, despues, usuario_id) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
+          [prev[0].tarea_id, id, add, antes, r1(antes + add), req.usuario.id]);
+        await registrar(c, req.usuario.id, prev[0].tarea_id, 'excedente', { tramo_id: id, horas: add, antes, despues: r1(antes + add) });
+        const { rows: op } = await c.query('SELECT GREATEST(operarios_req, 1) AS n FROM tareas WHERE id = $1', [prev[0].tarea_id]);
+        excedente = { id: ex[0].id, horas: add, antes, despues: r1(antes + add), operarios: op[0].n };
+        t = await horasTarea(c, prev[0].tarea_id);
+      }
+      const ex = await extras.sincronizar(c, id, req.usuario);
+      return { ...rows[0], exceso: Math.max(0, r1(-t.pendientes)), excedente, extras: ex };
     });
     res.json(out);
   }));
@@ -420,6 +464,7 @@ module.exports = function montar(app, asyncH) {
             await c.query('UPDATE tramos SET hora_inicio = $2, duracion_h = $3, actualizado_por = $4 WHERE id = $1',
               [x.id, x.hora_inicio, x.duracion_h, req.usuario.id]);
             await ajustarFranjas(c, x.id, x.delta);
+            await extras.sincronizar(c, x.id, req.usuario);
           }
           await registrar(c, req.usuario.id, x.tarea_id, 'empujar',
             { tramo_id: x.id, por_tramo: id, delta: x.delta, recorte: x.recorte, quitado: x.quitar });
@@ -472,6 +517,7 @@ module.exports = function montar(app, asyncH) {
           await c.query('INSERT INTO tramo_asignaciones (tramo_id, recurso_id, asignado_por) VALUES ($1,$2,$3)',
             [rows[0].id, r.recurso_id, req.usuario.id]);
         }
+        await extras.sincronizar(c, rows[0].id, req.usuario);
         if (presentes.length < recursos.length) rows[0].sin = recursos.length - presentes.length;
         creados.push(rows[0]);
         pendientes -= dur;
@@ -513,8 +559,9 @@ module.exports = function montar(app, asyncH) {
         `INSERT INTO tramo_asignaciones (tramo_id, recurso_id, asignado_por, desde, hasta) VALUES ($1,$2,$3,$4,$5)
          ON CONFLICT DO NOTHING`, [id, recursoId, req.usuario.id, f.desde, f.hasta]);
       await registrar(c, req.usuario.id, f.tarea_id, 'asignar', { tramo_id: id, recurso_id: recursoId, desde: f.desde, hasta: f.hasta });
-    });
-    res.status(201).json({ ok: true });
+      return extras.sincronizar(c, id, req.usuario);
+    }).then((ex) => res.status(201).json({ ok: true, extras: ex }));
+    return;
   }));
 
   // Cambiar la franja de un recurso ({desde, hasta}) o pasarla a otro recurso ({recurso_id})
@@ -538,8 +585,9 @@ module.exports = function montar(app, asyncH) {
           WHERE tramo_id = $1 AND recurso_id = $2`, [id, recursoId, nuevo, f.desde, f.hasta, req.usuario.id]);
       await registrar(c, req.usuario.id, f.tarea_id, nuevo !== recursoId ? 'reasignar' : 'franja',
         { tramo_id: id, recurso_id: recursoId, nuevo_recurso_id: nuevo, desde: f.desde, hasta: f.hasta });
-    });
-    res.json({ ok: true });
+      return extras.sincronizar(c, id, req.usuario);
+    }).then((ex) => res.json({ ok: true, extras: ex }));
+    return;
   }));
 
   app.delete('/api/tramos/:id/asignaciones/:recursoId', auth.permiso('planificar'), asyncH(async (req, res) => {
@@ -550,6 +598,7 @@ module.exports = function montar(app, asyncH) {
       if (!rows.length) throw fallo(404, 'Tramo no encontrado');
       await c.query('DELETE FROM tramo_asignaciones WHERE tramo_id = $1 AND recurso_id = $2', [id, recursoId]);
       await registrar(c, req.usuario.id, rows[0].tarea_id, 'quitar', { tramo_id: id, recurso_id: recursoId });
+      await extras.sincronizar(c, id, req.usuario);
     });
     res.json({ ok: true });
   }));

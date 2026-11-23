@@ -9,7 +9,7 @@
 //    pedir compra local, ticket) va a una BANDEJA DE SALIDA (IndexedDB) y se envía solo, en orden, en cuanto hay red.
 //    Mientras tanto, lo pendiente se ve ya aplicado en Mi día y en Mis compras. Las fotos sin enviar llevan un id
 //    provisional negativo que se cambia por el de verdad al enviarlas.
-const VERSION = 'v9';
+const VERSION = 'v10';
 const SHELL = `planealo-shell-${VERSION}`;
 const DATOS = 'planealo-datos-v1';
 const OFFLINE = '/offline.html';
@@ -18,7 +18,7 @@ const FIJOS = ['/manifest.webmanifest', '/icono-192-v2.png', '/insignia-96.png',
 const ESPERA_DATOS = 3500;   // ms: si la red tarda más, se enseña lo guardado
 
 // Datos que se guardan para verlos sin conexión
-const GET_GUARDAR = /^\/api\/(me|mi-dia|mi-dia\/(gestiones|mes|perfil|capacidades)|capturas|capturas\/(opciones|mias)|compras-locales|compras-locales\/(opciones|mias)|material\/circuito|pendientes|push\/preferencias|supervision\/(resumen|recibir|donde)|parte|compras\/pedidos|solicitudes-vacaciones)$/;
+const GET_GUARDAR = /^\/api\/(me|mi-dia|mi-dia\/(gestiones|mes|perfil|capacidades)|capturas|capturas\/(opciones|mias)|compras-locales|compras-locales\/(opciones|mias)|material\/circuito|pendientes|push\/preferencias|supervision\/(resumen|recibir|donde)|parte|compras\/pedidos|solicitudes-vacaciones|horas-extra)$/;
 // Lo que se puede apuntar sin conexión (va a la bandeja de salida)
 const COLA = [
   ['PUT', /^\/api\/mi-dia\/tramos\/\d+$/],
