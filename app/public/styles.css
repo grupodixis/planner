@@ -1246,9 +1246,11 @@ dialog.dlg-pregunta { width: min(460px, calc(100vw - 32px)); }
 
 .tabla-pin .acciones { white-space: nowrap; text-align: right; }
 .tabla-pin .acciones button { margin-left: 4px; }
-.pin-editor { display: inline-flex; gap: 4px; align-items: center; }
+.pin-editor { display: flex; gap: 6px; align-items: center; margin-top: 6px; white-space: nowrap; }
 .pin-editor[hidden] { display: none; }
-.pin-input { width: 70px; font-family: var(--mono); letter-spacing: 3px; background: #1f1f1f; border: 1px solid var(--borde); border-radius: 6px; padding: 3px 6px; }
+.pin-editor .pin-input { width: 112px !important; flex: none; font-family: var(--mono); font-size: 20px; font-weight: 700; letter-spacing: 8px; text-align: center; color: var(--texto);
+  background: #1f1f1f; border: 1px solid var(--azul); border-radius: 8px; padding: 6px 4px 6px 12px; }
+.pin-input::placeholder { font-size: 13px; letter-spacing: 0; font-weight: 400; }
 .lista-disp { list-style: none; margin: 0 0 10px; padding: 0; display: grid; gap: 6px; }
 .lista-disp li { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .lista-disp li > span:nth-child(2) { flex: 1; }

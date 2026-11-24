@@ -222,7 +222,7 @@
   });
   function filaPin(o) {
     const conPin = o.tiene_pin && o.activo !== false;
-    const input = el('input', { inputmode: 'numeric', maxlength: 4, placeholder: '4 cifras', 'aria-label': `PIN de ${o.nombre}`, class: 'pin-input' });
+    const input = el('input', { inputmode: 'numeric', maxlength: 4, placeholder: '4 cifras', autocomplete: 'off', 'aria-label': `PIN de ${o.nombre}`, class: 'pin-input' });
     const editor = el('span', { class: 'pin-editor', hidden: true },
       input,
       el('button', { type: 'button', class: 'ghost mini', title: 'Otro al azar', 'aria-label': 'Otro PIN al azar', onclick: () => { input.value = pinAlAzar(); } }, '🎲'),
