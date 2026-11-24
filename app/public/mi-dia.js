@@ -54,6 +54,7 @@
   }
 
   async function cargar() {
+    if (estado.oficina) { window.midiaMenu?.pintarInicio($('#md-inicio'), estado.yo.nombre); return; }
     estado.d = await api('GET', `/api/mi-dia${estado.fecha ? `?fecha=${estado.fecha}` : ''}`);
     estado.fecha = estado.d.fecha;
     pintar();
@@ -318,40 +319,50 @@
   async function init() {
     let yo;
     try { yo = await api('GET', '/api/me'); } catch { return; }
-    if (!(yo.permisos || []).includes('mi_dia')) {
-      document.querySelector('.md-main').replaceChildren(el('p', { class: 'md-vacio' }, 'Esta pantalla es para los operarios que entran con PIN. ', el('a', { href: '/' }, 'Ir al tablero')));
-      return;
-    }
+    estado.yo = yo;
+    // sin ficha de operario (oficina, Dirección…): en el móvil, solo lo suyo (supervisar, autorizar, recibir, capturar)
+    estado.oficina = !((yo.permisos || []).includes('mi_dia') && yo.recurso_id);
     $('#salir').onclick = salir;
+    if (estado.oficina) {
+      document.body.classList.add('md-oficina');
+      $('#md-nombre').textContent = yo.nombre;
+      $('#v-dia').replaceChildren($('#instalar'), $('#activar-avisos'), el('div', { id: 'md-inicio' }));
+      const tab = document.querySelector('.md-tabs button[data-vista="dia"]');
+      if (tab) tab.replaceChildren(el('span', { 'aria-hidden': 'true' }, '🏠'), 'Inicio');
+      $('#cambiar-pin').hidden = true;
+    }
     estado.pedirCompras = (yo.permisos || []).some((k) => ['pedir_compras_locales', 'autorizar_compras_locales'].includes(k));
     // quien tiene otro rol además (Logística, Operaciones…) vuelve a sus pantallas desde aquí
     const otros = (yo.permisos || []).filter((k) => k !== 'mi_dia');
-    if (otros.length) {
+    if (otros.length && !estado.oficina) {
       $('#mis-pantallas').hidden = false;
       $('#mis-pantallas').href = otros.includes('planificar') ? '/' : otros.some((k) => ['logistica', 'compras', 'escandallo'].includes(k)) ? '/logistica.html' : '/proyectos.html';
     }
     window.s360pwa?.boton($('#instalar'));
     const fq = new URLSearchParams(location.search).get('fecha');
     if (/^\d{4}-\d{2}-\d{2}$/.test(fq || '')) estado.fecha = fq;
+    if (!estado.oficina) {
     $('#dia-ant').onclick = () => { estado.fecha = sumarDias(estado.fecha, -1); cargar().catch((e) => toast(e.message, true)); };
     $('#dia-sig').onclick = () => { estado.fecha = sumarDias(estado.fecha, 1); cargar().catch((e) => toast(e.message, true)); };
     $('#enviar').onclick = enviar;
     prepararExtra();
+    }
     window.midiaMas.iniciar({
       irADia: (f) => { estado.fecha = f; cargar().catch((e) => toast(e.message, true)); },
       recargarDia: () => cargar().catch(() => {}),
     });
-    await cargar();
+    if (!estado.oficina) await cargar(); else estado.d = { comun: false };
     const logistica = (yo.permisos || []).includes('logistica');
-    window.midiaMenu?.iniciar({ comun: !!estado.d.comun, logistica, compras: estado.pedirCompras });
-    if (logistica) window.midiaStock?.iniciar();
-    if (estado.pedirCompras) window.midiaCompras?.precargar();
+    window.midiaMenu?.iniciar({ comun: !!estado.d.comun, logistica, compras: estado.pedirCompras, oficina: estado.oficina });
+    if (logistica) await window.midiaStock?.iniciar();
+    if (estado.pedirCompras) await window.midiaCompras?.precargar();
     await window.midiaSuper?.iniciar(yo.permisos);
+    if (estado.oficina) await cargar();
     // enlaces de los avisos: /mi-dia.html?vista=compras
     const vq = new URLSearchParams(location.search).get('vista');
     if (['compras', 'capturar', 'vac', 'avisar', 'mes', 'recibir', 'parte', 'aprobar', 'donde'].includes(vq)) window.midiaMas.mostrar(vq);
     // ayuda: novedades y recorrido de la primera vez (el «?» está en el menú)
-    window.s360ayuda?.iniciar({ sinBoton: true, permisos: yo.permisos || [] }).catch(() => {});
+    window.s360ayuda?.iniciar({ sinBoton: true, sinPista: estado.oficina, permisos: yo.permisos || [] }).catch(() => {});
     if (estado.d.comun) vigilarInactividad();
     // avisos al móvil: solo en el móvil de cada uno (en la tablet común no tiene sentido)
     if (estado.d.comun) $('#ajustes-avisos').hidden = true;

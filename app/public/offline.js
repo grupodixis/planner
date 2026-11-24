@@ -72,7 +72,9 @@
       if (Date.now() - ult > 3600e3 || sessionStorage.getItem('planealo-precarga-v') !== '3') {
         setTimeout(async () => {
           const f = (d) => { const x = new Date(); x.setDate(x.getDate() + d); return x.toLocaleDateString('sv-SE', { timeZone: 'Europe/Madrid' }); };
-          for (const u of [`/api/mi-dia?fecha=${f(1)}`, `/api/mi-dia?fecha=${f(0)}`, '/api/mi-dia/mes', '/api/mi-dia/gestiones', '/api/mi-dia/perfil', '/api/mi-dia/capacidades',
+          // sin ficha de operario (oficina) no hay día propio que guardar
+          const propio = document.body.classList.contains('md-oficina') ? [] : [`/api/mi-dia?fecha=${f(1)}`, `/api/mi-dia?fecha=${f(0)}`, '/api/mi-dia/mes', '/api/mi-dia/gestiones', '/api/mi-dia/perfil', '/api/mi-dia/capacidades'];
+          for (const u of [...propio,
             '/api/compras-locales/opciones', '/api/compras-locales/mias', '/api/compras-locales?vista=autorizar', '/api/capturas/opciones', '/api/capturas/mias',
             '/api/capturas?vista=mios', '/api/material/circuito', '/api/pendientes', '/api/supervision/resumen', '/api/supervision/recibir', '/api/supervision/donde']) {
             await fetch(u, { credentials: 'same-origin' }).catch(() => {});

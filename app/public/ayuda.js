@@ -368,7 +368,7 @@
     const q = new URLSearchParams(location.search);
     if (q.has('ayuda')) { abrirPanel(); return; }
     if (novedadesDe(false).length) await mostrarNovedades(false);
-    pista();
+    if (!op.sinPista) pista();
   }
 
   window.s360ayuda = { iniciar, abrirPanel, recorrido, mostrarNovedades, finTour };

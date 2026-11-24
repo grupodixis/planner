@@ -2520,3 +2520,7 @@ button.wa { background: #1f7a3a; color: #eaffef; border-color: #1f7a3a; }
   .trp-pasos li { font-size: 10.5px; }
   .trp-ficha { padding: 12px; }
 }
+/* App móvil sin ficha de operario (oficina, Dirección…): inicio con sus tareas */
+.md-oficina #nav-fecha { display: none !important; }
+.md-inicio-grid { margin-top: 6px; }
+.md-inicio-grid .md-menu-sec { grid-column: 1 / -1; }

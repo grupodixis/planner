@@ -36,17 +36,18 @@
   /* ---------- menú ---------- */
   function opciones() {
     const ir = (vista) => () => { cerrar(); window.midiaMas.mostrar(vista); };
+    const of = ctx.oficina; // sin ficha de operario: solo lo que hace en el móvil (supervisar, autorizar, recibir…)
     return [
-      ['📋', 'Mi día', ir('dia')],
-      ['📅', 'Mi mes', ir('mes')],
+      of ? ['🏠', 'Inicio', ir('dia')] : ['📋', 'Mi día', ir('dia')],
+      of ? null : ['📅', 'Mi mes', ir('mes')],
       ['＋', 'Capturar', ir('capturar')],
-      ['🌴', 'Vacaciones', ir('vac')],
-      ['🙋', 'Avisar', ir('avisar'), 'No vengo, llego tarde, justificantes'],
+      of ? null : ['🌴', 'Vacaciones', ir('vac')],
+      of ? null : ['🙋', 'Avisar', ir('avisar'), 'No vengo, llego tarde, justificantes'],
       ctx.compras && ['🛒', 'Compra local', ir('compras'),
         [window.midiaCompras?.porAutorizarN() ? `${window.midiaCompras.porAutorizarN()} por autorizar` : null, window.midiaCompras?.pendientes() ? `${window.midiaCompras.pendientes()} autorizada(s): sube el ticket` : null].filter(Boolean).join(' · ') || 'Ferretería… con autorización',
         !!(window.midiaCompras?.pendientes() || window.midiaCompras?.porAutorizarN())],
-      ['👤', 'Mi perfil', ir('perfil'), faltanPerfil.length ? `Faltan ${faltanPerfil.length} dato(s)` : 'Tus datos', !!faltanPerfil.length],
-      ['🧠', 'Mis capacidades', ir('caps'), 'Lo que sabes hacer'],
+      of ? null : ['👤', 'Mi perfil', ir('perfil'), faltanPerfil.length ? `Faltan ${faltanPerfil.length} dato(s)` : 'Tus datos', !!faltanPerfil.length],
+      of ? null : ['🧠', 'Mis capacidades', ir('caps'), 'Lo que sabes hacer'],
       // logística: confirmar desde el móvil (pedir a proveedores se hace en el ordenador)
       ctx.logistica ? ['📦', 'Revisar stock', () => { cerrar(); window.midiaStock.ver('revisar'); }, cuentaTxt(ctx.cuentas?.revisar, 'por revisar'), !!ctx.cuentas?.revisar] : null,
       ctx.logistica ? ['🚚', 'Recibir material', () => { cerrar(); window.midiaStock.ver('recibir'); }, cuentaTxt(ctx.cuentas?.recibir, 'por llegar'), !!ctx.cuentas?.recibir] : null,
@@ -58,7 +59,7 @@
   }
   function abrir() {
     const vista = window.midiaMas.vista();
-    const mapa = { 'Mi día': 'dia', 'Mi mes': 'mes', Capturar: 'capturar', Vacaciones: 'vac', Avisar: 'avisar', 'Mi perfil': 'perfil', 'Mis capacidades': 'caps', 'Compra local': 'compras', 'Recibir envíos': 'recibir', 'Parte de hoy': 'parte', Aprobar: 'aprobar', 'Dónde está cada cosa': 'donde' };
+    const mapa = { 'Mi día': 'dia', Inicio: 'dia', 'Mi mes': 'mes', Capturar: 'capturar', Vacaciones: 'vac', Avisar: 'avisar', 'Mi perfil': 'perfil', 'Mis capacidades': 'caps', 'Compra local': 'compras', 'Recibir envíos': 'recibir', 'Parte de hoy': 'parte', Aprobar: 'aprobar', 'Dónde está cada cosa': 'donde' };
     if (ctx.logistica) ctx.cuentas = window.midiaStock?.cuentasYa() || null;
     $('#md-menu-grid').replaceChildren(...opciones().map(([ico, txt, fn, sub, aviso]) => (ico === '§' ? el('h3', { class: 'md-menu-sec', 'aria-hidden': txt ? null : 'true' }, txt) : el('button', {
       type: 'button', class: `md-menu-op${mapa[txt] === vista ? ' actual' : ''}${aviso ? ' aviso' : ''}`, onclick: fn,
@@ -67,6 +68,17 @@
     if (!d.open) d.showModal();
   }
   function cerrar() { const d = $('#md-menu'); if (d.open) d.close(); }
+  // Inicio de quien no tiene ficha de operario: las mismas opciones del menú, en grande
+  function pintarInicio(caja, nombre) {
+    if (ctx.logistica) ctx.cuentas = window.midiaStock?.cuentasYa() || null;
+    const ops = opciones().filter(([, txt]) => !['Inicio', 'Salir', 'Ayuda', 'Avisos al móvil'].includes(txt));
+    caja.replaceChildren(
+      el('p', { class: 'md-resumen' }, `Hola, ${String(nombre || '').split(' ')[0]}. Desde el móvil: recibir, confirmar y aprobar; lo demás, en el ordenador.`),
+      el('div', { class: 'md-menu-grid md-inicio-grid' }, ops.map(([ico, txt, fn, sub, aviso]) => (ico === '§'
+        ? (txt ? el('h3', { class: 'md-menu-sec' }, txt) : null)
+        : el('button', { type: 'button', class: `md-menu-op${aviso ? ' aviso' : ''}`, onclick: fn },
+          el('span', { class: 'md-menu-ico', 'aria-hidden': 'true' }, ico), el('b', {}, txt), sub ? el('small', {}, sub) : null)))));
+  }
 
   /* ---------- Mi perfil ---------- */
   async function cargarPerfil() {
@@ -151,9 +163,9 @@
     const d = $('#md-menu');
     // pulsar fuera de la hoja la cierra
     d.addEventListener('click', (ev) => { if (ev.target === d) cerrar(); });
-    try { faltanPerfil = (await api('GET', '/api/mi-dia/perfil')).faltan; } catch { faltanPerfil = []; }
+    if (!ctx.oficina) { try { faltanPerfil = (await api('GET', '/api/mi-dia/perfil')).faltan; } catch { faltanPerfil = []; } }
     marcarPunto();
   }
 
-  window.midiaMenu = { iniciar, abrir, cargar: (v) => (v === 'perfil' ? cargarPerfil() : cargarCaps()) };
+  window.midiaMenu = { iniciar, abrir, pintarInicio, cargar: (v) => (v === 'perfil' ? cargarPerfil() : cargarCaps()) };
 })();

@@ -991,6 +991,23 @@ operario, ya pasada a capturas.)
 - API: `GET·POST /api/turnos`, `PUT·DELETE /api/turnos/:id`, `POST /api/tramos/:id/horas-extra/pedir {motivo}`,
   `POST /api/tramos/:id/horas-extra/recortar`, `GET /api/horas-extra?vista=pendientes|sin_autorizar|mes&mes=`.
 
+## En el teléfono, solo la app móvil
+
+En un teléfono (pantalla de hasta 760 px y táctil) las pantallas de oficina no se abren: `comun.js` (`esTelefono()`)
+manda a `/mi-dia.html`, con la vista que corresponde si se llegó por un enlace de aviso (`versionMovil()`):
+- Capturar → `?vista=capturar`
+- Parte → `parte`
+- Compras locales → `compras`
+- Transportes → `recibir`
+- un pedido o Recursos › vacaciones / horas extra → `aprobar`
+
+`inicio.html` también lleva siempre a Mi día en el teléfono. Las tablets apaisadas y el ordenador siguen viendo la versión completa.
+
+**Sin ficha de operario** (Administrador, oficina, Dirección…), Mi día entra en modo **oficina** (`body.md-oficina`):
+- la pestaña «Mi día» pasa a ser **🏠 Inicio**, con botones grandes para lo suyo, cada uno con su número: Capturar, Compra local, Revisar stock / Recibir material, y Supervisar (Recibir envíos, Parte de hoy, Aprobar, Dónde está);
+- desaparecen Mi mes, Vacaciones, Avisar, Mi perfil, Mis capacidades, el cambio de PIN y el recorrido del operario;
+- no se precarga el día propio.
+
 ## Supervisar desde el móvil (Mi día › Menú › Supervisar)
 
 Para encargados, logística, Operaciones y Dirección que también usan Mi día. Cada apartado sale solo con su permiso:

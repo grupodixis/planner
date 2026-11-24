@@ -179,11 +179,25 @@
     }
   }
 
+  // ¿Es un teléfono? (pantalla estrecha y táctil; una tablet apaisada o el ordenador ven la versión completa)
+  function esTelefono() { return matchMedia('(max-width: 760px) and (pointer: coarse)').matches; }
+  // A dónde va en la app móvil un enlace de oficina (los de los avisos)
+  function versionMovil() {
+    const q = new URLSearchParams(location.search); const pth = location.pathname;
+    const vista = pth === '/capturar.html' ? 'capturar' : pth === '/parte.html' ? 'parte'
+      : pth === '/compras.html' && q.get('vista') === 'locales' ? 'compras'
+        : pth === '/compras.html' && q.get('vista') === 'transportes' ? 'recibir'
+          : pth === '/compras.html' && q.get('pedido') ? 'aprobar' : pth === '/recursos.html' && /calendario|extras/.test(q.get('tipo') || '') ? 'aprobar' : null;
+    return `/mi-dia.html${vista ? `?vista=${vista}` : ''}`;
+  }
+
   // Lo llama cada pantalla al cargar el usuario (/api/me)
   function iniciar(u) {
     usuario = u;
     // los operarios (solo «Mi día») no tienen nada que hacer en el resto de pantallas
     if (u.solo_mi_dia && location.pathname !== '/mi-dia.html') { location.replace('/mi-dia.html'); return; }
+    // En el teléfono solo va la app móvil (Mi día con su menú: supervisar, autorizar, recibir, capturar…); el resto, en el ordenador
+    if (esTelefono() && location.pathname !== '/mi-dia.html') { location.replace(versionMovil()); return; }
     pintarNombre();
     const menu = document.querySelector('nav.menu');
     if (menu) pintarMenu(menu);

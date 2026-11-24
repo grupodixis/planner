@@ -17,9 +17,9 @@
         if (r.ok) {
           const u = await r.json();
           // en el móvil se confirma y se avisa: quien tiene su ficha de persona va a Mi día
-          const movil = matchMedia('(max-width: 760px)').matches;
-          const miDia = u.solo_mi_dia || (movil && u.recurso_id && (u.permisos || []).includes('mi_dia'));
-          location.replace(miDia ? '/mi-dia.html' : movil ? '/capturar.html' : '/');
+          // en el teléfono, siempre la app móvil (Mi día; sin ficha de operario, su inicio con supervisar, aprobar…)
+          const movil = matchMedia('(max-width: 760px) and (pointer: coarse)').matches;
+          location.replace(u.solo_mi_dia || movil ? '/mi-dia.html' : '/');
           return;
         }
         const d = await fetch('/api/pin/dispositivo', { credentials: 'same-origin' });

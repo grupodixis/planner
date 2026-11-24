@@ -183,7 +183,7 @@
         el('button', { type: 'button', class: 'ghost', onclick: () => { inc = null; pintar(); } }, 'Cancelar'), enviar));
   }
 
-  function iniciar() { cuentas().catch(() => {}); }
+  function iniciar() { return cuentas().catch(() => {}); }
 
   window.midiaStock = { iniciar, cargar, ver, cuentas, cuentasYa: () => cuentasCache };
 })();
