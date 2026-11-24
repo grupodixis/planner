@@ -191,7 +191,7 @@ app.patch('/api/tareas/:id', auth.permiso('planificar', 'proyectos'), asyncH(asy
 
   if ('linea_id' in b) cambios.linea_id = b.linea_id ? Number(b.linea_id) : null;
   // taller externo: proveedor_id (o elegir su área). Avance y nota de cómo va fuera.
-  if ('proveedor_id' in b) cambios.proveedor_id = b.proveedor_id ? Number(b.proveedor_id) : null;
+  if ('proveedor_id' in b) { cambios.proveedor_id = b.proveedor_id ? Number(b.proveedor_id) : null; if (!cambios.proveedor_id) cambios.ext_en_obra = false; }
   if ('ext_avance' in b) {
     const a = b.ext_avance === '' || b.ext_avance == null ? null : Math.round(Number(b.ext_avance));
     if (a != null && !(a >= 0 && a <= 100)) return mal('Avance entre 0 y 100');
@@ -234,10 +234,16 @@ app.patch('/api/tareas/:id', auth.permiso('planificar', 'proyectos'), asyncH(asy
     const { rows: prev } = await c.query('SELECT id FROM tareas WHERE id = $1 FOR UPDATE', [id]);
     if (!prev.length) return null;
     // el área y el taller van juntos: un taller externo tiene su área; un área propia quita el taller
-    if (cambios.proveedor_id) cambios.linea_id = await require('./externos').areaExterna(c, cambios.proveedor_id);
+    // subcontrata en obra: la hace un proveedor aquí, la tarea conserva su área (la de un taller, si la tenía, se quita)
+    if (cambios.proveedor_id && b.en_obra) {
+      cambios.ext_en_obra = true;
+      const { rows: l } = await c.query('SELECT l.tipo FROM tareas t LEFT JOIN lineas l ON l.id = t.linea_id WHERE t.id = $1', [id]);
+      if (l[0]?.tipo === 'externo') cambios.linea_id = null;
+    } else if (cambios.proveedor_id) { cambios.linea_id = await require('./externos').areaExterna(c, cambios.proveedor_id); cambios.ext_en_obra = false; }
     else if ('linea_id' in cambios && !('proveedor_id' in cambios)) {
       const { rows: l } = cambios.linea_id ? await c.query('SELECT tipo, proveedor_id FROM lineas WHERE id = $1', [cambios.linea_id]) : { rows: [] };
       cambios.proveedor_id = l[0]?.tipo === 'externo' ? l[0].proveedor_id : null;
+      cambios.ext_en_obra = false;
     }
     // duracion_h es la ESTIMACIÓN: puede quedar por debajo de lo planificado (se ve como exceso)
     const cols = Object.keys(cambios);

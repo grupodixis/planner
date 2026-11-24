@@ -2526,3 +2526,22 @@ button.wa { background: #1f7a3a; color: #eaffef; border-color: #1f7a3a; }
 .md-oficina #nav-fecha { display: none !important; }
 .md-inicio-grid { margin-top: 6px; }
 .md-inicio-grid .md-menu-sec { grid-column: 1 / -1; }
+/* subcontrata en obra (OT) */
+.obra-sub { margin: 6px 0; display: grid; gap: 6px; }
+.obra-conf { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.obra-chip { display: inline-block; font-size: 12px; padding: 2px 8px; border-radius: 12px; border: 1px solid var(--borde); color: var(--suave); text-decoration: none; }
+.obra-chip.ok { border-color: var(--verde); color: var(--verde); }
+.obra-chip.pend { border-color: var(--naranja); color: var(--naranja); }
+.obra-chip.mal { border-color: var(--rojo); color: var(--rojo); }
+.obra-prop { flex-basis: 100%; font-size: 12.5px; color: var(--naranja); }
+.obra-dias { display: flex; flex-wrap: wrap; gap: 4px; }
+.obra-dia { font-size: 11.5px; padding: 1px 7px; border-radius: 6px; background: #ffffff10; }
+.obra-partes { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.obra-partes td { padding: 5px 6px; border-top: 1px solid var(--borde); vertical-align: middle; }
+.obra-partes tr.pendiente td:first-child { box-shadow: inset 3px 0 var(--naranja); }
+.obra-partes .obra-nota { color: var(--suave); max-width: 340px; }
+/* tablero: subcontrata en obra */
+.blk-subc { font-size: 10.5px; font-weight: 600; margin-left: 4px; white-space: nowrap; }
+.blk-subc.ok { color: var(--verde); }
+.blk-subc.pend { color: var(--naranja); }
+.blk-subc.mal { color: var(--rojo); }

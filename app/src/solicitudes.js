@@ -34,7 +34,7 @@ async function solicitud(id, c = { query }) {
                FROM solicitud_lineas l LEFT JOIN partida_escandallo e ON e.id = l.escandallo_id
                LEFT JOIN partidas pa ON pa.id = e.partida_id LEFT JOIN proyectos pr ON pr.id = pa.proyecto_id
               WHERE l.solicitud_id = $1 ORDER BY l.orden, l.id`, [id]),
-    () => c.query(`SELECT sp.*, sp.portes::float AS portes, p.nombre AS proveedor, p.email, p.plazo_dias
+    () => c.query(`SELECT sp.*, sp.portes::float AS portes, sp.inicio_posible::text AS inicio_posible, p.nombre AS proveedor, p.email, p.plazo_dias
                FROM solicitud_proveedores sp JOIN proveedores p ON p.id = sp.proveedor_id
               WHERE sp.solicitud_id = $1 ORDER BY sp.id`, [id]),
     () => c.query(`SELECT pc.sp_id, pc.linea_id, pc.precio::float AS precio FROM solicitud_precios pc

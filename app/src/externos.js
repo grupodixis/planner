@@ -41,7 +41,7 @@ async function situaciones(ordenIds) {
             (SELECT min(x.fecha)::text FROM tramos x WHERE x.tarea_id = t.id) AS desde,
             (SELECT max(x.fecha)::text FROM tramos x WHERE x.tarea_id = t.id) AS hasta
        FROM tareas t JOIN proveedores pv ON pv.id = t.proveedor_id
-      WHERE t.orden_id = ANY($1) AND t.proveedor_id IS NOT NULL AND NOT t.baja_presupuesto
+      WHERE t.orden_id = ANY($1) AND t.proveedor_id IS NOT NULL AND NOT t.ext_en_obra AND NOT t.baja_presupuesto
       ORDER BY t.orden_id, t.orden_en_of, t.id`, [ordenIds]);
   const porOT = new Map();
   for (const r of rows) { if (!porOT.has(r.orden_id)) porOT.set(r.orden_id, []); porOT.get(r.orden_id).push(r); }

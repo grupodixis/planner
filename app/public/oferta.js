@@ -79,6 +79,10 @@
     // ---- condiciones
     const campo = (txt, input, ancho) => el('label', { class: ancho ? 'ancho' : null }, el('span', {}, txt), input);
     const fEnt = el('input', { type: 'date', value: r.fecha_entrega || '', disabled: !abierta });
+    // trabajo en obra: días, personas y cuándo puede empezar
+    const diasT = el('input', { type: 'number', min: 0.5, step: 0.5, value: r.dias_trabajo ?? '', disabled: !abierta, 'aria-label': 'Días de trabajo' });
+    const pers = el('input', { type: 'number', min: 1, step: 1, value: r.personas ?? '', disabled: !abierta, 'aria-label': 'Personas' });
+    const inicio = el('input', { type: 'date', value: r.inicio_posible || '', disabled: !abierta, 'aria-label': 'Puedo empezar el' });
     const portes = el('input', { type: 'text', inputmode: 'decimal', value: r.portes ? fmtIn(r.portes) : '', placeholder: '0,00', disabled: !abierta, 'aria-label': 'Portes en euros' });
     const portesIncl = el('input', { type: 'checkbox', checked: r.portes === 0, disabled: !abierta });
     portesIncl.addEventListener('change', () => { portes.disabled = !abierta || portesIncl.checked; if (portesIncl.checked) portes.value = ''; recalcular(); });
@@ -123,7 +127,8 @@
       if (noOferta && !confirm('¿Confirma que no pueden ofertar esta petición?')) return;
       botones.forEach((b) => { b.disabled = true; });
       try {
-        const nd = await api('PUT', API, { precios, lineas, no_oferta: !!noOferta, fecha_entrega: fEnt.value || null, portes: po, ref_oferta: ref.value, notas: notas.value, contacto: contacto.value });
+        const nd = await api('PUT', API, { precios, lineas, no_oferta: !!noOferta, fecha_entrega: fEnt.value || null, portes: po, ref_oferta: ref.value, notas: notas.value, contacto: contacto.value,
+          ...(d.en_obra ? { dias_trabajo: diasT.value, personas: pers.value, inicio_posible: inicio.value || null } : {}) });
         pintar(nd, noOferta ? 'Gracias. Hemos anotado que no pueden ofertar esta petición.' : 'Gracias, hemos recibido su oferta. Puede corregirla desde este mismo enlace mientras la petición siga abierta.');
         scrollTo({ top: 0, behavior: 'smooth' });
       } catch (e) { err.textContent = e.message; botones.forEach((b) => { b.disabled = false; }); }
@@ -157,7 +162,7 @@
 
       el('h2', {}, 'Condiciones'),
       el('div', { class: 'campos' },
-        campo('Fecha de entrega', fEnt),
+        d.en_obra ? [campo('Días de trabajo', diasT), campo('Personas', pers), campo('Podemos empezar el', inicio)] : campo('Fecha de entrega', fEnt),
         el('label', {}, el('span', {}, 'Portes (€)'), el('div', { class: 'portes-fila' }, portes, el('label', { class: 'chk' }, portesIncl, 'Incluidos'))),
         campo('Su referencia', ref),
         campo('Persona de contacto', contacto),

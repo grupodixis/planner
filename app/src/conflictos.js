@@ -23,6 +23,8 @@ const fechaHora = (ms) => {
 };
 
 // Dependencias (no empezar antes de que termine la previa + su espera) y exceso sobre lo estimado
+const hoyMadrid = () => new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Madrid' });
+
 function dependencias(t, out) {
   // Dependencias: no empezar antes de que termine la tarea previa (+ espera de secado, curado…)
   for (const d of t.dependencias || []) {
@@ -76,7 +78,14 @@ function calcularConflictos(tramos, jornada, tiposDisponibles = new Set(), exclu
   for (const t of tramos) {
     const ops = t.asignados.filter((r) => r.tipo === 'operario').length;
     // tarea de un taller externo: solo cuentan las dependencias y el exceso
-    if (t.externa) { dependencias(t, out); continue; }
+    if (t.externa) {
+      // subcontrata en obra: hasta que confirme sus días (de hoy en adelante), aviso leve
+      if (t.ext_en_obra && t.subc_conf && t.subc_conf !== 'confirmada' && String(t.fecha).slice(0, 10) >= hoyMadrid()) {
+        out.push({ tipo: 'subcontrata_conf', ids: [t.id], leve: t.subc_conf !== 'rechazada', tarea_id: t.tarea_id || t.id,
+          mensaje: `${etiqueta(t)}: ${t.proveedor || 'la subcontrata'} ${t.subc_conf === 'propuesta' ? 'propone otros días' : t.subc_conf === 'rechazada' ? 'no puede esos días' : 'aún no ha confirmado los días'}` });
+      }
+      dependencias(t, out); continue;
+    }
     if (ops < (t.operarios_req || 0)) {
       out.push({ tipo: 'operarios', ids: [t.id], falta: t.operarios_req - ops,
         mensaje: `${etiqueta(t)}: ${ops}/${t.operarios_req} operarios asignados` });

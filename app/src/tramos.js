@@ -71,6 +71,7 @@ const SQL_TAREAS = `
   SELECT t.id, t.nombre, t.duracion_h, t.operarios_req, t.linea_id, t.estado, t.orden_en_of, t.notas, t.baja_presupuesto, t.desglose,
          t.proveedor_id, (SELECT nombre FROM proveedores WHERE id = t.proveedor_id) AS proveedor, t.ext_avance, t.ext_nota, t.ext_actualizado,
          t.ext_estado, t.ext_fin_prevista::text AS ext_fin_prevista, t.ext_recibido::text AS ext_recibido, t.ext_entregado_a,
+         t.ext_en_obra, ${require('./subcontratas-obra').SQL_CONF('t')} AS subc_conf,
          t.codigo, o.codigo_antiguo AS orden_codigo_antiguo,
          o.proyecto_id, o.id AS orden_id, o.codigo AS orden_codigo, o.color AS orden_color, o.titulo AS orden_titulo,
          o.prioridad, o.partida_id, pa.codigo AS partida_codigo, pa.nombre AS partida, pa.orden AS partida_orden, o.fecha_entrega,

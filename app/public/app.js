@@ -683,8 +683,16 @@
   // duración de una tarea externa en días de jornada (64 h → «8 días»)
   const diasTxt = (h) => { const d = +(h / J().horas).toFixed(1); return `${String(d).replace('.', ',')} día${d === 1 ? '' : 's'}`; };
   // tarea de un taller externo: 🏭 con su avance (y la nota al pasar el ratón)
+  const SUBC = { pendiente: ['pend', '⏳'], propuesta: ['pend', '📅'], rechazada: ['mal', '✕'], confirmada: ['ok', '✔'], sin_plan: ['pend', '⏳'] };
+  const SUBC_TXT = { pendiente: 'aún no ha confirmado los días', propuesta: 'propone otros días', rechazada: 'no puede esos días', confirmada: 'ha confirmado los días', sin_plan: 'sin días' };
   function iconoExt(t) {
     if (!t.proveedor_id) return null;
+    // subcontrata en obra: 🏗 y si ha confirmado los días
+    if (t.ext_en_obra) {
+      const [c, i] = SUBC[t.subc_conf] || SUBC.pendiente;
+      return el('span', { class: 'ext-ico', title: `La hace aquí ${t.proveedor} (subcontrata) · ${SUBC_TXT[t.subc_conf] || ''}${t.ext_nota ? `\n«${t.ext_nota}»` : ''}` },
+        '🏗', el('span', { class: `blk-subc ${c}` }, i));
+    }
     return el('span', { class: 'ext-ico', title: `La hace ${t.proveedor}${t.ext_avance != null ? ` · ${t.ext_avance} %` : ''}${t.ext_nota ? `\n«${t.ext_nota}»` : ''}` },
       `🏭${t.ext_avance != null && t.estado !== 'hecha' ? ` ${t.ext_avance}%` : ''}`);
   }
@@ -1593,9 +1601,10 @@
     const sit = estado.datos.situaciones?.[t.orden_id];
     const guardarExt = (cuerpo) => accion(async () => { await api('PATCH', `/api/tareas/${t.id}`, cuerpo); return 'Guardado'; });
     const filas = [
-      el('dt', {}, 'Tarea'), el('dd', {}, el('b', {}, t.nombre), ` · ${t.proveedor_id ? diasTxt(t.duracion_h) : durTxt(t.duracion_h)}`),
-      t.proveedor_id ? el('dt', {}, '🏭 La hace') : null,
-      t.proveedor_id ? el('dd', { class: 'det-ext' }, el('b', {}, t.proveedor), el('span', { class: 'ayuda' }, ' · taller externo'),
+      el('dt', {}, 'Tarea'), el('dd', {}, el('b', {}, t.nombre), ` · ${t.proveedor_id && !t.ext_en_obra ? diasTxt(t.duracion_h) : durTxt(t.duracion_h)}`),
+      t.proveedor_id ? el('dt', {}, t.ext_en_obra ? '🏗 La hace' : '🏭 La hace') : null,
+      t.proveedor_id ? el('dd', { class: 'det-ext' }, el('b', {}, t.proveedor),
+        t.ext_en_obra ? el('span', { class: `blk-subc ${(SUBC[t.subc_conf] || SUBC.pendiente)[0]}` }, ` · subcontrata en obra · ${SUBC_TXT[t.subc_conf] || ''}`) : el('span', { class: 'ayuda' }, ' · taller externo'),
         el('div', { class: 'det-ext-campos' },
           el('label', {}, 'Avance ', el('input', { type: 'number', min: 0, max: 100, step: 5, value: t.ext_avance ?? '', placeholder: '%', disabled: !editar,
             'aria-label': 'Avance en el taller (%)', onchange: (ev) => guardarExt({ ext_avance: ev.target.value === '' ? null : Number(ev.target.value) }) }), ' %'),
@@ -1891,6 +1900,12 @@
           }, `Recortar hasta las ${hhmm(J().fin)} (${durTxt(fuera)} quedan pendientes)`) : null,
           el('span', { class: 'ayuda' }, ' Si son horas extra previstas, puedes dejarlo así.'));
       }
+      case 'subcontrata_conf':
+        return caja(
+          el('button', { type: 'button', class: 'primario mini', title: 'Si te lo ha confirmado por teléfono o WhatsApp',
+            onclick: () => accion(async () => { await api('POST', `/api/tareas/${t.id}/subcontrata/confirmar`); return 'Días confirmados'; }) }, '✔ Me lo ha confirmado por teléfono'),
+          el('a', { class: 'boton ghost mini', href: `/proyectos.html?ot=${t.orden_id}` }, 'Ver en la OT (su enlace y partes)'),
+          el('p', { class: 'ayuda' }, 'Se le pide por correo que confirme en su enlace; si cambias sus días, se le vuelve a pedir.'));
       case 'incidencia':
         return caja(...(c.incidencias || []).map((id) => el('a', { class: 'boton primario mini', href: `/incidencias.html?id=${id}` }, 'Abrir la incidencia')));
       case 'horas_extra': {

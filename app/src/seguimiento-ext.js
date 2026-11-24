@@ -15,6 +15,7 @@ const { query, tx } = require('./db');
 const auth = require('./auth');
 const correo = require('./correo');
 const notif = require('./notificaciones');
+const obra = require('./subcontratas-obra');
 
 const fallo = (status, msg) => Object.assign(new Error(msg), { status });
 const texto = (v, max = 300) => (v == null ? null : String(v).trim().slice(0, max) || null);
@@ -61,7 +62,7 @@ async function porToken(t, c = { query }) {
 // Tareas externas de la OT, con su plan, lo que ha dicho el taller y sus fotos
 async function tareasOT(ordenId, c = { query }) {
   const { rows } = await c.query(
-    `SELECT t.id, t.codigo, t.nombre, t.estado, t.orden_en_of, t.proveedor_id, pv.nombre AS proveedor,
+    `SELECT t.id, t.codigo, t.nombre, t.estado, t.orden_en_of, t.proveedor_id, pv.nombre AS proveedor, t.ext_en_obra,
             t.ext_estado, t.ext_avance, t.ext_nota, t.ext_fin_prevista::text AS ext_fin_prevista, t.ext_actualizado,
             t.ext_entregado_a, t.ext_entregado_proveedor_id, t.ext_entrega_fecha::text AS ext_entrega_fecha, t.ext_entrega_nota,
             t.ext_recibido::text AS ext_recibido,
@@ -90,6 +91,8 @@ async function vista(s) {
   const arch = await archivosDe(ts.filter((t) => t.proveedor_id === s.proveedor_id).map((t) => t.id));
   const hoy = hoyMadrid();
   const nombreDe = new Map(ts.map((t) => [t.proveedor_id, t.proveedor]));
+  const extraObra = new Map();
+  for (const t of ts) if (t.proveedor_id === s.proveedor_id && t.ext_en_obra) extraObra.set(t.id, await obra.paraEnlace(t));
   const tareas = ts.map((t, i) => {
     const propia = t.proveedor_id === s.proveedor_id;
     const est = estadoExt(t);
@@ -105,7 +108,8 @@ async function vista(s) {
       recibido: t.ext_recibido,
       viene_de: prev ? { proveedor: prev.proveedor, estado: estadoExt(prev), entrega: prev.ext_entrega_fecha } : null,
       entrega: { a: t.ext_entregado_a, proveedor_id: t.ext_entregado_proveedor_id, fecha: t.ext_entrega_fecha, nota: t.ext_entrega_nota },
-      vencida: !['terminado', 'entregado'].includes(est) && !!ref && ref < hoy,
+      vencida: !t.ext_en_obra && !['terminado', 'entregado'].includes(est) && !!ref && ref < hoy,
+      ...(extraObra.get(t.id) || {}),
       fotos: arch.filter((a) => a.tarea_id === t.id && a.ref_tipo === 'ext_foto').map((a) => ({ id: a.id, nombre: a.nombre, tipo: a.tipo, mia: a.del_taller })),
       albaran: arch.filter((a) => a.tarea_id === t.id && a.ref_tipo === 'ext_albaran').map((a) => ({ id: a.id, nombre: a.nombre, tipo: a.tipo, mia: a.del_taller })),
     };
@@ -219,13 +223,15 @@ async function avisarPlanifica(s, res) {
 async function correoInicio(s, url, para) {
   const aj = await require('./compras').ajustes();
   const ts = (await tareasOT(s.orden_id)).filter((t) => t.proveedor_id === s.proveedor_id);
-  const lista = ts.map((t) => `  · ${t.codigo} ${t.nombre}${t.plan_desde ? ` (previsto ${ddmm(t.plan_desde)} → ${ddmm(t.plan_hasta)})` : ''}`).join('\n');
+  const lista = ts.map((t) => `  · ${t.codigo} ${t.nombre}${t.ext_en_obra ? ` (en ${s.obra || 'obra'})` : ''}${t.plan_desde ? ` (previsto ${ddmm(t.plan_desde)} → ${ddmm(t.plan_hasta)})` : ''}`).join('\n');
+  const enObra = ts.some((t) => t.ext_en_obra);
   await correo.enviarOFallar({
     para,
     asunto: `Seguimiento · OT ${s.ot_codigo} ${s.ot_titulo} · ${aj.empresa.nombre}`,
     texto: `Hola,\n\nPara la OT ${s.ot_codigo} ${s.ot_titulo}${s.obra ? ` (${s.obra})` : ''} contamos con vosotros para:\n${lista}\n\n`
       + `Os pedimos que nos vayáis contando cómo va en este enlace (no hace falta usuario ni contraseña):\n${url}\n\n`
-      + 'Ahí podéis marcar cuándo empezáis, el avance, cuándo pensáis terminar, añadir fotos y comentarios y, al terminar, a quién lo entregáis.\n'
+      + (enObra ? 'Ahí veréis los días que os hemos planificado para confirmarlos (o proponer otros) y, cada día de trabajo, apuntaréis el parte: personas, horas, avance y fotos.\n'
+        : 'Ahí podéis marcar cuándo empezáis, el avance, cuándo pensáis terminar, añadir fotos y comentarios y, al terminar, a quién lo entregáis.\n')
       + 'Si pasa la fecha prevista sin noticias, os lo recordaremos por correo una vez al día.\n\n'
       + `Gracias,\n${aj.empresa.nombre}${aj.empresa.telefono ? ` · ${aj.empresa.telefono}` : ''}`,
   });
@@ -245,7 +251,8 @@ async function recordatorios() {
       WHERE s.activo AND s.email IS NOT NULL AND o.estado <> 'cerrada' AND (s.recordatorio_en IS NULL OR s.recordatorio_en < $1)`, [hoy]);
   const aj = segs.length ? await require('./compras').ajustes() : null;
   for (const s of segs) {
-    const ts = (await tareasOT(s.orden_id)).filter((t) => t.proveedor_id === s.proveedor_id
+    // (las de una subcontrata en obra tienen sus propios avisos: confirmar días, el día antes)
+    const ts = (await tareasOT(s.orden_id)).filter((t) => t.proveedor_id === s.proveedor_id && !t.ext_en_obra
       && !['terminado', 'entregado'].includes(estadoExt(t)) && t.estado !== 'hecha');
     const tarde = ts.filter((t) => {
       const ref = t.ext_fin_prevista || t.plan_hasta;
@@ -310,6 +317,7 @@ async function paraOT(ordenId) {
       solicitud: t.solicitud_id ? { id: t.solicitud_id, codigo: t.solicitud_codigo, estado: t.solicitud_estado } : null,
       archivos: arch.filter((a) => a.tarea_id === t.id).map((a) => ({ id: a.id, tipo: a.tipo, nombre: a.nombre, albaran: a.ref_tipo === 'ext_albaran' })),
       novedades: nov.filter((n) => n.tarea_id === t.id).slice(0, 5),
+      obra: t.ext_en_obra ? await obra.paraEnlace(t) : null,
     };
   }
   return { seguimientos: segs, ext: porTarea };
@@ -382,12 +390,19 @@ function montarPublico(app, asyncH) {
     res.send(rows[0].datos);
   }));
 
-  // recordatorios: cada 10 minutos se mira si toca (uno al día por taller y OT)
-  setTimeout(() => { recordatorios().catch((e) => console.warn('recordatorios seguimiento', e.message)); setInterval(() => recordatorios().catch((e) => console.warn('recordatorios seguimiento', e.message)), 10 * 60 * 1000); }, 30 * 1000);
+  obra.montarPublico(app, asyncH, porToken, vista);
+
+  // recordatorios: cada 10 minutos se mira si toca (uno al día por taller y OT; subcontratas en obra: confirmar días y el día antes)
+  const vuelta = () => {
+    recordatorios().catch((e) => console.warn('recordatorios seguimiento', e.message));
+    obra.avisos(urlDe).catch((e) => console.warn('avisos subcontratas en obra', e.message));
+  };
+  setTimeout(() => { vuelta(); setInterval(vuelta, 10 * 60 * 1000); }, 30 * 1000);
 }
 
 function montarGestion(app, asyncH) {
   const p = auth.permiso('planificar', 'proyectos');
+  obra.montarGestion(app, asyncH);
 
   // Comenzar seguimiento con un taller de la OT: crea (o reactiva) su enlace; si se pide, se lo manda por correo
   app.post('/api/ordenes/:id/seguimientos', p, asyncH(async (req, res) => {
@@ -436,4 +451,4 @@ function montarGestion(app, asyncH) {
   }));
 }
 
-module.exports = { montarPublico, montarGestion, paraOT, estadoExt, recordatorios, iniciar, urlActiva };
+module.exports = { montarPublico, montarGestion, paraOT, estadoExt, recordatorios, iniciar, urlActiva, avisosObra: (forzar) => obra.avisos(urlDe, forzar) };

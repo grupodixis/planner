@@ -807,6 +807,48 @@ el transporte…). No hay etapas fijas: las etapas son **las tareas de la OT**, 
   costes: lo de los pedidos de subcontratación enviados suma en **Subcontratas** (las líneas sueltas, a la primera tarea).
 - **Siguientes pasos**: recepción desde el móvil; transportes dentro de la isla.
 
+## Subcontratas en obra (🏗)
+
+`src/subcontratas-obra.js`. Una tarea que hace **aquí** un proveedor (montadores, pintores, grúa…), en la obra o en nuestras áreas.
+
+**Cómo se marca y se planifica**
+- En la OT, **Área / taller › Subcontrata en obra › 🏗 proveedor** (`PATCH /api/tareas/:id {proveedor_id, en_obra: true}` → `tareas.ext_en_obra`).
+- La tarea **conserva su área** (si era de un taller, se quita), se mide en horas y se planifica en el tablero como las demás.
+- Es «externa»: no pide operarios, capacidades ni jornada. **Oper.** son las personas que pone la subcontrata (se le comunican).
+- No cuenta en la situación del producto ni en «Dónde está».
+
+**Presupuesto y pedido.** Se usa **🏭 Subcontratar…** igual que con los talleres.
+- En el enlace de la oferta, si la petición lleva trabajos en obra, la subcontrata responde **días de trabajo, personas y «podemos empezar el»** (`solicitud_proveedores.dias_trabajo / personas / inicio_posible`), que salen en el comparativo.
+- Al enviar el pedido va su enlace de seguimiento, el mismo de los talleres: `ext_seguimientos`, uno por OT y proveedor.
+
+**Confirmar días** (en su enlace)
+- Ve sus días planificados (fecha y horario, personas y obra) y **confirma**, **propone otro inicio** o **no puede**.
+- Se guarda la **firma del plan** (md5 de sus tramos) con la respuesta (`ext_conf`, `ext_conf_firma`, `ext_conf_*`).
+- Si después se mueve algún tramo, vuelve a **sin confirmar** (`SQL_CONF`).
+- En el tablero:
+  - **🏗⏳ / 🏗📅 / 🏗✕ / 🏗✔** en el bloque y en el detalle;
+  - aviso `subcontrata_conf` (leve; grave si no puede) en los tramos de hoy en adelante;
+  - «Solucionar» ofrece **✔ Me lo ha confirmado por teléfono** (`POST /api/tareas/:id/subcontrata/confirmar`).
+
+**Correos** (cada 10 min, de 8 a 20 h, con el seguimiento activo y su correo)
+- **«Confirmad los días»** / **«Cambio de días»**: cuando el plan es nuevo o cambió. Se espera una vuelta, de 10 a 20 min, por si se está planificando (`ext_conf_aviso_firma`).
+- **Recordatorio el día antes**, desde las 12 h (`ext_recordado_dia`).
+- Los recordatorios de «¿cómo va?» de los talleres no se aplican a estas tareas.
+
+**Parte del día** (`ext_partes`, uno por tarea y día)
+- La subcontrata apunta personas, desde–hasta, avance, comentario (llega al momento a quien planifica), fotos y **✔ Trabajo terminado**.
+- Puede corregirlo hasta que se valida. La tarea pasa a en curso con su avance.
+- En la OT, debajo de la tarea, se ven:
+  - el estado de la confirmación, sus días y lo que propone;
+  - los partes con **✔ Validar** o **✕ Hay un problema**. Esta segunda opción abre una **incidencia de calidad** contra la subcontrata, el parte queda «no validado» y ella ve nuestra respuesta.
+- Un parte **terminado validado** cierra la tarea (hecha).
+
+**API**
+- Pública:
+  - `POST /api/seguimiento/:t/tareas/:tid/confirmar {accion: confirmar|proponer|rechazar, nombre, desde, nota, motivo}`;
+  - `PUT /api/seguimiento/:t/tareas/:tid/parte {fecha, personas, desde, hasta, avance, nota, terminado}`.
+- Oficina: `POST /api/ext-partes/:id/validar {ok, nota, gravedad}`.
+
 ## Transportes península → Menorca (Compras › 🚚 Transportes)
 
 `src/transportes.js`, página pública `envio.html?t=…`. Un **envío** (`envios`, `ENV-AAAA-NNNN`) es un viaje de un

@@ -48,3 +48,19 @@ main { max-width: 720px; }
 .acepta .cond-linea small { display: block; color: var(--suave); }
 .acc-botones { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
 .acc-botones button { flex: 1 1 auto; }
+/* subcontrata en obra: confirmar días y parte */
+.tarea.obra h4.obra-tit { margin: 14px 0 6px; font-size: 14.5px; }
+.obra-dias { border: 1px solid var(--linea); border-radius: 10px; overflow: hidden; margin-bottom: 10px; }
+.obra-dia { display: flex; justify-content: space-between; padding: 8px 12px; border-top: 1px solid var(--linea); font-size: 14px; }
+.obra-dia:first-child { border-top: 0; }
+.obra-dia.pasado { color: var(--suave); }
+.obra-botones { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0 4px; }
+.obra-botones button { flex: 1 1 140px; font: inherit; font-weight: 600; padding: 11px 10px; border-radius: 10px; cursor: pointer; }
+.obra-botones .prim { background: var(--acento); color: var(--papel); border: 1px solid var(--acento); }
+.obra-botones .sec { background: var(--papel); color: var(--acento); border: 1px solid var(--acento); }
+.obra-botones .sec.mal { color: #b3261e; border-color: #b3261e; }
+.obra-parte { border-top: 1px dashed var(--linea); margin-top: 12px; }
+.obra-pa { padding: 8px 0; border-top: 1px solid var(--linea); font-size: 13.5px; }
+.obra-est { float: right; font-size: 12.5px; color: var(--suave); }
+.obra-pa.validado .obra-est { color: var(--acento); }
+.obra-pa.rechazado .obra-est { color: #b3261e; }

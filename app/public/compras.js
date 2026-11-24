@@ -383,7 +383,7 @@
       ...s.proveedores.map((p) => {
         const t = s.lineas.length && p.fecha_entrega ? s.lineas.every((l) => llega(p, l) !== false) : null;
         return el('th', { class: 'cmp-col-prov' }, el('b', {}, p.proveedor),
-          el('div', { class: 'sub' }, p.estado === 'respondida' ? [p.ref_oferta ? `oferta ${p.ref_oferta} · ` : '', p.fecha_entrega ? `llega ${fecha(p.fecha_entrega)} ` : 'sin fecha ', t === true ? el('span', { class: 'pos' }, '✓ a tiempo') : t === false ? el('span', { class: 'neg' }, '⚠ tarde') : null] : (EST_SP[p.estado] || [p.estado])[0]));
+          el('div', { class: 'sub' }, p.estado === 'respondida' ? [p.ref_oferta ? `oferta ${p.ref_oferta} · ` : '', p.dias_trabajo || p.personas || p.inicio_posible ? `${p.dias_trabajo ? `${String(Number(p.dias_trabajo)).replace('.', ',')} días` : ''}${p.personas ? ` · ${p.personas} pers.` : ''}${p.inicio_posible ? ` · desde ${fecha(String(p.inicio_posible).slice(0, 10))}` : ''} · ` : '', p.fecha_entrega ? `llega ${fecha(p.fecha_entrega)} ` : (p.inicio_posible ? '' : 'sin fecha '), t === true ? el('span', { class: 'pos' }, '✓ a tiempo') : t === false ? el('span', { class: 'neg' }, '⚠ tarde') : null] : (EST_SP[p.estado] || [p.estado])[0]));
       }), el('th', { class: 'cmp-col-no' }, el('b', {}, 'No pedir'), el('div', { class: 'sub' }, 'vuelve a «Por pedir»')));
     const filas = s.lineas.map((l) => el('tr', {},
       el('td', {}, l.descripcion, el('div', { class: 'sub' }, [l.proyecto_codigo, l.partida_codigo, l.necesaria ? `hace falta ${fecha(l.necesaria)}` : null].filter(Boolean).join(' · '))),

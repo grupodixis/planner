@@ -62,6 +62,8 @@ async function vista(r) {
     await query(`SELECT id, tipo, nombre, bytes FROM archivos WHERE ref_tipo = 'oferta' AND ref_id = $1 AND creado_por IS NULL ORDER BY id`, [r.id]),
   ];
   const pr = Object.fromEntries(precios.map((x) => [x.linea_id, x.precio]));
+  // trabajo en obra (subcontrata): además, días de trabajo, personas y cuándo puede empezar
+  const { rows: ob } = await query(`SELECT 1 FROM solicitud_lineas l JOIN tareas t ON t.id = l.tarea_id WHERE l.solicitud_id = $1 AND t.ext_en_obra LIMIT 1`, [r.sol_id]);
   const info = r.lineas_info || {};
   return {
     empresa: { nombre: aj.empresa.nombre, cif: aj.empresa.cif, direccion: aj.empresa.direccion, telefono: aj.empresa.telefono, email: aj.empresa.email },
@@ -72,9 +74,10 @@ async function vista(r) {
     lineas: lineas.map((l) => ({ ...l, precio: pr[l.id] ?? null, no_tiene: !!info[l.id]?.no, alternativa: info[l.id]?.alt || '' })),
     respuesta: {
       fecha_entrega: r.fecha_entrega, portes: r.portes, ref_oferta: r.ref_oferta, notas: r.notas, contacto: r.contacto,
+      dias_trabajo: r.dias_trabajo != null ? Number(r.dias_trabajo) : null, personas: r.personas, inicio_posible: r.inicio_posible ? new Date(r.inicio_posible).toLocaleDateString('sv-SE') : null,
       no_oferta: r.estado === 'no_oferta', enviada_en: r.portal_respondido_en,
     },
-    archivos: arch,
+    archivos: arch, en_obra: ob.length > 0,
   };
 }
 
@@ -112,10 +115,13 @@ function montar(app, asyncH) {
       const portes = num(b.portes);
       if (portes != null && (!Number.isFinite(portes) || portes < 0)) throw fallo(400, 'Portes no válidos');
       await c.query(`UPDATE solicitud_proveedores SET fecha_entrega = $2, portes = $3, ref_oferta = $4, notas = $5, contacto = $6,
-                            lineas_info = $7, estado = $8, respondido_en = now(), portal_respondido_en = now()
+                            lineas_info = $7, estado = $8, respondido_en = now(), portal_respondido_en = now(),
+                            dias_trabajo = $9, personas = $10, inicio_posible = $11
                       WHERE id = $1`,
       [r.id, fechaOk(b.fecha_entrega), portes, texto(b.ref_oferta, 80), texto(b.notas, 2000), texto(b.contacto, 200),
-        JSON.stringify(info), noOferta ? 'no_oferta' : 'respondida']);
+        JSON.stringify(info), noOferta ? 'no_oferta' : 'respondida',
+        num(b.dias_trabajo) != null && num(b.dias_trabajo) > 0 ? Math.min(999, num(b.dias_trabajo)) : null,
+        num(b.personas) != null && num(b.personas) >= 0 ? Math.min(99, Math.round(num(b.personas))) : null, fechaOk(b.inicio_posible)]);
     });
     notif.avisarLuego(notif.conPermiso('compras'), 'oferta_recibida', {
       titulo: `${r.proveedor} ha respondido ${r.codigo}`,

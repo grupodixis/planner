@@ -1335,6 +1335,25 @@ const MIGRACIONES = [
      ADD COLUMN IF NOT EXISTS aceptado_por TEXT, ADD COLUMN IF NOT EXISTS propuesta JSONB, ADD COLUMN IF NOT EXISTS rechazo_motivo TEXT`,
   `UPDATE envios SET aceptacion = CASE WHEN estado IN ('preparando') THEN 'pendiente' ELSE 'aceptada' END WHERE aceptacion IS NULL`,
   `ALTER TABLE envios ALTER COLUMN aceptacion SET DEFAULT 'pendiente'`,
+  // Subcontratas en obra: la tarea la hace un proveedor aquí (obra o nuestras áreas), con su área propia. Su enlace de
+  // seguimiento le pide confirmar los días planificados (firma del plan para saber si cambió) y el parte de cada día.
+  `ALTER TABLE tareas ADD COLUMN IF NOT EXISTS ext_en_obra BOOLEAN NOT NULL DEFAULT false,
+     ADD COLUMN IF NOT EXISTS ext_conf TEXT, ADD COLUMN IF NOT EXISTS ext_conf_firma TEXT, ADD COLUMN IF NOT EXISTS ext_conf_en TIMESTAMPTZ,
+     ADD COLUMN IF NOT EXISTS ext_conf_por TEXT, ADD COLUMN IF NOT EXISTS ext_conf_propuesta JSONB, ADD COLUMN IF NOT EXISTS ext_conf_motivo TEXT,
+     ADD COLUMN IF NOT EXISTS ext_conf_aviso_firma TEXT, ADD COLUMN IF NOT EXISTS ext_recordado_dia DATE`,
+  `CREATE TABLE IF NOT EXISTS ext_partes (
+     id SERIAL PRIMARY KEY,
+     tarea_id INT NOT NULL REFERENCES tareas(id) ON DELETE CASCADE,
+     seguimiento_id INT REFERENCES ext_seguimientos(id) ON DELETE SET NULL,
+     fecha DATE NOT NULL,
+     personas INT, desde NUMERIC(4,2), hasta NUMERIC(4,2), avance INT, nota TEXT,
+     terminado BOOLEAN NOT NULL DEFAULT false,
+     estado TEXT NOT NULL DEFAULT 'pendiente' CHECK (estado IN ('pendiente','validado','rechazado')),
+     validado_por INT REFERENCES usuarios(id), validado_en TIMESTAMPTZ, nota_val TEXT, incidencia_id INT,
+     creado TIMESTAMPTZ NOT NULL DEFAULT now(), actualizado TIMESTAMPTZ NOT NULL DEFAULT now(),
+     UNIQUE (tarea_id, fecha))`,
+  `ALTER TABLE solicitud_proveedores ADD COLUMN IF NOT EXISTS dias_trabajo NUMERIC(5,1), ADD COLUMN IF NOT EXISTS personas INT,
+     ADD COLUMN IF NOT EXISTS inicio_posible DATE`,
 ];
 
 async function migrar() {

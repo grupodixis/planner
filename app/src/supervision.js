@@ -129,7 +129,7 @@ async function recibirPieza(req, tareaId) {
 async function donde() {
   const { rows } = await query(
     `SELECT DISTINCT o.id, o.codigo, o.titulo, pr.obra, pr.cliente
-       FROM ordenes o JOIN tareas t ON t.orden_id = o.id AND t.proveedor_id IS NOT NULL AND NOT t.baja_presupuesto
+       FROM ordenes o JOIN tareas t ON t.orden_id = o.id AND t.proveedor_id IS NOT NULL AND NOT t.ext_en_obra AND NOT t.baja_presupuesto
        LEFT JOIN proyectos pr ON pr.id = o.proyecto_id
       WHERE o.estado <> 'cerrada' AND (t.estado <> 'hecha' OR t.hecha_en > now() - interval '7 days'
             OR EXISTS (SELECT 1 FROM envio_lineas l JOIN envios e ON e.id = l.envio_id WHERE l.orden_id = o.id AND e.estado NOT IN ('entregado','anulado')))`);

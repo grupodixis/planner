@@ -696,7 +696,7 @@
           onchange: (ev) => (ev.target.value.trim() ? patch(t, { nombre: ev.target.value }) : (ev.target.value = t.nombre)),
         })), extrasTarea(t, editar, patch)),
         // tarea de un taller externo: la duración en días (1 día = una jornada) y sin operarios propios
-        t.proveedor_id ? el('td', { class: 'num' }, el('input', {
+        t.proveedor_id && !t.ext_en_obra ? el('td', { class: 'num' }, el('input', {
           type: 'number', min: 0.5, step: 0.5, value: +(t.duracion_h / JH()).toFixed(1), 'aria-label': 'Días', disabled: !editar,
           title: `Días de trabajo en el taller (1 día = ${JH()} h de jornada)`,
           onchange: (ev) => patch(t, { duracion_h: Math.max(0.5, Math.round(Number(ev.target.value) * JH() * 2) / 2) }),
@@ -705,25 +705,32 @@
             type: 'number', min: 0.5, step: 0.5, value: t.duracion_h, 'aria-label': 'Horas', disabled: !editar,
             onchange: (ev) => patch(t, { duracion_h: Number(ev.target.value) }),
           })),
-        t.proveedor_id ? el('td', { class: 'num ayuda', title: 'La hace el taller: no ocupa operarios de aquí' }, '—')
+        t.proveedor_id && t.ext_en_obra ? el('td', { class: 'num' }, el('input', {
+          type: 'number', min: 0, step: 1, value: t.operarios_req, 'aria-label': 'Personas de la subcontrata', disabled: !editar,
+          title: 'Personas que pone la subcontrata (se le dice al confirmar los días; no ocupa operarios de aquí)',
+          onchange: (ev) => patch(t, { operarios_req: Number(ev.target.value) }),
+        }))
+        : t.proveedor_id ? el('td', { class: 'num ayuda', title: 'La hace el taller: no ocupa operarios de aquí' }, '—')
           : el('td', { class: 'num' }, el('input', {
             type: 'number', min: 0, step: 1, value: t.operarios_req, 'aria-label': 'Operarios', disabled: !editar,
             onchange: (ev) => patch(t, { operarios_req: Number(ev.target.value) }),
           })),
         el('td', {}, el('select', {
-          'aria-label': 'Dónde se hace: área o taller externo', disabled: !editar, class: t.proveedor_id ? 'sel-externo' : null,
-          title: t.proveedor_id ? `La hace un taller externo: ${t.proveedor}` : 'Área donde se hace (o un taller externo)',
+          'aria-label': 'Dónde se hace: área, taller externo o subcontrata en obra', disabled: !editar, class: t.proveedor_id ? 'sel-externo' : null,
+          title: t.proveedor_id ? (t.ext_en_obra ? `La hace aquí una subcontrata: ${t.proveedor}` : `La hace un taller externo: ${t.proveedor}`) : 'Área donde se hace (o un taller externo, o una subcontrata en obra)',
           onchange: (ev) => {
             const v = ev.target.value;
-            patch(t, v.startsWith('p') ? { proveedor_id: Number(v.slice(1)) } : { linea_id: v ? Number(v) : null });
+            patch(t, v.startsWith('p') ? { proveedor_id: Number(v.slice(1)) } : v.startsWith('o') ? { proveedor_id: Number(v.slice(1)), en_obra: true } : { linea_id: v ? Number(v) : null });
           },
         },
         Object.entries(areas).map(([v, n]) => el('option', { value: v, selected: !t.proveedor_id && String(t.linea_id ?? '') === v }, n)),
-        (estado.catalogo.talleres || []).length ? el('optgroup', { label: 'Taller externo (lo hace un proveedor)' },
-          estado.catalogo.talleres.map((pv) => el('option', { value: `p${pv.id}`, selected: t.proveedor_id === pv.id }, `🏭 ${pv.nombre}`))) : null),
+        (estado.catalogo.talleres || []).length ? el('optgroup', { label: 'Taller externo (lo hace un proveedor en su taller)' },
+          estado.catalogo.talleres.map((pv) => el('option', { value: `p${pv.id}`, selected: t.proveedor_id === pv.id && !t.ext_en_obra }, `🏭 ${pv.nombre}`))) : null,
+        (estado.catalogo.talleres || []).length ? el('optgroup', { label: 'Subcontrata en obra (la hace aquí un proveedor)' },
+          estado.catalogo.talleres.map((pv) => el('option', { value: `o${pv.id}`, selected: t.proveedor_id === pv.id && !!t.ext_en_obra }, `🏗 ${pv.nombre}`))) : null),
         t.proveedor_id ? el('span', { class: `ext-est ext-${t.ext?.estado || 'sin_empezar'}` }, EXT_EST[t.ext?.estado || 'sin_empezar']) : null),
         el('td', {}, t.proveedor_id
-          ? el('span', { class: 'req-externo', title: 'Lo que pide la tarea (operarios, capacidades, máquinas) es de vuestra gente: no aplica mientras la haga un taller externo. Se conserva por si vuelve a hacerse aquí.' }, 'no aplica (fuera)')
+          ? el('span', { class: 'req-externo', title: 'Lo que pide la tarea (operarios, capacidades, máquinas) es de vuestra gente: no aplica mientras la haga un proveedor. Se conserva por si vuelve a hacerse con gente propia.' }, t.ext_en_obra ? 'no aplica (subcontrata)' : 'no aplica (fuera)')
           : req),
         el('td', { class: 'est' }, el('span', { class: `est-${clasePlan}` }, etiquetaPlan), plan ? el('br') : null, plan, realTarea(t)),
         el('td', {}, editar ? el('button', {
@@ -775,6 +782,7 @@
       el('ul', {}, x.novedades.map((n) => el('li', {}, el('small', {}, `${new Date(n.creado).toLocaleString('es-ES', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })} `), n.texto)))) : null;
     // el control del seguimiento va en la primera tarea de ese taller en la OT
     const primera = o.lista_tareas.find((y) => y.proveedor_id === t.proveedor_id) === t;
+    if (t.ext_en_obra) return el('div', { class: 'ext-tarea' }, dice, obraTarea(t, x.obra || {}, editar), nov, primera ? controlSeguimiento(t, o) : null);
     return el('div', { class: 'ext-tarea' },
       dice,
       el('div', { class: 'ext-editar' },
@@ -785,6 +793,47 @@
           onchange: (ev) => patch(t, { ext_nota: ev.target.value }) })),
       nov,
       primera ? controlSeguimiento(t, o) : null);
+  }
+
+  // Subcontrata en obra: sus días (y si los ha confirmado) y sus partes por validar
+  const CONF = { sin_plan: ['', 'Sin días planificados: planifícalos en el tablero'], pendiente: ['pend', '⏳ Días sin confirmar'],
+    confirmada: ['ok', '✔ Días confirmados'], propuesta: ['pend', '📅 Propone otros días'], rechazada: ['mal', '✕ No puede esos días'] };
+  const hh = (h) => `${String(Math.floor(h)).padStart(2, '0')}:${String(Math.round((h % 1) * 60)).padStart(2, '0')}`;
+  function obraTarea(t, ob, editar) {
+    const [cls, txt] = CONF[ob.conf] || CONF.sin_plan;
+    const validar = async (pa, ok) => {
+      let nota = null; let gravedad = null;
+      if (!ok) {
+        nota = prompt(`¿Qué está mal en el parte del ${dm(pa.fecha)}? Se abrirá una incidencia de calidad contra ${t.proveedor}.`);
+        if (!nota) return;
+        gravedad = confirm('¿Es importante? (Aceptar = importante · Cancelar = leve)') ? 'importante' : 'leve';
+      }
+      try {
+        const r = await api('POST', `/api/ext-partes/${pa.id}/validar`, { ok, nota, gravedad });
+        toast(ok ? (pa.terminado ? 'Parte validado: tarea terminada' : 'Parte validado') : `Incidencia ${r.incidencia?.codigo || ''} abierta`); await refrescarOT();
+      } catch (e) { toast(e.message, true); }
+    };
+    return el('div', { class: 'obra-sub' },
+      el('div', { class: 'obra-conf' },
+        el('span', { class: `obra-chip ${cls}` }, txt), ob.cambiado ? el('small', { class: 'ayuda' }, ' (cambiaron los días; se le ha pedido confirmar otra vez)') : null,
+        ob.conf_por && ob.conf !== 'pendiente' ? el('small', { class: 'ayuda' }, ` · ${ob.conf_por}${ob.conf_en ? ` · ${haceTxt(ob.conf_en)}` : ''}`) : null,
+        ob.conf === 'propuesta' && ob.propuesta ? el('div', { class: 'obra-prop' }, `Propone ${ob.propuesta.desde ? `empezar el ${dm(ob.propuesta.desde)}` : 'otros días'}${ob.propuesta.nota ? ` · «${ob.propuesta.nota}»` : ''}. Muévelo en el tablero: se le pedirá confirmar los días nuevos.`) : null,
+        ob.conf === 'rechazada' ? el('div', { class: 'obra-prop' }, `«${ob.motivo || ''}». Cambia los días en el tablero o elige otra subcontrata.`) : null,
+        editar && ['pendiente', 'propuesta', 'rechazada'].includes(ob.conf) ? el('button', { type: 'button', class: 'ghost mini', onclick: async () => {
+          if (!confirm(`¿${t.proveedor} te ha confirmado estos días por teléfono o WhatsApp?`)) return;
+          try { await api('POST', `/api/tareas/${t.id}/subcontrata/confirmar`); toast('Días confirmados'); await refrescarOT(); } catch (e) { toast(e.message, true); }
+        } }, '✔ Confirmada por teléfono') : null),
+      (ob.dias || []).length ? el('div', { class: 'obra-dias' }, ob.dias.map((d) => el('span', { class: 'obra-dia' }, `${dm(d.fecha)} ${hh(d.desde)}–${hh(d.hasta)}`))) : null,
+      (ob.partes || []).length ? el('table', { class: 'obra-partes' },
+        el('tbody', {}, ob.partes.map((pa) => el('tr', { class: pa.estado },
+          el('td', {}, el('b', {}, dm(pa.fecha))),
+          el('td', {}, [pa.personas != null ? `${pa.personas} pers.` : null, pa.desde && pa.hasta ? `${pa.desde}–${pa.hasta}` : null].filter(Boolean).join(' · ')),
+          el('td', {}, pa.terminado ? el('b', {}, '✔ terminado') : pa.avance != null ? `${pa.avance} %` : ''),
+          el('td', { class: 'obra-nota' }, pa.nota || ''),
+          el('td', {}, pa.estado === 'validado' ? el('span', { class: 'obra-chip ok', title: `${pa.validado_por || ''}` }, '✔ validado')
+            : pa.estado === 'rechazado' ? el('a', { class: 'obra-chip mal', href: pa.incidencia_id ? `/incidencias.html?id=${pa.incidencia_id}` : '#' }, `✕ ${pa.incidencia || 'no validado'}`)
+              : editar ? [el('button', { type: 'button', class: 'primario mini', onclick: () => validar(pa, true) }, '✔ Validar'), ' ',
+                el('button', { type: 'button', class: 'ghost mini', onclick: () => validar(pa, false) }, '✕ Hay un problema')] : 'por validar'))))) : null);
   }
 
   // «Comenzar seguimiento» con un taller de la OT, o cómo va el que ya hay (enviado, visto, recordatorios)
