@@ -813,15 +813,15 @@
           el('td', {}, l.ot_codigo ? el('a', { href: `/proyectos.html?ot=${l.orden_id}` }, el('span', { class: 'cod-chip' }, l.ot_codigo)) : l.pedido_codigo ? el('a', { href: `/compras.html?pedido=${l.pedido_id}` }, el('span', { class: 'cod-chip mat' }, l.pedido_codigo)) : null,
             ' ', lineaIn(l, 'descripcion', { maxlength: 300, class: 'trp-desc', 'aria-label': 'Qué va' }),
             l.siguiente_aqui ? el('small', { class: l.siguiente_aqui < (e.llegada_prevista || '') ? 'trp-tarde' : 'ayuda' }, ` · se necesita aquí el ${cuando(l.siguiente_aqui)}`) : null),
-          el('td', {}, lineaIn(l, 'origen', { maxlength: 200, 'aria-label': 'Recoger en' })),
-          el('td', { class: 'num' }, lineaIn(l, 'bultos', { type: 'number', min: 0, step: 1, class: 'trp-n', 'aria-label': 'Bultos' })),
-          el('td', { class: 'num' }, lineaIn(l, 'kg', { type: 'number', min: 0, step: '0.1', class: 'trp-n', 'aria-label': 'Kg' })),
-          el('td', { class: 'num' }, e.reparto === 'manual' ? lineaIn(l, 'coste_manual', { type: 'number', min: 0, step: '0.01', class: 'trp-n', 'aria-label': 'Coste' }) : eur(l.coste)),
-          el('td', {}, el('input', { type: 'checkbox', checked: l.recogido, disabled: !editar, 'aria-label': 'Recogido', onchange: (ev) => guardar({ lineas: [{ ...l, recogido: ev.target.checked }] }) })),
+          el('td', { 'data-l': 'Recoger en',}, lineaIn(l, 'origen', { maxlength: 200, 'aria-label': 'Recoger en' })),
+          el('td', { 'data-l': 'Bultos', class: 'num' }, lineaIn(l, 'bultos', { type: 'number', min: 0, step: 1, class: 'trp-n', 'aria-label': 'Bultos' })),
+          el('td', { 'data-l': 'Kg', class: 'num' }, lineaIn(l, 'kg', { type: 'number', min: 0, step: '0.1', class: 'trp-n', 'aria-label': 'Kg' })),
+          el('td', { class: 'num', 'data-l': 'Coste' }, e.reparto === 'manual' ? lineaIn(l, 'coste_manual', { type: 'number', min: 0, step: '0.01', class: 'trp-n', 'aria-label': 'Coste' }) : eur(l.coste)),
+          el('td', { 'data-l': 'Recogido' }, el('input', { type: 'checkbox', checked: l.recogido, disabled: !editar, 'aria-label': 'Recogido', onchange: (ev) => guardar({ lineas: [{ ...l, recogido: ev.target.checked }] }) })),
           el('td', {}, editar && e.estado !== 'entregado' ? el('button', { type: 'button', class: 'ghost mini borrar', 'aria-label': 'Quitar del envío', onclick: async () => {
             try { await api('DELETE', `/api/envios/${e.id}/lineas/${l.id}`); pintar(); } catch (er) { toast(er.message, true); }
           } }, '✕') : null)))),
-        el('tfoot', {}, el('tr', {}, el('td', { colspan: 2 }, el('b', {}, 'Total')), el('td', { class: 'num' }, String(e.bultos || 0)), el('td', { class: 'num' }, String(e.kg || 0)), el('td', { class: 'num' }, eur(e.coste)), el('td', { colspan: 2 })))),
+        el('tfoot', {}, el('tr', {}, el('td', { colspan: 2 }, el('b', {}, 'Total')), el('td', { class: 'num', 'data-l': 'Bultos' }, String(e.bultos || 0)), el('td', { class: 'num', 'data-l': 'Kg' }, String(e.kg || 0)), el('td', { class: 'num', 'data-l': 'Coste' }, eur(e.coste)), el('td', { colspan: 2 })))),
       editar && e.estado !== 'entregado' ? el('button', { type: 'button', class: 'ghost mini', onclick: async () => {
         const desc = prompt('¿Qué va? (p. ej. «Palé de tornillería»)'); if (!desc) return;
         const origen = prompt('¿Dónde se recoge?') || null;

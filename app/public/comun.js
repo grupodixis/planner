@@ -125,8 +125,10 @@
   const aqui = (href) => {
     const [p, qs] = href.split('?');
     if (!(p === '/' ? ['/', '/index.html'].includes(location.pathname) : location.pathname === p)) return false;
-    const tipo = new URLSearchParams(location.search).get('tipo');
-    return qs ? new URLSearchParams(qs).get('tipo') === tipo : tipo !== 'areas';
+    const aqu = new URLSearchParams(location.search); const q = new URLSearchParams(qs || '');
+    const tipo = aqu.get('tipo');
+    if (q.get('vista') || aqu.get('vista')) return (q.get('vista') || '') === (aqu.get('vista') || '') || (!q.get('vista') && !['locales', 'proveedores'].includes(aqu.get('vista')));
+    return qs ? q.get('tipo') === tipo : tipo !== 'areas';
   };
   function pintarMenu(menu) {
     const puede = (p) => !p || [].concat(p).some((k) => tiene(k));
@@ -160,6 +162,15 @@
       const cap = el('a', { href: '/capturar.html', class: 'boton btn-capturar', 'data-menu': '/capturar.html', title: 'Apuntar algo rápido: incidencia, idea, encargo…' }, '＋ Capturar');
       if (aqui('/capturar.html')) cap.setAttribute('aria-current', 'page');
       usuarioDiv.prepend(cap);
+    }
+    // En el móvil la cabecera se queda en una línea: logo, ＋ Capturar y ☰ (abre el menú y el usuario como lista)
+    const cab = menu.closest('header.top');
+    if (cab && !cab.querySelector('.menu-movil-btn')) {
+      const bm = el('button', { type: 'button', class: 'menu-movil-btn', 'aria-expanded': 'false', 'aria-label': 'Menú' },
+        el('span', { 'aria-hidden': 'true' }, '☰'), el('span', { class: 'menu-movil-num' }));
+      bm.onclick = (ev) => { ev.stopPropagation(); const a2 = !cab.classList.contains('menu-abierto'); cab.classList.toggle('menu-abierto', a2); bm.setAttribute('aria-expanded', String(a2)); };
+      const capM = el('a', { href: '/capturar.html', class: 'boton btn-capturar capturar-movil', title: 'Apuntar algo rápido' }, '＋');
+      cab.querySelector('h1')?.after(capM, bm);
     }
     if (!pintarMenu.listo) {
       pintarMenu.listo = true;
@@ -288,6 +299,9 @@
     const nLog = (p.mat_revisar || 0) + (p.mat_recibir || 0) + (p.mat_comprar || 0);
     poner('/logistica.html', nLog, [p.mat_revisar && `${p.mat_revisar} material(es) por revisar en stock`,
       p.mat_comprar && `${p.mat_comprar} por pedir`, p.mat_recibir && `${p.mat_recibir} pedido(s) por recibir`].filter(Boolean).join('\n'));
+    // en el ☰ del móvil, el total
+    const tot = [...document.querySelectorAll('header a[data-menu]')].reduce((t, a) => t + Number(a.dataset.n || 0), 0);
+    document.querySelector('.menu-movil-num')?.replaceChildren(...(tot ? [el('span', { class: 'menu-num' }, String(tot))] : []));
     // en cada grupo del menú, la suma de lo pendiente de sus pantallas
     document.querySelectorAll('nav.menu .menu-grupo').forEach((g) => {
       const n = [...g.querySelectorAll('a[data-menu]')].reduce((t, a) => t + Number(a.dataset.n || 0), 0);
