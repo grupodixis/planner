@@ -867,6 +867,33 @@ con ese proveedor, se recuerda solo).
 - API: `PUT /api/compras/pedidos/:id/transporte`, `GET /api/transportistas`, `POST /api/transportistas/:id/almacenes`,
   `PUT /api/almacenes/:id`; pública `GET·PUT /api/pedido-ext/:t`, `POST·GET /api/pedido-ext/:t/archivos[/:id]`.
 
+### El transportista acepta la recogida
+
+1. En **Compras › Transportes**, el envío (recogida prevista, coste, lo que va) se manda con **✉ Enviar al transportista**.
+2. En su enlace, el transportista ve las **condiciones de la recogida**: fecha, dónde recoger (con horario y contacto de cada pedido), bultos y kg, a dónde entregar y precio. Puede:
+   - **✔ Aceptar**, con su nombre y, si la sabe, la llegada a Maó y su referencia.
+   - **📅 Proponer** otra fecha de recogida o de llegada, otro precio o un comentario.
+   - **✕ Decir que no puede**, con el motivo.
+
+   Hasta que acepta, no ve los pasos de «¿Cómo va?». Si marca «recogido» directamente, cuenta como aceptada.
+3. En la ficha del envío se ve el punto en que está:
+   - ⏳ esperando;
+   - 📅 propuesta, con **✔ Aceptar propuesta**, que pasa su fecha y precio al envío, o **✕ No la acepto**;
+   - ✕ no puede;
+   - ✔ aceptada.
+
+   También existe **✔ Aceptada por teléfono**. La tarjeta del envío lleva el mismo estado. Compras y Logística reciben un aviso en cada respuesta.
+4. **Al aceptarse**, cada pedido «lo vamos a buscar» del envío:
+   - toma el transportista y la fecha;
+   - **activa su seguimiento**;
+   - el proveedor recibe por correo la **recogida confirmada** con su enlace, para confirmar cuándo está listo, los bultos y el contacto.
+
+   Si el proveedor no tiene correo, o el envío falla, se apunta en el pedido y se avisa a Compras para que le mande el enlace. En las OTs queda la novedad.
+5. Si después se cambian el transportista, la fecha de recogida, el coste o lo que va, el envío vuelve a «pendiente de aceptar» y hay que reenviárselo. Al volver a aceptar con otra fecha, el proveedor recibe la nueva.
+6. Recordatorios:
+   - si el transportista no acepta en unas 20 h, recibe un recordatorio diario;
+   - el aviso de recogida al proveedor solo sale con el envío aceptado.
+
 ## Compras locales (ferretería…) desde el móvil
 
 `src/compras-locales.js`, `public/mi-dia-compras.js`, Compras › 🛒 Compras locales. Compras pequeñas en tiendas de la isla a

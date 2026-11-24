@@ -40,3 +40,11 @@ main { max-width: 720px; }
 .inc-fotos-ext img { width: 120px; height: 90px; object-fit: cover; border-radius: 8px; border: 1px solid var(--linea); }
 .ok-msg { background: var(--acento-2); color: var(--acento); border-radius: 9px; padding: 10px 12px; font-weight: 600; }
 [hidden] { display: none !important; }
+/* aceptación de la recogida (enlace del transportista) */
+.acepta .cond { display: grid; grid-template-columns: auto 1fr; gap: 4px 14px; margin: 6px 0 10px; }
+.acepta .cond dt { color: var(--suave); }
+.acepta .cond dd { margin: 0; font-weight: 600; }
+.acepta .cond-linea { border-top: 1px solid var(--linea); padding: 8px 0; }
+.acepta .cond-linea small { display: block; color: var(--suave); }
+.acc-botones { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.acc-botones button { flex: 1 1 auto; }

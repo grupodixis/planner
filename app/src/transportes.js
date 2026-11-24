@@ -5,6 +5,8 @@
 //  · pedidos de material enviados a proveedores de península (zona 'peninsula') que aún no han llegado;
 //  · líneas sueltas.
 // Estados: preparando → recogido → en_barco → en_mao (almacén del transportista en Maó) → entregado (taller u obra).
+// Antes, el transportista ACEPTA las condiciones de la recogida en su enlace (o propone otra fecha / precio, o dice que no
+// puede); al aceptar, cada pedido que se recoge activa su enlace de seguimiento y el proveedor recibe la recogida confirmada.
 // El transportista los marca en su enlace (sin cuenta), con fecha de llegada, su referencia y foto del CMR; también la
 // oficina. Efectos: la tarea de transporte va en curso / hecha y su fecha prevista es la llegada (avisos del tablero
 // por dependencias); el material de los pedidos pasa a llegar ese día; la situación de la OT dice dónde está.
@@ -105,7 +107,8 @@ async function envio(id, c = { query }) {
   const e = rows[0];
   const { rows: ls } = await c.query(
     `SELECT l.*, l.kg::float AS kg, l.coste_manual::float AS coste_manual, o.codigo AS ot_codigo, o.titulo AS ot_titulo,
-            t.codigo AS tarea_codigo, pc.codigo AS pedido_codigo,
+            t.codigo AS tarea_codigo, pc.codigo AS pedido_codigo, pc.entrega_modo, pc.recogida_contacto, pc.recogida_telefono, pc.recogida_horario,
+            pc.listo_recogida::text AS listo_recogida,
             (SELECT min(x.fecha)::text FROM tareas t2 JOIN tramos x ON x.tarea_id = t2.id
               WHERE t2.orden_id = l.orden_id AND t2.orden_en_of > t.orden_en_of AND t2.proveedor_id IS NULL) AS siguiente_aqui
        FROM envio_lineas l LEFT JOIN ordenes o ON o.id = l.orden_id LEFT JOIN tareas t ON t.id = l.tarea_id
@@ -167,6 +170,30 @@ async function insertarLinea(c, envioId, l) {
   const { rows } = await c.query('SELECT COALESCE(max(orden), -1) + 1 AS n FROM envio_lineas WHERE envio_id = $1', [envioId]);
   await c.query(`INSERT INTO envio_lineas (envio_id, orden_id, tarea_id, pedido_id, descripcion, origen, bultos, kg, orden) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
     [envioId, l.orden_id || null, l.tarea_id || null, l.pedido_id || null, l.descripcion, l.origen || null, l.bultos ?? null, l.kg ?? null, rows[0].n]);
+}
+
+// Cambiar las condiciones (transportista, fecha de recogida, coste, lo que va) de un envío aún sin recoger: vuelve a «pendiente de aceptar»
+async function condicionesCambiadas(c, id) {
+  const { rowCount } = await c.query(
+    `UPDATE envios SET aceptacion = 'pendiente', aceptado_en = NULL, aceptado_por = NULL, propuesta = NULL, rechazo_motivo = NULL
+      WHERE id = $1 AND estado = 'preparando' AND aceptacion <> 'pendiente'`, [id]);
+  return rowCount > 0;
+}
+async function marcarAceptada(c, id, quien) {
+  await c.query(`UPDATE envios SET aceptacion = 'aceptada', aceptado_en = now(), aceptado_por = $2, propuesta = NULL, rechazo_motivo = NULL, actualizado_en = now() WHERE id = $1`, [id, texto(quien, 120)]);
+}
+// Al aceptar: cada pedido que se recoge activa su seguimiento y el proveedor recibe la recogida confirmada con su enlace
+async function alAceptar(id, req) {
+  const e = await envio(id);
+  const pt = require('./pedido-transporte');
+  const hechos = [];
+  for (const l of e.lineas) {
+    try {
+      if (l.pedido_id) { const r = await pt.recogidaAceptada(l.pedido_id, e, req); if (r) hechos.push(r); }
+      if (l.tarea_id) await query('INSERT INTO ext_novedades (tarea_id, texto) VALUES ($1,$2)', [l.tarea_id, `🚚 ${e.codigo}: ${e.transportista || 'el transportista'} acepta la recogida${e.recogida_prevista ? ` del ${ddmm(e.recogida_prevista)}` : ''}`]);
+    } catch (er) { console.warn('al aceptar el envío', e.codigo, er.message); }
+  }
+  return hechos;
 }
 
 // Cambia el estado (o la fecha de llegada) y lo lleva a las tareas, al material y a las novedades de las OTs
@@ -270,7 +297,8 @@ async function correoTransportista(e, url, para) {
     asunto: `Envío ${e.codigo} a Menorca · ${aj.empresa.nombre}`,
     texto: `Hola,\n\nOs pedimos el envío ${e.codigo} a Menorca${e.recogida_prevista ? `, con recogida prevista el ${ddmm(e.recogida_prevista)}` : ''}:\n${recoger}\n\n`
       + `${e.entregar_en ? `Entregar en: ${e.entregar_en}\n\n` : ''}${e.notas ? `${e.notas}\n\n` : ''}`
-      + `Por favor, indicadnos en este enlace (sin usuario) cuándo lo recogéis, en qué barco sale, cuándo llega a Maó y la entrega, con vuestra referencia y el CMR:\n${url}\n\n`
+      + `${e.coste != null ? `Precio acordado: ${String(e.coste).replace('.', ',')} € (IVA aparte)\n\n` : ''}`
+      + `Por favor, en este enlace (sin usuario) aceptad la recogida o proponednos otra fecha; después, en el mismo enlace, nos indicáis cuándo lo recogéis, en qué barco sale, cuándo llega a Maó y la entrega, con vuestra referencia y el CMR:\n${url}\n\n`
       + `Gracias,\n${aj.empresa.nombre}${aj.empresa.telefono ? ` · ${aj.empresa.telefono}` : ''}`,
   });
 }
@@ -282,7 +310,8 @@ async function recordatorios() {
   if (fest.length) return;
   const { rows } = await query(
     `SELECT id FROM envios WHERE email IS NOT NULL AND enviado_en IS NOT NULL AND (recordatorio_en IS NULL OR recordatorio_en < $1)
-        AND ((estado = 'preparando' AND recogida_prevista < $1) OR (estado IN ('recogido','en_barco') AND llegada_prevista < $1))
+        AND ((estado = 'preparando' AND recogida_prevista < $1) OR (estado IN ('recogido','en_barco') AND llegada_prevista < $1)
+             OR (estado = 'preparando' AND aceptacion = 'pendiente' AND enviado_en < now() - interval '20 hours'))
         AND (actualizado_en IS NULL OR (actualizado_en AT TIME ZONE 'Europe/Madrid')::date < $1)`, [hoy]);
   const aj = rows.length ? await require('./compras').ajustes() : null;
   for (const { id } of rows) {
@@ -290,11 +319,13 @@ async function recordatorios() {
     const { rows: n } = await query('SELECT nonce FROM envios WHERE id = $1', [id]);
     const url = urlDe({ id, nonce: n[0].nonce });
     await query('UPDATE envios SET recordatorio_en = $2, n_recordatorios = n_recordatorios + 1 WHERE id = $1', [id, hoy]);
-    const que = e.estado === 'preparando' ? `la recogida estaba prevista el ${ddmm(e.recogida_prevista)}` : `la llegada a Maó estaba prevista el ${ddmm(e.llegada_prevista)}`;
+    const sinAceptar = e.estado === 'preparando' && e.aceptacion === 'pendiente' && !(e.recogida_prevista && e.recogida_prevista < hoy);
+    const que = sinAceptar ? `os pedimos la recogida${e.recogida_prevista ? ` del ${ddmm(e.recogida_prevista)}` : ''} y aún no la habéis aceptado`
+      : e.estado === 'preparando' ? `la recogida estaba prevista el ${ddmm(e.recogida_prevista)}` : `la llegada a Maó estaba prevista el ${ddmm(e.llegada_prevista)}`;
     try {
       await correo.enviarOFallar({
         para: e.email, asunto: `¿Cómo va el envío ${e.codigo}?`,
-        texto: `Hola,\n\nDel envío ${e.codigo} ${que} y no tenemos noticias. ¿Nos indicáis cómo va (o la fecha nueva)?\n${url}\n\n`
+        texto: `Hola,\n\nDel envío ${e.codigo} ${que}${sinAceptar ? '' : ' y no tenemos noticias'}. ${sinAceptar ? '¿Nos la aceptáis (o proponéis otra fecha) en este enlace?' : '¿Nos indicáis cómo va (o la fecha nueva)?'}\n${url}\n\n`
           + `Os lo recordaremos una vez al día hasta que lo actualicéis.\n\nGracias,\n${aj.empresa.nombre}`,
       });
       if (e.n_recordatorios === 0) avisar(e, [`sin noticias: ${que}`], null);
@@ -320,8 +351,10 @@ async function vistaPublica(e) {
     empresa: { nombre: aj.empresa.nombre, telefono: aj.empresa.telefono, email: aj.empresa.email },
     codigo: e.codigo, transportista: e.transportista, estado: e.estado, fechas: e.fechas, hoy: hoyMadrid(),
     recogida_prevista: e.recogida_prevista, llegada_prevista: e.llegada_prevista, entregar_en: e.entregar_en, notas: e.notas,
-    ref_transportista: e.ref_transportista, nota_transportista: e.nota_transportista,
-    lineas: e.lineas.map((l) => ({ id: l.id, descripcion: l.descripcion, origen: l.origen, bultos: l.bultos, kg: l.kg, recogido: l.recogido })),
+    ref_transportista: e.ref_transportista, nota_transportista: e.nota_transportista, coste: e.coste,
+    aceptacion: e.aceptacion, aceptado_en: e.aceptado_en, aceptado_por: e.aceptado_por, propuesta: e.propuesta, rechazo_motivo: e.rechazo_motivo,
+    lineas: e.lineas.map((l) => ({ id: l.id, descripcion: l.descripcion, origen: l.origen, bultos: l.bultos, kg: l.kg, recogido: l.recogido,
+      contacto: [l.recogida_contacto, l.recogida_telefono].filter(Boolean).join(' · ') || null, horario: l.recogida_horario || null, listo: l.listo_recogida || null })),
     archivos: e.archivos.map((a) => ({ id: a.id, tipo: a.tipo, nombre: a.nombre, mio: a.del_transportista })),
   };
 }
@@ -335,19 +368,60 @@ function montarPublico(app, asyncH) {
   // { estado, fecha, llegada_prevista, ref_transportista, nota, recogidas: {linea_id: bool} }
   app.put('/api/envio/:t', asyncH(async (req, res) => {
     const b = req.body || {};
-    let e; let cambios;
+    let e; let cambios; let aceptaAhora = false;
     await tx(async (c) => {
       e = await porToken(req.params.t, c);
       if (e.estado === 'entregado' && b.estado !== 'entregado') throw fallo(409, 'Este envío ya está entregado; si hay que cambiar algo, contacte con nosotros.');
+      // si lo marca recogido (o más) sin haber aceptado, la acepta
+      if (b.estado && b.estado !== e.estado && e.aceptacion !== 'aceptada') { await marcarAceptada(c, e.id, e.transportista); aceptaAhora = true; }
       for (const [lid, v] of Object.entries(b.recogidas || {})) await c.query('UPDATE envio_lineas SET recogido = $3 WHERE id = $1 AND envio_id = $2', [Number(lid), e.id, !!v]);
       const ref = texto(b.ref_transportista, 80); const nota = texto(b.nota, 300);
       await c.query('UPDATE envios SET ref_transportista = $2, nota_transportista = $3, actualizado_en = now() WHERE id = $1', [e.id, ref, nota]);
       cambios = await aplicar(c, e, { estado: b.estado, fecha: b.fecha, llegada: 'llegada_prevista' in b ? b.llegada_prevista : undefined }, e.transportista) || [];
       if (nota && nota !== e.nota_transportista) cambios.push(`«${nota}»`);
     });
+    if (aceptaAhora) { await alAceptar(e.id, req); cambios.unshift('acepta la recogida'); }
     const nuevo = await envio(e.id);
     avisar(nuevo, cambios, nuevo.transportista);
     require('./eventos').emitir({ ruta: 'envios', quien: nuevo.transportista });
+    res.json(await vistaPublica(nuevo));
+  }));
+  // Aceptar las condiciones de la recogida: { accion: 'aceptar' | 'proponer' | 'rechazar', nombre, recogida, llegada, coste, nota, motivo }
+  app.post('/api/envio/:t/aceptacion', asyncH(async (req, res) => {
+    const b = req.body || {};
+    let e; let cambio;
+    await tx(async (c) => {
+      e = await porToken(req.params.t, c);
+      if (e.estado !== 'preparando') throw fallo(409, 'Este envío ya está en marcha.');
+      const nombre = texto(b.nombre, 120);
+      if (b.accion === 'aceptar') {
+        if (e.aceptacion === 'aceptada') { cambio = null; return; }
+        await marcarAceptada(c, e.id, nombre ? `${nombre} (${e.transportista || 'transportista'})` : e.transportista);
+        const ll = fechaOk(b.llegada);
+        if (ll) await aplicar(c, e, { llegada: ll }, e.transportista);
+        const ref = texto(b.ref, 80);
+        if (ref) await c.query('UPDATE envios SET ref_transportista = $2 WHERE id = $1', [e.id, ref]);
+        cambio = `✔ acepta la recogida${e.recogida_prevista ? ` del ${ddmm(e.recogida_prevista)}` : ''}${ll ? ` · llega a Maó ~${ddmm(ll)}` : ''}`;
+      } else if (b.accion === 'proponer') {
+        const rec = fechaOk(b.recogida); const ll = fechaOk(b.llegada); const co = num(b.coste); const nota = texto(b.nota, 300);
+        if (!rec && co == null && !nota) throw fallo(400, 'Indique la fecha de recogida que puede (o el precio, o un comentario).');
+        if (co != null && !(co >= 0)) throw fallo(400, 'Precio no válido');
+        const prop = { recogida: rec, llegada: ll, coste: co, nota, nombre, en: new Date().toISOString() };
+        await c.query(`UPDATE envios SET aceptacion = 'propuesta', propuesta = $2, actualizado_en = now() WHERE id = $1`, [e.id, JSON.stringify(prop)]);
+        cambio = `📅 propone ${[rec ? `recoger el ${ddmm(rec)}` : null, ll ? `llegar a Maó ~${ddmm(ll)}` : null, co != null ? `${String(co).replace('.', ',')} €` : null].filter(Boolean).join(' · ') || 'cambios'}${nota ? ` · «${nota}»` : ''}`;
+      } else if (b.accion === 'rechazar') {
+        const motivo = texto(b.motivo, 300);
+        if (!motivo) throw fallo(400, 'Díganos por qué no pueden (y si hay otra opción).');
+        await c.query(`UPDATE envios SET aceptacion = 'rechazada', rechazo_motivo = $2, propuesta = NULL, actualizado_en = now() WHERE id = $1`, [e.id, motivo]);
+        cambio = `✕ no puede hacer la recogida: «${motivo}»`;
+      } else throw fallo(400, 'Acción no válida');
+    });
+    if (b.accion === 'aceptar' && cambio) await alAceptar(e.id, req);
+    const nuevo = await envio(e.id);
+    if (cambio) {
+      avisar(nuevo, [cambio], nuevo.transportista);
+      require('./eventos').emitir({ ruta: 'envios', quien: nuevo.transportista });
+    }
     res.json(await vistaPublica(nuevo));
   }));
   app.post('/api/envio/:t/archivos', express.raw({ type: TIPOS_ARCH, limit: 6 * 1024 * 1024 }), asyncH(async (req, res) => {
@@ -420,12 +494,16 @@ function montarGestion(app, asyncH) {
       if (!e || e.estado === 'anulado') throw fallo(404, 'Envío no encontrado');
       if (e.estado === 'entregado') throw fallo(400, 'El envío ya está entregado');
       await insertarLinea(c, id, await lineaDe(c, req.body || {}, id));
+      await condicionesCambiadas(c, id);
     });
     res.json(await envio(id));
   }));
   app.delete('/api/envios/:id/lineas/:lid', p, asyncH(async (req, res) => {
     const id = Number(req.params.id);
-    await query('DELETE FROM envio_lineas WHERE id = $1 AND envio_id = $2', [Number(req.params.lid), id]);
+    await tx(async (c) => {
+      const { rowCount } = await c.query('DELETE FROM envio_lineas WHERE id = $1 AND envio_id = $2', [Number(req.params.lid), id]);
+      if (rowCount) await condicionesCambiadas(c, id);
+    });
     res.json(await envio(id));
   }));
 
@@ -445,6 +523,11 @@ function montarGestion(app, asyncH) {
       if ('coste' in b) { const n = num(b.coste); if (n != null && !(n >= 0)) throw fallo(400, 'Coste no válido'); poner('coste', n); }
       if ('reparto' in b) poner('reparto', b.reparto === 'manual' ? 'manual' : 'kg');
       if (sets.length) await c.query(`UPDATE envios SET ${sets.join(', ')} WHERE id = $1`, vals);
+      // cambian las condiciones que aceptó el transportista → hay que volver a pedírsela
+      const cambia = ('transportista_id' in b && (Number(b.transportista_id) || null) !== (e.transportista_id || null))
+        || ('recogida_prevista' in b && fechaOk(b.recogida_prevista) !== (e.recogida_prevista || null))
+        || ('coste' in b && num(b.coste) !== (e.coste ?? null));
+      if (cambia) await condicionesCambiadas(c, id);
       for (const l of (Array.isArray(b.lineas) ? b.lineas : []).slice(0, 100)) {
         const bu = num(l.bultos); const kg = num(l.kg); const cm = num(l.coste_manual);
         await c.query(`UPDATE envio_lineas SET descripcion = COALESCE($3, descripcion), origen = $4, bultos = $5, kg = $6, coste_manual = $7, recogido = $8
@@ -471,6 +554,39 @@ function montarGestion(app, asyncH) {
     const e = await envio(id);
     avisar(e, cambios, null);
     res.json(e);
+  }));
+
+  // La oficina decide sobre la aceptación: { accion: 'aceptar_propuesta' | 'rechazar_propuesta' | 'marcar_aceptada', nota }
+  //  · aceptar la propuesta: pasa su fecha / precio al envío y queda aceptada;  · rechazarla: vuelve a pendiente (y se le reenvía)
+  //  · marcar aceptada: la aceptó por teléfono o WhatsApp
+  app.post('/api/envios/:id/aceptacion', p, asyncH(async (req, res) => {
+    const id = Number(req.params.id); const b = req.body || {};
+    let cambio = null; let aceptada = false;
+    await tx(async (c) => {
+      const e = await envio(id, c);
+      if (!e || e.estado === 'anulado') throw fallo(404, 'Envío no encontrado');
+      if (e.estado !== 'preparando') throw fallo(400, 'El envío ya está en marcha');
+      if (b.accion === 'aceptar_propuesta') {
+        const pr = e.propuesta;
+        if (e.aceptacion !== 'propuesta' || !pr) throw fallo(400, 'No hay propuesta');
+        if (pr.recogida) await c.query('UPDATE envios SET recogida_prevista = $2 WHERE id = $1', [id, pr.recogida]);
+        if (pr.coste != null) await c.query('UPDATE envios SET coste = $2 WHERE id = $1', [id, pr.coste]);
+        if (pr.llegada) await aplicar(c, { ...e }, { llegada: pr.llegada }, req.usuario.nombre);
+        await marcarAceptada(c, id, `${e.transportista || 'transportista'} (propuesta aceptada por ${req.usuario.nombre})`);
+        cambio = `✔ ${req.usuario.nombre} acepta la propuesta de ${e.transportista || 'el transportista'}`; aceptada = true;
+      } else if (b.accion === 'rechazar_propuesta') {
+        await c.query(`UPDATE envios SET aceptacion = 'pendiente', propuesta = NULL, rechazo_motivo = NULL WHERE id = $1`, [id]);
+        cambio = `✕ ${req.usuario.nombre} no acepta la propuesta`;
+      } else if (b.accion === 'marcar_aceptada') {
+        await marcarAceptada(c, id, `${e.transportista || 'transportista'} (marcado por ${req.usuario.nombre})`);
+        cambio = `✔ aceptada (marcado por ${req.usuario.nombre})`; aceptada = true;
+      } else throw fallo(400, 'Acción no válida');
+    });
+    let hechos = [];
+    if (aceptada) hechos = await alAceptar(id, req);
+    const e = await envio(id);
+    avisar(e, [cambio], null);
+    res.json({ ...e, hechos });
   }));
 
   // Anular (preparando: se borra; si ya salió, se marca anulado)

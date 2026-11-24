@@ -737,6 +737,7 @@
       ondrop: async (ev) => { ev.preventDefault(); try { await api('POST', `/api/envios/${e.id}/lineas`, JSON.parse(ev.dataTransfer.getData('text/plain'))); estado.envio = e.id; guardarURL(); toast(`Añadido a ${e.codigo}`); pintar(); } catch (er) { toast(er.message, true); } },
     },
     el('span', { class: 'trp-env-1' }, el('b', {}, e.codigo), el('small', {}, e.transportista || 'sin transportista')),
+    e.estado === 'preparando' ? el('small', { class: `trp-acept-chip ${e.aceptacion}` }, { pendiente: e.enviado_en ? '⏳ sin aceptar' : '✎ sin pedir', propuesta: '📅 propone cambios', rechazada: '✕ no puede', aceptada: '✔ aceptada' }[e.aceptacion] || '') : null,
     el('small', {}, [e.recogida_prevista && e.estado === 'preparando' ? `recogida ${cuando(e.recogida_prevista)}` : null, e.llegada_prevista ? `llega a Maó ${cuando(e.llegada_prevista)}` : null].filter(Boolean).join(' · ') || 'sin fechas'),
     el('span', { class: 'trp-chips' }, e.lineas.map((l) => el('span', { class: `cod-chip${l.pedido_id ? ' mat' : ''}` }, l.ot_codigo || l.pedido_codigo || '·'))),
     el('small', {}, [`${e.bultos || 0} bultos`, e.kg ? `${e.kg} kg` : null, e.coste != null ? eur(e.coste) : null].filter(Boolean).join(' · '))));
@@ -753,7 +754,10 @@
 
   function pintarEnvio(caja, e, d, editar) {
     const guardar = async (cuerpo) => {
-      try { await api('PUT', `/api/envios/${e.id}`, cuerpo); toast('Guardado'); pintar(); } catch (er) { toast(er.message, true); }
+      try {
+        const r = await api('PUT', `/api/envios/${e.id}`, cuerpo);
+        toast(e.aceptacion !== 'pendiente' && r.aceptacion === 'pendiente' ? 'Guardado. Han cambiado las condiciones: reenvíaselo al transportista para que las acepte.' : 'Guardado'); pintar();
+      } catch (er) { toast(er.message, true); }
     };
     const pasoActual = ENV_EST.findIndex(([k]) => k === e.estado);
     const fechaIn = (k, txt) => el('label', { class: 'cmp-campo' }, el('span', {}, txt),
@@ -766,6 +770,22 @@
       try { const r = await api('POST', `/api/envios/${e.id}/enlace`, { nuevo }); await navigator.clipboard.writeText(r.url).then(() => toast('Enlace copiado: pégalo en WhatsApp o en un correo'), () => prompt('Copia el enlace:', r.url)); pintar(); }
       catch (er) { toast(er.message, true); }
     };
+    const decidirAcept = async (accion, pregunta) => {
+      if (pregunta && !confirm(pregunta)) return;
+      try { const r = await api('POST', `/api/envios/${e.id}/aceptacion`, { accion }); toast(r.hechos?.length ? `Aceptada · ${r.hechos.join(' · ')}` : 'Hecho'); pintar(); }
+      catch (er) { toast(er.message, true); }
+    };
+    const t = e.transportista || 'el transportista';
+    const pr = e.propuesta;
+    const acept = e.estado !== 'preparando' ? null : el('div', { class: `trp-acept ${e.aceptacion}`, role: 'status' },
+      e.aceptacion === 'aceptada' ? el('span', {}, `✔ ${t} aceptó la recogida ${cuando(e.aceptado_en)}${e.aceptado_por ? ` (${e.aceptado_por})` : ''}. Los proveedores de los pedidos que se recogen ya tienen la recogida confirmada y su enlace de seguimiento.`)
+        : e.aceptacion === 'propuesta' && pr ? [el('span', {}, `📅 ${t}${pr.nombre ? ` (${pr.nombre})` : ''} propone: ${[pr.recogida ? `recoger el ${cuando(pr.recogida)}` : null, pr.llegada ? `llegar a Maó el ${cuando(pr.llegada)}` : null, pr.coste != null ? eur(pr.coste) : null].filter(Boolean).join(' · ') || 'cambios'}${pr.nota ? ` · «${pr.nota}»` : ''}`),
+          editar ? el('button', { type: 'button', class: 'primario mini', onclick: () => decidirAcept('aceptar_propuesta') }, '✔ Aceptar propuesta') : null,
+          editar ? el('button', { type: 'button', class: 'ghost mini', onclick: () => decidirAcept('rechazar_propuesta', 'Vuelve a «pendiente de aceptar». Cambia la fecha o el transportista y reenvíale el enlace. ¿Seguir?') }, '✕ No la acepto') : null]
+          : e.aceptacion === 'rechazada' ? [el('span', {}, `✕ ${t} no puede: «${e.rechazo_motivo || ''}». Cambia el transportista o la fecha y vuelve a enviárselo.`)]
+            : [el('span', {}, e.enviado_en ? `⏳ Esperando a que ${t} acepte la recogida (pedida ${cuando(e.enviado_en)}). Al aceptarla, el proveedor recibe la recogida confirmada y su enlace de seguimiento.`
+              : '✎ Pon la recogida prevista, el coste y lo que va, y pulsa «✉ Enviar al transportista»: tendrá que aceptar la recogida en su enlace.')],
+      editar && ['pendiente', 'rechazada'].includes(e.aceptacion) && e.lineas.length ? el('button', { type: 'button', class: 'ghost mini', onclick: () => decidirAcept('marcar_aceptada', `¿${t} la ha aceptado por teléfono o WhatsApp? Se avisará a los proveedores con su enlace de seguimiento.`) }, '✔ Aceptada por teléfono') : null);
     caja.replaceChildren(el('section', { class: 'panel trp-ficha' },
       el('div', { class: 'cab-panel' }, el('h2', {}, `${e.codigo}${e.transportista ? ` · ${e.transportista}` : ''}`),
         el('span', { class: 'ayuda' }, [`creado ${cuando(e.creado)}${e.creado_por_nombre ? ` por ${e.creado_por_nombre}` : ''}`, e.visto_en ? `el transportista lo vio ${cuando(e.visto_en)}` : null, e.n_recordatorios ? `✉ ${e.n_recordatorios} recordatorio(s)` : null].filter(Boolean).join(' · '))),
@@ -775,6 +795,7 @@
           try { await api('POST', `/api/envios/${e.id}/estado`, { estado: k }); toast(t); pintar(); } catch (er) { toast(er.message, true); }
         } }, t) : t,
         el('small', {}, e.fechas?.[k] ? cuando(e.fechas[k]) : k === 'en_mao' && e.llegada_prevista ? `prev. ${cuando(e.llegada_prevista)}` : k === 'recogido' && e.recogida_prevista ? `prev. ${cuando(e.recogida_prevista)}` : '')))),
+      acept,
       el('div', { class: 'cmp-campos' },
         el('label', { class: 'cmp-campo' }, el('span', {}, 'Transportista'), el('select', { disabled: !editar, onchange: (ev) => guardar({ transportista_id: ev.target.value }) },
           el('option', { value: '' }, '—'), d.transportistas.map((t) => el('option', { value: t.id, selected: t.id === e.transportista_id }, t.nombre)))),

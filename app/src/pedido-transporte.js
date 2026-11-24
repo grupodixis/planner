@@ -59,7 +59,7 @@ async function completar(p, req) {
                                      WHERE e.pedido_id = $1 ORDER BY e.creado DESC LIMIT 30`, [p.id]);
   p.eventos_trp = ev;
   const { rows: env } = await query(
-    `SELECT e.id, e.codigo, e.estado, e.recogida_prevista::text AS recogida, e.llegada_prevista::text AS llegada, t.nombre AS transportista
+    `SELECT e.id, e.codigo, e.estado, e.aceptacion, e.recogida_prevista::text AS recogida, e.llegada_prevista::text AS llegada, t.nombre AS transportista
        FROM envio_lineas l JOIN envios e ON e.id = l.envio_id LEFT JOIN proveedores t ON t.id = e.transportista_id
       WHERE l.pedido_id = $1 AND e.estado <> 'anulado' ORDER BY e.id DESC LIMIT 1`, [p.id]);
   p.envio = env[0] || null;
@@ -81,7 +81,7 @@ function situacion(p) {
   if (p.por_recibir === 0 && p.tipo === 'material') return '✔ recibido';
   if (p.envio) {
     const E = { preparando: 'en preparación', recogido: 'recogido', en_barco: 'en barco', en_mao: 'en Maó', entregado: 'entregado' };
-    return `🚚 ${p.envio.codigo} · ${p.envio.transportista || ''} · ${E[p.envio.estado] || p.envio.estado}${p.envio.llegada && !['en_mao', 'entregado'].includes(p.envio.estado) ? ` · llega ~${ddmm(p.envio.llegada)}` : ''}${p.envio.estado === 'preparando' && p.envio.recogida ? ` · recogida ${ddmm(p.envio.recogida)}` : ''}`;
+    return `🚚 ${p.envio.codigo} · ${p.envio.transportista || ''} · ${E[p.envio.estado] || p.envio.estado}${p.envio.llegada && !['en_mao', 'entregado'].includes(p.envio.estado) ? ` · llega ~${ddmm(p.envio.llegada)}` : ''}${p.envio.estado === 'preparando' && p.envio.recogida ? ` · recogida ${ddmm(p.envio.recogida)}` : ''}${p.envio.estado === 'preparando' ? ({ pendiente: ' · ⏳ sin aceptar', propuesta: ' · 📅 propone otra fecha', rechazada: ' · ✕ no puede', aceptada: ' · ✔ aceptada' }[p.envio.aceptacion] || '') : ''}`;
   }
   if (p.entrega_modo === 'proveedor') {
     return p.tracking ? `📦 ${AGENCIAS[p.agencia] || p.agencia_otra || 'agencia'} ${p.tracking}${p.fecha_entrega ? ` · llega ~${ddmm(p.fecha_entrega)}` : ''}`
@@ -215,6 +215,52 @@ async function enviarEnlace(p, para, req) {
   await evento({ query }, p.id, `✉ enlace de seguimiento enviado a ${para}`);
 }
 
+// El transportista ha aceptado la recogida de un envío que lleva este pedido: el pedido toma su transportista y fecha,
+// se activa su seguimiento y el proveedor recibe la recogida confirmada con su enlace (para decir cuándo está listo, bultos y contacto).
+async function recogidaAceptada(pedidoId, e, req) {
+  const { rows } = await query(`SELECT c.*, c.recogida_fecha::text AS recogida_fecha, p.nombre AS proveedor, p.email AS proveedor_email
+                                  FROM pedidos_compra c LEFT JOIN proveedores p ON p.id = c.proveedor_id WHERE c.id = $1`, [pedidoId]);
+  const p0 = rows[0];
+  if (!p0 || p0.estado !== 'enviado') return null;
+  const quien = e.transportista || 'nuestro transportista';
+  if (p0.entrega_modo === 'almacen') {
+    await evento({ query }, p0.id, `✔ ${quien} acepta recogerlo del almacén (${e.codigo}${e.recogida_prevista ? `, ${ddmm(e.recogida_prevista)}` : ''})`);
+    return null;
+  }
+  const otraFecha = (p0.recogida_fecha || null) !== (e.recogida_prevista || null) || (p0.transportista_id || null) !== (e.transportista_id || null);
+  const { rows: up } = await query(
+    `UPDATE pedidos_compra SET entrega_modo = COALESCE(entrega_modo, 'recogida'), transportista_id = COALESCE($2, transportista_id),
+            recogida_fecha = COALESCE($3, recogida_fecha), seg_activo = TRUE, seg_nonce = COALESCE(seg_nonce, $4)
+      WHERE id = $1 RETURNING *`, [p0.id, e.transportista_id || null, e.recogida_prevista || null, crypto.randomBytes(18).toString('base64url')]);
+  const p = up[0];
+  await evento({ query }, p.id, `✔ ${quien} acepta la recogida (${e.codigo}${e.recogida_prevista ? `, ${ddmm(e.recogida_prevista)}` : ''}) · ▶ seguimiento activado`);
+  if (p0.aviso_recogida_en && !otraFecha) return null; // el proveedor ya lo sabe
+  const url = urlDe(p, req);
+  if (!p0.proveedor_email || !correo.configurado()) {
+    await evento({ query }, p.id, '⚠ el proveedor no tiene correo: envíale el enlace (Copiar enlace)');
+    await avisarCompras(p, `🚚 ${quien} recoge el ${p.codigo}${e.recogida_prevista ? ` el ${ddmm(e.recogida_prevista)}` : ''}`, `Avisa a ${p0.proveedor || 'el proveedor'}: no tiene correo. Copia el enlace de seguimiento del pedido.`);
+    return `${p.codigo}: sin correo del proveedor`;
+  }
+  const aj = await require('./compras').ajustes();
+  try {
+    await correo.enviarOFallar({
+    para: p0.proveedor_email,
+    asunto: `Recogida confirmada · pedido ${p.codigo} · ${aj.empresa.nombre}`,
+    texto: `Hola,\n\n${e.recogida_prevista ? `El ${fechaLarga(e.recogida_prevista)}` : 'En los próximos días'} pasará ${quien} a recoger el pedido ${p.codigo}`
+      + `${p.recogida_direccion ? ` en ${p.recogida_direccion}` : ''}${p.recogida_horario ? ` (${p.recogida_horario})` : ''}.\n\n`
+      + `En este enlace (sin usuario) podéis confirmar el pedido, cuándo estará listo, los bultos y kg, y la persona de contacto para la recogida:\n${url}\n\n`
+      + `Gracias,\n${aj.empresa.nombre}${aj.empresa.telefono ? ` · ${aj.empresa.telefono}` : ''}`,
+    });
+  } catch (er) {
+    await evento({ query }, p.id, `⚠ no se pudo enviar el correo al proveedor (${er.message.slice(0, 80)}): envíale el enlace`);
+    await avisarCompras(p, `🚚 ${quien} recoge el ${p.codigo}`, `No se ha podido escribir a ${p0.proveedor || 'el proveedor'}: copia el enlace de seguimiento del pedido y envíaselo.`);
+    return `${p.codigo}: no se pudo escribir al proveedor`;
+  }
+  await query('UPDATE pedidos_compra SET aviso_recogida_en = $2 WHERE id = $1', [p.id, hoyMadrid()]);
+  await evento({ query }, p.id, `✉ recogida confirmada y enlace de seguimiento enviados a ${p0.proveedor_email}`);
+  return `${p.codigo}: avisado ${p0.proveedor || 'el proveedor'}`;
+}
+
 /* ---------- lo que ve el proveedor ---------- */
 async function porToken(t) {
   const m = /^(\d{1,9})\.([A-Za-z0-9_-]{32})$/.exec(String(t || ''));
@@ -336,8 +382,8 @@ async function recordatorios(forzar = false) {
             c.entregado_almacen::text AS entregado_almacen, c.recordatorio_trp::text AS recordatorio_trp, c.aviso_recogida_en::text AS aviso_recogida_en,
             p.nombre AS proveedor, p.email AS proveedor_email,
             (SELECT count(*)::int FROM partida_escandallo e WHERE e.pedido_compra_id = c.id AND e.compra = 'pedido') AS por_recibir,
-            (SELECT e.recogida_prevista::text FROM envio_lineas l JOIN envios e ON e.id = l.envio_id WHERE l.pedido_id = c.id AND e.estado = 'preparando' ORDER BY e.id DESC LIMIT 1) AS envio_recogida,
-            (SELECT t.nombre FROM envio_lineas l JOIN envios e ON e.id = l.envio_id JOIN proveedores t ON t.id = e.transportista_id WHERE l.pedido_id = c.id AND e.estado <> 'anulado' ORDER BY e.id DESC LIMIT 1) AS envio_transportista,
+            (SELECT e.recogida_prevista::text FROM envio_lineas l JOIN envios e ON e.id = l.envio_id WHERE l.pedido_id = c.id AND e.estado = 'preparando' AND e.aceptacion = 'aceptada' ORDER BY e.id DESC LIMIT 1) AS envio_recogida,
+            (SELECT t.nombre FROM envio_lineas l JOIN envios e ON e.id = l.envio_id JOIN proveedores t ON t.id = e.transportista_id WHERE l.pedido_id = c.id AND e.estado <> 'anulado' AND e.aceptacion = 'aceptada' ORDER BY e.id DESC LIMIT 1) AS envio_transportista,
             EXISTS (SELECT 1 FROM envio_lineas l JOIN envios e ON e.id = l.envio_id WHERE l.pedido_id = c.id AND e.estado <> 'anulado') AS en_envio
        FROM pedidos_compra c LEFT JOIN proveedores p ON p.id = c.proveedor_id
       WHERE c.estado = 'enviado' AND c.entrega_modo IS NOT NULL AND c.enviado_en > now() - interval '120 days'`);
@@ -405,4 +451,4 @@ function lineasPdf(p) {
   return ['Envío a vuestro cargo: indicadnos la agencia y el nº de seguimiento.'];
 }
 
-module.exports = { montar, montarPublico, completar, urlDe, lineasPdf, urlTracking, recordatorios, MODOS, AGENCIAS, situacion };
+module.exports = { recogidaAceptada, montar, montarPublico, completar, urlDe, lineasPdf, urlTracking, recordatorios, MODOS, AGENCIAS, situacion };

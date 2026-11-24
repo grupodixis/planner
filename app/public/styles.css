@@ -2466,3 +2466,13 @@ button.wa { background: #1f7a3a; color: #eaffef; border-color: #1f7a3a; }
 .trp-almacenes li { display: grid; grid-template-columns: minmax(0,1.2fr) minmax(0,2fr) minmax(0,1fr) minmax(0,1fr) minmax(0,1.4fr) auto; gap: 6px; }
 .trp-almacenes li input { width: 100%; min-width: 0; }
 @media (max-width: 900px) { .trp-almacenes li { grid-template-columns: 1fr; } }
+/* aceptación de la recogida por el transportista */
+.trp-acept { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 10px 0 4px; padding: 9px 12px; border-radius: 8px; border: 1px solid var(--linea); font-size: 13px; }
+.trp-acept > span { flex: 1 1 320px; }
+.trp-acept.aceptada { border-color: color-mix(in srgb, var(--verde) 50%, transparent); background: color-mix(in srgb, var(--verde) 10%, transparent); }
+.trp-acept.propuesta, .trp-acept.pendiente { border-color: color-mix(in srgb, var(--naranja) 50%, transparent); background: color-mix(in srgb, var(--naranja) 9%, transparent); }
+.trp-acept.rechazada { border-color: color-mix(in srgb, var(--rojo) 55%, transparent); background: color-mix(in srgb, var(--rojo) 10%, transparent); }
+.trp-acept-chip { display: block; font-size: 11px; }
+.trp-acept-chip.aceptada { color: var(--verde); }
+.trp-acept-chip.propuesta, .trp-acept-chip.pendiente { color: var(--naranja); }
+.trp-acept-chip.rechazada { color: var(--rojo); }

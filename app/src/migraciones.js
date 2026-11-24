@@ -1330,6 +1330,11 @@ const MIGRACIONES = [
        INSERT INTO ajustes (clave, valor) VALUES ('migr_transportistas_almacenes', 'true');
      END IF;
    END $m$`,
+  // Aceptación del transportista: acepta las condiciones de la recogida (o propone otra fecha / precio, o no puede)
+  `ALTER TABLE envios ADD COLUMN IF NOT EXISTS aceptacion TEXT, ADD COLUMN IF NOT EXISTS aceptado_en TIMESTAMPTZ,
+     ADD COLUMN IF NOT EXISTS aceptado_por TEXT, ADD COLUMN IF NOT EXISTS propuesta JSONB, ADD COLUMN IF NOT EXISTS rechazo_motivo TEXT`,
+  `UPDATE envios SET aceptacion = CASE WHEN estado IN ('preparando') THEN 'pendiente' ELSE 'aceptada' END WHERE aceptacion IS NULL`,
+  `ALTER TABLE envios ALTER COLUMN aceptacion SET DEFAULT 'pendiente'`,
 ];
 
 async function migrar() {
