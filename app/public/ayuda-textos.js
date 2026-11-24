@@ -97,7 +97,7 @@ window.S360_AYUDA = {
           titulo: 'Cómo supervisar los partes',
           pasos: [
             { sel: '#pendientes', texto: 'Arriba, los <b>días pasados sin cerrar</b> y lo que hay por clasificar en la bandeja.' },
-            { sel: '#mi-dia-envios', texto: 'Quién ha <b>enviado su día</b> desde el móvil: ✔ enviado, ◐ a medias, ✗ nada.' },
+            { sel: '#mi-dia-envios', opcional: true, texto: 'Quién ha <b>enviado su día</b> desde el móvil: ✔ enviado, ◐ a medias, ✗ nada.' },
             { sel: '#tramos', texto: 'Cada trabajo planificado, con lo que apuntó el operario. Ciérralo con <b>✓ Como estaba</b>, <b>✎ Corregir</b> (quién y de qué hora a qué hora) o <b>✗ No se hizo</b>.', aviso: 'Y dile cómo va la tarea: <b>sigue</b>, <b>faltan X h</b> (reestima) o <b>terminada</b>.' },
             { sel: '#personas', texto: '<b>Por persona</b>: las horas de cada uno ese día, para ver de un vistazo si cuadra.' },
             { sel: '#form-horas', texto: '<b>Horas fuera del plan</b>: trabajo no planificado o tiempo no productivo (desplazamiento, limpieza, formación…).' },
