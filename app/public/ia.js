@@ -163,9 +163,18 @@
             : p.configurada ? el('button', { type: 'button', class: 'mini', onclick: () => tras(api('PUT', '/api/ia/proveedor-activo', { proveedor: p.id }), `El asistente usará ${p.nombre}`) }, 'Usar este') : null),
         el('div', { class: 'ia-prov-fila' }, inp, el('button', { type: 'button', class: 'primario mini', onclick: guardar }, p.configurada ? 'Cambiar clave' : 'Guardar clave')),
         el('div', { class: 'ia-prov-fila' },
-          el('label', { class: 'ia-chk' }, 'Modelo ',
-            el('input', { list: `ia-mod-${p.id}`, value: p.modelo || '', class: 'ia-prov-mod', placeholder: 'Pulsa «Probar»', onchange: (ev) => tras(api('PUT', `/api/ia/proveedores/${p.id}`, { modelo: ev.target.value }), 'Modelo guardado') }),
-            el('datalist', { id: `ia-mod-${p.id}` }, p.modelos.map((m) => el('option', { value: m })))),
+          el('label', { class: 'ia-chk' }, 'Modelo ', (() => {
+            const lista = p.modelos.includes(p.modelo) || !p.modelo ? p.modelos : [p.modelo, ...p.modelos];
+            const sel = el('select', { class: 'ia-prov-mod', onchange: (ev) => {
+              let m = ev.target.value;
+              if (m === '__otro') { m = prompt('Nombre exacto del modelo:', p.modelo || ''); if (!m) { ev.target.value = p.modelo || ''; return; } }
+              tras(api('PUT', `/api/ia/proveedores/${p.id}`, { modelo: m }), 'Modelo guardado');
+            } },
+            !lista.length ? el('option', { value: '' }, p.configurada ? 'Pulsa «Probar»' : '—') : null,
+            lista.map((m) => el('option', { value: m, selected: m === p.modelo }, `${m}${/preview|exp/.test(m) ? ' (preview)' : ''}`)),
+            el('option', { value: '__otro' }, 'Otro (escribir)…'));
+            return sel;
+          })()),
           p.configurada ? el('button', { type: 'button', class: 'mini', onclick: (ev) => { ev.target.disabled = true; ev.target.textContent = 'Probando…'; tras(api('POST', `/api/ia/proveedores/${p.id}/probar`)); } }, '🔌 Probar') : null,
           p.origen === 'panel' ? el('button', { type: 'button', class: 'ghost borrar mini', onclick: () => { if (confirm(`¿Quitar la clave de ${p.nombre}? El asistente dejará de poder usarla.`)) tras(api('PUT', `/api/ia/proveedores/${p.id}`, { borrar_clave: true }), 'Clave quitada'); } }, 'Quitar clave') : null),
         el('div', { class: 'ia-prov-pie' },

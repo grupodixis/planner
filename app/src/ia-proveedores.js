@@ -7,6 +7,13 @@
 const { query } = require('./db');
 const { cifrar, descifrar } = require('./correo');
 
+// Modelos que no sirven para un asistente de texto con herramientas
+const RARO = /robotic|embed|aqa|image|imagen|vision|audio|tts|speech|transcri|realtime|live|native|search|veo|lyria|learnlm|gemma|computer-use|moderation|dall|whisper|babbage|davinci|codex/i;
+// Orden: estables antes que preview/exp, versión más nueva primero, y dentro: flash, pro, flash-lite…
+const version = (id) => Number((id.match(/(\d+(?:\.\d+)?)/) || [0, 0])[1]);
+const peso = (id) => (/preview|exp/.test(id) ? 100 : 0) + (/-\d{3,}|\d{4}-\d\d/.test(id) ? 10 : 0) + (/lite|nano|-mini/.test(id) ? 2 : /pro/.test(id) ? 1 : 0);
+const orden = (a, b) => (peso(a) >= 100) - (peso(b) >= 100) || version(b) - version(a) || peso(a) - peso(b) || a.localeCompare(b);
+
 const PROV = {
   anthropic: {
     nombre: 'Anthropic (Claude)', env: 'ANTHROPIC_API_KEY', consola: 'https://console.anthropic.com/settings/keys',
@@ -21,7 +28,7 @@ const PROV = {
     modelos: [], def: '',
     async listar(k) {
       const r = await pedir('https://api.openai.com/v1/models', { authorization: `Bearer ${k}` });
-      return (r.data || []).map((m) => m.id).filter((id) => /^(gpt|o\d|chatgpt)/.test(id) && !/audio|realtime|tts|transcribe|image|search/.test(id)).sort().reverse();
+      return (r.data || []).map((m) => m.id).filter((id) => /^(gpt|o\d|chatgpt)/.test(id) && !RARO.test(id) && !/instruct|0301|0613/.test(id)).sort(orden);
     },
   },
   google: {
@@ -30,7 +37,7 @@ const PROV = {
     async listar(k) {
       const r = await pedir('https://generativelanguage.googleapis.com/v1beta/models?pageSize=200', { 'x-goog-api-key': k });
       return (r.models || []).filter((m) => (m.supportedGenerationMethods || []).includes('generateContent'))
-        .map((m) => String(m.name).replace(/^models\//, '')).filter((id) => /^gemini/.test(id)).sort().reverse();
+        .map((m) => String(m.name).replace(/^models\//, '')).filter((id) => /^gemini/.test(id) && !RARO.test(id)).sort(orden);
     },
   },
 };
@@ -104,7 +111,11 @@ async function probar(id, usuario) {
   try {
     const modelos = (await d.listar(k)).slice(0, 80);
     c.modelos = modelos;
-    if (!c.modelo && !d.def && modelos.length) c.modelo = modelos[0];
+    // Modelo por defecto (o si el elegido solo no está en la lista): el primero, que es el estable más nuevo
+    if (modelos.length && (!c.modelo || c.modelo_auto || !modelos.includes(c.modelo))) {
+      const def = d.def && modelos.includes(d.def) ? d.def : modelos.find((m) => /flash|sonnet|gpt/.test(m) && !/lite|-mini|nano|preview|exp/.test(m)) || modelos[0];
+      c.modelo = def; c.modelo_auto = true;
+    }
     c.prueba = { ok: true, en: new Date().toISOString(), por: usuario.nombre, msg: `Conecta · ${modelos.length} modelos disponibles` };
   } catch (e) {
     c.prueba = { ok: false, en: new Date().toISOString(), por: usuario.nombre, msg: e.message };
@@ -132,7 +143,7 @@ function montar(app, asyncH, auth) {
     if (b.modelo != null) {
       const m = String(b.modelo).trim();
       if (m && !/^[\w.:/-]{2,80}$/.test(m)) throw fallo(400, 'Nombre de modelo no válido');
-      v.p[id].modelo = m || undefined;
+      v.p[id].modelo = m || undefined; v.p[id].modelo_auto = false;
     }
     await guardar(v);
     // Al guardar una clave nueva se prueba al momento
