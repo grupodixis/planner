@@ -2832,3 +2832,13 @@ svg.gt-unir circle { fill: #9cc3ff; }
 .sol-sub { margin-top: 8px; border-top: 1px solid var(--borde); padding-top: 6px; }
 .sol-sub > summary { cursor: pointer; font-size: 12.5px; color: var(--azul, #9cc3ff); margin-bottom: 4px; }
 .cands li:has(> button + button) { grid-template-columns: auto 1fr auto auto; }
+
+/* Gantt: las tareas llevan el color de su OT, más oscuro; lo externo, rayado */
+.gt-fila .gt-bb.ot, .gt-ley [style*="--c"] .gt-bb.ot { background: color-mix(in srgb, var(--c, #8a63d2) 55%, #161616); border-color: color-mix(in srgb, var(--c, #8a63d2) 80%, #000); }
+.gt-fila .gt-bb.ot .gt-pg { background: color-mix(in srgb, var(--c, #8a63d2) 70%, #fff 10%); opacity: .55; }
+.gt-fila .gt-bb.propia, .gt-fila .gt-bb.ext, .gt-fila .gt-bb.trp, .gt-fila .gt-bb.sub,
+.gt-ley .gt-bb.propia, .gt-ley .gt-bb.ext { background-color: color-mix(in srgb, var(--c, #8a63d2) 62%, #000); color: #fff; text-shadow: 0 1px 2px #000a; }
+.gt-fila .gt-bb.ext, .gt-fila .gt-bb.trp, .gt-fila .gt-bb.sub, .gt-ley .gt-bb.ext { background-image: repeating-linear-gradient(135deg, #0000 0 5px, #0000004d 5px 8px); }
+.gt-fila .gt-bb.hecha:not(.ot), .gt-ley .gt-bb.hecha { background: color-mix(in srgb, var(--c, #8a63d2) 25%, #2c2c2c); color: #bbb; }
+.gt-t .gt-lab { box-shadow: inset 3px 0 0 color-mix(in srgb, var(--c, #8a63d2) 70%, #000); }
+.gt-ot .gt-lab { box-shadow: inset 3px 0 0 var(--c, #8a63d2); }

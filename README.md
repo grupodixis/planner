@@ -871,6 +871,10 @@ La pantalla de planificación diaria (`/`, `public/app.js`) se llama **Cuadrante
 - Con «Solo con riesgo», las OTs que se acaban de planificar o mover (y las de una propuesta en curso) siguen a la vista (`est.fijas`) hasta que se cambia el filtro. El botón dice cuántas oculta.
 - El Gantt devuelve `planif_n` por OT y los festivos de ±400 días (para contar laborables al arrastrar).
 
+### Colores
+
+Cada fila de OT y de tarea lleva `--c` con el color de la OT. La barra de la OT usa ese color; las de sus tareas, el mismo más oscuro (`color-mix`). Lo externo (taller, transporte, subcontrata) va rayado y con 🏭/🚚/🏗 en el texto; lo hecho, apagado. La columna de nombres lleva una franja del color.
+
 ### Flechas de dependencias
 
 - El Gantt devuelve `deps` (`de`, `a`, `espera_h`) entre las tareas que salen.

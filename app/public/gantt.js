@@ -40,7 +40,6 @@
   };
   const SEM = () => (est.escala === 'meses' ? 26 : 6);
   const RIESGO = { no_llega: ['r', 0], faltan: ['a', 1], sin_planificar: ['a', 2], justo: ['a', 3], sin_entrega: ['', 4], a_tiempo: ['v', 5], hecha: ['v', 6] };
-  const CLASE = { propia: 'Taller / obra (gente propia)', ext: '🏭 Taller externo', trp: '🚚 Transporte', sub: '🏗 Subcontrata en obra' };
 
   async function cargar() {
     const desde = est.desde || masDias(lunes(hoyTxt()), -7);
@@ -179,7 +178,8 @@
           arrastrable(bOt, dias, (dd) => `${dd > 0 ? '+' : ''}${dd} d → empieza ${dm(masDias(o.inicio, dd))}`, (dd) => moverOT(o, dd));
         }
         if (propOT) tl.append(barra(propOT.inicio, propOT.fin, 'prop', null, `Propuesta: ${dm(propOT.inicio)} → ${dm(propOT.fin)}`));
-        filas.push(el('div', { class: `gt-fila gt-ot${est.agrupar === 'ninguno' ? ' sola' : ''}`, 'data-o': o.id },
+        const colorOT = /^#[0-9a-f]{6}$/i.test(o.color || '') ? o.color : '#8a63d2';
+        filas.push(el('div', { class: `gt-fila gt-ot${est.agrupar === 'ninguno' ? ' sola' : ''}`, 'data-o': o.id, style: `--c:${colorOT}` },
           el('div', { class: 'gt-lab' },
             el('button', { type: 'button', class: 'gt-pleg', 'aria-expanded': String(abierta), 'aria-label': abierta ? 'Plegar tareas' : 'Ver tareas', onclick: toggle }, abierta ? '▾' : '▸'),
             el('a', { href: `/proyectos.html?ot=${o.id}`, class: 'gt-ot-n' }, el('b', { class: 'cod' }, o.codigo), ` ${o.titulo}`),
@@ -195,7 +195,7 @@
         for (const t of o.tareas) {
           const cerca = t.segmentos.find((s) => s[1] >= d.hoy)?.[0] || t.primera || t.segmentos[0]?.[0] || d.hoy;
           const ir = (f) => abrirTarea(t, f, o.color);
-          filas.push(el('div', { class: 'gt-fila gt-t', 'data-t': t.id },
+          filas.push(el('div', { class: 'gt-fila gt-t', 'data-t': t.id, style: `--c:${colorOT}` },
             el('div', { class: 'gt-lab' }, el('a', { class: 'gt-cuad', href: `/?tarea=${t.id}&fecha=${cerca}&periodo=dia`, title: 'Ver en el cuadrante', 'aria-label': `Ver ${t.codigo} en el cuadrante` }, '📋'),
               el('button', { type: 'button', class: 'gt-t-n', title: 'Abrir la tarea', onclick: () => ir(cerca) }, el('b', { class: 'cod' }, t.codigo), ` ${t.nombre}`),
               el('div', { class: 'gt-sub' }, [t.proveedor ? `${{ ext: '🏭', trp: '🚚', sub: '🏗' }[t.clase] || ''} ${t.proveedor}` : t.area, t.hecha ? '✔ hecha' : t.sin_plan ? 'sin planificar' : t.falta_h ? `faltan ${t.falta_h} h` : null].filter(Boolean).join(' · '))),
@@ -218,8 +218,11 @@
       flechas();
     });
     pintarCarga(pos, dias);
-    $('#gt-ley').replaceChildren(...Object.entries(CLASE).map(([k, t]) => el('span', {}, el('i', { class: `gt-bb ${k}` }), t)),
-      el('span', {}, el('i', { class: 'gt-bb hecha' }), 'Hecho'), el('span', {}, el('i', { class: 'gt-bb falta' }), 'Falta planificar'), el('span', {}, '↳ dependencia', el('small', { class: 'gt-ley-mal' }, ' (roja si la de detrás empieza antes)')),
+    $('#gt-ley').replaceChildren(
+      el('span', { style: '--c:#5aa9f0' }, el('i', { class: 'gt-bb ot' }), 'OT (su color)'),
+      el('span', { style: '--c:#5aa9f0' }, el('i', { class: 'gt-bb propia' }), 'sus tareas (más oscuro)'),
+      el('span', { style: '--c:#5aa9f0' }, el('i', { class: 'gt-bb ext' }), 'rayado: 🏭 taller externo · 🚚 transporte · 🏗 subcontrata'),
+      el('span', { style: '--c:#5aa9f0' }, el('i', { class: 'gt-bb hecha' }), 'Hecho'), el('span', {}, el('i', { class: 'gt-bb falta' }), 'Falta planificar'), el('span', {}, '↳ dependencia', el('small', { class: 'gt-ley-mal' }, ' (roja si la de detrás empieza antes)')),
       el('span', {}, el('b', { class: 'gt-hoy-ley' }), 'hoy'), el('span', {}, '⚑ entrega (roja si no llega)'));
   }
 
@@ -305,7 +308,7 @@
   const puedeDeps = () => !!(window.s360.tiene?.('proyectos') || window.s360.tiene?.('planificar'));
   const iniciales = (n) => n.split(/\s+/).filter(Boolean).slice(0, 2).map((x) => x[0]).join('').toUpperCase();
   function etiqueta(t) {
-    if (t.clase !== 'propia') return t.proveedor;
+    if (t.clase !== 'propia') return `${{ ext: '🏭', trp: '🚚', sub: '🏗' }[t.clase] || ''} ${t.proveedor || ''}`;
     if (est.etiq === 'area') return t.area || '';
     if (est.etiq === 'horas') return `${Math.round(t.plan_h * 10) / 10}/${t.duracion_h} h`;
     if (est.etiq !== 'personas' || !t.gente || t.hecha) return null;
