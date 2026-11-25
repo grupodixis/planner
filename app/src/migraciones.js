@@ -1403,6 +1403,37 @@ const MIGRACIONES = [
   `CREATE INDEX IF NOT EXISTS planificaciones_ordenes ON planificaciones USING gin (ordenes)`,
   // Observación libre en una dependencia («secado de pintura», «curado»…)
   `ALTER TABLE tarea_dependencias ADD COLUMN IF NOT EXISTS nota TEXT`,
+  // ===== Pasarela de IA: registro de auditoría, claves para MCP y permiso «ia» =====
+  `CREATE TABLE IF NOT EXISTS ia_claves (
+     id SERIAL PRIMARY KEY,
+     usuario_id INTEGER NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+     nombre TEXT NOT NULL,
+     hash TEXT NOT NULL UNIQUE,
+     prefijo TEXT NOT NULL,
+     creado TIMESTAMPTZ NOT NULL DEFAULT now(),
+     ultimo_uso TIMESTAMPTZ,
+     revocada TIMESTAMPTZ)`,
+  `CREATE TABLE IF NOT EXISTS ia_registro (
+     id BIGSERIAL PRIMARY KEY,
+     creado TIMESTAMPTZ NOT NULL DEFAULT now(),
+     usuario_id INTEGER REFERENCES usuarios(id) ON DELETE SET NULL,
+     canal TEXT NOT NULL,
+     herramienta TEXT NOT NULL,
+     riesgo TEXT,
+     args JSONB,
+     ok BOOLEAN NOT NULL,
+     error TEXT,
+     ms INTEGER,
+     bytes INTEGER,
+     resumen TEXT,
+     clave_id INTEGER REFERENCES ia_claves(id) ON DELETE SET NULL)`,
+  `CREATE INDEX IF NOT EXISTS ia_registro_usuario ON ia_registro (usuario_id, creado DESC)`,
+  `DO $m$ BEGIN
+     IF NOT EXISTS (SELECT 1 FROM ajustes WHERE clave = 'migr_permiso_ia') THEN
+       UPDATE roles SET permisos = array_append(permisos, 'ia') WHERE clave = 'admin' AND NOT ('ia' = ANY(permisos));
+       INSERT INTO ajustes (clave, valor) VALUES ('migr_permiso_ia', 'true');
+     END IF;
+   END $m$`,
 ];
 
 async function migrar() {

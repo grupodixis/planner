@@ -120,7 +120,8 @@
       ['/compras.html?vista=proveedores', 'Proveedores', ['compras', 'logistica', 'escandallo', 'aprobar_compras'], 'Fichas, contactos y lo que sirve cada uno']]],
     ['Recursos', [['/recursos.html', 'Operarios, máquinas y subcontratas', null, 'Fichas, vacaciones y festivos, tipos'],
       ['/recursos.html?tipo=areas', 'Áreas de trabajo', null, 'Zonas del taller, puestos, cabina y su equipo fijo'],
-      ['/capacidades.html', 'Capacidades', ['recursos', 'planificar'], 'Lo que sabe hacer cada uno'], ['/usuarios.html', 'Usuarios y accesos', 'usuarios', 'Cuentas, roles y PIN']]],
+      ['/capacidades.html', 'Capacidades', ['recursos', 'planificar'], 'Lo que sabe hacer cada uno'], ['/usuarios.html', 'Usuarios y accesos', 'usuarios', 'Cuentas, roles y PIN'],
+      ['/ia.html', 'IA', ['ia', 'usuarios'], 'Herramientas de la IA, conexión de Claude Code y registro']]],
     ['Informes', [['/informes.html', 'Informes', 'informes', 'Horas, avance y planificación por periodo'],
       ['/costes.html', 'Control de costes', 'costes', 'Presupuesto, real, previsión y margen por proyecto']]],
   ];

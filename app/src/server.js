@@ -24,6 +24,7 @@ app.get('/health', (req, res) => res.json({ ok: true, version: VERSION }));
 
 /* ---------- Autenticación ---------- */
 
+require('./ia').montarPublico(app, express);   // MCP: Claude Code / Antigravity entran con su clave de IA (solo herramientas de la pasarela)
 require('./pin').publico(app, asyncH);   // entrar con PIN desde un dispositivo autorizado (sin sesión)
 require('./ofertas-portal').montar(app, asyncH);   // el proveedor responde la petición de precio (enlace sin sesión)
 require('./seguimiento-ext').montarPublico(app, asyncH);   // el taller externo cuenta cómo van sus tareas (enlace sin sesión)
@@ -306,6 +307,7 @@ require('./obras-clientes').montar(app, asyncH);   // Obras (dirección con sus 
 require('./gantt').montar(app, asyncH);   // Gantt: plan por semanas, riesgo de cada OT y carga
 require('./gantt-informe').montar(app, asyncH);   // Gantt de un proyecto en PDF o imagen (para clientes, proveedores, pliegos)
 require('./planificar-ot').montar(app, asyncH);   // Planificar una OT de una vez, moverla entera y deshacer
+require('./ia').montar(app, asyncH, { puerto: Number(process.env.PORT || 3000) });   // Pasarela de IA: herramientas, registro, ajustes, claves
 require('./incidencias').montar(app, asyncH);   // incidencias: material, transporte, calidad… con reclamación y cierre
 require('./pedido-transporte').montar(app, asyncH);   // cómo llega cada pedido: proveedor, recogida o almacén del transportista
 require('./recursos')(app, asyncH);

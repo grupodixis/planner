@@ -2888,3 +2888,35 @@ svg.gt-unir circle { fill: #9cc3ff; }
 .roles-tabla .rt-c input { width: 17px; height: 17px; }
 .roles-tabla tbody tr:hover th, .roles-tabla tbody tr:hover td { background: #ffffff08; }
 .roles-tabla tr.sel .rt-rol { box-shadow: inset 3px 0 0 var(--azul); }
+
+/* IA · pasarela */
+.ia-main { padding: 0 16px 16px; display: grid; gap: 12px; }
+.ia-estado { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.ia-on.si { color: #6fcf7f; font-weight: 600; } .ia-on.no { color: #ff8a8a; font-weight: 600; }
+.ia-apagar { border-color: #7a3a3a !important; color: #ff9a9a; }
+.ia-chk { display: inline-flex; gap: 6px; align-items: center; font-size: 13px; }
+.ia-num { width: 80px; }
+.ia-tabla { width: 100%; border-collapse: collapse; font-size: 13px; }
+.ia-tabla th { text-align: left; color: var(--suave); font-weight: 500; font-size: 12px; padding: 6px; }
+.ia-tabla td { border-top: 1px solid var(--linea); padding: 7px 6px; vertical-align: top; }
+.ia-tabla .c { text-align: center; }
+.ia-tabla small { display: block; color: var(--suave); font-size: 11px; }
+.ia-nom { font-family: ui-monospace, monospace; font-size: 12.5px; }
+.ia-desc { max-width: 560px; }
+.ia-chip { display: inline-block; border-radius: 10px; padding: 1px 8px; font-size: 11px; font-weight: 600; white-space: nowrap; }
+.ia-chip.lee { background: #1e3a5f; color: #9cc3ff; } .ia-chip.bor { background: #3a2f10; color: #f0b060; }
+.ia-chip.con { background: #4a1f1f; color: #ff9a9a; } .ia-chip.nun { background: #333; color: #999; }
+.ia-filtros { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.ia-reg .ia-args { font-size: 12px; color: #bbb; max-width: 320px; word-break: break-word; }
+.ia-ok { color: #6fcf7f; } .ia-mal { color: #ff8a8a; }
+.ia-claves-cab { display: flex; justify-content: space-between; align-items: center; margin: 8px 0; }
+.ia-revocada { opacity: .5; }
+dialog.ia-dlg { width: min(760px, calc(100vw - 32px)); max-height: calc(100vh - 40px); overflow: auto; padding: 14px 18px; }
+.ia-dlg-cab { display: flex; justify-content: space-between; align-items: center; }
+.ia-dlg-cab h2 { margin: 0; font-size: 16px; font-family: ui-monospace, monospace; }
+.ia-campos { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; margin: 10px 0; }
+.ia-campo { display: flex; flex-direction: column; gap: 3px; font-size: 12px; color: var(--suave); }
+.ia-campo small { font-size: 11px; }
+.ia-dlg-pie { display: flex; justify-content: flex-end; gap: 8px; margin: 8px 0; }
+.ia-salida { background: #0f0f0f; border: 1px solid var(--borde); border-radius: 8px; padding: 10px; font-size: 12px; max-height: 50vh; overflow: auto; white-space: pre-wrap; word-break: break-word; }
+.ia-clave { font-size: 14px; color: #f0b060; user-select: all; }

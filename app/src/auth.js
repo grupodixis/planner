@@ -22,6 +22,7 @@ const PERMISOS = {
   autorizar_compras_locales: 'Autorizar compras locales (ferretería…) que piden los operarios',
   autorizar_horas_extra: 'Autorizar horas extra (fuera del turno de cada persona)',
   mi_dia: 'Apuntar su propio día (Mi día). Solo, sin otros permisos: no ve nada más',
+  ia: 'Usar la IA: asistente y conectar Claude Code / Antigravity (solo con sus propios permisos)',
 };
 // Permisos de un usuario «u»: los de su rol más los de sus roles añadidos (varios roles)
 const SQL_PERMISOS = `ARRAY(SELECT DISTINCT p FROM roles rr, unnest(rr.permisos) p WHERE rr.clave = u.rol OR rr.clave = ANY(u.roles_extra))`;
@@ -81,8 +82,30 @@ async function cerrarSesion(req, res) {
 const tokenActual = (req) => leerCookie(req, COOKIE);
 
 // Middleware: carga req.usuario (con sus permisos) o responde 401
+// Llamadas internas de la pasarela de IA (src/ia.js): solo desde esta máquina, con el secreto del proceso y SOLO GET.
+// Cargan el usuario en cuyo nombre actúa la IA, con sus permisos (nunca más).
+const SECRETO_IA = crypto.randomBytes(32).toString('hex');
+const LOCAL = new Set(['127.0.0.1', '::1', '::ffff:127.0.0.1']);
+async function sesionIA(req, res, next) {
+  const dado = Buffer.from(String(req.headers['x-ia-clave'] || ''));
+  const bueno = Buffer.from(SECRETO_IA);
+  if (!LOCAL.has(req.socket.remoteAddress) || dado.length !== bueno.length || !crypto.timingSafeEqual(dado, bueno)) {
+    return res.status(401).json({ error: 'No autenticado' });
+  }
+  if (req.method !== 'GET') return res.status(403).json({ error: 'La IA solo puede consultar (solo lectura)' });
+  const { rows } = await query(
+    `SELECT u.id, u.email, u.nombre, u.rol, u.recurso_id, r.nombre AS rol_nombre, u.roles_extra, ${SQL_PERMISOS} AS permisos, 'ia' AS via
+       FROM usuarios u LEFT JOIN roles r ON r.clave = u.rol WHERE u.id = $1 AND u.activo`, [Number(req.headers['x-ia-usuario'])]);
+  if (!rows.length) return res.status(401).json({ error: 'Usuario no válido' });
+  req.usuario = rows[0];
+  req.usuario.solo_mi_dia = soloMiDia(req.usuario);
+  req.ia = true;
+  return next();
+}
+
 async function requiereSesion(req, res, next) {
   try {
+    if (req.headers['x-ia-clave']) return await sesionIA(req, res, next);
     const token = leerCookie(req, COOKIE);
     if (!token) return res.status(401).json({ error: 'No autenticado' });
     const { rows } = await query(
@@ -151,5 +174,5 @@ async function asegurarAdmin() {
 
 module.exports = {
   PERMISOS, SQL_PERMISOS, soloMiDia, leerCookie, hashPassword, verificarPassword, validarPassword, crearSesion, cerrarSesion, tokenActual,
-  requiereSesion, permiso, tiene, puedeEditar, asegurarAdmin, bloqueado, anotarFallo, anotarAcierto,
+  SECRETO_IA, requiereSesion, permiso, tiene, puedeEditar, asegurarAdmin, bloqueado, anotarFallo, anotarAcierto,
 };

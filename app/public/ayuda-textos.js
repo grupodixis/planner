@@ -428,6 +428,23 @@ window.S360_AYUDA = {
       ],
     },
 
+    '/ia.html': {
+      titulo: 'IA',
+      para_que: 'La pasarela de la IA: qué herramientas puede usar (por ahora solo de lectura), quién la usa y cómo conectar Claude Code o Antigravity con tus permisos. Todo lo que hace queda en el registro.',
+      recorridos: [
+        {
+          id: 'ia-basico', version: 1, si: ['ia', 'usuarios'], ofrecer: true, duracion: '1 min',
+          titulo: 'Cómo funciona la IA',
+          pasos: [
+            { sel: '#ia-estado', texto: '<b>Interruptor general</b>, canales (MCP = Claude Code/Antigravity; App = el asistente, próximamente) y <b>límite de consultas</b> por persona y día. Solo lo cambia quien gestiona usuarios.' },
+            { sel: '#ia-herr', texto: 'Las <b>herramientas</b>: lo único que la IA puede hacer. Todas <b>leen</b>, usando la misma API que las pantallas y con los permisos de quien pregunta. Se pueden apagar una a una. «<b>Probar</b>» enseña exactamente lo que recibiría la IA.' },
+            { sel: '#ia-mcp', texto: '<b>Conectar Claude Code / Antigravity</b>: crea una clave (se ve una sola vez), pégala en su configuración MCP y tus Skills podrán consultar la planificación, OTs, compras… Si se pierde, <b>Revocar</b>.' },
+            { sel: '#ia-reg', texto: 'El <b>registro</b>: cada consulta con quién, por qué canal, qué datos pidió y el resultado. Quien gestiona usuarios ve el de todos; los demás, el suyo.' },
+          ],
+        },
+      ],
+    },
+
     '/mi-dia.html': {
       titulo: 'Mi día',
       para_que: 'Tu trabajo de hoy: dónde, con quién y qué necesitas. Al terminar, apunta cómo fue y envíalo al encargado. El móvil es para confirmar y avisar; lo demás se hace en la oficina.',
@@ -686,5 +703,6 @@ window.S360_AYUDA = {
     { id: 34, fecha: '2026-11-25', si: ['planificar'], titulo: 'Reorganizar dependencias', texto: 'En el <b>Gantt</b>, si una tarea empieza antes de que acabe su previa, <b>⇉ Reorganizar</b> (en la OT, o al pulsar la flecha roja) la corre lo justo y, <b>en cadena, todo lo que va después</b>, respetando esperas, fines de semana y festivos. Nada se adelanta, se ve antes de hacerlo y se puede deshacer.', ir: '/gantt.html' },
     { id: 35, fecha: '2026-11-25', si: ['planificar'], titulo: 'Falta alguien que sepa…: asignar a otro igualmente', texto: 'En el cuadrante, en el aviso «Necesita alguien que sepa…» → <b>Solucionar</b> salen dos listas: quien <b>la tiene marcada</b> y el resto de operarios (<b>no la tienen marcada</b>), para poder asignar a otro aunque nadie la sepa.', ir: '/' },
     { id: 36, fecha: '2026-11-25', si: ['usuarios'], titulo: 'Roles y permisos más claros', texto: 'En <b>Usuarios › Roles y permisos</b>: lista de roles a la izquierda y, al elegir uno, sus permisos <b>agrupados por áreas</b> (planificación, proyectos, personas, compras, informes, administración) con lo que permite cada uno. «<b>Comparar todos</b>» los enseña en una tabla con los nombres legibles.', ir: '/usuarios.html' },
+    { id: 37, fecha: '2026-11-25', si: ['ia', 'usuarios'], titulo: 'IA: pasarela, registro y herramientas de lectura', texto: 'Nueva pantalla <b>Recursos › IA</b>. La IA no toca la base de datos: solo usa <b>14 herramientas de lectura</b> (OTs en riesgo, cuadrante del día, agenda de una persona, quién está libre, pedidos, envíos, incidencias, clientes, materiales…) con <b>tus</b> permisos, y todo queda en el <b>registro</b>. Crea una <b>clave</b> para conectar <b>Claude Code o Antigravity</b> por MCP.', ir: '/ia.html' },
   ],
 };

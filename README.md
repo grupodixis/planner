@@ -1371,6 +1371,25 @@ API: `/api/catalogo-llevar` · `/api/partidas/:id/escandallo` (+ `/enviar`) · `
   `{tipo: material|herramienta, id, hecho}`) y en el detalle de la tarea del cuadrante se ve
   «✔ recibido: Juan Robles» / «✔ preparada: …».
 
+## IA: pasarela, registro y herramientas (Recursos › IA)
+
+La IA es **un cliente más de la API**, nunca toca la base de datos. Solo puede usar las **herramientas** registradas en `src/ia.js`; cada una llama internamente a los mismos `GET /api/...` que las pantallas, **en nombre del usuario** que pregunta y **con sus permisos** (cabecera secreta por proceso `x-ia-clave` + `x-ia-usuario`, solo desde 127.0.0.1; cualquier método que no sea GET devuelve 403).
+
+- **Herramientas (fase 1, todas de lectura)**: `ots_en_riesgo`, `proyectos_buscar`, `ot_detalle`, `planificacion_dia`, `agenda_persona`, `personas_libres`, `ausencias`, `pedidos_compra`, `envios_transporte`, `incidencias`, `clientes_buscar`, `obras_buscar`, `capacidades_quien`, `materiales_buscar`. Cada una declara grupo, descripción, esquema de entrada, riesgo (`leer` / `borrador` / `confirmar` / `nunca`) y canales.
+- **Ajustes** (`ajustes.ia`, solo con permiso `usuarios`): interruptor general, canales `mcp` y `app`, límite de consultas por persona y 24 h, y apagar herramientas por canal.
+- **Registro** (`ia_registro`): cada llamada con usuario, canal (`mcp`, `app`, `prueba`), clave usada, herramienta, datos, resultado o error, ms y bytes. Quien tiene `usuarios` ve el de todos.
+- **Probar**: `POST /api/ia/probar/:nombre` ejecuta la herramienta con tus permisos y enseña lo que recibiría la IA.
+- **Conectar Claude Code / Antigravity (MCP)**: cada persona con permiso `ia` crea claves (`s360ia_…`, se guardan con sha256 y se ven una sola vez) y puede revocarlas. Servidor MCP en `POST /mcp` (Streamable HTTP sin estado, respuestas JSON) con `Authorization: Bearer <clave>`:
+
+  ```
+  claude mcp add --transport http planealo https://administrador.hamenorca.com/mcp --header "Authorization: Bearer s360ia_…"
+  ```
+
+- Permiso nuevo **`ia`** (el rol administrador lo recibe al migrar).
+- **Próximas fases**: asistente dentro de la app (necesita la clave de un proveedor de IA, que se configura en el servidor), herramientas que **preparan borradores** (presupuestos, pedidos, albaranes) que una persona confirma, y WhatsApp más adelante.
+
+Endpoints: `GET /api/ia`, `PUT /api/ia/ajustes`, `POST /api/ia/probar/:nombre`, `GET /api/ia/registro`, `GET|POST /api/ia/claves`, `DELETE /api/ia/claves/:id`, `POST /mcp`.
+
 ## API
 
 | Método | Ruta | Uso |
