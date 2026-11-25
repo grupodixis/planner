@@ -2827,3 +2827,4 @@ svg.gt-unir circle { fill: #9cc3ff; }
 .gt-dep-mal { color: #ff8a8a; margin: 6px 0 0; } .gt-dep-ok { color: #6fcf7f; margin: 6px 0 0; }
 .gt-dep-pie { justify-content: space-between; }
 .gt-dep-der { display: flex; gap: 8px; }
+.gt-bb[data-tid] { min-width: 4px; }

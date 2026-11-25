@@ -114,23 +114,29 @@
     }[est.agrupar]);
     for (const o of ots) { const [k, t, s, u] = claveDe(o); if (!grupos.has(k)) grupos.set(k, { t, s, u, ots: [] }); grupos.get(k).ots.push(o); }
 
-    const barra = (a, b, cls, txt, title, onclick) => {
+    // hIni / hFin: hora a la que empieza el primer día y acaba el último (si se sabe): la barra empieza y acaba ahí
+    const J = d.jornada || { inicio: 7, fin: 15 };
+    const frac = (h) => Math.min(1, Math.max(0, (h - J.inicio) / ((J.fin - J.inicio) || 8)));
+    const diaW = 100 / dias;
+    const barra = (a, b, cls, txt, title, onclick, hIni = null, hFin = null) => {
       const ini = a < d.desde ? d.desde : a; const fin = b > d.hasta ? d.hasta : b;
       if (fin < d.desde || ini > d.hasta) return null;
+      const izq = pos(ini) + (ini === a && hIni != null ? frac(hIni) * diaW : 0);
+      const der = pos(masDias(fin, 1)) - (fin === b && hFin != null ? (1 - frac(hFin)) * diaW : 0);
       // al pulsar, el día que queda bajo el ratón
       const pulsar = onclick && ((ev) => {
         const r = ev.currentTarget.getBoundingClientRect();
         const n = Math.round((Date.parse(`${fin}T12:00:00Z`) - Date.parse(`${ini}T12:00:00Z`)) / 864e5) + 1;
         onclick(masDias(ini, Math.min(n - 1, Math.max(0, Math.floor(((ev.clientX - r.left) / (r.width || 1)) * n)))));
       });
-      return el(onclick ? 'button' : 'div', { type: onclick ? 'button' : null, class: `gt-bb ${cls}${a < d.desde ? ' corta-i' : ''}${b > d.hasta ? ' corta-d' : ''}`, style: { left: `${pos(ini)}%`, width: `${ancho(ini, fin)}%` }, title, onclick: pulsar }, txt ? el('span', {}, txt) : null);
+      return el(onclick ? 'button' : 'div', { type: onclick ? 'button' : null, class: `gt-bb ${cls}${a < d.desde ? ' corta-i' : ''}${b > d.hasta ? ' corta-d' : ''}`, style: { left: `${izq}%`, width: `${Math.max(der - izq, diaW * 0.08)}%` }, title, onclick: pulsar }, txt ? el('span', {}, txt) : null);
     };
     // punto al final de la última barra de una tarea, para unirla con otra (crear «después de»)
     const conector = (t) => {
       if (!puedeDeps() || est.prop || t.hecha || !t.segmentos.length) return null;
-      const u = t.segmentos[t.segmentos.length - 1][1];
+      const [, u, , hu] = t.segmentos[t.segmentos.length - 1];
       if (u < d.desde || u > d.hasta) return null;
-      const n = el('span', { class: 'gt-con', style: { left: `calc(${pos(masDias(u, 1))}% - 6px)` }, title: `Arrastra hasta otra tarea: irá después de ${t.codigo}`, 'aria-hidden': 'true' });
+      const n = el('span', { class: 'gt-con', style: { left: `calc(${pos(masDias(u, 1)) - (hu != null ? (1 - frac(hu)) * diaW : 0)}% - 6px)` }, title: `Arrastra hasta otra tarea: irá después de ${t.codigo}`, 'aria-hidden': 'true' });
       n.addEventListener('pointerdown', (ev) => unir(ev, t, n));
       return n;
     };
@@ -187,8 +193,8 @@
               el('button', { type: 'button', class: 'gt-t-n', title: 'Abrir la tarea', onclick: () => ir(cerca) }, el('b', { class: 'cod' }, t.codigo), ` ${t.nombre}`),
               el('div', { class: 'gt-sub' }, [t.proveedor ? `${{ ext: '🏭', trp: '🚚', sub: '🏗' }[t.clase] || ''} ${t.proveedor}` : t.area, t.hecha ? '✔ hecha' : t.sin_plan ? 'sin planificar' : t.falta_h ? `faltan ${t.falta_h} h` : null].filter(Boolean).join(' · '))),
             el('div', { class: 'gt-tl' }, fondo(),
-              t.segmentos.map(([a, b], i) => {
-                const n = barra(a, b, `${t.hecha ? 'hecha' : t.clase}`, i === 0 ? etiqueta(t) : null, null, ir);
+              t.segmentos.map(([a, b, hi, hf], i) => {
+                const n = barra(a, b, `${t.hecha ? 'hecha' : t.clase}`, i === 0 ? etiqueta(t) : null, null, ir, hi, hf);
                 if (n) n.dataset.tid = t.id;
                 return n;
               }),
@@ -434,6 +440,22 @@
   }
 
   /* ---------- flechas de dependencias ---------- */
+  // ¿la de detrás empieza antes de que acabe la previa + su espera? Con horas reales (o las de la propuesta)
+  const horaAbs = (f, h) => Date.parse(`${f}T00:00:00Z`) / 36e5 + (h ?? 0);
+  function segsDe(id) {
+    const pt = est.prop?.res?.tareas.find((x) => x.id === id);
+    if (pt) return pt.segmentos;
+    return tareaPorId(id)?.segmentos || [];
+  }
+  function pisa(dep) {
+    const p = tareaPorId(dep.de); const a = tareaPorId(dep.a);
+    if (!p || !a || p.hecha || a.hecha) return false;
+    const sp = segsDe(dep.de); const sa = segsDe(dep.a);
+    if (!sp.length || !sa.length) return false;
+    const [, fb, , hf] = sp.at(-1); const [ia, , hi] = sa[0];
+    const J = est.datos.jornada || { inicio: 7, fin: 15 };
+    return horaAbs(ia, hi ?? J.inicio) < horaAbs(fb, hf ?? J.fin) + (dep.espera_h || 0) - 0.01;
+  }
   // De la última barra de la previa a la primera de la que va detrás. Si una OT está plegada, la flecha sale o llega a la
   // barra de la OT (una sola por pareja). En rojo si la de detrás empieza antes de que acabe la previa. Con una propuesta
   // en curso se usan sus barras rayadas.
@@ -461,9 +483,14 @@
       const rb = bb.map((x) => x.getBoundingClientRect()).reduce((m, r) => (r.left < m.left ? r : m));
       const x1 = ra.right - caja.left; const y1 = ra.top + ra.height / 2 - caja.top;
       const x2 = rb.left - caja.left; const y2 = rb.top + rb.height / 2 - caja.top;
-      const mal = x2 < x1 - 2;
+      const mal = pisa(dep);
       let d;
       if (x2 >= x1 + 12) d = `M${x1} ${y1} H${x1 + 6} V${y2} H${x2 - 1}`;
+      else if (!mal) {
+        // empieza justo al acabar (o casi): baja recta y entra por la izquierda, sin dar la vuelta
+        const ym = y2 > y1 ? rb.top - caja.top - 3 : rb.bottom - caja.top + 3;
+        d = `M${x1} ${y1} H${x1 + 3} V${ym} H${Math.min(x1 + 3, x2 - 6)} V${y2} H${x2 - 1}`;
+      }
       else { const ym = y2 > y1 ? rb.top - caja.top - 4 : rb.bottom - caja.top + 4; d = `M${x1} ${y1} H${x1 + 6} V${ym} H${x2 - 8} V${y2} H${x2 - 1}`; }
       const txt = `${dep.espera_h ? `⏳ ${dep.espera_h} h` : ''}${dep.nota ? `${dep.espera_h ? ' · ' : ''}${dep.nota}` : ''}`;
       const esc = (x) => String(x).replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
@@ -667,8 +694,8 @@
   function barrasPropuesta(res, t, barra, diasVista) {
     const pt = res?.tareas.find((x) => x.id === t.id);
     if (!pt) return null;
-    return pt.segmentos.map(([a, b], i) => {
-      const n = barra(a, b, `prop${pt.ajuste ? ' aj' : ''}`, null, `${pt.codigo} propuesta: ${dm(a)}${a !== b ? ` → ${dm(b)}` : ''} · ${pt.area} · arrastra para cambiar el día`);
+    return pt.segmentos.map(([a, b, hi, hf], i) => {
+      const n = barra(a, b, `prop${pt.ajuste ? ' aj' : ''}`, null, `${pt.codigo} propuesta: ${dm(a)}${a !== b ? ` → ${dm(b)}` : ''} · ${pt.area} · arrastra para cambiar el día`, null, hi, hf);
       if (n && i === 0) arrastrable(n, diasVista, (dd) => `${dd > 0 ? '+' : ''}${dd} d → ${dm(masDias(pt.inicio, dd))}`, (dd) => {
         const p = est.prop;
         p.pila.push(JSON.parse(JSON.stringify(p.op)));

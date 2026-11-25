@@ -269,7 +269,9 @@ async function proponer(c, alcance, op) {
     const segs = [];
     for (const x of r.tramos) {
       const u = segs[segs.length - 1];
-      if (u && cal.labEntre(u[1], x.fecha) <= 1) u[1] = x.fecha; else if (!u || u[1] !== x.fecha) segs.push([x.fecha, x.fecha]);
+      if (u && cal.labEntre(u[1], x.fecha) <= 1) { u[1] = x.fecha; u[3] = x.hora_inicio + x.duracion_h; }
+      else if (u && u[1] === x.fecha) u[3] = Math.max(u[3], x.hora_inicio + x.duracion_h);
+      else segs.push([x.fecha, x.fecha, x.hora_inicio, x.hora_inicio + x.duracion_h]);
     }
     out.push({ id: t.id, orden_id: t.orden_id, codigo: t.codigo, nombre: t.nombre, horas: ct.pend, area: ct.linea.nombre, linea_id: ct.linea.id,
       clase: t.proveedor_id ? (t.ext_en_obra ? 'sub' : 'ext') : 'propia', proveedor: t.proveedor, ajuste: ajustes[t.id] || null,

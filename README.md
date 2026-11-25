@@ -876,7 +876,8 @@ La pantalla de planificación diaria (`/`, `public/app.js`) se llama **Cuadrante
 - La pantalla dibuja un SVG encima de `#gt-g`: de la última barra de la previa a la primera de la siguiente, midiendo el DOM (`data-t` y `data-o` en las filas).
   - Con una OT plegada, la flecha usa la barra de la OT, una por pareja.
   - Con una propuesta en curso, usa las barras rayadas.
-- En rojo discontinuo si la de detrás empieza antes de que acabe la previa.
+- Los segmentos de cada tarea llevan `[desde, hasta, hora_inicio_primer_día, hora_fin_último_día]` (también los de la propuesta), y el Gantt devuelve `jornada`. Así las barras empiezan y acaban a su hora dentro del día: una tarea que acaba a las 10:00 y la siguiente que empieza a las 10:00 ya no se ven solapadas.
+- En rojo discontinuo solo si, con horas reales, la de detrás empieza antes de que acabe la previa más la espera (`pisa()`; no cuenta si alguna está hecha). Si empieza justo al acabar, la flecha baja recta, sin dar la vuelta.
 - Botón «↳ Dependencias» (recordado); se redibuja al pintar y al cambiar el tamaño.
 - **Editar en el Gantt:**
   - `tarea_dependencias.nota` es una observación libre (el `PUT /api/tareas/:id/dependencias` de Proyectos la conserva).

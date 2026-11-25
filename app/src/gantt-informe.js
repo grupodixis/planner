@@ -98,7 +98,7 @@ function dibujar(d, op, { W, H = null }) {
   });
 
   /* ---- rango de fechas y escala ---- */
-  const fechas = ots.flatMap((o) => [o.inicio, o.fin, o.entrega, ...o.tareas.flatMap((t) => t.segmentos.flat())]).filter(Boolean).sort();
+  const fechas = ots.flatMap((o) => [o.inicio, o.fin, o.entrega, ...o.tareas.flatMap((t) => t.segmentos.flatMap((x) => [x[0], x[1]]))]).filter(Boolean).sort();
   let ini = fechas[0] || hoy; let fin = fechas[fechas.length - 1] || masDias(hoy, 27);
   if (op.hoy && hoy < ini && dias(hoy, ini) <= 14) ini = hoy;
   if (op.hoy && hoy > fin && dias(fin, hoy) <= 14) fin = hoy;

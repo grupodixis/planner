@@ -7,6 +7,7 @@
 //  · Carga por semana: oficios (horas-persona / capacidad de sus operarios según su turno, sin festivos ni ausencias de
 //    día entero), áreas (horas de reloj / jornada × días), talleres externos (días con trabajo) y subcontratas (horas-persona).
 const { query } = require('./db');
+const { jornada } = require('./config');
 const avance = require('./avance');
 
 const fechaOk = (v) => (v && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null);
@@ -29,6 +30,14 @@ function segmentos(fechas, libres) {
     out.push([f, f]);
   }
   return out;
+}
+// a cada segmento [desde, hasta] le añade la hora a la que empieza el primer día y a la que acaba el último
+function conHoras(segs, xs) {
+  return segs.map(([a, b]) => {
+    const ia = xs.filter((x) => x.fecha === a).map((x) => x.hi);
+    const fb = xs.filter((x) => x.fecha === b).map((x) => x.hi + x.h);
+    return [a, b, ia.length ? Math.min(...ia) : null, fb.length ? Math.max(...fb) : null];
+  });
 }
 function laborablesEntre(a, b, libres) { // días laborables de a (excl.) a b (incl.); negativo si b < a
   if (a === b) return 0;
@@ -59,7 +68,7 @@ async function datosOTs({ cerradas = false, proyectoId = null, desde, hasta, hoy
        FROM tareas t LEFT JOIN proveedores pv ON pv.id = t.proveedor_id LEFT JOIN lineas l ON l.id = t.linea_id
       WHERE t.orden_id = ANY($1) AND NOT t.baja_presupuesto ORDER BY t.orden_id, t.orden_en_of NULLS LAST, t.id`, [otIds]) : { rows: [] };
   const { rows: tramos } = otIds.length ? await query(
-    `SELECT x.tarea_id, x.fecha::text AS fecha, x.duracion_h::float AS h FROM tramos x JOIN tareas t ON t.id = x.tarea_id WHERE t.orden_id = ANY($1)`, [otIds]) : { rows: [] };
+    `SELECT x.tarea_id, x.fecha::text AS fecha, x.duracion_h::float AS h, x.hora_inicio::float AS hi FROM tramos x JOIN tareas t ON t.id = x.tarea_id WHERE t.orden_id = ANY($1)`, [otIds]) : { rows: [] };
   const porTarea = new Map();
   for (const x of tramos) { if (!porTarea.has(x.tarea_id)) porTarea.set(x.tarea_id, []); porTarea.get(x.tarea_id).push(x); }
   // gente asignada (de hoy en adelante) y si algún tramo tiene menos personas de las que pide la tarea
@@ -83,7 +92,7 @@ async function datosOTs({ cerradas = false, proyectoId = null, desde, hasta, hoy
     const xs = porTarea.get(t.id) || [];
     const plan_h = xs.reduce((s, x) => s + x.h, 0);
     const clase = t.proveedor_id ? (t.ext_en_obra ? 'sub' : (t.transportista || t.es_transporte ? 'trp' : 'ext')) : 'propia';
-    let segs = segmentos(xs.map((x) => x.fecha), libres);
+    let segs = conHoras(segmentos(xs.map((x) => x.fecha), libres), xs);
     // taller externo sin tramos: su fecha prevista (lo que dice el taller)
     if (!segs.length && clase !== 'propia' && clase !== 'sub' && t.ext_fin) segs = [[t.ext_fin, t.ext_fin]];
     const externa = t.proveedor_id && !t.ext_en_obra;
@@ -192,7 +201,7 @@ function montar(app, asyncH) {
       .filter((r) => r.h.some((n) => n > 0))
       .sort((a, b) => b.h.reduce((s, n) => s + n, 0) - a.h.reduce((s, n) => s + n, 0));
     res.json({
-      desde, hasta, hoy, semanas: weeks, festivos: [...libres].filter((f) => f >= masDias(desde, -60) && f <= masDias(hasta, 400)),
+      desde, hasta, hoy, semanas: weeks, jornada: { inicio: jornada.inicio, fin: jornada.fin }, festivos: [...libres].filter((f) => f >= masDias(desde, -60) && f <= masDias(hasta, 400)),
       ots: salida, deps,
       carga: { oficios: lista(oficios, 'h-persona'), areas: lista(areas, 'h'), talleres: lista(talleres, 'días'), subcontratas: lista(subcs, 'h-persona') },
     });
