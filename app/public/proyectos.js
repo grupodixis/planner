@@ -176,11 +176,17 @@
       try { await api('PATCH', `/api/areas/${o.id}`, { [k]: v }); toast('Obra guardada'); await recargar(); }
       catch (e) { toast(e.message, true); ev.target.value = o[k] || ''; }
     };
-    caja.replaceChildren(
+    // sin obra pero con dirección en el proyecto: el alta sale ya rellena con ella
+    const corta = String(p.obra || '').split(',').map((x) => x.trim()).filter(Boolean);
+    const propuesta = !obras.length && p.obra ? { nombre: `Obra · ${(corta[corta.length - 1] || corta[0] || '').slice(0, 60)}`, ubicacion: p.obra } : null;
+    caja.replaceChildren(...[
       el('div', { class: 'cond-cab' }, el('h3', {}, 'Obras'),
         el('span', { class: 'ayuda' }, p.estado === 'cerrado'
           ? 'proyecto cerrado: no salen en el tablero'
-          : obras.length ? 'filas del tablero mientras el proyecto esté activo' : 'sin obra (se crea al poner la dirección de obra)')),
+          : obras.length ? 'filas del tablero mientras el proyecto esté activo'
+            : propuesta ? 'aún no tiene: pulsa «Añadir obra» para crearla con la dirección del proyecto'
+              : 'sin obra: añádela si hay trabajo en el sitio del cliente')),
+      el('p', { class: 'ayuda obras-que' }, 'Cada obra es una fila del tablero (bajo «Obras») para planificar lo que se hace allí: montajes, mediciones, retoques…'),
       obras.length ? el('ul', { class: 'obras-lista' }, obras.map((o) => el('li', { class: o.activo ? '' : 'cumplida' },
         el('input', { value: o.nombre, maxlength: 80, disabled: !editar, 'aria-label': 'Nombre de la obra', onchange: guardar(o, 'nombre') }),
         el('input', { value: o.ubicacion || '', maxlength: 200, disabled: !editar, placeholder: 'Dirección', 'aria-label': 'Dirección de la obra', onchange: guardar(o, 'ubicacion') }),
@@ -206,10 +212,10 @@
           } catch (e) { toast(e.message, true); }
         },
       },
-      el('input', { name: 'nombre', placeholder: obras.length ? 'Otra obra (nombre)' : 'Nombre (p. ej. Obra · Finca Alaior)', maxlength: 80, 'aria-label': 'Nombre de la nueva obra' }),
-      el('input', { name: 'ubicacion', placeholder: 'Dirección', maxlength: 200, 'aria-label': 'Dirección de la nueva obra' }),
+      el('input', { name: 'nombre', placeholder: obras.length ? 'Otra obra (nombre)' : 'Nombre (p. ej. Obra · Finca Alaior)', maxlength: 80, 'aria-label': 'Nombre de la nueva obra', value: propuesta?.nombre || '' }),
+      el('input', { name: 'ubicacion', placeholder: 'Dirección', maxlength: 200, 'aria-label': 'Dirección de la nueva obra', value: propuesta?.ubicacion || '' }),
       el('button', { type: 'submit' }, 'Añadir obra')) : null,
-    );
+    ].filter(Boolean));
   }
 
   // Condiciones previas: lo que hay que confirmar antes de ejecutar (pago, RAL, pilares…)
