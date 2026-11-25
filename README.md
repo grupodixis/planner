@@ -827,7 +827,11 @@ La pantalla de planificación diaria (`/`, `public/app.js`) se llama **Cuadrante
   - en orden de dependencias (`tarea_dependencias` con `espera_h` en horas de calendario) y después `orden_en_of`;
   - en el área de la tarea, por medias horas dentro de la jornada (`config.jornada`), saltando fines de semana y festivos;
   - en las áreas exclusivas, solo en los huecos libres (lo ya planificado y lo propuesto); en las demás, sin límite.
-- Una previa de otra OT sin planificar no se espera, pero da aviso.
+- Fin de una previa (de la OT o de otra):
+  - lo propuesto, o su último tramo;
+  - si no está hecha, como mínimo la `ext_fin_prevista` del taller y como mínimo «ahora» (si su plan ya pasó, da aviso).
+- Una previa sin planificar y no hecha **bloquea**: la tarea y lo que va detrás no se colocan (`bloqueadas`), salvo `sinEsperar: true`, que coloca sin esperar y avisa.
+- Cada tarea propuesta devuelve `tras` (qué previa marca su inicio y cuándo acaba); el diálogo lo enseña en «Dónde va cada tarea».
 - Una tarea sin área no se coloca: se elige en el diálogo (`areas`) y al confirmar se le guarda.
 - `ajustes` es «no antes de» (lo que deja el arrastre); si las dependencias no lo permiten, avisa.
 - Modo `fin`: búsqueda binaria del inicio laborable más tardío con el que todo acaba ese día o antes; si ni empezando hoy llega, lo dice.

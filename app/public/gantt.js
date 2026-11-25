@@ -352,12 +352,21 @@
             el('li', {}, `${r.tareas.length} tarea${r.tareas.length > 1 ? 's' : ''} · ${r.horas} h en `, el('b', {}, `${r.n_tramos} tramos`)),
             el('li', {}, 'Del ', el('b', {}, fmt(r.inicio)), ' al ', el('b', {}, fmt(r.fin))),
             r.entrega ? el('li', { class: r.entrega.ok ? 'ok' : 'mal' }, `${r.entrega.ok ? '✔' : '✕'} ${r.entrega.texto}`) : el('li', { class: 'ayuda' }, 'La OT no tiene fecha de entrega')) : el('p', { class: 'ayuda' }, 'Nada que colocar todavía.')),
+        r.bloqueadas.length || op.sinEsperar ? el('div', { class: 'gt-pl-caja aviso' }, el('b', {}, '⏸ Esperan a una tarea sin planificar'),
+          r.bloqueadas.length ? el('ul', {}, r.bloqueadas.map((b) => el('li', {}, `${b.codigo} ${b.nombre} · ${b.horas} h → espera a `, el('b', {}, `${b.espera.codigo} ${b.espera.nombre}`), b.espera.otra_ot ? ' (otra OT)' : ''))) : null,
+          el('label', { class: 'gt-pl-opc' }, el('input', { type: 'checkbox', checked: !!op.sinEsperar, onchange: (ev) => { op.sinEsperar = ev.target.checked; calcular(); } }),
+            ' Colocarlas igualmente, sin esperar (no recomendado)'),
+          el('p', { class: 'ayuda' }, 'Lo normal es planificar antes la tarea previa y volver aquí.')) : null,
+        r.tareas.length ? el('details', { class: 'gt-pl-caja gt-pl-det', open: r.tareas.length <= 8 }, el('summary', {}, el('b', {}, 'Dónde va cada tarea')),
+          el('ul', {}, r.tareas.map((t) => el('li', {}, el('b', { class: 'cod' }, t.codigo), ` ${t.nombre}: `,
+            el('b', {}, t.inicio === t.fin ? fmt(t.inicio) : `${fmt(t.inicio)} → ${fmt(t.fin)}`), ` · ${t.area}`,
+            t.tras ? el('small', {}, `tras ${t.tras.codigo} ${t.tras.nombre}${t.tras.otra_ot ? ' (otra OT)' : ''}, que acaba el ${dm(t.tras.fin)}${t.tras.espera_h ? ` + ${t.tras.espera_h} h de espera` : ''}`) : null)))) : null,
         r.sin_area.length ? el('div', { class: 'gt-pl-caja' }, el('b', {}, 'Tareas sin área'),
           r.sin_area.map((t) => el('label', { class: 'gt-pl-area' }, el('span', {}, `${t.codigo} ${t.nombre} · ${t.horas} h`),
             el('select', { onchange: (ev) => { if (ev.target.value) op.areas[t.id] = Number(ev.target.value); else delete op.areas[t.id]; calcular(); } },
               el('option', { value: '' }, '— elegir área —'), r.areas.map((a) => el('option', { value: a.id, selected: op.areas[t.id] === a.id }, a.nombre))))),
           el('p', { class: 'ayuda' }, 'Al confirmar, la tarea se queda con esa área.')) : null,
-        el('div', { class: 'gt-pl-caja' }, el('b', {}, 'Avisos'), listaAvisos(r.avisos.filter((a) => a.tipo !== 'sin_area')))].filter(Boolean));
+        el('div', { class: 'gt-pl-caja' }, el('b', {}, 'Avisos'), listaAvisos(r.avisos.filter((a) => a.tipo !== 'sin_area' && a.tipo !== 'bloqueo')))].filter(Boolean));
     };
     const modo = (v, titulo, ayuda) => el('label', { class: `gt-pl-modo${op.modo === v ? ' on' : ''}` },
       el('input', { type: 'radio', name: 'gt-pl-modo', checked: op.modo === v, onchange: () => {

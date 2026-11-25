@@ -57,7 +57,7 @@ async function leerOT(c, ordenId) {
   const { rows: tareas } = await c.query(
     `SELECT t.id, t.codigo, t.nombre, t.duracion_h::float AS duracion_h, GREATEST(COALESCE(t.operarios_req, 1), 1) AS personas,
             t.linea_id, l.nombre AS area, l.exclusiva, t.estado, t.orden_en_of, t.proveedor_id, t.ext_en_obra,
-            pv.nombre AS proveedor, COALESCE(t.baja_presupuesto, false) AS baja,
+            pv.nombre AS proveedor, COALESCE(t.baja_presupuesto, false) AS baja, t.ext_fin_prevista::text AS ext_fin,
             COALESCE((SELECT sum(x.duracion_h) FROM tramos x WHERE x.tarea_id = t.id), 0)::float AS planificadas,
             (SELECT json_build_object('fecha', x.fecha::text, 'hora', x.hora_inicio + x.duracion_h) FROM tramos x
               WHERE x.tarea_id = t.id ORDER BY x.fecha DESC, x.hora_inicio + x.duracion_h DESC LIMIT 1) AS ultimo
@@ -66,6 +66,7 @@ async function leerOT(c, ordenId) {
   const ids = tareas.map((t) => t.id);
   const { rows: deps } = ids.length ? await c.query(
     `SELECT d.tarea_id, d.depende_de_id, COALESCE(d.espera_h, 0)::float AS espera_h, p.codigo, p.nombre, p.orden_id, p.estado,
+            p.ext_fin_prevista::text AS ext_fin, (SELECT codigo FROM ordenes WHERE id = p.orden_id) AS orden_codigo,
             (SELECT json_build_object('fecha', x.fecha::text, 'hora', x.hora_inicio + x.duracion_h) FROM tramos x
               WHERE x.tarea_id = p.id ORDER BY x.fecha DESC, x.hora_inicio + x.duracion_h DESC LIMIT 1) AS ultimo
        FROM tarea_dependencias d JOIN tareas p ON p.id = d.depende_de_id
@@ -83,6 +84,7 @@ async function proponer(c, ordenId, op) {
   if (modo === 'fin' && op.fecha < hoy) throw fallo(400, 'Esa fecha ya ha pasado');
   const ajustes = {};
   for (const [k, v] of Object.entries(op.ajustes || {})) if (FECHA_RE.test(v)) ajustes[Number(k)] = v;
+  const sinEsperar = !!op.sinEsperar;   // colocar aunque una previa no esté planificada
   const areasElegidas = {};
   for (const [k, v] of Object.entries(op.areas || {})) if (Number(v) > 0) areasElegidas[Number(k)] = Number(v);
 
@@ -138,25 +140,46 @@ async function proponer(c, ordenId, op) {
     for (const r of rows) { const k = `${r.linea_id}|${r.fecha}`; if (!ocupado.has(k)) ocupado.set(k, []); ocupado.get(k).push([r.a, r.b]); }
   }
   const tUlt = (u) => (u ? num(u.fecha) * 24 + Number(u.hora) : null);
+  const BLOQ = -1;   // previa sin planificar: lo que va detrás no se coloca
+  const [hh0, mm0] = new Date().toLocaleTimeString('en-GB', { timeZone: 'Europe/Madrid', hour: '2-digit', minute: '2-digit', hour12: false }).split(':').map(Number);
+  const ahoraH = hh0 + mm0 / 60;
+  const ahora = num(hoy) * 24 + ahoraH;
 
   // una pasada hacia delante desde el día S
   const pasada = (S) => {
     const occ = new Map([...ocupado].map(([k, v]) => [k, v.map((x) => [...x])]));
-    const fin = new Map(); const res = new Map(); const notas = [];
+    const fin = new Map(); const res = new Map(); const notas = []; const bloqueadas = []; const bloqueo = new Map();
     for (const t of orden) {
-      // fin de las previas: lo propuesto, o su último tramo ya planificado
-      let t0 = null; let porDep = null;
+      // fin de las previas: lo propuesto, su último tramo ya planificado o lo que ha dicho el taller (fecha prevista).
+      // Una previa sin hacer cuyo plan ya pasó no puede acabar antes de ahora; una sin planificar BLOQUEA (salvo «sin esperar»).
+      let t0 = null; let porDep = null; let espera = null;
       const ct = colocar.get(t.id);
       for (const d of previas.get(t.id) || []) {
+        const p = porId.get(d.depende_de_id);
+        const est = p ? p.estado : d.estado;
         let f = fin.get(d.depende_de_id);
-        if (f == null) {
-          const p = porId.get(d.depende_de_id);
-          f = p ? tUlt(p.ultimo) : tUlt(d.ultimo);
-          if (ct && f == null && d.estado !== 'hecha' && !(p && sinArea.some((x) => x.id === p.id))) notas.push({ tipo: 'dep', t, d });
+        if (f === undefined) {
+          f = tUlt((p || d).ultimo);
+          const ext = (p || d).ext_fin;
+          if (ext && est !== 'hecha') { const fe = num(ext) * 24 + jornada.fin; if (f == null || fe > f) f = fe; }
+          if (f != null && est !== 'hecha' && f < ahora) { if (ct && f < num(hoy) * 24) notas.push({ tipo: 'retraso', t, d, p, hasta: f }); f = ahora; }
         }
-        if (f != null) { const x = f + d.espera_h; if (t0 == null || x > t0) { t0 = x; porDep = d; } }
+        if (f == null || f === BLOQ) {
+          if (est === 'hecha') continue;
+          if (!sinEsperar) { espera = espera || (bloqueo.get(d.depende_de_id) || d); continue; }
+          if (ct) notas.push({ tipo: 'dep', t, d });
+          continue;
+        }
+        const x = f + d.espera_h; if (t0 == null || x > t0) { t0 = x; porDep = { ...d, fin: f }; }
       }
-      if (!ct) { if (t.ultimo) fin.set(t.id, tUlt(t.ultimo)); continue; }
+      if (espera) { fin.set(t.id, BLOQ); bloqueo.set(t.id, espera); if (ct) bloqueadas.push({ t, ct, espera }); continue; }
+      if (!ct) {
+        const u = tUlt(t.ultimo);
+        if (t.estado === 'hecha') fin.set(t.id, u);
+        else if (u == null && sinArea.some((x) => x.id === t.id)) fin.set(t.id, null);
+        else fin.set(t.id, u == null ? null : Math.max(u, ahora));
+        continue;
+      }
       const aj = ajustes[t.id];
       let base = aj ? num(aj) * 24 + jornada.inicio : S * 24 + jornada.inicio;
       if (aj && t0 != null && t0 > base) notas.push({ tipo: 'ajuste', t, d: porDep, desde: t0 });
@@ -188,11 +211,11 @@ async function proponer(c, ordenId, op) {
       }
       const ult = tramos[tramos.length - 1];
       fin.set(t.id, ult ? num(ult.fecha) * 24 + ult.hora_inicio + ult.duracion_h : base);
-      res.set(t.id, { tramos, deseado, ocupadoHasta: tramos[0] && num(tramos[0].fecha) > deseado && ct.linea.exclusiva ? tramos[0].fecha : null, sinHueco: rem > 0 });
+      res.set(t.id, { tras: porDep && t0 != null && Math.floor(t0 / 24) >= deseado ? porDep : null, tramos, deseado, ocupadoHasta: tramos[0] && num(tramos[0].fecha) > deseado && ct.linea.exclusiva ? tramos[0].fecha : null, sinHueco: rem > 0 });
     }
     let maxFin = null;
     for (const [, r] of res) for (const x of r.tramos) if (!maxFin || x.fecha > maxFin) maxFin = x.fecha;
-    return { res, notas, fin: maxFin };
+    return { res, notas, fin: maxFin, bloqueadas };
   };
 
   // modo «terminar como tarde»: el inicio más tardío (en días laborables) con el que todo acaba ese día o antes
@@ -222,16 +245,24 @@ async function proponer(c, ordenId, op) {
     }
     out.push({ id: t.id, codigo: t.codigo, nombre: t.nombre, horas: ct.pend, area: ct.linea.nombre, linea_id: ct.linea.id,
       clase: t.proveedor_id ? (t.ext_en_obra ? 'sub' : 'ext') : 'propia', proveedor: t.proveedor, ajuste: ajustes[t.id] || null,
-      tramos: r.tramos, segmentos: segs, inicio: r.tramos[0]?.fecha || null, fin: r.tramos.at(-1)?.fecha || null });
+      tramos: r.tramos, segmentos: segs, inicio: r.tramos[0]?.fecha || null, fin: r.tramos.at(-1)?.fecha || null,
+      tras: r.tras ? { codigo: r.tras.codigo, nombre: r.tras.nombre, otra_ot: !porId.has(r.tras.depende_de_id), fin: fecha(Math.floor(r.tras.fin / 24)), espera_h: r.tras.espera_h } : null });
     if (r.ocupadoHasta) avisos.push({ tipo: 'area', texto: `${ct.linea.nombre}: ocupada el ${dm(fecha(r.deseado))} → ${t.codigo} empieza el ${dm(r.ocupadoHasta)}` });
     if (r.sinHueco) avisos.push({ tipo: 'area', texto: `${t.codigo}: no cabe en ${ct.linea.nombre} en los próximos meses` });
     if (t.proveedor_id) avisos.push({ tipo: 'ext', texto: `«${t.nombre}» va a ${t.proveedor} (${t.ext_en_obra ? 'subcontrata en obra' : 'taller externo'}): ${r.tramos[0] ? `del ${dm(r.tramos[0].fecha)} al ${dm(r.tramos.at(-1).fecha)}` : ''}, sin confirmar con ellos` });
   }
   for (const n of p.notas) {
     if (n.tipo === 'dep') avisos.push({ tipo: 'dep', texto: `${n.t.codigo} depende de ${n.d.codigo} «${n.d.nombre}», que aún no está planificada: se coloca sin esperarla` });
+    if (n.tipo === 'retraso') avisos.push({ tipo: 'dep', texto: `${n.d.codigo} «${n.d.nombre}» (previa de ${n.t.codigo}) iba hasta el ${dm(fecha(Math.floor(n.hasta / 24)))} y no está hecha: se cuenta desde hoy` });
     if (n.tipo === 'ajuste') avisos.push({ tipo: 'ajuste', texto: `${n.t.codigo} no puede empezar antes del ${dm(fecha(Math.floor(n.desde / 24)))}: espera a ${n.d.codigo}` });
   }
   for (const s of sinArea) avisos.push({ tipo: 'sin_area', texto: `${s.codigo} «${s.nombre}» no tiene área: elige una para colocarla` });
+  const bloqueadas = p.bloqueadas.map((b) => ({ id: b.t.id, codigo: b.t.codigo, nombre: b.t.nombre, horas: b.ct.pend,
+    espera: { codigo: b.espera.codigo, nombre: b.espera.nombre, otra_ot: !porId.has(b.espera.depende_de_id ?? b.espera.id) } }));
+  if (bloqueadas.length) {
+    const por = [...new Set(bloqueadas.map((b) => `${b.espera.codigo} «${b.espera.nombre}»`))];
+    avisos.unshift({ tipo: 'bloqueo', texto: `No se ${bloqueadas.length > 1 ? `colocan ${bloqueadas.length} tareas` : `coloca ${bloqueadas[0].codigo}`}: esperan a ${por.join(', ')}, que aún no está planificada` });
+  }
 
   // gente: horas-persona de cada día (lo que ya hay + lo propuesto) frente a las personas disponibles
   if (nTramos) {
@@ -266,7 +297,7 @@ async function proponer(c, ordenId, op) {
   if (modo === 'fin' && noLlega) avisos.unshift({ tipo: 'no_llega', texto: `Aun empezando hoy, termina el ${dm(fin)}: no llega al ${dm(op.fecha)}` });
   return {
     ot: { id: ot.id, codigo: ot.codigo, titulo: ot.titulo, entrega: ot.entrega }, modo, fecha: op.fecha,
-    inicio: ini, fin, entrega, tareas: out, sin_area: sinArea, avisos, horas: r1(horas), n_tramos: nTramos,
+    inicio: ini, fin, entrega, tareas: out, sin_area: sinArea, bloqueadas, sin_esperar: sinEsperar, avisos, horas: r1(horas), n_tramos: nTramos,
     areas: lineas.map((l) => ({ id: l.id, nombre: l.nombre, tipo: l.tipo })),
   };
 }
@@ -378,7 +409,7 @@ const resumenDeshacer = (d) => {
 
 /* ---------- rutas ---------- */
 function montar(app, asyncH) {
-  const leerOp = (b) => ({ modo: b?.modo, fecha: b?.fecha, ajustes: b?.ajustes || {}, areas: b?.areas || {} });
+  const leerOp = (b) => ({ modo: b?.modo, fecha: b?.fecha, ajustes: b?.ajustes || {}, areas: b?.areas || {}, sinEsperar: !!b?.sinEsperar });
 
   // Propuesta (no cambia nada; en /api/plan-vista/… para no avisar a las demás pantallas)
   app.post('/api/plan-vista/ordenes/:id/planificar', auth.permiso('planificar'), asyncH(async (req, res) => {
