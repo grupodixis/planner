@@ -315,7 +315,9 @@
             onclick: () => window.s360mat.escandallo({ partida: pa, alCerrar: cargarOTs }) }, '📋 Escandallo', pa.n_escandallo ? el('span', { class: 'llv-n' }, String(pa.n_escandallo)) : null),
           el('a', { class: 'boton ghost mini', href: `/asignar.html?partida=${pa.id}`,
             title: pa.sin_asignar ? `${pa.sin_asignar} material(es) del escandallo sin asignar a tareas` : 'Asignar materiales y herramientas a las tareas' },
-          '🧩 Asignar', pa.sin_asignar ? el('span', { class: 'llv-n aviso' }, `⚠ ${pa.sin_asignar}`) : null)) : null,
+          '🧩 Asignar', pa.sin_asignar ? el('span', { class: 'llv-n aviso' }, `⚠ ${pa.sin_asignar}`) : null),
+          window.s360.tiene?.('planificar') && ots.some((o) => o.estado !== 'cerrada')
+            ? el('a', { class: 'boton ghost mini', href: `/gantt.html?partida=${pa.id}&planificar=1`, title: 'Planificar de una vez todas las OTs de esta partida (propuesta en el Gantt)' }, '🗓 Planificar') : null) : null,
         el('span', { class: 'gp-sub' }, [
           `${ots.length} OT`,
           pa?.horas ? `${durTxt(pa.horas_planificadas)}/${durTxt(pa.horas)}` : null,

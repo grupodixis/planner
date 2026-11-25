@@ -50,19 +50,24 @@ async function calendario(c, desde, hasta) {
 
 /* ---------- datos de la OT ---------- */
 async function leerOT(c, ordenId) {
+  const r = await leerOTs(c, [ordenId]);
+  return { ...r, ot: r.ots[0] };
+}
+async function leerOTs(c, ordenIds) {
   const { rows: o } = await c.query(
     `SELECT o.id, o.codigo, o.titulo, o.estado, o.fecha_entrega::text AS entrega, o.proyecto_id, p.codigo AS proyecto
-       FROM ordenes o LEFT JOIN proyectos p ON p.id = o.proyecto_id WHERE o.id = $1`, [ordenId]);
+       FROM ordenes o LEFT JOIN proyectos p ON p.id = o.proyecto_id WHERE o.id = ANY($1)
+      ORDER BY o.codigo`, [ordenIds]);
   if (!o.length) throw fallo(404, 'OT no encontrada');
   const { rows: tareas } = await c.query(
-    `SELECT t.id, t.codigo, t.nombre, t.duracion_h::float AS duracion_h, GREATEST(COALESCE(t.operarios_req, 1), 1) AS personas,
+    `SELECT t.id, t.orden_id, t.codigo, t.nombre, t.duracion_h::float AS duracion_h, GREATEST(COALESCE(t.operarios_req, 1), 1) AS personas,
             t.linea_id, l.nombre AS area, l.exclusiva, t.estado, t.orden_en_of, t.proveedor_id, t.ext_en_obra,
             pv.nombre AS proveedor, COALESCE(t.baja_presupuesto, false) AS baja, t.ext_fin_prevista::text AS ext_fin,
             COALESCE((SELECT sum(x.duracion_h) FROM tramos x WHERE x.tarea_id = t.id), 0)::float AS planificadas,
             (SELECT json_build_object('fecha', x.fecha::text, 'hora', x.hora_inicio + x.duracion_h) FROM tramos x
               WHERE x.tarea_id = t.id ORDER BY x.fecha DESC, x.hora_inicio + x.duracion_h DESC LIMIT 1) AS ultimo
        FROM tareas t LEFT JOIN lineas l ON l.id = t.linea_id LEFT JOIN proveedores pv ON pv.id = t.proveedor_id
-      WHERE t.orden_id = $1 ORDER BY t.orden_en_of NULLS LAST, t.id`, [ordenId]);
+      WHERE t.orden_id = ANY($1) ORDER BY array_position($2::int[], t.orden_id), t.orden_en_of NULLS LAST, t.id`, [o.map((x) => x.id), o.map((x) => x.id)]);
   const ids = tareas.map((t) => t.id);
   const { rows: deps } = ids.length ? await c.query(
     `SELECT d.tarea_id, d.depende_de_id, COALESCE(d.espera_h, 0)::float AS espera_h, p.codigo, p.nombre, p.orden_id, p.estado,
@@ -71,12 +76,35 @@ async function leerOT(c, ordenId) {
               WHERE x.tarea_id = p.id ORDER BY x.fecha DESC, x.hora_inicio + x.duracion_h DESC LIMIT 1) AS ultimo
        FROM tarea_dependencias d JOIN tareas p ON p.id = d.depende_de_id
       WHERE d.tarea_id = ANY($1) OR d.depende_de_id = ANY($1)`, [ids]) : { rows: [] };
-  return { ot: o[0], tareas, deps };
+  return { ots: o, tareas, deps };
+}
+
+// Qué OTs entran: una OT, las de una partida o las de un proyecto (abiertas)
+async function resolverAlcance(c, alcance) {
+  const tipo = ['ot', 'partida', 'proyecto'].includes(alcance?.tipo) ? alcance.tipo : 'ot';
+  const id = Number(alcance?.id);
+  if (!id) throw fallo(400, 'Falta qué planificar');
+  if (tipo === 'ot') {
+    const { rows } = await c.query('SELECT id, codigo, titulo, estado FROM ordenes WHERE id = $1', [id]);
+    if (!rows.length) throw fallo(404, 'OT no encontrada');
+    if (rows[0].estado === 'cerrada') throw fallo(409, 'La OT está cerrada');
+    return { tipo, id, nombre: `OT ${rows[0].codigo}`, ids: [id] };
+  }
+  const { rows: cab } = tipo === 'partida'
+    ? await c.query(`SELECT pa.id, COALESCE(NULLIF(pa.codigo, '') || ' · ', '') || pa.nombre AS nombre, pr.codigo AS proyecto FROM partidas pa JOIN proyectos pr ON pr.id = pa.proyecto_id WHERE pa.id = $1`, [id])
+    : await c.query('SELECT id, codigo || \' · \' || nombre AS nombre FROM proyectos WHERE id = $1', [id]);
+  if (!cab.length) throw fallo(404, tipo === 'partida' ? 'Partida no encontrada' : 'Proyecto no encontrado');
+  const { rows } = await c.query(
+    `SELECT id FROM ordenes WHERE ${tipo === 'partida' ? 'partida_id' : 'proyecto_id'} = $1 AND estado <> 'cerrada' AND NOT COALESCE(baja_presupuesto, false)`, [id]);
+  if (!rows.length) throw fallo(409, `No hay OTs abiertas en ${tipo === 'partida' ? 'esta partida' : 'este proyecto'}`);
+  return { tipo, id, nombre: `${tipo === 'partida' ? 'partida' : 'proyecto'} ${cab[0].nombre}`, ids: rows.map((r) => r.id) };
 }
 
 /* ---------- PROPUESTA ---------- */
 // op: { modo: 'inicio' | 'fin', fecha, ajustes: { tareaId: 'YYYY-MM-DD' (no antes de) }, areas: { tareaId: lineaId } }
-async function proponer(c, ordenId, op) {
+async function proponer(c, alcance, op) {
+  if (typeof alcance === 'number') alcance = { tipo: 'ot', id: alcance };
+  const alc = await resolverAlcance(c, alcance);
   const hoy = hoyMadrid();
   if (!FECHA_RE.test(op.fecha || '')) throw fallo(400, 'Fecha no válida');
   const modo = op.modo === 'fin' ? 'fin' : 'inicio';
@@ -88,8 +116,8 @@ async function proponer(c, ordenId, op) {
   const areasElegidas = {};
   for (const [k, v] of Object.entries(op.areas || {})) if (Number(v) > 0) areasElegidas[Number(k)] = Number(v);
 
-  const { ot, tareas, deps } = await leerOT(c, ordenId);
-  if (ot.estado === 'cerrada') throw fallo(409, 'La OT está cerrada');
+  const { ots, tareas, deps } = await leerOTs(c, alc.ids);
+  const ot = ots[0];
   const { rows: lineas } = await c.query(
     `SELECT id, nombre, exclusiva, tipo, proveedor_id FROM lineas WHERE activo AND (obra_id IS NULL OR obra_id IN
        (SELECT obra_id FROM proyectos WHERE id = $1)) ORDER BY orden, nombre`, [ot.proyecto_id]);
@@ -107,7 +135,7 @@ async function proponer(c, ordenId, op) {
     if (!linea) { sinArea.push({ id: t.id, codigo: t.codigo, nombre: t.nombre, horas: pend }); continue; }
     aColocar.push({ ...t, pend, linea });
   }
-  if (!aColocar.length && !sinArea.length) throw fallo(409, `No queda nada por planificar en ${ot.codigo}: todas sus tareas están planificadas o hechas`);
+  if (!aColocar.length && !sinArea.length) throw fallo(409, `No queda nada por planificar en ${alc.tipo === 'ot' ? ot.codigo : `la ${alc.nombre}`}: todas sus tareas están planificadas o hechas`);
 
   // orden: dependencias primero (dentro de la OT), luego el orden de la OT
   const previas = new Map(); // tarea → [{id, espera}]
@@ -243,7 +271,7 @@ async function proponer(c, ordenId, op) {
       const u = segs[segs.length - 1];
       if (u && cal.labEntre(u[1], x.fecha) <= 1) u[1] = x.fecha; else if (!u || u[1] !== x.fecha) segs.push([x.fecha, x.fecha]);
     }
-    out.push({ id: t.id, codigo: t.codigo, nombre: t.nombre, horas: ct.pend, area: ct.linea.nombre, linea_id: ct.linea.id,
+    out.push({ id: t.id, orden_id: t.orden_id, codigo: t.codigo, nombre: t.nombre, horas: ct.pend, area: ct.linea.nombre, linea_id: ct.linea.id,
       clase: t.proveedor_id ? (t.ext_en_obra ? 'sub' : 'ext') : 'propia', proveedor: t.proveedor, ajuste: ajustes[t.id] || null,
       tramos: r.tramos, segmentos: segs, inicio: r.tramos[0]?.fecha || null, fin: r.tramos.at(-1)?.fecha || null,
       tras: r.tras ? { codigo: r.tras.codigo, nombre: r.tras.nombre, otra_ot: !porId.has(r.tras.depende_de_id), fin: fecha(Math.floor(r.tras.fin / 24)), espera_h: r.tras.espera_h } : null });
@@ -288,15 +316,34 @@ async function proponer(c, ordenId, op) {
   }
 
   const fin = p.fin;
+  // cada OT: su inicio y fin propuestos (con lo ya planificado que no se toca) frente a su entrega
+  const otsRes = ots.map((o) => {
+    const ts = out.filter((t) => porId.get(t.id).orden_id === o.id);
+    const ini2 = ts.map((t) => t.inicio).filter(Boolean).sort()[0] || null;
+    const ya = tareas.filter((t) => t.orden_id === o.id && t.ultimo).map((t) => t.ultimo.fecha);
+    const fin2 = [...ts.map((t) => t.fin).filter(Boolean), ...ya].sort().at(-1) || null;
+    const ok = !o.entrega || !fin2 ? null : fin2 <= o.entrega;
+    return { id: o.id, codigo: o.codigo, titulo: o.titulo, entrega: o.entrega, inicio: ini2, fin: fin2, ok, tareas: ts.length,
+      margen: ok === true ? cal.labEntre(fin2, o.entrega) : ok === false ? -cal.labEntre(o.entrega, fin2) : null };
+  });
   let entrega = null;
-  if (ot.entrega && fin) {
-    entrega = fin <= ot.entrega
-      ? { ok: true, texto: `Entrega ${dsem(ot.entrega)}: ${cal.labEntre(fin, ot.entrega)} días laborables de margen` }
-      : { ok: false, texto: `No llega a la entrega del ${dsem(ot.entrega)}: termina ${cal.labEntre(ot.entrega, fin)} días laborables después` };
+  if (alc.tipo === 'ot') {
+    const o = otsRes[0];
+    if (o.entrega && fin) {
+      entrega = fin <= o.entrega
+        ? { ok: true, texto: `Entrega ${dsem(o.entrega)}: ${cal.labEntre(fin, o.entrega)} días laborables de margen` }
+        : { ok: false, texto: `No llega a la entrega del ${dsem(o.entrega)}: termina ${cal.labEntre(o.entrega, fin)} días laborables después` };
+    }
+  } else {
+    const malas = otsRes.filter((o) => o.ok === false && o.tareas);
+    const conE = otsRes.filter((o) => o.ok != null && o.tareas);
+    if (malas.length) entrega = { ok: false, texto: `No ${malas.length > 1 ? 'llegan' : 'llega'} a su entrega: ${malas.map((o) => `${o.codigo} (entrega ${dm(o.entrega)}, acaba ${dm(o.fin)})`).join(', ')}` };
+    else if (conE.length) entrega = { ok: true, texto: `${conE.length > 1 ? `Las ${conE.length} OTs con entrega llegan` : `${conE[0].codigo} llega`} a tiempo (margen mínimo ${Math.min(...conE.map((o) => o.margen))} días laborables)` };
   }
   if (modo === 'fin' && noLlega) avisos.unshift({ tipo: 'no_llega', texto: `Aun empezando hoy, termina el ${dm(fin)}: no llega al ${dm(op.fecha)}` });
   return {
-    ot: { id: ot.id, codigo: ot.codigo, titulo: ot.titulo, entrega: ot.entrega }, modo, fecha: op.fecha,
+    ot: { id: ot.id, codigo: ot.codigo, titulo: ot.titulo, entrega: ot.entrega }, alcance: { tipo: alc.tipo, id: alc.id, nombre: alc.nombre },
+    ots: otsRes, modo, fecha: op.fecha,
     inicio: ini, fin, entrega, tareas: out, sin_area: sinArea, bloqueadas, sin_esperar: sinEsperar, avisos, horas: r1(horas), n_tramos: nTramos,
     areas: lineas.map((l) => ({ id: l.id, nombre: l.nombre, tipo: l.tipo })),
   };
@@ -400,7 +447,7 @@ async function planDeshacer(c, id) {
 const resumenDeshacer = (d) => {
   const verbo = d.pl.tipo === 'mover' ? 'vuelven a su sitio' : 'se quitan';
   return {
-    id: d.pl.id, tipo: d.pl.tipo, resumen: d.pl.resumen,
+    id: d.pl.id, tipo: d.pl.tipo, resumen: d.pl.resumen, n_ots: (d.pl.ordenes || []).length || 1,
     intactos: d.intactos.length, tocados: d.tocados.map((x) => `${x.codigo} (ahora el ${dm(x.fecha)} ${hhmm(x.hora_inicio)})`),
     fijos: d.fijos.length, borrados: d.borrados, verbo,
     ext: d.pl.tipo === 'planificar' ? [...new Set((d.pl.detalle.tramos || []).filter((x) => x.proveedor).map((x) => x.proveedor))] : [],
@@ -411,22 +458,23 @@ const resumenDeshacer = (d) => {
 function montar(app, asyncH) {
   const leerOp = (b) => ({ modo: b?.modo, fecha: b?.fecha, ajustes: b?.ajustes || {}, areas: b?.areas || {}, sinEsperar: !!b?.sinEsperar });
 
-  // Propuesta (no cambia nada; en /api/plan-vista/… para no avisar a las demás pantallas)
-  app.post('/api/plan-vista/ordenes/:id/planificar', auth.permiso('planificar'), asyncH(async (req, res) => {
-    res.json(await proponer({ query }, Number(req.params.id), leerOp(req.body)));
-  }));
+  // Propuesta (no cambia nada; en /api/plan-vista/… para no avisar a las demás pantallas).
+  // alcance: { tipo: 'ot' | 'partida' | 'proyecto', id }
+  const vista = (alcance) => asyncH(async (req, res) => { res.json(await proponer({ query }, alcance(req), leerOp(req.body))); });
+  app.post('/api/plan-vista/ordenes/:id/planificar', auth.permiso('planificar'), vista((req) => ({ tipo: 'ot', id: Number(req.params.id) })));
+  app.post('/api/plan-vista/planificar', auth.permiso('planificar'), vista((req) => req.body?.alcance));
 
   // Confirmar: se vuelve a calcular dentro de la transacción y se crean los tramos
-  app.post('/api/ordenes/:id/planificar', auth.permiso('planificar'), asyncH(async (req, res) => {
-    const ordenId = Number(req.params.id);
+  const confirmar = (alcance) => asyncH(async (req, res) => {
     const out = await tx(async (c) => {
       await c.query('SELECT pg_advisory_xact_lock($1)', [LOCK]);
       const op = leerOp(req.body);
-      const p = await proponer(c, ordenId, op);
+      const p = await proponer(c, alcance(req), op);
       if (!p.n_tramos) throw fallo(409, 'No hay nada que colocar');
+      const ids = p.ots.map((o) => o.id);
       // áreas elegidas para tareas que no tenían
       for (const [k, v] of Object.entries(op.areas)) {
-        if (Number(v) > 0) await c.query('UPDATE tareas SET linea_id = $2 WHERE id = $1 AND orden_id = $3 AND linea_id IS NULL', [Number(k), Number(v), ordenId]);
+        if (Number(v) > 0) await c.query('UPDATE tareas SET linea_id = $2 WHERE id = $1 AND orden_id = ANY($3) AND linea_id IS NULL', [Number(k), Number(v), ids]);
       }
       const creados = [];
       for (const t of p.tareas) {
@@ -438,16 +486,20 @@ function montar(app, asyncH) {
           await extras.sincronizar(c, rows[0].id, req.usuario);
         }
         await c.query('INSERT INTO historial (usuario_id, tarea_id, accion, detalle) VALUES ($1,$2,$3,$4)',
-          [req.usuario.id, t.id, 'planificar_ot', { tramos: t.tramos.length, desde: t.inicio, hasta: t.fin }]);
+          [req.usuario.id, t.id, 'planificar_ot', { tramos: t.tramos.length, desde: t.inicio, hasta: t.fin, alcance: p.alcance.nombre }]);
       }
-      const resumen = `Planificar OT ${p.modo === 'fin' ? `para terminar el ${dm(p.fecha)}` : `desde ${dm(p.fecha)}`} · ${creados.length} tramos · del ${dm(p.inicio)} al ${dm(p.fin)}`;
+      const ordenes = [...new Set(p.tareas.map((t) => t.orden_id))];
+      const que = p.alcance.tipo === 'ot' ? 'OT' : `${p.alcance.nombre} (${ordenes.length} OT${ordenes.length > 1 ? 's' : ''})`;
+      const resumen = `Planificar ${que} ${p.modo === 'fin' ? `para terminar el ${dm(p.fecha)}` : `desde ${dm(p.fecha)}`} · ${creados.length} tramos · del ${dm(p.inicio)} al ${dm(p.fin)}`;
       const { rows: pl } = await c.query(
-        `INSERT INTO planificaciones (tipo, orden_id, usuario_id, resumen, detalle) VALUES ('planificar', $1, $2, $3, $4) RETURNING id`,
-        [ordenId, req.usuario.id, resumen, { tramos: creados, modo: p.modo, fecha: p.fecha, ajustes: op.ajustes }]);
-      return { planificacion_id: pl[0].id, tramos: creados.length, inicio: p.inicio, fin: p.fin, ot: p.ot, resumen };
+        `INSERT INTO planificaciones (tipo, orden_id, ordenes, alcance, usuario_id, resumen, detalle) VALUES ('planificar', $1, $2, $3, $4, $5, $6) RETURNING id`,
+        [p.alcance.tipo === 'ot' ? p.alcance.id : null, ordenes, p.alcance, req.usuario.id, resumen, { tramos: creados, modo: p.modo, fecha: p.fecha, ajustes: op.ajustes }]);
+      return { planificacion_id: pl[0].id, tramos: creados.length, inicio: p.inicio, fin: p.fin, ot: p.ot, alcance: p.alcance, n_ots: ordenes.length, resumen };
     });
     res.status(201).json(out);
-  }));
+  });
+  app.post('/api/ordenes/:id/planificar', auth.permiso('planificar'), confirmar((req) => ({ tipo: 'ot', id: Number(req.params.id) })));
+  app.post('/api/planificar', auth.permiso('planificar'), confirmar((req) => req.body?.alcance));
 
   // Mover la OT N días laborables
   app.post('/api/plan-vista/ordenes/:id/mover', auth.permiso('planificar'), asyncH(async (req, res) => {
@@ -472,8 +524,8 @@ function montar(app, asyncH) {
       }
       const resumen = `Mover OT ${p.dias > 0 ? '+' : ''}${p.dias} día${Math.abs(p.dias) === 1 ? '' : 's'} laborable${Math.abs(p.dias) === 1 ? '' : 's'} · ${p.n} tramos`;
       const { rows: pl } = await c.query(
-        `INSERT INTO planificaciones (tipo, orden_id, usuario_id, resumen, detalle) VALUES ('mover', $1, $2, $3, $4) RETURNING id`,
-        [ordenId, req.usuario.id, resumen, { tramos: det, dias: p.dias }]);
+        `INSERT INTO planificaciones (tipo, orden_id, ordenes, usuario_id, resumen, detalle) VALUES ('mover', $1, $2, $3, $4, $5) RETURNING id`,
+        [ordenId, [ordenId], req.usuario.id, resumen, { tramos: det, dias: p.dias }]);
       return { planificacion_id: pl[0].id, ot: p.ot, n: p.n, dias: p.dias, resumen };
     });
     res.json(out);
@@ -484,7 +536,7 @@ function montar(app, asyncH) {
     const { rows } = await query(
       `SELECT p.id, p.tipo, p.resumen, p.creado, p.deshecha_en, u.nombre AS usuario, ud.nombre AS deshecha_por
          FROM planificaciones p LEFT JOIN usuarios u ON u.id = p.usuario_id LEFT JOIN usuarios ud ON ud.id = p.deshecha_por
-        WHERE p.orden_id = $1 ORDER BY p.creado DESC LIMIT 30`, [Number(req.params.id)]);
+        WHERE p.orden_id = $1 OR $1 = ANY(p.ordenes) ORDER BY p.creado DESC LIMIT 30`, [Number(req.params.id)]);
     const out = [];
     for (const r of rows) {
       if (r.deshecha_en) { out.push(r); continue; }

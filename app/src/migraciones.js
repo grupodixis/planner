@@ -1396,6 +1396,11 @@ const MIGRACIONES = [
      deshecha_por INTEGER REFERENCES usuarios(id) ON DELETE SET NULL,
      deshecha_detalle JSONB)`,
   `CREATE INDEX IF NOT EXISTS planificaciones_orden ON planificaciones (orden_id, creado DESC)`,
+  // Planificar una partida o un proyecto entero: una planificación puede abarcar varias OTs
+  `ALTER TABLE planificaciones ADD COLUMN IF NOT EXISTS ordenes INTEGER[]`,
+  `ALTER TABLE planificaciones ADD COLUMN IF NOT EXISTS alcance JSONB`,
+  `UPDATE planificaciones SET ordenes = ARRAY[orden_id] WHERE ordenes IS NULL AND orden_id IS NOT NULL`,
+  `CREATE INDEX IF NOT EXISTS planificaciones_ordenes ON planificaciones USING gin (ordenes)`,
 ];
 
 async function migrar() {

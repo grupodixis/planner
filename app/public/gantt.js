@@ -31,7 +31,7 @@
   const est = {
     escala: leer('escala', 'semanas'), agrupar: leer('agrupar', 'proyecto'), orden: leer('orden', 'entrega'),
     soloRiesgo: leer('soloRiesgo', false), cerradas: false, q: '', desde: q0.get('desde') || null,
-    prop: null,   // propuesta de «Planificar OT» en curso: { o, op: { modo, fecha, ajustes, areas }, pila, res, cargando }
+    prop: null,   // propuesta de «Planificar» en curso: { alc (ot | partida | proyecto), op: { modo, fecha, ajustes, areas, sinEsperar }, pila, res, cargando }
     abiertas: new Set(leer('abiertas', [])), plegados: new Set(leer('plegados', [])), carga: leer('carga', 'oficios'), datos: null,
   };
   const SEM = () => (est.escala === 'meses' ? 26 : 6);
@@ -128,7 +128,9 @@
           el('div', { class: 'gt-lab' }, el('button', { type: 'button', class: 'gt-pleg', 'aria-expanded': String(!plegado), onclick: () => { if (plegado) est.plegados.delete(k); else est.plegados.add(k); guardar('plegados', [...est.plegados]); pintar(); } }, plegado ? '▸' : '▾'),
             g.u ? el('a', { href: g.u }, el('b', {}, g.t)) : el('b', {}, g.t), g.s ? el('div', { class: 'gt-sub' }, g.s) : null,
             plegado ? el('span', { class: 'gt-sub' }, ` · ${g.ots.length} OT`) : null,
-            est.agrupar === 'proyecto' ? el('button', { type: 'button', class: 'gt-exp', title: 'Exportar el Gantt de este proyecto (PDF o imagen)', 'aria-label': 'Exportar', onclick: () => exportar(g.ots[0].proyecto.id) }, '📄') : null),
+            est.agrupar === 'proyecto' ? el('button', { type: 'button', class: 'gt-exp', title: 'Exportar el Gantt de este proyecto (PDF o imagen)', 'aria-label': 'Exportar', onclick: () => exportar(g.ots[0].proyecto.id) }, '📄') : null,
+            est.agrupar === 'proyecto' && puedePlan() && !est.prop && g.ots.some(pendiente)
+              ? el('button', { type: 'button', class: 'gt-exp', title: 'Planificar de una vez una partida o todo el proyecto', 'aria-label': 'Planificar partida o proyecto', onclick: () => abrirPlanificar(alcanceProyecto(g.ots[0].proyecto.id)) }, '🗓') : null),
           el('div', { class: 'gt-tl' }, fondo())));
       }
       if (plegado) continue;
@@ -144,12 +146,13 @@
         // avance dentro de la barra de la OT
         const bOt = tl.querySelector('.gt-bb.ot');
         if (bOt && pct) bOt.prepend(el('i', { class: 'gt-pg', style: { width: `${pct}%` } }));
-        const enProp = est.prop?.o.id === o.id ? est.prop.res : null;
+        const enProp = est.prop?.res.ots?.find((x) => x.id === o.id && x.inicio) ? est.prop.res : null;
+        const propOT = enProp?.ots.find((x) => x.id === o.id);
         if (bOt && puedePlan() && o.riesgo !== 'hecha' && !est.prop) {
           bOt.classList.add('arr'); bOt.title = `${bOt.title} · arrastra para mover la OT entera`;
           arrastrable(bOt, dias, (dd) => `${dd > 0 ? '+' : ''}${dd} d → empieza ${dm(masDias(o.inicio, dd))}`, (dd) => moverOT(o, dd));
         }
-        if (enProp?.inicio) tl.append(barra(enProp.inicio, enProp.fin, 'prop', null, `Propuesta: ${dm(enProp.inicio)} → ${dm(enProp.fin)}`));
+        if (propOT) tl.append(barra(propOT.inicio, propOT.fin, 'prop', null, `Propuesta: ${dm(propOT.inicio)} → ${dm(propOT.fin)}`));
         filas.push(el('div', { class: `gt-fila gt-ot${est.agrupar === 'ninguno' ? ' sola' : ''}` },
           el('div', { class: 'gt-lab' },
             el('button', { type: 'button', class: 'gt-pleg', 'aria-expanded': String(abierta), 'aria-label': abierta ? 'Plegar tareas' : 'Ver tareas', onclick: toggle }, abierta ? '▾' : '▸'),
@@ -157,8 +160,8 @@
             el('div', { class: 'gt-sub' }, [o.entrega ? `entrega ${dm(o.entrega)}` : 'sin entrega', est.agrupar !== 'proyecto' ? `${o.proyecto.codigo}${o.proyecto.cliente ? ` · ${o.proyecto.cliente}` : ''}` : null].filter(Boolean).join(' · ')),
             el('div', { class: 'gt-est' }, el('span', { class: 'gt-av' }, el('i', { style: { width: `${pct}%` } })), el('small', {}, `${pct} %`),
               enProp ? el('span', { class: 'gt-ch prop' }, 'propuesta') : el('span', { class: `gt-ch ${rc}` }, `${o.riesgo === 'no_llega' ? '⚠ ' : ''}${o.riesgo_txt}`),
-              puedePlan() && o.riesgo !== 'hecha' && !est.prop && (o.falta_h > 0 || o.tareas.some((t) => t.sin_plan && !t.hecha))
-                ? el('button', { type: 'button', class: 'gt-acc', title: 'Planificar OT: colocar sus tareas pendientes de una vez', 'aria-label': `Planificar ${o.codigo}`, onclick: () => abrirPlanificar(o) }, '🗓') : null,
+              puedePlan() && !est.prop && pendiente(o)
+                ? el('button', { type: 'button', class: 'gt-acc', title: 'Planificar OT: colocar sus tareas pendientes de una vez', 'aria-label': `Planificar ${o.codigo}`, onclick: () => abrirPlanificar(alcanceOT(o)) }, '🗓') : null,
               o.planif_n ? el('button', { type: 'button', class: 'gt-acc', title: 'Planificaciones y movimientos de esta OT (deshacer)', 'aria-label': 'Historial de planificaciones', onclick: () => historial(o) }, '🕘') : null)),
           tl));
         if (!abierta) continue;
@@ -171,7 +174,7 @@
               el('div', { class: 'gt-sub' }, [t.proveedor ? `${{ ext: '🏭', trp: '🚚', sub: '🏗' }[t.clase] || ''} ${t.proveedor}` : t.area, t.hecha ? '✔ hecha' : t.sin_plan ? 'sin planificar' : t.falta_h ? `faltan ${t.falta_h} h` : null].filter(Boolean).join(' · '))),
             el('div', { class: 'gt-tl' }, fondo(),
               t.segmentos.map(([a, b]) => barra(a, b, `${t.hecha ? 'hecha' : t.clase}`, t.clase === 'propia' ? '' : t.proveedor, `${t.codigo} ${t.nombre} · ${dm(a)}${a !== b ? ` → ${dm(b)}` : ''} · pulsa para abrir la tarea`, ir)),
-              barrasPropuesta(enProp, t, barra, dias))));
+              barrasPropuesta(est.prop?.res, t, barra, dias))));
         }
       }
     }
@@ -326,10 +329,24 @@
     setTimeout(() => t.remove(), 15000);
   }
 
-  /* --- 1. diálogo «Planificar OT» --- */
-  async function abrirPlanificar(o, previo) {
+  /* --- 1. diálogo «Planificar» (una OT, una partida o todo el proyecto) --- */
+  const pendiente = (o) => o.riesgo !== 'hecha' && (o.falta_h > 0 || o.tareas.some((t) => t.sin_plan && !t.hecha));
+  const entregaMax = (ots) => ots.map((o) => o.entrega).filter(Boolean).sort().at(-1) || null;
+  const alcanceOT = (o) => ({ tipo: 'ot', id: o.id, titulo: `OT ${o.codigo} · ${o.titulo}`, ots: [o] });
+  function alcanceProyecto(pid, partidaId) {
+    const ots = est.datos.ots.filter((o) => o.proyecto.id === pid);
+    const p = ots[0].proyecto;
+    const opciones = [{ tipo: 'proyecto', id: pid, titulo: `Todo el proyecto ${p.codigo}`, ots }];
+    const partidas = new Map();
+    for (const o of ots) if (o.partida_id) { if (!partidas.has(o.partida_id)) partidas.set(o.partida_id, { tipo: 'partida', id: o.partida_id, titulo: `Partida ${o.partida}`, ots: [] }); partidas.get(o.partida_id).ots.push(o); }
+    opciones.push(...[...partidas.values()].filter((x) => x.ots.some(pendiente)));
+    const elegida = opciones.find((x) => x.tipo === 'partida' && x.id === partidaId) || opciones[0];
+    return { ...elegida, opciones };
+  }
+  async function abrirPlanificar(alc0, previo) {
+    let alc = alc0;
     const op = previo ? JSON.parse(JSON.stringify(previo)) : { modo: 'inicio', fecha: sigLab(masDias(est.datos.hoy, 1)), ajustes: {}, areas: {} };
-    const d = dialogo(`Planificar ${o.codigo}`);
+    const d = dialogo(`Planificar ${alc.titulo}`);
     const res = el('div', { class: 'gt-pl-res' }, el('p', { class: 'ayuda' }, 'Calculando…'));
     const ir = el('button', { type: 'button', class: 'primario', disabled: true }, 'Ver propuesta en el Gantt →');
     let ultima = null; let tv;
@@ -338,7 +355,7 @@
       tv = setTimeout(async () => {
         res.classList.add('cargando');
         try {
-          const r = await api('POST', `/api/plan-vista/ordenes/${o.id}/planificar`, op);
+          const r = await api('POST', '/api/plan-vista/planificar', { ...op, alcance: { tipo: alc.tipo, id: alc.id } });
           ultima = r; pintarRes(r);
         } catch (e) { ultima = null; ir.disabled = true; res.replaceChildren(el('p', { class: 'error' }, e.message)); }
         res.classList.remove('cargando');
@@ -351,7 +368,12 @@
           r.n_tramos ? el('ul', {},
             el('li', {}, `${r.tareas.length} tarea${r.tareas.length > 1 ? 's' : ''} · ${r.horas} h en `, el('b', {}, `${r.n_tramos} tramos`)),
             el('li', {}, 'Del ', el('b', {}, fmt(r.inicio)), ' al ', el('b', {}, fmt(r.fin))),
-            r.entrega ? el('li', { class: r.entrega.ok ? 'ok' : 'mal' }, `${r.entrega.ok ? '✔' : '✕'} ${r.entrega.texto}`) : el('li', { class: 'ayuda' }, 'La OT no tiene fecha de entrega')) : el('p', { class: 'ayuda' }, 'Nada que colocar todavía.')),
+            r.entrega ? el('li', { class: r.entrega.ok ? 'ok' : 'mal' }, `${r.entrega.ok ? '✔' : '✕'} ${r.entrega.texto}`) : el('li', { class: 'ayuda' }, alc.tipo === 'ot' ? 'La OT no tiene fecha de entrega' : 'Ninguna OT tiene fecha de entrega')) : el('p', { class: 'ayuda' }, 'Nada que colocar todavía.')),
+        alc.tipo !== 'ot' && r.ots.some((o) => o.tareas) ? el('div', { class: 'gt-pl-caja' }, el('b', {}, 'Cada OT'),
+          el('table', { class: 'gt-pl-ots' }, el('tbody', {}, r.ots.filter((o) => o.tareas).map((o) => el('tr', {},
+            el('td', {}, el('b', { class: 'cod' }, o.codigo), ` ${o.titulo}`),
+            el('td', {}, o.inicio === o.fin ? fmt(o.inicio) : `${fmt(o.inicio)} → ${fmt(o.fin)}`),
+            el('td', { class: o.ok === false ? 'mal' : o.ok ? 'ok' : 'ayuda' }, o.entrega ? `${o.ok ? '✔' : '✕'} entrega ${dm(o.entrega)}` : 'sin entrega')))))) : null,
         r.bloqueadas.length || op.sinEsperar ? el('div', { class: 'gt-pl-caja aviso' }, el('b', {}, '⏸ Esperan a una tarea sin planificar'),
           r.bloqueadas.length ? el('ul', {}, r.bloqueadas.map((b) => el('li', {}, `${b.codigo} ${b.nombre} · ${b.horas} h → espera a `, el('b', {}, `${b.espera.codigo} ${b.espera.nombre}`), b.espera.otra_ot ? ' (otra OT)' : ''))) : null,
           el('label', { class: 'gt-pl-opc' }, el('input', { type: 'checkbox', checked: !!op.sinEsperar, onchange: (ev) => { op.sinEsperar = ev.target.checked; calcular(); } }),
@@ -371,39 +393,53 @@
     const modo = (v, titulo, ayuda) => el('label', { class: `gt-pl-modo${op.modo === v ? ' on' : ''}` },
       el('input', { type: 'radio', name: 'gt-pl-modo', checked: op.modo === v, onchange: () => {
         op.modo = v; d.querySelectorAll('.gt-pl-modo').forEach((x) => x.classList.toggle('on', x.contains(d.querySelector('input[name=gt-pl-modo]:checked'))));
-        if (v === 'fin' && o.entrega && op.fecha !== o.entrega) { op.fecha = o.entrega; fecha.value = op.fecha; }
+        const ent = entregaMax(alc.ots);
+        if (v === 'fin' && ent && op.fecha !== ent && ent >= est.datos.hoy) { op.fecha = ent; fecha.value = op.fecha; }
         calcular();
       } }), el('span', {}, el('b', {}, titulo), el('small', {}, ayuda)));
     const fecha = el('input', { type: 'date', value: op.fecha, min: est.datos.hoy, onchange: (ev) => { if (ev.target.value) { op.fecha = ev.target.value; calcular(); } } });
     d.append(
-      el('div', { class: 'gt-pl-cab' }, el('h2', {}, `🗓 Planificar OT ${o.codigo} · ${o.titulo}`), el('button', { type: 'button', class: 'ghost', 'aria-label': 'Cerrar', onclick: () => d.close() }, '✕')),
+      el('div', { class: 'gt-pl-cab' }, el('h2', { class: 'gt-pl-tit' }, `🗓 Planificar ${alc.titulo}`), el('button', { type: 'button', class: 'ghost', 'aria-label': 'Cerrar', onclick: () => d.close() }, '✕')),
       el('div', { class: 'gt-pl-cuerpo' },
         el('div', { class: 'gt-pl-izq' },
+          alc.opciones ? el('label', { class: 'gt-pl-que' }, el('span', {}, 'Qué planificar'),
+            el('select', { onchange: (ev) => {
+              const x = alc.opciones[Number(ev.target.value)];
+              alc = { ...x, opciones: alc.opciones }; op.ajustes = {}; op.areas = {};
+              d.querySelector('.gt-pl-tit').textContent = `🗓 Planificar ${alc.titulo}`;
+              calcular();
+            } }, alc.opciones.map((x, i) => el('option', { value: i, selected: x.tipo === alc.tipo && x.id === alc.id }, `${x.titulo} · ${x.ots.length} OT${x.ots.length > 1 ? 's' : ''}`)))) : null,
           modo('inicio', 'Empezar el…', 'Coloca las tareas hacia delante, lo antes posible.'),
-          modo('fin', 'Terminar como tarde el…', `Calcula hacia atrás cuándo hay que empezar${o.entrega ? ` (entrega ${dm(o.entrega)})` : ''}.`),
+          modo('fin', 'Terminar como tarde el…', `Calcula hacia atrás cuándo hay que empezar${entregaMax(alc.ots) ? ` (entrega${alc.ots.length > 1 ? ' más tardía' : ''} ${dm(entregaMax(alc.ots))})` : ''}.`),
           el('label', { class: 'gt-pl-fecha' }, el('span', {}, 'Fecha'), fecha),
           el('div', { class: 'gt-pl-caja' }, el('b', {}, 'Respeta'), el('ul', {},
-            el('li', {}, '✔ Dependencias y esperas (p. ej. «+24 h de secado»)'),
+            el('li', {}, '✔ Dependencias y esperas (p. ej. «+24 h de secado»), también entre OTs'),
             el('li', {}, '✔ El área de cada tarea; en los puestos de uno en uno, no pisa lo ya planificado'),
             el('li', {}, '✔ Jornada, fines de semana y festivos'),
             el('li', {}, '• Sin asignar personas: se asignan después en el cuadrante')))),
         res),
       el('div', { class: 'gt-pl-pie' }, el('button', { type: 'button', onclick: () => d.close() }, 'Cancelar'), ir));
-    ir.onclick = () => { if (!ultima) return; d.close(); empezarPropuesta(o, op, ultima); };
+    ir.onclick = () => { if (!ultima) return; d.close(); empezarPropuesta(alc, op, ultima); };
     d.showModal();
     calcular();
   }
 
   /* --- 2. propuesta en el Gantt --- */
-  function empezarPropuesta(o, op, res) {
-    est.prop = { o, op, pila: [], res, cargando: false };
-    est.abiertas.add(o.id); guardar('abiertas', [...est.abiertas]);
-    if (res.inicio && (res.inicio < est.datos.desde || res.inicio > est.datos.hasta)) { est.desde = masDias(lunes(res.inicio), -7); cargar(); } else pintar();
-    $('#gt-prop').scrollIntoView({ block: 'nearest' });
+  function empezarPropuesta(alc, op, res) {
+    est.prop = { alc, op, pila: [], res, cargando: false };
+    for (const o of res.ots) if (o.tareas) est.abiertas.add(o.id);
+    guardar('abiertas', [...est.abiertas]);
+    // ir a la primera OT de la propuesta
+    const irA = () => {
+      const o1 = res.ots.find((o) => o.tareas);
+      const a = o1 && [...document.querySelectorAll('.gt-ot .gt-ot-n')].find((x) => x.getAttribute('href') === `/proyectos.html?ot=${o1.id}`);
+      a?.closest('.gt-fila')?.scrollIntoView({ block: 'center' });
+    };
+    if (res.inicio && (res.inicio < est.datos.desde || res.inicio > est.datos.hasta)) { est.desde = masDias(lunes(res.inicio), -7); cargar().then(irA); } else { pintar(); irA(); }
   }
   async function recalcular() {
     const p = est.prop; p.cargando = true; pintarBanner();
-    try { p.res = await api('POST', `/api/plan-vista/ordenes/${p.o.id}/planificar`, p.op); } catch (e) { window.s360.aviso?.(e.message); if (p.pila.length) p.op = p.pila.pop(); }
+    try { p.res = await api('POST', '/api/plan-vista/planificar', { ...p.op, alcance: { tipo: p.alc.tipo, id: p.alc.id } }); } catch (e) { window.s360.aviso?.(e.message); if (p.pila.length) p.op = p.pila.pop(); }
     p.cargando = false; pintar();
   }
   function barrasPropuesta(res, t, barra, diasVista) {
@@ -423,28 +459,28 @@
   function pintarBanner() {
     const b = $('#gt-prop');
     const p = est.prop;
-    if (!p) { b.hidden = true; b.replaceChildren(); return; }
+    if (!p) { b.hidden = true; b.replaceChildren(); fijar(); return; }
     const r = p.res;
     const nAv = r.avisos.length;
     b.hidden = false;
     b.replaceChildren(
       el('span', { class: 'gt-prop-ic' }, '🗓'),
       el('div', { class: 'gt-prop-t' },
-        el('div', {}, el('b', {}, `Propuesta para ${p.o.codigo}`), ` · ${r.n_tramos} tramos del ${dm(r.inicio)} al ${dm(r.fin)}`,
+        el('div', {}, el('b', {}, `Propuesta: ${p.alc.titulo}`), ` · ${r.ots.filter((o) => o.tareas).length > 1 ? `${r.ots.filter((o) => o.tareas).length} OTs · ` : ''}${r.n_tramos} tramos del ${dm(r.inicio)} al ${dm(r.fin)}`,
           r.entrega ? el('span', { class: r.entrega.ok ? 'ok' : 'mal' }, ` · ${r.entrega.ok ? 'entrega ✔' : 'no llega ✕'}`) : null,
           nAv ? el('details', { class: 'gt-prop-av' }, el('summary', {}, ` · ${nAv} aviso${nAv > 1 ? 's' : ''}`), listaAvisos(r.avisos)) : null,
           p.cargando ? el('span', { class: 'ayuda' }, ' · calculando…') : null),
         el('small', {}, 'Arrastra las barras rayadas para cambiar el día de una tarea (lo que depende de ella se corre detrás). Aún no está en el cuadrante: nadie más la ve.')),
       el('button', { type: 'button', disabled: !p.pila.length || p.cargando, onclick: () => { p.op = p.pila.pop(); recalcular(); } }, '↶ Deshacer último movimiento'),
-      el('button', { type: 'button', onclick: () => { const o = p.o; const op = p.op; est.prop = null; pintar(); abrirPlanificar(o, op); } }, '✎ Cambiar'),
+      el('button', { type: 'button', onclick: () => { const { alc, op } = p; est.prop = null; pintar(); abrirPlanificar(alc, op); } }, '✎ Cambiar'),
       el('button', { type: 'button', class: 'gt-prop-desc', onclick: () => { est.prop = null; pintar(); } }, '✕ Descartar'),
       el('button', { type: 'button', class: 'primario', disabled: p.cargando || !r.n_tramos, onclick: async (ev) => {
         ev.target.disabled = true;
         try {
-          const x = await api('POST', `/api/ordenes/${p.o.id}/planificar`, p.op);
+          const x = await api('POST', '/api/planificar', { ...p.op, alcance: { tipo: p.alc.tipo, id: p.alc.id } });
           est.prop = null;
           await cargar();
-          avisoDeshacer(`✔ ${x.ot.codigo} planificada: ${x.tramos} tramos en el cuadrante`, x.planificacion_id);
+          avisoDeshacer(`✔ ${x.alcance.tipo === 'ot' ? `${x.ot.codigo} planificada` : `${x.alcance.nombre} planificada (${x.n_ots} OT${x.n_ots > 1 ? 's' : ''})`}: ${x.tramos} tramos en el cuadrante`, x.planificacion_id);
         } catch (e) { window.s360.aviso?.(e.message); ev.target.disabled = false; }
       } }, '✔ Confirmar y pasar al cuadrante'));
   }
@@ -550,16 +586,33 @@
     window.s360.iniciar(yo);
     window.s360.alCambiar?.(() => cargar().catch(() => {}));
     await cargar();
+    // ?partida=ID o ?proyecto=ID con &planificar=1 (desde Proyectos): abre «Planificar» con esa partida o el proyecto entero
+    const paId = Number(q0.get('partida')); const prId = Number(q0.get('proyecto'));
+    if ((paId || prId) && q0.get('planificar') && puedePlan()) {
+      const o1 = est.datos.ots.find((x) => (paId ? x.partida_id === paId : x.proyecto.id === prId));
+      if (o1) abrirPlanificar(alcanceProyecto(o1.proyecto.id, paId || null));
+      else window.s360.aviso?.('No hay OTs abiertas que planificar ahí');
+      history.replaceState(null, '', location.pathname);
+    }
     // ?ot=ID (desde la ficha de la OT): la despliega y, con &planificar=1 o &historial=1, abre ese diálogo
     const otId = Number(q0.get('ot'));
     const o = otId && est.datos.ots.find((x) => x.id === otId);
     if (o) {
       est.abiertas.add(o.id); pintar();
       [...document.querySelectorAll('.gt-ot .gt-ot-n')].find((a) => a.getAttribute('href') === `/proyectos.html?ot=${o.id}`)?.scrollIntoView({ block: 'center' });
-      if (q0.get('planificar') && puedePlan()) abrirPlanificar(o);
+      if (q0.get('planificar') && puedePlan()) abrirPlanificar(alcanceOT(o));
       else if (q0.get('historial')) historial(o);
       history.replaceState(null, '', location.pathname);
     }
   }
+  // alturas del menú y los controles, para que la fila de fechas quede pegada debajo al bajar
+  const fijar = () => {
+    const r = document.documentElement.style;
+    r.setProperty('--gt-h1', `${document.querySelector('body > header.top')?.offsetHeight || 0}px`);
+    r.setProperty('--gt-h2', `${$('#gt-ctl')?.offsetHeight || 0}px`);
+    r.setProperty('--gt-h3', `${$('#gt-prop')?.hidden ? 0 : $("#gt-prop")?.offsetHeight || 0}px`);
+  };
+  try { const ro = new ResizeObserver(fijar); ro.observe(document.querySelector('body > header.top')); ro.observe($('#gt-ctl')); ro.observe($('#gt-prop')); } catch { /* sin ResizeObserver */ }
+  addEventListener('resize', fijar);
   iniciar().catch((e) => { $('#gt-g').replaceChildren(el('p', { class: 'error' }, e.message)); });
 })();

@@ -842,6 +842,13 @@ La pantalla de planificación diaria (`/`, `public/app.js`) se llama **Cuadrante
   - gente: horas-persona del día (lo que ya hay más lo propuesto, por `operarios_req`) frente a operarios activos sin ausencia de día entero × jornada;
   - margen o retraso respecto a la entrega.
 
+**Alcance:** una OT, una partida o un proyecto. Usa `POST /api/plan-vista/planificar` y `POST /api/planificar` con `{alcance: {tipo: ot|partida|proyecto, id}, …}`; las rutas por OT siguen.
+- Entran las OTs abiertas y no dadas de baja; sus tareas se ordenan por OT (código) y `orden_en_of`, con las dependencias entre ellas.
+- Devuelve `ots` (inicio, fin, entrega, margen de cada una) y una `entrega` global: cuáles no llegan, o el margen mínimo.
+- `planificaciones.ordenes INT[]` y `alcance JSONB`: una planificación de partida o proyecto sale en el historial de cada OT, y deshacer la quita entera.
+- En el Gantt: 🗓 en la cabecera del proyecto (agrupando por proyecto), con selector «Qué planificar» (proyecto o partidas con pendientes); en Proyectos, «🗓 Planificar» en cada partida (`/gantt.html?partida=ID&planificar=1`; también `?proyecto=ID&planificar=1`).
+- El menú, los controles, el aviso de propuesta y la fila de fechas quedan fijos al bajar (`position: sticky` con alturas medidas en `--gt-h1/2/3`, `.gt-g` con `overflow: clip` y `body.gt-pant` sin altura fija).
+
 **Confirmar:** `POST /api/ordenes/:id/planificar` (mismo cuerpo) vuelve a calcular en la transacción (con `pg_advisory_xact_lock`) y crea los tramos sin gente, con `historial` `planificar_ot` y una `planificaciones` que guarda los tramos creados.
 
 **Mover:** `POST /api/plan-vista/ordenes/:id/mover {dias}` y `POST /api/ordenes/:id/mover`.
