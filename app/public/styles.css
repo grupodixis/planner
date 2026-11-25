@@ -2828,3 +2828,4 @@ svg.gt-unir circle { fill: #9cc3ff; }
 .gt-dep-pie { justify-content: space-between; }
 .gt-dep-der { display: flex; gap: 8px; }
 .gt-bb[data-tid] { min-width: 4px; }
+.gt-acc.gt-acc-mal { border-color: #8a3a3a; color: #ff9a9a; }

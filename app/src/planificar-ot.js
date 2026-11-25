@@ -422,6 +422,85 @@ async function planMover(c, ordenId, dias, tareaId = null) {
     desde: movidos[0].fecha, a: movidos[0].nueva, fin: finNuevo, avisos, entrega };
 }
 
+/* ---------- REORGANIZAR (correr lo que va después) ---------- */
+// Recorre las tareas del proyecto en orden de dependencias y corre hacia delante (nunca hacia atrás) las «afectables» que
+// empiezan antes de que acabe alguna previa + su espera: cada una, los días laborables justos. Lo que se corre se tiene en
+// cuenta para las siguientes (en cadena). Solo se mueven tramos de hoy en adelante sin horas reales ni cierre.
+//   desde: { tarea_id } → esa tarea y todo lo que va detrás de ella;  { orden_id } → las tareas de la OT y lo que va detrás
+async function planReorganizar(c, desde) {
+  const hoy = hoyMadrid();
+  let proyecto; let semilla = [];
+  if (desde.tarea_id) {
+    const { rows } = await c.query('SELECT t.id, o.proyecto_id, o.id AS orden_id FROM tareas t JOIN ordenes o ON o.id = t.orden_id WHERE t.id = $1', [desde.tarea_id]);
+    if (!rows.length) throw fallo(404, 'Tarea no encontrada');
+    proyecto = rows[0].proyecto_id; semilla = [rows[0].id];
+  } else {
+    const { rows } = await c.query('SELECT t.id, o.proyecto_id FROM tareas t JOIN ordenes o ON o.id = t.orden_id WHERE o.id = $1', [desde.orden_id]);
+    if (!rows.length) throw fallo(404, 'OT sin tareas');
+    proyecto = rows[0].proyecto_id; semilla = rows.map((r) => r.id);
+  }
+  const { rows: tareas } = await c.query(
+    `SELECT t.id, t.codigo, t.nombre, t.estado, t.orden_id,
+            (SELECT json_build_object('fecha', x.fecha::text, 'hora', (x.hora_inicio + x.duracion_h)::float) FROM tramos x WHERE x.tarea_id = t.id ORDER BY x.fecha DESC, x.hora_inicio + x.duracion_h DESC LIMIT 1) AS fin,
+            (SELECT json_build_object('fecha', x.fecha::text, 'hora', x.hora_inicio::float) FROM tramos x WHERE x.tarea_id = t.id AND x.fecha >= $2 AND x.cierre IS NULL
+               AND NOT EXISTS (SELECT 1 FROM registros g WHERE g.tramo_id = x.id) ORDER BY x.fecha, x.hora_inicio LIMIT 1) AS ini_mov
+       FROM tareas t JOIN ordenes o ON o.id = t.orden_id
+      WHERE ${proyecto ? 'o.proyecto_id = $1' : 'o.id = (SELECT orden_id FROM tareas WHERE id = $1)'} AND NOT COALESCE(t.baja_presupuesto, false)`,
+    [proyecto || semilla[0], hoy]);
+  const porId = new Map(tareas.map((t) => [t.id, t]));
+  const { rows: deps } = await c.query('SELECT tarea_id, depende_de_id, COALESCE(espera_h, 0)::float AS espera_h FROM tarea_dependencias WHERE tarea_id = ANY($1)', [tareas.map((t) => t.id)]);
+  const previas = new Map(); const siguientes = new Map();
+  for (const d of deps) {
+    if (!porId.has(d.depende_de_id)) continue;
+    if (!previas.has(d.tarea_id)) previas.set(d.tarea_id, []); previas.get(d.tarea_id).push(d);
+    if (!siguientes.has(d.depende_de_id)) siguientes.set(d.depende_de_id, []); siguientes.get(d.depende_de_id).push(d.tarea_id);
+  }
+  // afectables: la semilla y todo lo que va detrás
+  const afect = new Set(); const cola = [...semilla];
+  while (cola.length) { const x = cola.pop(); if (afect.has(x)) continue; afect.add(x); for (const y of siguientes.get(x) || []) cola.push(y); }
+  // orden topológico
+  const orden = []; const visto = new Set(); const enCurso = new Set();
+  const visitar = (id) => { if (visto.has(id) || enCurso.has(id)) return; enCurso.add(id); for (const d of previas.get(id) || []) visitar(d.depende_de_id); enCurso.delete(id); visto.add(id); orden.push(id); };
+  for (const t of tareas) visitar(t.id);
+  const cal = await calendario(c, fecha(num(hoy) - 400), fecha(num(hoy) + 800));
+  const tAbs = (u) => num(u.fecha) * 24 + Number(u.hora);
+  const finNuevo = new Map(); const cambios = [];
+  for (const id of orden) {
+    const t = porId.get(id);
+    let fin = t.fin ? tAbs(t.fin) : null;
+    if (afect.has(id) && t.estado !== 'hecha' && t.ini_mov) {
+      let necesita = null; let por = null;
+      for (const d of previas.get(id) || []) {
+        const p = porId.get(d.depende_de_id);
+        if (p.estado === 'hecha') continue;
+        const fp = finNuevo.has(p.id) ? finNuevo.get(p.id) : (p.fin ? tAbs(p.fin) : null);
+        if (fp == null) continue;
+        const x = fp + d.espera_h;
+        if (necesita == null || x > necesita) { necesita = x; por = { codigo: p.codigo, espera_h: d.espera_h }; }
+      }
+      if (necesita != null && tAbs(t.ini_mov) < necesita - 1e-6) {
+        const n = cal.normal(necesita);
+        let dia = fecha(Math.floor(n / 24));
+        if (n - Math.floor(n / 24) * 24 > Number(t.ini_mov.hora) + 1e-9) dia = cal.sumarLab(dia, 1);
+        const dias = cal.labEntre(t.ini_mov.fecha, dia);
+        if (dias > 0) {
+          cambios.push({ tarea_id: id, orden_id: t.orden_id, codigo: t.codigo, nombre: t.nombre, dias, desde: t.ini_mov.fecha, a: dia, tras: por });
+          if (fin != null) fin = num(cal.sumarLab(t.fin.fecha, dias)) * 24 + Number(t.fin.hora);
+        }
+      }
+    }
+    if (fin != null) finNuevo.set(id, fin);
+  }
+  // tramos concretos y avisos de cada tarea que se corre
+  const movs = [];
+  for (const ch of cambios) {
+    const p = await planMover(c, ch.orden_id, ch.dias, ch.tarea_id);
+    // los avisos de dependencias no aplican: lo que va detrás ya se corre en cadena
+    movs.push({ ...ch, movidos: p.movidos, avisos: p.avisos.filter((x) => x.tipo !== 'dep'), n: p.n, fin: p.fin });
+  }
+  return movs;
+}
+
 /* ---------- DESHACER ---------- */
 async function planDeshacer(c, id) {
   const { rows } = await c.query('SELECT * FROM planificaciones WHERE id = $1', [id]);
@@ -578,6 +657,38 @@ function montar(app, asyncH) {
         `INSERT INTO planificaciones (tipo, orden_id, ordenes, usuario_id, resumen, detalle) VALUES ('mover', $1, $2, $3, $4, $5) RETURNING id`,
         [d.orden_id, [d.orden_id], req.usuario.id, resumen, { tramos: det, dias: p.dias, tarea_id: tid }]);
       return { planificacion_id: pl[0].id, n: p.n, dias: p.dias, resumen, codigo: cod };
+    });
+    res.json(out);
+  }));
+
+  // Reorganizar: corre la tarea (o las de la OT) y lo que va detrás para que se respeten las dependencias
+  const leerDesde = (req) => (req.body?.orden_id ? { orden_id: Number(req.body.orden_id) } : { tarea_id: Number(req.body?.tarea_id) });
+  app.post('/api/plan-vista/reorganizar', auth.permiso('planificar'), asyncH(async (req, res) => {
+    const movs = await planReorganizar({ query }, leerDesde(req));
+    res.json({ tareas: movs.map((m) => ({ ...m, movidos: undefined })), n: movs.reduce((s2, m) => s2 + m.n, 0) });
+  }));
+  app.post('/api/reorganizar', auth.permiso('planificar'), asyncH(async (req, res) => {
+    const out = await tx(async (c) => {
+      await c.query('SELECT pg_advisory_xact_lock($1)', [LOCK]);
+      const movs = await planReorganizar(c, leerDesde(req));
+      if (!movs.length) throw fallo(409, 'No hay nada que reorganizar: las dependencias ya se respetan');
+      const det = [];
+      for (const m of movs) {
+        for (const x of m.movidos) {
+          await c.query('UPDATE tramos SET fecha = $2, actualizado_por = $3 WHERE id = $1', [x.id, x.nueva, req.usuario.id]);
+          for (const g of x.quitar) await c.query('DELETE FROM tramo_asignaciones WHERE tramo_id = $1 AND recurso_id = $2', [x.id, g.recurso_id]);
+          await extras.sincronizar(c, x.id, req.usuario);
+          det.push({ id: x.id, tarea_id: x.tarea_id, antes: { fecha: x.fecha, hora_inicio: x.hora_inicio, duracion_h: x.duracion_h, linea_id: x.linea_id },
+            despues: { fecha: x.nueva, hora_inicio: x.hora_inicio, duracion_h: x.duracion_h, linea_id: x.linea_id }, quitados: x.quitar.map((g) => ({ recurso_id: g.recurso_id, desde: g.desde, hasta: g.hasta })) });
+        }
+        await c.query('INSERT INTO historial (usuario_id, tarea_id, accion, detalle) VALUES ($1,$2,$3,$4)', [req.usuario.id, m.tarea_id, 'reorganizar', { dias: m.dias }]);
+      }
+      const ordenes = [...new Set(movs.map((m) => m.orden_id))];
+      const resumen = `Reorganizar dependencias · ${movs.length} tarea${movs.length > 1 ? 's' : ''} (${movs.map((m) => `${m.codigo} +${m.dias}`).slice(0, 4).join(', ')}${movs.length > 4 ? '…' : ''}) · ${det.length} tramos`;
+      const { rows: pl } = await c.query(
+        `INSERT INTO planificaciones (tipo, orden_id, ordenes, usuario_id, resumen, detalle) VALUES ('mover', $1, $2, $3, $4, $5) RETURNING id`,
+        [ordenes.length === 1 ? ordenes[0] : null, ordenes, req.usuario.id, resumen, { tramos: det, reorganizar: movs.map((m) => ({ tarea_id: m.tarea_id, dias: m.dias })) }]);
+      return { planificacion_id: pl[0].id, tareas: movs.length, tramos: det.length, ordenes, resumen };
     });
     res.json(out);
   }));

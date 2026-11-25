@@ -891,6 +891,11 @@ La pantalla de planificación diaria (`/`, `public/app.js`) se llama **Cuadrante
 - **Mover detrás:** `POST /api/plan-vista/tareas/:id/detras` y `POST /api/tareas/:id/detras {depende_de_id}`.
   - Calcula los días laborables justos para que la tarea empiece cuando acaba su previa más la espera (al día siguiente si a esa hora ya no cabe).
   - Mueve sus tramos de hoy en adelante con `planMover` limitado a esa tarea y se guarda como `planificaciones` `mover`, que se puede deshacer.
+- **Reorganizar:** `POST /api/plan-vista/reorganizar` y `POST /api/reorganizar {tarea_id | orden_id}` (`planReorganizar`).
+  - Recorre en orden de dependencias las tareas del proyecto. Las «afectables» son la tarea (o las de la OT) y todo lo que va detrás. Corre hacia delante, nunca hacia atrás, las que empiezan antes del fin de alguna previa más la espera.
+  - Cada una se corre los días laborables justos, contando el nuevo fin de lo ya corrido (en cadena); los festivos se saltan.
+  - Mueve los tramos de hoy en adelante sin horas reales ni cierre (`planMover` por tarea) y lo guarda en una sola `planificaciones` `mover`, que se deshace entera.
+  - En el Gantt: botón «⇉ Reorganizar» en la OT cuando alguna de sus tareas pisa a su previa, y «⇉ Correr … y lo que va después» al pulsar una flecha roja. Ambos abren una vista previa con cada tarea, sus días y desde/hasta.
 - **Datos en las barras:** «En las barras: Nada / Personas / Área / Horas» (recordado).
   - El Gantt devuelve por tarea `gente {nombres, falta, pide}` de los tramos de hoy en adelante (tareas propias) y `duracion_h`.
   - Personas: iniciales y un chip naranja «👷 x/y» o «sin gente».

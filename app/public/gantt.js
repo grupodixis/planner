@@ -188,6 +188,7 @@
               enProp ? el('span', { class: 'gt-ch prop' }, 'propuesta') : el('span', { class: `gt-ch ${rc}` }, `${o.riesgo === 'no_llega' ? '⚠ ' : ''}${o.riesgo_txt}`),
               puedePlan() && !est.prop && pendiente(o)
                 ? el('button', { type: 'button', class: 'gt-acc', title: 'Planificar OT: colocar sus tareas pendientes de una vez', 'aria-label': `Planificar ${o.codigo}`, onclick: () => abrirPlanificar(alcanceOT(o)) }, '🗓') : null,
+              puedePlan() && !est.prop && otPisa(o) ? el('button', { type: 'button', class: 'gt-acc gt-acc-mal', title: 'Hay tareas que empiezan antes de que acabe su previa: correrlas (y lo que va después) lo justo', onclick: () => reorganizar({ orden_id: o.id }, `OT ${o.codigo}`) }, '⇉ Reorganizar') : null,
               o.planif_n ? el('button', { type: 'button', class: 'gt-acc', title: 'Planificaciones y movimientos de esta OT (deshacer)', 'aria-label': 'Historial de planificaciones', onclick: () => historial(o) }, '🕘') : null)),
           tl));
         if (!abierta) continue;
@@ -422,16 +423,8 @@
     const fin = tp?.segmentos.at(-1)?.[1]; const ini = ta?.segmentos.find((s2) => s2[1] >= est.datos.hoy)?.[0] || ta?.segmentos[0]?.[0];
     const aviso = fin && ini ? (mal ? { mal: true, texto: `✕ ${ta.codigo} empieza el ${fmt(ini)}, antes de que acabe ${tp.codigo} (${fmt(fin)})` } : { texto: `✔ ${tp.codigo} acaba el ${fmt(fin)} y ${ta.codigo} empieza el ${fmt(ini)}` }) : null;
     const antes = { espera_h: dep.espera_h, nota: dep.nota };
-    const detras = mal && puedePlan() ? async () => {
-      try {
-        const v = await api('POST', `/api/plan-vista/tareas/${a}/detras`, { depende_de_id: de });
-        if (!confirm(`Mover ${ta.codigo} ${v.dias} día${v.dias === 1 ? '' : 's'} laborable${v.dias === 1 ? '' : 's'}: ${v.n} tramo${v.n === 1 ? '' : 's'}, empezaría el ${fmt(v.a)}.${v.avisos.length ? `\n\n⚠ ${v.avisos.map((x) => x.texto).join('\n⚠ ')}` : ''}\n\n¿Mover?`)) return;
-        const x = await api('POST', `/api/tareas/${a}/detras`, { depende_de_id: de });
-        for (const o of est.datos.ots) if (o.tareas.some((t2) => t2.id === a)) est.fijas.add(o.id);
-        await cargar(); avisoDeshacer(`↔ ${x.resumen}`, x.planificacion_id);
-      } catch (e) { window.s360.aviso?.(e.message); }
-    } : null;
-    if (detras) detras.texto = `↔ Mover ${ta.codigo} detrás`;
+    const detras = mal && puedePlan() ? () => reorganizar({ tarea_id: a }, `${ta.codigo} y lo que va después`) : null;
+    if (detras) detras.texto = `⇉ Correr ${ta.codigo} y lo que va después`;
     dialogoDep({ titulo: `${ta?.codigo} va después de ${tp?.codigo}`, dep, aviso,
       alGuardar: (v) => guardarDep(a, de, v, antes),
       alQuitar: puedeDeps() ? async () => {
@@ -444,6 +437,38 @@
         } catch (e) { window.s360.aviso?.(e.message); }
       } : null,
       alDetras: detras });
+  }
+
+  /* ---------- reorganizar: correr lo que pisa a su previa, en cadena ---------- */
+  const otPisa = (o) => { const ids = new Set(o.tareas.map((t) => t.id)); return (est.datos.deps || []).some((d) => ids.has(d.a) && pisa(d)); };
+  async function reorganizar(desde, que) {
+    let v;
+    try { v = await api('POST', '/api/plan-vista/reorganizar', desde); } catch (e) { window.s360.aviso?.(e.message); return; }
+    if (!v.tareas.length) { window.s360.aviso?.('Nada que reorganizar: las dependencias ya se respetan (o lo que pisa no tiene nada que se pueda mover)'); return; }
+    const avisos = v.tareas.flatMap((t) => t.avisos || []);
+    const d = dialogo('Reorganizar', 'chico');
+    d.append(
+      el('div', { class: 'gt-pl-cab' }, el('h2', {}, `⇉ Reorganizar ${que}`), el('button', { type: 'button', class: 'ghost', 'aria-label': 'Cerrar', onclick: () => d.close() }, '✕')),
+      el('div', { class: 'gt-pl-caja' },
+        el('p', {}, `Se corren ${v.tareas.length} tarea${v.tareas.length > 1 ? 's' : ''} (${v.n} tramos) lo justo para empezar cuando acaba su previa + la espera. Nada se adelanta; lo que ya tiene horas reales o cierre se queda.`),
+        el('table', { class: 'gt-pl-ots' }, el('tbody', {}, v.tareas.map((t) => el('tr', {},
+          el('td', {}, el('b', { class: 'cod' }, t.codigo), ` ${t.nombre}`),
+          el('td', {}, `+${t.dias} día${t.dias > 1 ? 's' : ''}`),
+          el('td', {}, `${fmt(t.desde)} → `, el('b', {}, fmt(t.a))),
+          el('td', { class: 'ayuda' }, t.tras ? `tras ${t.tras.codigo}${t.tras.espera_h ? ` +${t.tras.espera_h} h` : ''}` : '')))))),
+      avisos.length ? el('div', { class: 'gt-pl-caja' }, el('b', {}, 'Avisos'), listaAvisos(avisos)) : null,
+      el('div', { class: 'gt-pl-pie' },
+        el('button', { type: 'button', onclick: () => d.close() }, 'Cancelar'),
+        el('button', { type: 'button', class: 'primario', onclick: async (ev) => {
+          ev.target.disabled = true;
+          try {
+            const x = await api('POST', '/api/reorganizar', desde);
+            for (const id of x.ordenes) est.fijas.add(id);
+            d.close(); await cargar();
+            avisoDeshacer(`⇉ Reorganizado: ${x.tareas} tarea${x.tareas > 1 ? 's' : ''}, ${x.tramos} tramos`, x.planificacion_id);
+          } catch (e) { window.s360.aviso?.(e.message); ev.target.disabled = false; }
+        } }, '⇉ Reorganizar')));
+    d.showModal();
   }
 
   /* ---------- flechas de dependencias ---------- */
