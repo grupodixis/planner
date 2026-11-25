@@ -1,0 +1,7467 @@
+[
+ {
+  "codigo_ext": "1",
+  "nombre": "Dixis Recursos y Soluciones, S.L.",
+  "nombre_comercial": "Dixis",
+  "cif": "B57825432",
+  "tipo": "empresa",
+  "telefono": "971 35 20 18",
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "2",
+  "nombre": "MPolo, S.L.",
+  "nombre_comercial": null,
+  "cif": "B60108214",
+  "tipo": "empresa",
+  "telefono": "971 36 50 10",
+  "movil": "649 48 90 00",
+  "email": "ana.vargas@mpolo.es",
+  "notas": "Fax: 971 35 33 56\nOtros correos: aicha@mpolo.es\nCliente web",
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "3",
+  "nombre": "Exolum Corporation, S.A.",
+  "nombre_comercial": null,
+  "cif": "A28018380",
+  "tipo": "empresa",
+  "telefono": "971 77 60 90",
+  "movil": "607 36 24 98",
+  "email": "clh.mahon@exolum.com",
+  "notas": "Fax: 917 74 64 38",
+  "activo": true,
+  "contactos": [
+   {
+    "nombre": "Josep Serra",
+    "telefono": "607 36 24 98",
+    "email": "clh.mahon@exolum.com"
+   }
+  ]
+ },
+ {
+  "codigo_ext": "4",
+  "nombre": "Alyservi Balears Menorca, S.L.",
+  "nombre_comercial": null,
+  "cif": "B57351819",
+  "tipo": "empresa",
+  "telefono": "871 70 12 99",
+  "movil": "626 57 43 96",
+  "email": "info@alyservi.es",
+  "notas": "Fax: 971 36 50 98",
+  "activo": true,
+  "contactos": [
+   {
+    "nombre": "Amadeo Sabido",
+    "telefono": "626 57 43 96",
+    "email": "info@alyservi.es"
+   }
+  ]
+ },
+ {
+  "codigo_ext": "5",
+  "nombre": "Lumer, S.L.",
+  "nombre_comercial": null,
+  "cif": "B07049927",
+  "tipo": "empresa",
+  "telefono": null,
+  "movil": null,
+  "email": "lumer@clubsanjaime.net",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "6",
+  "nombre": "Dissenya2, S.C.",
+  "nombre_comercial": null,
+  "cif": "J57701146",
+  "tipo": "empresa",
+  "telefono": null,
+  "movil": null,
+  "email": "laia@dissenya-2.com",
+  "notas": "Cliente web",
+  "activo": true,
+  "contactos": [
+   {
+    "nombre": "Laia",
+    "telefono": null,
+    "email": "laia@dissenya-2.com"
+   }
+  ]
+ },
+ {
+  "codigo_ext": "7",
+  "nombre": "Sur 20, S.L.",
+  "nombre_comercial": null,
+  "cif": "B57758237",
+  "tipo": "empresa",
+  "telefono": "971 57 36 00",
+  "movil": null,
+  "email": "felipe.menendez@gmail.com",
+  "notas": null,
+  "activo": true,
+  "contactos": [
+   {
+    "nombre": "Felipe Menendez",
+    "telefono": "971 57 36 00",
+    "email": "felipe.menendez@gmail.com"
+   }
+  ]
+ },
+ {
+  "codigo_ext": "8",
+  "nombre": "Climaigas Menorca, S.L.",
+  "nombre_comercial": null,
+  "cif": "B57727380",
+  "tipo": "empresa",
+  "telefono": "971 15 20 18",
+  "movil": null,
+  "email": "climaigasmenorca@gmail.com",
+  "notas": null,
+  "activo": true,
+  "contactos": [
+   {
+    "nombre": "Pedro Rovellada",
+    "telefono": "971 15 20 18",
+    "email": "climaigasmenorca@gmail.com"
+   }
+  ]
+ },
+ {
+  "codigo_ext": "9",
+  "nombre": "Plastimoda, S.A.",
+  "nombre_comercial": null,
+  "cif": "A07098916",
+  "tipo": "empresa",
+  "telefono": "971 36 58 12",
+  "movil": null,
+  "email": "plastimoda@plastimoda.es",
+  "notas": "Cliente web",
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "10",
+  "nombre": "Nice Price, S.L.",
+  "nombre_comercial": null,
+  "cif": "B57018848",
+  "tipo": "empresa",
+  "telefono": "626 57 43 96",
+  "movil": null,
+  "email": "nicepricesl@gmail.com",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "11",
+  "nombre": "XM Equipaments, S.L.",
+  "nombre_comercial": null,
+  "cif": "B07833924",
+  "tipo": "empresa",
+  "telefono": "971 36 01 46",
+  "movil": null,
+  "email": "info@equipaments.es",
+  "notas": "Cliente web",
+  "activo": true,
+  "contactos": [
+   {
+    "nombre": "Xavi",
+    "telefono": "971 36 01 46",
+    "email": "info@equipaments.es"
+   }
+  ]
+ },
+ {
+  "codigo_ext": "12",
+  "nombre": "Menorca Hogar, S.L.",
+  "nombre_comercial": null,
+  "cif": "77314776T",
+  "tipo": "empresa",
+  "telefono": "971 35 78 19",
+  "movil": null,
+  "email": "marcel@menorcahogar.com",
+  "notas": null,
+  "activo": true,
+  "contactos": [
+   {
+    "nombre": "Marcel Solís",
+    "telefono": "971 35 78 19",
+    "email": "marcel@menorcahogar.com"
+   }
+  ]
+ },
+ {
+  "codigo_ext": "13",
+  "nombre": "Marmoles Perez Belda, S.L.",
+  "nombre_comercial": null,
+  "cif": "B07469117",
+  "tipo": "empresa",
+  "telefono": "971 37 72 77",
+  "movil": null,
+  "email": "info@marmolesperezbelda.com",
+  "notas": "Cliente web",
+  "activo": true,
+  "contactos": [
+   {
+    "nombre": "Carlos Perez Belda",
+    "telefono": "971 37 72 77",
+    "email": "info@marmolesperezbelda.com"
+   }
+  ]
+ },
+ {
+  "codigo_ext": "14",
+  "nombre": "Inversiones 3m S.l. (Dada de Baja)",
+  "nombre_comercial": "Inversiones 3m, S.L.",
+  "cif": "B07457922",
+  "tipo": "empresa",
+  "telefono": "971 36 16 04",
+  "movil": null,
+  "email": null,
+  "notas": "Fax: 971 35 76 38",
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "15",
+  "nombre": "Souvenirs Illes Balears, S.L.",
+  "nombre_comercial": null,
+  "cif": "B57946527",
+  "tipo": "empresa",
+  "telefono": "971 35 37 52",
+  "movil": "667 69 52 19",
+  "email": "jaime@ibsouvenirs.com",
+  "notas": "Fax: 667 69 52 19\nCliente web\nTambién código 109 en el programa de facturación",
+  "activo": true,
+  "contactos": [
+   {
+    "nombre": "Jaime",
+    "telefono": "971 35 37 52",
+    "email": "jaime@ibsouvenirs.com"
+   }
+  ]
+ },
+ {
+  "codigo_ext": "16",
+  "nombre": "Jaime Fiol Barceló",
+  "nombre_comercial": null,
+  "cif": "43015001X",
+  "tipo": "particular",
+  "telefono": "971 35 62 04",
+  "movil": null,
+  "email": "punt.verd@gmail.com",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "17",
+  "nombre": "Eurohotel Sertane, S.L.",
+  "nombre_comercial": null,
+  "cif": "B07741440",
+  "tipo": "empresa",
+  "telefono": "625 64 48 85",
+  "movil": null,
+  "email": "eurohotel.menorca@gmail.com",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "18",
+  "nombre": "Maria d' Ayuda Dos Santos Alexandrina",
+  "nombre_comercial": null,
+  "cif": "Y1196073H",
+  "tipo": "particular",
+  "telefono": "620 92 57 57",
+  "movil": null,
+  "email": "alexaduda@hotmail.com",
+  "notas": null,
+  "activo": true,
+  "contactos": [
+   {
+    "nombre": "Xavi",
+    "telefono": "620 92 57 57",
+    "email": "alexaduda@hotmail.com"
+   }
+  ]
+ },
+ {
+  "codigo_ext": "19",
+  "nombre": "David Caston",
+  "nombre_comercial": null,
+  "cif": "X2171742J",
+  "tipo": "particular",
+  "telefono": "971 93 96 04",
+  "movil": null,
+  "email": "davidcaston60@hotmail.com",
+  "notas": "Fax: 658 11 66 38",
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "20",
+  "nombre": "Club Tenis Mahón",
+  "nombre_comercial": null,
+  "cif": "G07154297",
+  "tipo": "empresa",
+  "telefono": "971 36 57 03",
+  "movil": null,
+  "email": "clubtenismahon@gmail.com",
+  "notas": null,
+  "activo": true,
+  "contactos": [
+   {
+    "nombre": "Juan",
+    "telefono": "971 36 57 03",
+    "email": "clubtenismahon@gmail.com"
+   }
+  ]
+ },
+ {
+  "codigo_ext": "21",
+  "nombre": "Ayma Pablo",
+  "nombre_comercial": null,
+  "cif": "X3246516C",
+  "tipo": "particular",
+  "telefono": "637 74 00 80",
+  "movil": null,
+  "email": "pablo0072009@hotmail.es",
+  "notas": null,
+  "activo": true,
+  "contactos": [
+   {
+    "nombre": "Pablo Ayma",
+    "telefono": "637 74 00 80",
+    "email": "pablo0072009@hotmail.es"
+   }
+  ]
+ },
+ {
+  "codigo_ext": "22",
+  "nombre": "Luis Esteban Duca",
+  "nombre_comercial": null,
+  "cif": "X2787811G",
+  "tipo": "particular",
+  "telefono": "691 40 50 48",
+  "movil": null,
+  "email": "totopadel@gmail.com",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "23",
+  "nombre": "Obras Calan Busquets, S.L.",
+  "nombre_comercial": null,
+  "cif": "B07699499",
+  "tipo": "empresa",
+  "telefono": "610 09 51 83",
+  "movil": null,
+  "email": "info@calanbusquets.com",
+  "notas": "Fax: 971 37 24 06\nCliente web",
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "24",
+  "nombre": "R.Llufriu, S.L.",
+  "nombre_comercial": null,
+  "cif": "B07579907",
+  "tipo": "empresa",
+  "telefono": null,
+  "movil": null,
+  "email": "refrigeracion@llufriu.com",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "25",
+  "nombre": "Harold Henry Romero Benitez",
+  "nombre_comercial": null,
+  "cif": "X8890286G",
+  "tipo": "particular",
+  "telefono": "664 68 64 81",
+  "movil": null,
+  "email": "haroldb@hotmail.com",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "26",
+  "nombre": "Jagaro, S.L.",
+  "nombre_comercial": null,
+  "cif": "B07558950",
+  "tipo": "empresa",
+  "telefono": "971 36 23 90",
+  "movil": "659 46 24 27",
+  "email": "jagaromenorca@hotmail.com",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "27",
+  "nombre": "Andrea Jaeguer",
+  "nombre_comercial": null,
+  "cif": "X0646728Z",
+  "tipo": "particular",
+  "telefono": "971 18 86 31",
+  "movil": null,
+  "email": "andreailsejaeguer@yahoo.de",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "28",
+  "nombre": "Ariel Scarfo",
+  "nombre_comercial": null,
+  "cif": "X3717796F",
+  "tipo": "particular",
+  "telefono": "650 66 05 51",
+  "movil": null,
+  "email": "aryelscarfo@gmail.com",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "29",
+  "nombre": "Oscar Jové Arquer",
+  "nombre_comercial": null,
+  "cif": "41503435G",
+  "tipo": "particular",
+  "telefono": "971 15 11 02",
+  "movil": "620 78 03 92",
+  "email": "jovearquer@hotmail.com",
+  "notas": null,
+  "activo": false,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "30",
+  "nombre": "Ibertel Networks, S.L.",
+  "nombre_comercial": null,
+  "cif": "B57790255",
+  "tipo": "empresa",
+  "telefono": "687 71 72 72",
+  "movil": null,
+  "email": "mario@ibertel.eu",
+  "notas": null,
+  "activo": true,
+  "contactos": [
+   {
+    "nombre": "Mario",
+    "telefono": "687 71 72 72",
+    "email": "mario@ibertel.eu"
+   }
+  ]
+ },
+ {
+  "codigo_ext": "31",
+  "nombre": "Talleres Carreras, S.A.",
+  "nombre_comercial": null,
+  "cif": "A07452436",
+  "tipo": "empresa",
+  "telefono": "971 36 16 09",
+  "movil": "671 01 37 89",
+  "email": "manel@cochesmenorca.es",
+  "notas": null,
+  "activo": true,
+  "contactos": [
+   {
+    "nombre": "Manel Carreras",
+    "telefono": "671 01 37 89",
+    "email": "manel@cochesmenorca.es"
+   }
+  ]
+ },
+ {
+  "codigo_ext": "32",
+  "nombre": "Adrian Bustos Dalessio",
+  "nombre_comercial": null,
+  "cif": "X3184120T",
+  "tipo": "particular",
+  "telefono": null,
+  "movil": null,
+  "email": "bustosdalessi30@hotmail.com",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "33",
+  "nombre": "Infotelecom Networks, S.L.",
+  "nombre_comercial": null,
+  "cif": "B07954472",
+  "tipo": "empresa",
+  "telefono": "971 38 30 00",
+  "movil": "629 84 63 61",
+  "email": "gestion@infotelecom.es",
+  "notas": "Fax: 971 35 42 36",
+  "activo": true,
+  "contactos": [
+   {
+    "nombre": "Alexia Gutierrez",
+    "telefono": "629 84 63 61",
+    "email": "gestion@infotelecom.es"
+   }
+  ]
+ },
+ {
+  "codigo_ext": "34",
+  "nombre": "Gerardo Ariel Blencio Ferro",
+  "nombre_comercial": "Menorcuina",
+  "cif": "41551127D",
+  "tipo": "particular",
+  "telefono": "620 74 37 03",
+  "movil": null,
+  "email": "menorcuina@gmail.com",
+  "notas": "Cliente web",
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "35",
+  "nombre": "Villalobos Claudia",
+  "nombre_comercial": null,
+  "cif": "X2273420P",
+  "tipo": "particular",
+  "telefono": "971 15 06 05",
+  "movil": null,
+  "email": "jabonesnura@gmail.com",
+  "notas": null,
+  "activo": true,
+  "contactos": [
+   {
+    "nombre": "Claudia Villalobos",
+    "telefono": "971 15 06 05",
+    "email": "jabonesnura@gmail.com"
+   }
+  ]
+ },
+ {
+  "codigo_ext": "36",
+  "nombre": "Manel Salvador",
+  "nombre_comercial": null,
+  "cif": null,
+  "tipo": "particular",
+  "telefono": null,
+  "movil": null,
+  "email": "chjsalva@infotelecom.es",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "37",
+  "nombre": "Josep Serra",
+  "nombre_comercial": null,
+  "cif": null,
+  "tipo": "particular",
+  "telefono": null,
+  "movil": null,
+  "email": "josep.serra@clh.es",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "38",
+  "nombre": "Menorca Owner Services, S.L.",
+  "nombre_comercial": null,
+  "cif": "B07222862",
+  "tipo": "empresa",
+  "telefono": "971 37 00 00",
+  "movil": null,
+  "email": "jesus.florez@hamiltoncourt.com",
+  "notas": null,
+  "activo": true,
+  "contactos": [
+   {
+    "nombre": "Jesus Flores",
+    "telefono": "971 37 00 00",
+    "email": "jesus.florez@hamiltoncourt.com"
+   }
+  ]
+ },
+ {
+  "codigo_ext": "39",
+  "nombre": "Franklin Romero Cabrera",
+  "nombre_comercial": null,
+  "cif": "41610699L",
+  "tipo": "particular",
+  "telefono": "650 26 43 49",
+  "movil": null,
+  "email": "frarome1961@gmail.com",
+  "notas": null,
+  "activo": true,
+  "contactos": [
+   {
+    "nombre": "Frank Romero",
+    "telefono": "650 26 43 49",
+    "email": "frarome1961@gmail.com"
+   }
+  ]
+ },
+ {
+  "codigo_ext": "40",
+  "nombre": "Menorca Serveis, S.L.",
+  "nombre_comercial": null,
+  "cif": "B57222770",
+  "tipo": "empresa",
+  "telefono": "971 15 15 91",
+  "movil": null,
+  "email": "info@menorcahomecare.com",
+  "notas": null,
+  "activo": true,
+  "contactos": [
+   {
+    "nombre": "Carole Toomey",
+    "telefono": "971 15 15 91",
+    "email": "info@menorcahomecare.com"
+   }
+  ]
+ },
+ {
+  "codigo_ext": "41",
+  "nombre": "Tomeu Mercadal",
+  "nombre_comercial": null,
+  "cif": null,
+  "tipo": "particular",
+  "telefono": "616 74 66 11",
+  "movil": null,
+  "email": "tomemercadal@hotmail.com",
+  "notas": null,
+  "activo": true,
+  "contactos": [
+   {
+    "nombre": "Tomé Mercadal",
+    "telefono": "616 74 66 11",
+    "email": "tomemercadal@hotmail.com"
+   }
+  ]
+ },
+ {
+  "codigo_ext": "42",
+  "nombre": "Menorca Quality Renovation, S.L.",
+  "nombre_comercial": null,
+  "cif": "B57844854",
+  "tipo": "empresa",
+  "telefono": "871 51 00 44",
+  "movil": null,
+  "email": "info@menorcahomecare.com",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "43",
+  "nombre": "Club de Tenis Alaior",
+  "nombre_comercial": null,
+  "cif": null,
+  "tipo": "empresa",
+  "telefono": "971 37 15 89",
+  "movil": null,
+  "email": null,
+  "notas": "Fax: 971 37 86 18",
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "44",
+  "nombre": "Sebastian Periano Pons",
+  "nombre_comercial": null,
+  "cif": "41495668B",
+  "tipo": "particular",
+  "telefono": "971 15 06 46",
+  "movil": "620 80 18 70",
+  "email": "sebastianperiano@gmail.com",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "45",
+  "nombre": "Villalonga y Sintes Clima, S.L.",
+  "nombre_comercial": null,
+  "cif": "B57484974",
+  "tipo": "empresa",
+  "telefono": "971 36 58 73",
+  "movil": null,
+  "email": "vsclima@vsclima.com",
+  "notas": null,
+  "activo": true,
+  "contactos": [
+   {
+    "nombre": "Luis Villalonga",
+    "telefono": "971 36 58 73",
+    "email": "vsclima@vsclima.com"
+   }
+  ]
+ },
+ {
+  "codigo_ext": "46",
+  "nombre": "Magnovent, S.L.",
+  "nombre_comercial": null,
+  "cif": "B98405178",
+  "tipo": "empresa",
+  "telefono": "961 34 12 24",
+  "movil": "646 25 61 11",
+  "email": "pablo@magnovent.es",
+  "notas": "Fax: 961 34 11 32",
+  "activo": true,
+  "contactos": [
+   {
+    "nombre": "Pablo Roures",
+    "telefono": "646 25 61 11",
+    "email": "pablo@magnovent.es"
+   }
+  ]
+ },
+ {
+  "codigo_ext": "47",
+  "nombre": "Male de Vives",
+  "nombre_comercial": null,
+  "cif": null,
+  "tipo": "particular",
+  "telefono": null,
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "48",
+  "nombre": "Laia Segui Prada",
+  "nombre_comercial": null,
+  "cif": "41504164C",
+  "tipo": "particular",
+  "telefono": "626 74 92 06",
+  "movil": null,
+  "email": "laiasegui@gmail.com",
+  "notas": null,
+  "activo": true,
+  "contactos": [
+   {
+    "nombre": "Laia Seguí Prada",
+    "telefono": "626 74 92 06",
+    "email": "laiasegui@gmail.com"
+   }
+  ]
+ },
+ {
+  "codigo_ext": "49",
+  "nombre": "Es Esbrells, S.L.",
+  "nombre_comercial": null,
+  "cif": null,
+  "tipo": "empresa",
+  "telefono": "971 37 93 83",
+  "movil": null,
+  "email": "josep@abadsintes.es",
+  "notas": null,
+  "activo": true,
+  "contactos": [
+   {
+    "nombre": "Josep Abad Sintes",
+    "telefono": "971 37 93 83",
+    "email": "josep@abadsintes.es"
+   }
+  ]
+ },
+ {
+  "codigo_ext": "50",
+  "nombre": "Juan Carlos Sánchez Ruis",
+  "nombre_comercial": null,
+  "cif": "43556295E",
+  "tipo": "particular",
+  "telefono": "690 71 60 56",
+  "movil": null,
+  "email": "reservasjc.cars@gmail.com",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "51",
+  "nombre": "Luca Soldati",
+  "nombre_comercial": null,
+  "cif": "X1866407A",
+  "tipo": "particular",
+  "telefono": "653 18 85 87",
+  "movil": null,
+  "email": "soldati65@hotmail.com",
+  "notas": null,
+  "activo": true,
+  "contactos": [
+   {
+    "nombre": "Luca Soldatti",
+    "telefono": "653 18 85 87",
+    "email": "soldati65@hotmail.com"
+   }
+  ]
+ },
+ {
+  "codigo_ext": "52",
+  "nombre": "Ic-10 Proyectos Tecnicos y Construccione",
+  "nombre_comercial": null,
+  "cif": "B84384296",
+  "tipo": "empresa",
+  "telefono": "914 31 57 15",
+  "movil": "663 74 23 13",
+  "email": "abautista@ic-10.es",
+  "notas": "Fax: 914 35 54 22",
+  "activo": true,
+  "contactos": [
+   {
+    "nombre": "Alex Bautista",
+    "telefono": "663 74 23 13",
+    "email": "abautista@ic-10.es"
+   }
+  ]
+ },
+ {
+  "codigo_ext": "53",
+  "nombre": "Maria Francisca Ramon Orfila",
+  "nombre_comercial": "Supermercado Suma",
+  "cif": "41499295G",
+  "tipo": "particular",
+  "telefono": null,
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "54",
+  "nombre": "Antonio y Diego, S.A.",
+  "nombre_comercial": null,
+  "cif": "A07116122",
+  "tipo": "empresa",
+  "telefono": "971 36 05 05",
+  "movil": null,
+  "email": "info@antonioydiego.com",
+  "notas": null,
+  "activo": true,
+  "contactos": [
+   {
+    "nombre": "Guillermo Casanova Rosa",
+    "telefono": "971 36 05 05",
+    "email": "info@antonioydiego.com"
+   }
+  ]
+ },
+ {
+  "codigo_ext": "55",
+  "nombre": "Asociacion Estación Nautica Menorca",
+  "nombre_comercial": null,
+  "cif": "G57737124",
+  "tipo": "empresa",
+  "telefono": null,
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "56",
+  "nombre": "David Sanemeterio",
+  "nombre_comercial": null,
+  "cif": "46575014Z",
+  "tipo": "particular",
+  "telefono": "678 63 66 97",
+  "movil": null,
+  "email": "david@sanemeterio.net",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "57",
+  "nombre": "MP Arquitectures",
+  "nombre_comercial": null,
+  "cif": null,
+  "tipo": "empresa",
+  "telefono": "935 29 86 19",
+  "movil": "637 06 80 36",
+  "email": "paucobo@mparquitectures.com",
+  "notas": "Fax: 935 29 86 18",
+  "activo": true,
+  "contactos": [
+   {
+    "nombre": "Pau Cobo",
+    "telefono": "637 06 80 36",
+    "email": "paucobo@mparquitectures.com"
+   }
+  ]
+ },
+ {
+  "codigo_ext": "58",
+  "nombre": "Morella Vell, C.B.",
+  "nombre_comercial": null,
+  "cif": "E64630981",
+  "tipo": "empresa",
+  "telefono": "607 83 78 18",
+  "movil": null,
+  "email": "a2construccion@hotmail.com",
+  "notas": null,
+  "activo": true,
+  "contactos": [
+   {
+    "nombre": "Carlos Sintes",
+    "telefono": "607 83 78 18",
+    "email": "a2construccion@hotmail.com"
+   }
+  ]
+ },
+ {
+  "codigo_ext": "59",
+  "nombre": "UTE Fibra Óptica",
+  "nombre_comercial": null,
+  "cif": "U57865719",
+  "tipo": "empresa",
+  "telefono": "646 05 26 49",
+  "movil": null,
+  "email": "oscar.jimenez@dimensiondata.com",
+  "notas": null,
+  "activo": true,
+  "contactos": [
+   {
+    "nombre": "Oscar Jimenez Molina",
+    "telefono": "646 05 26 49",
+    "email": "oscar.jimenez@dimensiondata.com"
+   }
+  ]
+ },
+ {
+  "codigo_ext": "60",
+  "nombre": "Electromecánica Menorquina, S.L.",
+  "nombre_comercial": null,
+  "cif": "B07266935",
+  "tipo": "empresa",
+  "telefono": "971 36 24 37",
+  "movil": "629 60 63 99",
+  "email": "electromecanicamenorquina2@gmail.com",
+  "notas": null,
+  "activo": true,
+  "contactos": [
+   {
+    "nombre": "José Olivares",
+    "telefono": "629 60 63 99",
+    "email": "electromecanicamenorquina2@gmail.com"
+   }
+  ]
+ },
+ {
+  "codigo_ext": "61",
+  "nombre": "Aena, S.A.",
+  "nombre_comercial": null,
+  "cif": "A86212420",
+  "tipo": "empresa",
+  "telefono": "971 15 72 03",
+  "movil": null,
+  "email": "mdccardona@aena.es",
+  "notas": null,
+  "activo": true,
+  "contactos": [
+   {
+    "nombre": "Mari Cardona",
+    "telefono": "971 15 72 03",
+    "email": "mdccardona@aena.es"
+   }
+  ]
+ },
+ {
+  "codigo_ext": "62",
+  "nombre": "Menorca Cargo, S.L.",
+  "nombre_comercial": null,
+  "cif": "B57328049",
+  "tipo": "empresa",
+  "telefono": "971 36 08 34",
+  "movil": "650 97 74 05",
+  "email": "jbisbal@menorcacargo.com",
+  "notas": "Fax: 971 36 90 90",
+  "activo": true,
+  "contactos": [
+   {
+    "nombre": "Joaquin Bisbal",
+    "telefono": "650 97 74 05",
+    "email": "jbisbal@menorcacargo.com"
+   }
+  ]
+ },
+ {
+  "codigo_ext": "63",
+  "nombre": "Inversiones 3m, S.L.",
+  "nombre_comercial": null,
+  "cif": "B83223602",
+  "tipo": "empresa",
+  "telefono": "971 36 16 04",
+  "movil": "653 74 03 83",
+  "email": "nhv@artiemhotels.com",
+  "notas": "Fax: 971 35 76 38\nCliente web",
+  "activo": true,
+  "contactos": [
+   {
+    "nombre": "Nacho Homs Victori",
+    "telefono": "653 74 03 83",
+    "email": "nhv@artiemhotels.com"
+   }
+  ]
+ },
+ {
+  "codigo_ext": "64",
+  "nombre": "Obras y Reformas Oroque, S.L.U.",
+  "nombre_comercial": null,
+  "cif": "B98219132",
+  "tipo": "empresa",
+  "telefono": "649 46 62 96",
+  "movil": null,
+  "email": "oroque@oroque.com",
+  "notas": null,
+  "activo": true,
+  "contactos": [
+   {
+    "nombre": "Jorge Hurtado",
+    "telefono": "649 46 62 96",
+    "email": "oroque@oroque.com"
+   }
+  ]
+ },
+ {
+  "codigo_ext": "65",
+  "nombre": "Rodriguez Josefa",
+  "nombre_comercial": null,
+  "cif": null,
+  "tipo": "particular",
+  "telefono": "630 22 38 68",
+  "movil": null,
+  "email": "info@menorcamediterranea.com",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "66",
+  "nombre": "Pablo Sanchez Arnoletto",
+  "nombre_comercial": null,
+  "cif": "41513578G",
+  "tipo": "particular",
+  "telefono": null,
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "67",
+  "nombre": "Elecnor Infraestructuras",
+  "nombre_comercial": "Elecnor Infraestructuras - Direccion de Negocios Este",
+  "cif": null,
+  "tipo": "particular",
+  "telefono": "971 22 65 80",
+  "movil": null,
+  "email": "mdelatorre@elecnor.com",
+  "notas": "Fax: 971 22 67 36",
+  "activo": true,
+  "contactos": [
+   {
+    "nombre": "Manuel de la Torre",
+    "telefono": "971 22 65 80",
+    "email": "mdelatorre@elecnor.com"
+   }
+  ]
+ },
+ {
+  "codigo_ext": "68",
+  "nombre": "Comercial Caules, S.A.",
+  "nombre_comercial": null,
+  "cif": "A07228232",
+  "tipo": "empresa",
+  "telefono": "971 36 57 80",
+  "movil": null,
+  "email": "administracion@comercialcaules.com",
+  "notas": "Fax: 971 36 51 68",
+  "activo": true,
+  "contactos": [
+   {
+    "nombre": "Toni Caules",
+    "telefono": "971 36 57 80",
+    "email": "administracion@comercialcaules.com"
+   }
+  ]
+ },
+ {
+  "codigo_ext": "69",
+  "nombre": "Instalaciones Villalonga, S.C.",
+  "nombre_comercial": null,
+  "cif": "J07452832",
+  "tipo": "empresa",
+  "telefono": "610 95 49 19",
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": [
+   {
+    "nombre": "Pedro Villalonga",
+    "telefono": "610 95 49 19",
+    "email": null
+   }
+  ]
+ },
+ {
+  "codigo_ext": "70",
+  "nombre": "Jorge Truyol Petrus",
+  "nombre_comercial": null,
+  "cif": "41503571W",
+  "tipo": "particular",
+  "telefono": "971 15 84 52",
+  "movil": null,
+  "email": "info@reparacionesmenorca.com",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "71",
+  "nombre": "Palfen 2012, S.L.",
+  "nombre_comercial": "Aromas Fenpal",
+  "cif": "B65851974",
+  "tipo": "empresa",
+  "telefono": "930 10 40 96",
+  "movil": "672 28 67 96",
+  "email": "administracion@fenpal.es",
+  "notas": null,
+  "activo": true,
+  "contactos": [
+   {
+    "nombre": "Oriol",
+    "telefono": "672 28 67 96",
+    "email": "administracion@fenpal.es"
+   }
+  ]
+ },
+ {
+  "codigo_ext": "72",
+  "nombre": "Hipodromo de Mahon",
+  "nombre_comercial": null,
+  "cif": null,
+  "tipo": "particular",
+  "telefono": null,
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "73",
+  "nombre": "Benito Urban, S.L.U.",
+  "nombre_comercial": null,
+  "cif": "B59987529",
+  "tipo": "empresa",
+  "telefono": "677 97 60 56",
+  "movil": null,
+  "email": "saldoma@benito.com",
+  "notas": null,
+  "activo": true,
+  "contactos": [
+   {
+    "nombre": "Josep Grases",
+    "telefono": "677 97 60 56",
+    "email": "saldoma@benito.com"
+   }
+  ]
+ },
+ {
+  "codigo_ext": "74",
+  "nombre": "Montserrat Martinez Lemos",
+  "nombre_comercial": null,
+  "cif": null,
+  "tipo": "particular",
+  "telefono": "618 58 86 56",
+  "movil": null,
+  "email": "lole7@hotmail.com",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "75",
+  "nombre": "Ballesteros Angel",
+  "nombre_comercial": null,
+  "cif": null,
+  "tipo": "particular",
+  "telefono": "652 26 97 29",
+  "movil": null,
+  "email": "angelbayca@movistar.es",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "76",
+  "nombre": "Antonio Elias Vilalta",
+  "nombre_comercial": null,
+  "cif": "36879883G",
+  "tipo": "particular",
+  "telefono": "628 70 92 02",
+  "movil": null,
+  "email": "antoni.elias@difriho.com",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "77",
+  "nombre": "Tirant 118, S.L.",
+  "nombre_comercial": null,
+  "cif": "B57874687",
+  "tipo": "empresa",
+  "telefono": null,
+  "movil": null,
+  "email": "info@pepmonjo.com",
+  "notas": null,
+  "activo": true,
+  "contactos": [
+   {
+    "nombre": "Pep Monjo",
+    "telefono": null,
+    "email": "info@pepmonjo.com"
+   }
+  ]
+ },
+ {
+  "codigo_ext": "78",
+  "nombre": "David Melrose",
+  "nombre_comercial": null,
+  "cif": null,
+  "tipo": "particular",
+  "telefono": null,
+  "movil": null,
+  "email": "davidmelrose1@gmail.com",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "79",
+  "nombre": "Sanchez Arnoletto Martin R.",
+  "nombre_comercial": null,
+  "cif": "41511849T",
+  "tipo": "particular",
+  "telefono": "677 68 92 21",
+  "movil": null,
+  "email": "hamenorca@gmail.com",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "80",
+  "nombre": "Sociedad Hípica Amigos del Noble Bruto",
+  "nombre_comercial": null,
+  "cif": "G07056054",
+  "tipo": "empresa",
+  "telefono": "696 96 65 54",
+  "movil": null,
+  "email": "carmencpv@gmail.com",
+  "notas": "Otros correos: lgm@gestax.net\nCliente web",
+  "activo": true,
+  "contactos": [
+   {
+    "nombre": "Carmen Pons Villalonga (presidenta de Sociedad)",
+    "telefono": "696 96 65 54",
+    "email": "carmencpv@gmail.com"
+   }
+  ]
+ },
+ {
+  "codigo_ext": "81",
+  "nombre": "Barcelo Hotels Mediterraneo, S.L.",
+  "nombre_comercial": null,
+  "cif": "B07967086",
+  "tipo": "empresa",
+  "telefono": "971 15 90 70",
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "82",
+  "nombre": "Jean Claude",
+  "nombre_comercial": null,
+  "cif": null,
+  "tipo": "particular",
+  "telefono": "971 18 83 53",
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "83",
+  "nombre": "Toni Segui, S.L.",
+  "nombre_comercial": null,
+  "cif": "B61980736",
+  "tipo": "empresa",
+  "telefono": null,
+  "movil": null,
+  "email": "info@toniseguisl.com",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "84",
+  "nombre": "Construcciones Hamilton Court, S.L.",
+  "nombre_comercial": null,
+  "cif": "B57743338",
+  "tipo": "empresa",
+  "telefono": "971 37 00 00",
+  "movil": null,
+  "email": "jesus.florez@hamiltoncourt.com",
+  "notas": null,
+  "activo": true,
+  "contactos": [
+   {
+    "nombre": "Jesus Florez",
+    "telefono": "971 37 00 00",
+    "email": "jesus.florez@hamiltoncourt.com"
+   }
+  ]
+ },
+ {
+  "codigo_ext": "85",
+  "nombre": "Santiago Blanco Juan",
+  "nombre_comercial": null,
+  "cif": null,
+  "tipo": "particular",
+  "telefono": "971 36 80 46",
+  "movil": null,
+  "email": "santiblancojuan@terra.es",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "86",
+  "nombre": "Dimension Data, S.L.",
+  "nombre_comercial": null,
+  "cif": "B82761933",
+  "tipo": "empresa",
+  "telefono": "913 30 93 17",
+  "movil": "646 05 26 49",
+  "email": "oscar.jimenez@dimensiondata.com",
+  "notas": null,
+  "activo": true,
+  "contactos": [
+   {
+    "nombre": "Orcar Jimenez",
+    "telefono": "646 05 26 49",
+    "email": "oscar.jimenez@dimensiondata.com"
+   }
+  ]
+ },
+ {
+  "codigo_ext": "87",
+  "nombre": "Carpinteria Barrera",
+  "nombre_comercial": null,
+  "cif": null,
+  "tipo": "particular",
+  "telefono": null,
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "88",
+  "nombre": "Adi Technicals Solutions, S.L.",
+  "nombre_comercial": null,
+  "cif": "B95784948",
+  "tipo": "empresa",
+  "telefono": "944 53 84 44",
+  "movil": "615 74 45 08",
+  "email": "hibarguren@adisolutions.eu",
+  "notas": "Fax: 944 53 84 45",
+  "activo": true,
+  "contactos": [
+   {
+    "nombre": "Haritz",
+    "telefono": "615 74 45 08",
+    "email": "hibarguren@adisolutions.eu"
+   }
+  ]
+ },
+ {
+  "codigo_ext": "89",
+  "nombre": "Tot Fusta 2014, S.L.",
+  "nombre_comercial": null,
+  "cif": "B57852832",
+  "tipo": "empresa",
+  "telefono": "670 50 69 60",
+  "movil": null,
+  "email": "totfusta2014@gmail.com",
+  "notas": null,
+  "activo": true,
+  "contactos": [
+   {
+    "nombre": "Pedro Barrera",
+    "telefono": "670 50 69 60",
+    "email": "totfusta2014@gmail.com"
+   }
+  ]
+ },
+ {
+  "codigo_ext": "90",
+  "nombre": "Marta Curylo",
+  "nombre_comercial": null,
+  "cif": null,
+  "tipo": "particular",
+  "telefono": null,
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "91",
+  "nombre": "Centro Penitenciario de Menorca",
+  "nombre_comercial": null,
+  "cif": null,
+  "tipo": "administracion",
+  "telefono": null,
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "92",
+  "nombre": "Princep3, S.L.",
+  "nombre_comercial": null,
+  "cif": "B57021610",
+  "tipo": "empresa",
+  "telefono": "971 36 25 25",
+  "movil": null,
+  "email": "teresamoreno1972@gmail.com",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "93",
+  "nombre": "Mar de Fons, S.C.P.",
+  "nombre_comercial": null,
+  "cif": "J57649469",
+  "tipo": "empresa",
+  "telefono": "677 51 77 26",
+  "movil": null,
+  "email": "info@mardefons.com",
+  "notas": "Otros teléfonos: 607 15 07 26",
+  "activo": true,
+  "contactos": [
+   {
+    "nombre": "Roc Jové O Eric",
+    "telefono": "677 51 77 26",
+    "email": "info@mardefons.com"
+   }
+  ]
+ },
+ {
+  "codigo_ext": "94",
+  "nombre": "Saul Andres Ojea Amestoy",
+  "nombre_comercial": null,
+  "cif": "41614073N",
+  "tipo": "particular",
+  "telefono": "645 40 67 66",
+  "movil": null,
+  "email": "saulojea@hotmail.com",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "95",
+  "nombre": "Sánchez Coll Construcciones, S.L.",
+  "nombre_comercial": null,
+  "cif": "B07896608",
+  "tipo": "empresa",
+  "telefono": "639 11 10 24",
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "96",
+  "nombre": "Alejandro Seguí",
+  "nombre_comercial": null,
+  "cif": null,
+  "tipo": "particular",
+  "telefono": "647 23 44 24",
+  "movil": null,
+  "email": "alexsegui69@gmail.com",
+  "notas": null,
+  "activo": true,
+  "contactos": [
+   {
+    "nombre": "Alex",
+    "telefono": "647 23 44 24",
+    "email": "alexsegui69@gmail.com"
+   }
+  ]
+ },
+ {
+  "codigo_ext": "97",
+  "nombre": "Grupotel Mar de Menorca, S.A.",
+  "nombre_comercial": null,
+  "cif": null,
+  "tipo": "empresa",
+  "telefono": null,
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "98",
+  "nombre": "Hera Tratesa, S.A.",
+  "nombre_comercial": null,
+  "cif": null,
+  "tipo": "empresa",
+  "telefono": null,
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "99",
+  "nombre": "Hera Tratesa S.a.u.",
+  "nombre_comercial": null,
+  "cif": "A08753105",
+  "tipo": "empresa",
+  "telefono": null,
+  "movil": null,
+  "email": "lorenzo.olivas@heraholding.com",
+  "notas": null,
+  "activo": true,
+  "contactos": [
+   {
+    "nombre": "Lorenzo Olivas",
+    "telefono": null,
+    "email": "lorenzo.olivas@heraholding.com"
+   }
+  ]
+ },
+ {
+  "codigo_ext": "100",
+  "nombre": "Dimension Data España, S.L.U.",
+  "nombre_comercial": null,
+  "cif": "B62174842",
+  "tipo": "empresa",
+  "telefono": "934 67 08 10",
+  "movil": "646 05 26 49",
+  "email": "oscar.jimenez@dimensiondata.com",
+  "notas": "Fax: 934 87 91 71",
+  "activo": true,
+  "contactos": [
+   {
+    "nombre": "Oscar Jimenez",
+    "telefono": "646 05 26 49",
+    "email": "oscar.jimenez@dimensiondata.com"
+   }
+  ]
+ },
+ {
+  "codigo_ext": "101",
+  "nombre": "Aggaros Serveis Avançats de Telecomunicacions, S.L.",
+  "nombre_comercial": "Aggaros",
+  "cif": "B63058291",
+  "tipo": "empresa",
+  "telefono": null,
+  "movil": null,
+  "email": "mrealp@aggaros.com",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "102",
+  "nombre": "Mai Tai",
+  "nombre_comercial": null,
+  "cif": null,
+  "tipo": "particular",
+  "telefono": null,
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "103",
+  "nombre": "Ingeniería, Manufactura y Deporte, S.L.",
+  "nombre_comercial": null,
+  "cif": "B13559646",
+  "tipo": "empresa",
+  "telefono": "615 55 94 47",
+  "movil": null,
+  "email": "c.mata@technosport.es",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "104",
+  "nombre": "Guillermo Zamora Abad",
+  "nombre_comercial": null,
+  "cif": "46265000V",
+  "tipo": "particular",
+  "telefono": "671 20 44 68",
+  "movil": null,
+  "email": "guillermoz90@gmail.com",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "105",
+  "nombre": "Select Service Parthner, S.A.",
+  "nombre_comercial": null,
+  "cif": "A07194731",
+  "tipo": "empresa",
+  "telefono": "607 27 21 09",
+  "movil": null,
+  "email": "fmachin@ssp.es",
+  "notas": null,
+  "activo": true,
+  "contactos": [
+   {
+    "nombre": "Felix",
+    "telefono": "607 27 21 09",
+    "email": "fmachin@ssp.es"
+   }
+  ]
+ },
+ {
+  "codigo_ext": "106",
+  "nombre": "Construcciones Olives, S.L.",
+  "nombre_comercial": null,
+  "cif": "B07159676",
+  "tipo": "empresa",
+  "telefono": "971 37 81 57",
+  "movil": null,
+  "email": "helena@olives.me",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "107",
+  "nombre": "El Buen Corte",
+  "nombre_comercial": null,
+  "cif": null,
+  "tipo": "particular",
+  "telefono": null,
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "108",
+  "nombre": "Margarita Leon Olives",
+  "nombre_comercial": null,
+  "cif": null,
+  "tipo": "particular",
+  "telefono": "616 17 15 85",
+  "movil": null,
+  "email": "menork100@gmail.com",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "110",
+  "nombre": "Paloma Heras",
+  "nombre_comercial": null,
+  "cif": null,
+  "tipo": "particular",
+  "telefono": "606 12 67 18",
+  "movil": null,
+  "email": "tombuctu11@hotmail.com",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "111",
+  "nombre": "Josefa Rodríguez Cruz",
+  "nombre_comercial": null,
+  "cif": "41495937G",
+  "tipo": "particular",
+  "telefono": "971 48 30 38",
+  "movil": null,
+  "email": "pepi@menorcamediterranea.com",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "112",
+  "nombre": "Ireneo Martin Alarcia",
+  "nombre_comercial": null,
+  "cif": "12226327X",
+  "tipo": "particular",
+  "telefono": "670 55 81 02",
+  "movil": null,
+  "email": "ireneo@casaenmenorca.com",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "113",
+  "nombre": "Forpol Estructuras, S.L.",
+  "nombre_comercial": null,
+  "cif": "B25636044",
+  "tipo": "empresa",
+  "telefono": "977 88 07 81",
+  "movil": "680 42 10 33",
+  "email": "comercial@forpol.com",
+  "notas": null,
+  "activo": true,
+  "contactos": [
+   {
+    "nombre": "Joan",
+    "telefono": "680 42 10 33",
+    "email": "comercial@forpol.com"
+   }
+  ]
+ },
+ {
+  "codigo_ext": "114",
+  "nombre": "Helene Vanssay Blavous",
+  "nombre_comercial": null,
+  "cif": "Y3619402K",
+  "tipo": "particular",
+  "telefono": null,
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "115",
+  "nombre": "Consell Insular de Menorca",
+  "nombre_comercial": null,
+  "cif": "S0733002J",
+  "tipo": "administracion",
+  "telefono": "971 35 62 40",
+  "movil": null,
+  "email": "manel.juan@cime.es",
+  "notas": "Otros teléfonos: 971 35 60 50",
+  "activo": true,
+  "contactos": [
+   {
+    "nombre": "Manel Juan Andreu",
+    "telefono": "971 35 62 40",
+    "email": "manel.juan@cime.es"
+   }
+  ]
+ },
+ {
+  "codigo_ext": "116",
+  "nombre": "Jové Arquer, S.L.",
+  "nombre_comercial": null,
+  "cif": "B57929549",
+  "tipo": "empresa",
+  "telefono": "620 78 03 92",
+  "movil": null,
+  "email": "jovearquersl@hotmail.com",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "117",
+  "nombre": "Hierros Bueno, S.L.",
+  "nombre_comercial": null,
+  "cif": null,
+  "tipo": "empresa",
+  "telefono": null,
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "118",
+  "nombre": "Aristóteles Mercadal Mascaró",
+  "nombre_comercial": null,
+  "cif": "41509847E",
+  "tipo": "particular",
+  "telefono": "607 96 55 51",
+  "movil": null,
+  "email": "cultius@boletsdemenorca.com",
+  "notas": null,
+  "activo": true,
+  "contactos": [
+   {
+    "nombre": "Cicerón",
+    "telefono": "607 96 55 51",
+    "email": "cultius@boletsdemenorca.com"
+   }
+  ]
+ },
+ {
+  "codigo_ext": "119",
+  "nombre": "Manel Defebrer",
+  "nombre_comercial": null,
+  "cif": null,
+  "tipo": "particular",
+  "telefono": null,
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "121",
+  "nombre": "La Golosa, S.C.P.",
+  "nombre_comercial": null,
+  "cif": "J57899355",
+  "tipo": "empresa",
+  "telefono": null,
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "122",
+  "nombre": "Melchor Mascaro, S.L.U.",
+  "nombre_comercial": null,
+  "cif": "A07045248",
+  "tipo": "empresa",
+  "telefono": "971 44 44 34",
+  "movil": "691 82 30 16",
+  "email": "virginiasalas@melchormascaro.com",
+  "notas": null,
+  "activo": true,
+  "contactos": [
+   {
+    "nombre": "Virginia Salas Martinez",
+    "telefono": "691 82 30 16",
+    "email": "virginiasalas@melchormascaro.com"
+   }
+  ]
+ },
+ {
+  "codigo_ext": "123",
+  "nombre": "Esteban Duca",
+  "nombre_comercial": null,
+  "cif": null,
+  "tipo": "particular",
+  "telefono": null,
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "124",
+  "nombre": "Elsamex, S.A.",
+  "nombre_comercial": null,
+  "cif": "A28504728",
+  "tipo": "empresa",
+  "telefono": "971 77 01 00",
+  "movil": "625 15 54 25",
+  "email": "roberto.gonzalez@elsamex.com",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "125",
+  "nombre": "Fundació Balear d'Innovació i Tecnologia",
+  "nombre_comercial": null,
+  "cif": "G57775884",
+  "tipo": "empresa",
+  "telefono": "652 08 85 95",
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": [
+   {
+    "nombre": "Guillem",
+    "telefono": "652 08 85 95",
+    "email": null
+   }
+  ]
+ },
+ {
+  "codigo_ext": "126",
+  "nombre": "Obras Pin-Up, S.L.U.",
+  "nombre_comercial": null,
+  "cif": "B57943987",
+  "tipo": "empresa",
+  "telefono": "663 95 00 09",
+  "movil": null,
+  "email": "xiscuss@gmail.com",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "127",
+  "nombre": "Saul Contreras",
+  "nombre_comercial": null,
+  "cif": "X2824869D",
+  "tipo": "particular",
+  "telefono": "644 29 13 77",
+  "movil": null,
+  "email": "saulcont@gmail.com",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "128",
+  "nombre": "Exclusivas Seguí Uribe, S.L.",
+  "nombre_comercial": null,
+  "cif": "B07723208",
+  "tipo": "empresa",
+  "telefono": "609 88 30 36",
+  "movil": null,
+  "email": "b.tolosegui@yahoo.es",
+  "notas": null,
+  "activo": true,
+  "contactos": [
+   {
+    "nombre": "Tolo Segui Fiol",
+    "telefono": "609 88 30 36",
+    "email": "b.tolosegui@yahoo.es"
+   }
+  ]
+ },
+ {
+  "codigo_ext": "130",
+  "nombre": "Cristalería Menorquina, S.L.",
+  "nombre_comercial": null,
+  "cif": "B07664436",
+  "tipo": "empresa",
+  "telefono": "971 35 28 92",
+  "movil": null,
+  "email": "cristafactu@gmail.com",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "131",
+  "nombre": "Mercamps, S.L.",
+  "nombre_comercial": null,
+  "cif": "B07754559",
+  "tipo": "empresa",
+  "telefono": "971 37 23 22",
+  "movil": null,
+  "email": "dalrit@dalrit.com",
+  "notas": "Fax: 971 37 29 79",
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "132",
+  "nombre": "Juan M Cabello Ortega",
+  "nombre_comercial": null,
+  "cif": "52267513J",
+  "tipo": "particular",
+  "telefono": "971 35 01 22",
+  "movil": "680 97 91 05",
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "133",
+  "nombre": "Itanda 2016 Sanmarco, S.L.",
+  "nombre_comercial": null,
+  "cif": "B57954018",
+  "tipo": "empresa",
+  "telefono": "971 14 30 96",
+  "movil": null,
+  "email": "aangotzi@gmail.com",
+  "notas": null,
+  "activo": true,
+  "contactos": [
+   {
+    "nombre": "Toni",
+    "telefono": "971 14 30 96",
+    "email": "aangotzi@gmail.com"
+   }
+  ]
+ },
+ {
+  "codigo_ext": "134",
+  "nombre": "Manuel Juan Andrew",
+  "nombre_comercial": null,
+  "cif": null,
+  "tipo": "particular",
+  "telefono": null,
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "135",
+  "nombre": "Didasko Instalaciones, S.L.",
+  "nombre_comercial": null,
+  "cif": "B27492779",
+  "tipo": "empresa",
+  "telefono": "971 36 45 25",
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": [
+   {
+    "nombre": "Rafael",
+    "telefono": "971 36 45 25",
+    "email": null
+   }
+  ]
+ },
+ {
+  "codigo_ext": "136",
+  "nombre": "Dalrit, S.L.",
+  "nombre_comercial": null,
+  "cif": "B07596174",
+  "tipo": "empresa",
+  "telefono": null,
+  "movil": null,
+  "email": "dalrit@dalrit.com",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "137",
+  "nombre": "Ajuntament de Es Castell",
+  "nombre_comercial": null,
+  "cif": null,
+  "tipo": "administracion",
+  "telefono": null,
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "138",
+  "nombre": "Pdpadel, S.C.",
+  "nombre_comercial": null,
+  "cif": "J57787806",
+  "tipo": "empresa",
+  "telefono": "679 99 19 64",
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "139",
+  "nombre": "Ayuntamiento de Maó",
+  "nombre_comercial": null,
+  "cif": "P0703200F",
+  "tipo": "administracion",
+  "telefono": "971 36 98 00",
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "140",
+  "nombre": "Cesgarden, S.L.",
+  "nombre_comercial": null,
+  "cif": "B07887441",
+  "tipo": "empresa",
+  "telefono": "902 05 11 05",
+  "movil": null,
+  "email": "experiencecrew@gmail.com",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "141",
+  "nombre": "Erlan",
+  "nombre_comercial": null,
+  "cif": null,
+  "tipo": "empresa",
+  "telefono": null,
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "142",
+  "nombre": "Tecaserg Servicios, S.L.",
+  "nombre_comercial": null,
+  "cif": "B83260075",
+  "tipo": "empresa",
+  "telefono": "902 17 60 03",
+  "movil": "619 28 07 94",
+  "email": "tecaserg@tecaserg.com",
+  "notas": "Fax: 911 02 09 51",
+  "activo": true,
+  "contactos": [
+   {
+    "nombre": "Primitivo",
+    "telefono": "619 28 07 94",
+    "email": "tecaserg@tecaserg.com"
+   }
+  ]
+ },
+ {
+  "codigo_ext": "143",
+  "nombre": "Alarcon Cuadros SL (no Usar)",
+  "nombre_comercial": "Alarcon Cuadros, S.L.",
+  "cif": "B07424773",
+  "tipo": "empresa",
+  "telefono": "971 36 52 24",
+  "movil": null,
+  "email": "alarconcuadros@telefonica.net",
+  "notas": "También código 195 en el programa de facturación",
+  "activo": true,
+  "contactos": [
+   {
+    "nombre": "Jordi",
+    "telefono": "971 36 62 24",
+    "email": "alarconcuadros@telefonica.net"
+   }
+  ]
+ },
+ {
+  "codigo_ext": "144",
+  "nombre": "Polideportivo Es Castell",
+  "nombre_comercial": null,
+  "cif": null,
+  "tipo": "particular",
+  "telefono": null,
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "145",
+  "nombre": "Myriam Ribes Redondo",
+  "nombre_comercial": null,
+  "cif": "13772095V",
+  "tipo": "particular",
+  "telefono": "678 45 41 03",
+  "movil": null,
+  "email": "quemas.ana@gmail.com",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "146",
+  "nombre": "Club de Basquet Es Castell",
+  "nombre_comercial": null,
+  "cif": "G57268245",
+  "tipo": "empresa",
+  "telefono": "691 40 50 48",
+  "movil": null,
+  "email": "cbescastell@gmail.com",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "147",
+  "nombre": "Lacitur, S.L.",
+  "nombre_comercial": null,
+  "cif": "B58770744",
+  "tipo": "empresa",
+  "telefono": null,
+  "movil": null,
+  "email": "estibaliz@universalproyectos.com",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "148",
+  "nombre": "Marta y Adolfo",
+  "nombre_comercial": null,
+  "cif": null,
+  "tipo": "particular",
+  "telefono": null,
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "149",
+  "nombre": "Manuel Romero Carreras",
+  "nombre_comercial": null,
+  "cif": "41507382H",
+  "tipo": "particular",
+  "telefono": "680 87 05 64",
+  "movil": null,
+  "email": "carpinteriamanu@hotmail.com",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "150",
+  "nombre": "Constructia Obras e Ingeniería, S.L.",
+  "nombre_comercial": null,
+  "cif": "B54968056",
+  "tipo": "empresa",
+  "telefono": "918 08 08 03",
+  "movil": "679 17 79 74",
+  "email": "constructia@constructia.es",
+  "notas": null,
+  "activo": true,
+  "contactos": [
+   {
+    "nombre": "Javier Gomez",
+    "telefono": "679 17 79 74",
+    "email": "constructia@constructia.es"
+   }
+  ]
+ },
+ {
+  "codigo_ext": "151",
+  "nombre": "Miramar Rent a Car, S.L.",
+  "nombre_comercial": null,
+  "cif": "B35302678",
+  "tipo": "empresa",
+  "telefono": null,
+  "movil": null,
+  "email": "alonsooscar@yahoo.com",
+  "notas": null,
+  "activo": true,
+  "contactos": [
+   {
+    "nombre": "Oscar Javier Alonso Fernandez",
+    "telefono": null,
+    "email": "alonsooscar@yahoo.com"
+   }
+  ]
+ },
+ {
+  "codigo_ext": "154",
+  "nombre": "Centro Montajes, S.A.",
+  "nombre_comercial": null,
+  "cif": "A07096530",
+  "tipo": "empresa",
+  "telefono": "971 35 60 23",
+  "movil": null,
+  "email": "dsans@centromontajes.es",
+  "notas": "Otros teléfonos: 971 22 64 00",
+  "activo": true,
+  "contactos": [
+   {
+    "nombre": "Dani Sans",
+    "telefono": "971 35 60 23",
+    "email": "dsans@centromontajes.es"
+   }
+  ]
+ },
+ {
+  "codigo_ext": "155",
+  "nombre": "Parkare Group, S.L.",
+  "nombre_comercial": null,
+  "cif": "B97894273",
+  "tipo": "empresa",
+  "telefono": "935 64 76 00",
+  "movil": null,
+  "email": "jfalonso@parkaregroup.com",
+  "notas": null,
+  "activo": true,
+  "contactos": [
+   {
+    "nombre": "Juan Francisco",
+    "telefono": "935 64 76 00",
+    "email": "jfalonso@parkaregroup.com"
+   }
+  ]
+ },
+ {
+  "codigo_ext": "156",
+  "nombre": "Mascaro Morera, S.L.",
+  "nombre_comercial": null,
+  "cif": "B07729163",
+  "tipo": "empresa",
+  "telefono": null,
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "157",
+  "nombre": "Radytec Innovacion, S.L.",
+  "nombre_comercial": null,
+  "cif": "B84327998",
+  "tipo": "empresa",
+  "telefono": "916 29 18 66",
+  "movil": null,
+  "email": "iker.gimeno@radytec.es",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "158",
+  "nombre": "Alexma, S.A.",
+  "nombre_comercial": null,
+  "cif": "A13038088",
+  "tipo": "empresa",
+  "telefono": "926 53 19 88",
+  "movil": "676 95 09 18",
+  "email": "ingenieria@alexma.es",
+  "notas": null,
+  "activo": true,
+  "contactos": [
+   {
+    "nombre": "Manuel Marín González",
+    "telefono": "676 95 09 18",
+    "email": "ingenieria@alexma.es"
+   }
+  ]
+ },
+ {
+  "codigo_ext": "159",
+  "nombre": "Ibisec (Instituto de Infraestructuras y Servicios Educativos y Culturales)",
+  "nombre_comercial": null,
+  "cif": null,
+  "tipo": "administracion",
+  "telefono": "971 78 73 70",
+  "movil": null,
+  "email": "suport@ibisec.caib.es",
+  "notas": "Otros correos: contractacio@ibisec.caib.es",
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "160",
+  "nombre": "Duchisela, S.L.",
+  "nombre_comercial": null,
+  "cif": "B07558026",
+  "tipo": "empresa",
+  "telefono": "699 87 31 80",
+  "movil": null,
+  "email": "info@malbugernou.com",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "161",
+  "nombre": "Balearic International",
+  "nombre_comercial": null,
+  "cif": null,
+  "tipo": "empresa",
+  "telefono": null,
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "162",
+  "nombre": "Jon Lann",
+  "nombre_comercial": null,
+  "cif": null,
+  "tipo": "particular",
+  "telefono": null,
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "163",
+  "nombre": "Autos Family, S.L.",
+  "nombre_comercial": null,
+  "cif": "B07851041",
+  "tipo": "empresa",
+  "telefono": null,
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "164",
+  "nombre": "José Yáñez Morillas",
+  "nombre_comercial": null,
+  "cif": "41509222H",
+  "tipo": "particular",
+  "telefono": "644 29 79 95",
+  "movil": null,
+  "email": "info@malbugernou.com",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "165",
+  "nombre": "Patricia Martín González",
+  "nombre_comercial": null,
+  "cif": "47025615E",
+  "tipo": "particular",
+  "telefono": null,
+  "movil": null,
+  "email": "laiasegui@gmail.com",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "166",
+  "nombre": "Ruybesa Global Technologies, S.L.",
+  "nombre_comercial": null,
+  "cif": "B29744570",
+  "tipo": "empresa",
+  "telefono": "913 00 08 10",
+  "movil": "619 25 34 51",
+  "email": "damoros@ruybesa.es",
+  "notas": null,
+  "activo": true,
+  "contactos": [
+   {
+    "nombre": "David Amoros",
+    "telefono": "619 25 34 51",
+    "email": "damoros@ruybesa.es"
+   }
+  ]
+ },
+ {
+  "codigo_ext": "167",
+  "nombre": "Villaromer, S.L.",
+  "nombre_comercial": null,
+  "cif": "B57910945",
+  "tipo": "empresa",
+  "telefono": "971 36 39 98",
+  "movil": "650 26 43 49",
+  "email": "frvillaromer@gmail.com",
+  "notas": null,
+  "activo": true,
+  "contactos": [
+   {
+    "nombre": "Frank Romero",
+    "telefono": "650 26 43 49",
+    "email": "frvillaromer@gmail.com"
+   }
+  ]
+ },
+ {
+  "codigo_ext": "168",
+  "nombre": "Luchana Logística, S.A.",
+  "nombre_comercial": null,
+  "cif": "A64750854",
+  "tipo": "empresa",
+  "telefono": "971 35 15 31",
+  "movil": null,
+  "email": "mah@luchanalogistica.com",
+  "notas": "Fax: 917 35 68 04",
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "171",
+  "nombre": "Procusa Menorca, S.L.",
+  "nombre_comercial": null,
+  "cif": "B57386773",
+  "tipo": "empresa",
+  "telefono": null,
+  "movil": null,
+  "email": "jpf@grupoproture.com",
+  "notas": null,
+  "activo": true,
+  "contactos": [
+   {
+    "nombre": "Javi",
+    "telefono": null,
+    "email": "jpf@grupoproture.com"
+   }
+  ]
+ },
+ {
+  "codigo_ext": "172",
+  "nombre": "Ciser Obras y Servicios, S.L.",
+  "nombre_comercial": null,
+  "cif": "B83910216",
+  "tipo": "empresa",
+  "telefono": "917 13 10 30",
+  "movil": null,
+  "email": "abel.yeste@ciser.es",
+  "notas": "Fax: 917 13 10 31",
+  "activo": true,
+  "contactos": [
+   {
+    "nombre": "Www.ciser.es",
+    "telefono": "917 13 10 30",
+    "email": "abel.yeste@ciser.es"
+   }
+  ]
+ },
+ {
+  "codigo_ext": "173",
+  "nombre": "Mauro Sánchez",
+  "nombre_comercial": null,
+  "cif": null,
+  "tipo": "particular",
+  "telefono": "689 47 13 30",
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "174",
+  "nombre": "Antonio Riera",
+  "nombre_comercial": null,
+  "cif": null,
+  "tipo": "particular",
+  "telefono": null,
+  "movil": null,
+  "email": "toniriera3@gmail.com",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "175",
+  "nombre": "Javier Sanchez (Repsol)",
+  "nombre_comercial": null,
+  "cif": null,
+  "tipo": "particular",
+  "telefono": null,
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "176",
+  "nombre": "Residencia Militar de Mahon",
+  "nombre_comercial": null,
+  "cif": null,
+  "tipo": "particular",
+  "telefono": null,
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "177",
+  "nombre": "Justo Armando Montenegro",
+  "nombre_comercial": null,
+  "cif": "X8347772Z",
+  "tipo": "particular",
+  "telefono": null,
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "178",
+  "nombre": "Ray Dillon",
+  "nombre_comercial": null,
+  "cif": null,
+  "tipo": "particular",
+  "telefono": "666 74 97 89",
+  "movil": null,
+  "email": "ray@dillon.biz",
+  "notas": "Cliente web",
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "179",
+  "nombre": "Juan Luis Fullana",
+  "nombre_comercial": null,
+  "cif": null,
+  "tipo": "particular",
+  "telefono": null,
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "180",
+  "nombre": "Comunidad Edificio, Es Castell",
+  "nombre_comercial": null,
+  "cif": null,
+  "tipo": "comunidad",
+  "telefono": null,
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "181",
+  "nombre": "Clientes Contado",
+  "nombre_comercial": null,
+  "cif": null,
+  "tipo": "particular",
+  "telefono": null,
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "182",
+  "nombre": "Norberto Fabian Zamora Abad",
+  "nombre_comercial": null,
+  "cif": "41640201N",
+  "tipo": "particular",
+  "telefono": null,
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "183",
+  "nombre": "Millecasa, S.A.",
+  "nombre_comercial": null,
+  "cif": null,
+  "tipo": "empresa",
+  "telefono": null,
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "184",
+  "nombre": "Comunidad de Vecinos C/ Rosario Nº 74 B",
+  "nombre_comercial": null,
+  "cif": "H57525255",
+  "tipo": "comunidad",
+  "telefono": "971 35 15 96",
+  "movil": null,
+  "email": "administracion@redmenorca.com",
+  "notas": null,
+  "activo": true,
+  "contactos": [
+   {
+    "nombre": "Marcos Dueñas - Administrador de la Comunidad",
+    "telefono": "971 35 15 96",
+    "email": "administracion@redmenorca.com"
+   }
+  ]
+ },
+ {
+  "codigo_ext": "185",
+  "nombre": "Ana Bertini",
+  "nombre_comercial": null,
+  "cif": "X4016135J",
+  "tipo": "particular",
+  "telefono": null,
+  "movil": null,
+  "email": "botibotipark@gmail.com",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "186",
+  "nombre": "Ezentis",
+  "nombre_comercial": null,
+  "cif": null,
+  "tipo": "empresa",
+  "telefono": null,
+  "movil": null,
+  "email": "david.cervera@ezentis.com",
+  "notas": null,
+  "activo": true,
+  "contactos": [
+   {
+    "nombre": "David Cervera",
+    "telefono": null,
+    "email": "david.cervera@ezentis.com"
+   }
+  ]
+ },
+ {
+  "codigo_ext": "187",
+  "nombre": "RPG Ingeniería Audiovisual, S.A.",
+  "nombre_comercial": null,
+  "cif": "A79194064",
+  "tipo": "empresa",
+  "telefono": "915 18 58 71",
+  "movil": null,
+  "email": "afernandez@rpg.es",
+  "notas": null,
+  "activo": true,
+  "contactos": [
+   {
+    "nombre": "Alberto Fernandez Galán",
+    "telefono": "915 18 58 71",
+    "email": "afernandez@rpg.es"
+   }
+  ]
+ },
+ {
+  "codigo_ext": "188",
+  "nombre": "Javier",
+  "nombre_comercial": null,
+  "cif": null,
+  "tipo": "empresa",
+  "telefono": null,
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "189",
+  "nombre": "Sandra Jorve",
+  "nombre_comercial": "Pozzo",
+  "cif": null,
+  "tipo": "particular",
+  "telefono": "680 49 08 90",
+  "movil": null,
+  "email": "sandrajorbaf@gmail.com",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "191",
+  "nombre": "Issak Cohen Arazi",
+  "nombre_comercial": null,
+  "cif": "Y5054936X",
+  "tipo": "particular",
+  "telefono": "+33 662 519 570",
+  "movil": null,
+  "email": "isaackito@yahoo.com",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "192",
+  "nombre": "Adrian Rodriguez",
+  "nombre_comercial": null,
+  "cif": null,
+  "tipo": "particular",
+  "telefono": null,
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "193",
+  "nombre": "Cyes Maritime Works",
+  "nombre_comercial": null,
+  "cif": null,
+  "tipo": "particular",
+  "telefono": "914 44 44 80",
+  "movil": null,
+  "email": "mtsanchez@cyesmw.com",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "194",
+  "nombre": "Jose Antonio Gomez",
+  "nombre_comercial": null,
+  "cif": null,
+  "tipo": "particular",
+  "telefono": null,
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "196",
+  "nombre": "Ilunion Amalia, S.L.",
+  "nombre_comercial": "Lavandería Ilunion Amalia, S.L.",
+  "cif": "B07305592",
+  "tipo": "empresa",
+  "telefono": "971 85 27 10",
+  "movil": "617 38 18 54",
+  "email": "lavanderia.amalia@ilunion.com",
+  "notas": null,
+  "activo": true,
+  "contactos": [
+   {
+    "nombre": "Cristina Naimor",
+    "telefono": "617 38 18 54",
+    "email": "lavanderia.amalia@ilunion.com"
+   }
+  ]
+ },
+ {
+  "codigo_ext": "197",
+  "nombre": "Mariana Soledad Montenegro",
+  "nombre_comercial": null,
+  "cif": "41613703X",
+  "tipo": "particular",
+  "telefono": null,
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "198",
+  "nombre": "Luis Amando Romero",
+  "nombre_comercial": null,
+  "cif": "X9763292E",
+  "tipo": "particular",
+  "telefono": "631 97 69 60",
+  "movil": null,
+  "email": null,
+  "notas": "Otros teléfonos: 679 13 08 00",
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "199",
+  "nombre": "Deimos Grupo Elecnor",
+  "nombre_comercial": null,
+  "cif": null,
+  "tipo": "empresa",
+  "telefono": "918 06 34 50",
+  "movil": "660 20 59 80",
+  "email": "sergio.saucedo@deimos-space.com",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "200",
+  "nombre": "Yimmy Rivas",
+  "nombre_comercial": null,
+  "cif": null,
+  "tipo": "particular",
+  "telefono": "603 12 33 53",
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "201",
+  "nombre": "Joan Soria Armada",
+  "nombre_comercial": "Arquitecto Técnico Consultor Estructuras",
+  "cif": null,
+  "tipo": "particular",
+  "telefono": "615 27 75 04",
+  "movil": null,
+  "email": "joansoria@apabcn.cat",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "202",
+  "nombre": "Concrete Metal, S.L.",
+  "nombre_comercial": null,
+  "cif": "B45695897",
+  "tipo": "empresa",
+  "telefono": null,
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": [
+   {
+    "nombre": "José Antonio Gómez Rueda",
+    "telefono": null,
+    "email": null
+   }
+  ]
+ },
+ {
+  "codigo_ext": "203",
+  "nombre": "Manpervil, S.L.",
+  "nombre_comercial": null,
+  "cif": "B07903024",
+  "tipo": "empresa",
+  "telefono": "971 36 64 38",
+  "movil": "607 25 32 73",
+  "email": "mperez@villasdemenorca.com",
+  "notas": null,
+  "activo": true,
+  "contactos": [
+   {
+    "nombre": "Manuel",
+    "telefono": "607 25 32 73",
+    "email": "mperez@villasdemenorca.com"
+   }
+  ]
+ },
+ {
+  "codigo_ext": "205",
+  "nombre": "Tramontana Oil, S.L.",
+  "nombre_comercial": null,
+  "cif": "B57795726",
+  "tipo": "empresa",
+  "telefono": "618 57 94 53",
+  "movil": null,
+  "email": "goyo.pons@tramontanaoil.com",
+  "notas": "Otros teléfonos: 679 18 27 98",
+  "activo": true,
+  "contactos": [
+   {
+    "nombre": "Goyo",
+    "telefono": "618 57 94 53",
+    "email": "goyo.pons@tramontanaoil.com"
+   }
+  ]
+ },
+ {
+  "codigo_ext": "206",
+  "nombre": "Facundo Nicolas Vendramini",
+  "nombre_comercial": null,
+  "cif": null,
+  "tipo": "particular",
+  "telefono": null,
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "207",
+  "nombre": "Jordi Sintes",
+  "nombre_comercial": null,
+  "cif": null,
+  "tipo": "particular",
+  "telefono": null,
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "208",
+  "nombre": "Daniela Vanietti",
+  "nombre_comercial": null,
+  "cif": "Y5318735E",
+  "tipo": "particular",
+  "telefono": "659 64 16 70",
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "209",
+  "nombre": "Ulma Manutencion, S. Coop.",
+  "nombre_comercial": null,
+  "cif": "F20091443",
+  "tipo": "empresa",
+  "telefono": "943 78 24 92",
+  "movil": null,
+  "email": "uhs_invoices@ulmahandling.com",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "210",
+  "nombre": "Costel Pindea",
+  "nombre_comercial": null,
+  "cif": "X5502500A",
+  "tipo": "particular",
+  "telefono": "661 14 88 17",
+  "movil": null,
+  "email": "costelpindea75@gmail.com",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "211",
+  "nombre": "Profutur 2002, S.L.",
+  "nombre_comercial": null,
+  "cif": null,
+  "tipo": "empresa",
+  "telefono": "971 53 74 63",
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "212",
+  "nombre": "Comarsa",
+  "nombre_comercial": null,
+  "cif": null,
+  "tipo": "empresa",
+  "telefono": null,
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "213",
+  "nombre": "Carlos Eduardo Bagur Arnoletto",
+  "nombre_comercial": null,
+  "cif": "41640786E",
+  "tipo": "particular",
+  "telefono": "611 07 62 90",
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "214",
+  "nombre": "Giselle Perez Clavero",
+  "nombre_comercial": "A2t Arquitectes",
+  "cif": "46716578J",
+  "tipo": "particular",
+  "telefono": null,
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "215",
+  "nombre": "Rotulación Balear, S.L.",
+  "nombre_comercial": "Concord Rotulación Gran Formato",
+  "cif": "B57893794",
+  "tipo": "empresa",
+  "telefono": "971 12 69 34",
+  "movil": null,
+  "email": "concord@concordimpresion.com",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "216",
+  "nombre": "Uceda & Nasarre Proyectos, S.L.",
+  "nombre_comercial": "Uceda y Nasarre, S.L.",
+  "cif": "B16556219",
+  "tipo": "empresa",
+  "telefono": null,
+  "movil": null,
+  "email": "teamuynproyectos@gmail.com",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "217",
+  "nombre": "María Checa Alcaraz",
+  "nombre_comercial": null,
+  "cif": "05260928T",
+  "tipo": "particular",
+  "telefono": null,
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "218",
+  "nombre": "Soil Tratamiento de Aguas Industriales, S.L.",
+  "nombre_comercial": null,
+  "cif": "B41689431",
+  "tipo": "empresa",
+  "telefono": "955 95 36 50",
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "219",
+  "nombre": "Las Jaranas de Condita, S.L.",
+  "nombre_comercial": null,
+  "cif": "B16523524",
+  "tipo": "empresa",
+  "telefono": "626 74 92 06",
+  "movil": null,
+  "email": "hello@menorca.events",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "220",
+  "nombre": "Sociedad Estatal Correos y Telegrafos, S.A., S.M.E.",
+  "nombre_comercial": "Correos",
+  "cif": "AB3052407",
+  "tipo": "empresa",
+  "telefono": null,
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "221",
+  "nombre": "Allal El Hasnaqui",
+  "nombre_comercial": null,
+  "cif": "X3671624L",
+  "tipo": "particular",
+  "telefono": "643 54 98 52",
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "222",
+  "nombre": "Elizabeth",
+  "nombre_comercial": null,
+  "cif": null,
+  "tipo": "empresa",
+  "telefono": null,
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "223",
+  "nombre": "Claudio Galán",
+  "nombre_comercial": null,
+  "cif": null,
+  "tipo": "particular",
+  "telefono": null,
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "224",
+  "nombre": "Comunidad de Propiedados Mirador del Rey 1",
+  "nombre_comercial": null,
+  "cif": null,
+  "tipo": "comunidad",
+  "telefono": null,
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "225",
+  "nombre": "Bigas Grup, S.L.",
+  "nombre_comercial": null,
+  "cif": "B61826392",
+  "tipo": "empresa",
+  "telefono": "938 49 27 25",
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "227",
+  "nombre": "Cehemise Construcciones, S.L.",
+  "nombre_comercial": null,
+  "cif": "B73662256",
+  "tipo": "empresa",
+  "telefono": null,
+  "movil": null,
+  "email": "buzonfacturas@cehemise.com",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "228",
+  "nombre": "Diseños y Objetivos de Construcción, S.L.",
+  "nombre_comercial": null,
+  "cif": "B96266507",
+  "tipo": "empresa",
+  "telefono": "961 32 16 72",
+  "movil": null,
+  "email": "facturacion@docvalencia.com",
+  "notas": null,
+  "activo": true,
+  "contactos": [
+   {
+    "nombre": "Carlos Romeo Fernández",
+    "telefono": "961 32 16 72",
+    "email": "facturacion@docvalencia.com"
+   }
+  ]
+ },
+ {
+  "codigo_ext": "229",
+  "nombre": "Imperdeco Balear, S.L.",
+  "nombre_comercial": "Imper Deco",
+  "cif": "B07850290",
+  "tipo": "empresa",
+  "telefono": "971 48 43 26",
+  "movil": null,
+  "email": "marga@imperdeco.es",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "230",
+  "nombre": "Campsa Estaciones de Servicio, S.A.",
+  "nombre_comercial": null,
+  "cif": "A78492782",
+  "tipo": "empresa",
+  "telefono": "917 53 81 00",
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "231",
+  "nombre": "Suministros Asinpel, S.L.",
+  "nombre_comercial": null,
+  "cif": "B07720709",
+  "tipo": "empresa",
+  "telefono": "971 35 11 14",
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "232",
+  "nombre": "Leandro Argüello Marquez",
+  "nombre_comercial": null,
+  "cif": "32915211A",
+  "tipo": "particular",
+  "telefono": null,
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "233",
+  "nombre": "Nani",
+  "nombre_comercial": null,
+  "cif": null,
+  "tipo": "empresa",
+  "telefono": null,
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "234",
+  "nombre": "Hermanos Simo Pons, S.L.",
+  "nombre_comercial": "Electrosimo",
+  "cif": "B57826240",
+  "tipo": "empresa",
+  "telefono": "971 36 11 01",
+  "movil": "637 01 40 02",
+  "email": "electrosimo@essa.net",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "235",
+  "nombre": "Proyecon Galicia, S.A.",
+  "nombre_comercial": null,
+  "cif": "A32032039",
+  "tipo": "empresa",
+  "telefono": "988 51 94 14",
+  "movil": null,
+  "email": "franciscosantaemilia@proyecon.com",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "236",
+  "nombre": "Solred, S.A.",
+  "nombre_comercial": null,
+  "cif": "A79707345",
+  "tipo": "empresa",
+  "telefono": "902 13 61 37",
+  "movil": null,
+  "email": "solred@repsol.com",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "237",
+  "nombre": "Inlastime, S.L.",
+  "nombre_comercial": null,
+  "cif": "B70398193",
+  "tipo": "empresa",
+  "telefono": "881 12 99 31",
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "238",
+  "nombre": "Natividad Garrido Calle",
+  "nombre_comercial": null,
+  "cif": "01612559Y",
+  "tipo": "particular",
+  "telefono": null,
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "239",
+  "nombre": "Promocion y Desarrollo Turistico de Menorca, S.L.",
+  "nombre_comercial": "Hotel Sur Menorca",
+  "cif": "B07025315",
+  "tipo": "empresa",
+  "telefono": "971 15 91 11",
+  "movil": null,
+  "email": "contabilidad@minurahotels.com",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "240",
+  "nombre": "Acsa Obras e Infraestructuras, S.A.",
+  "nombre_comercial": null,
+  "cif": "A08112716",
+  "tipo": "empresa",
+  "telefono": "934 46 38 50",
+  "movil": "675 78 26 73",
+  "email": "s.badenas@sorigue.com",
+  "notas": null,
+  "activo": true,
+  "contactos": [
+   {
+    "nombre": "Susana Badenas - Jefe de Obras",
+    "telefono": "675 78 26 73",
+    "email": "s.badenas@sorigue.com"
+   }
+  ]
+ },
+ {
+  "codigo_ext": "241",
+  "nombre": "Route Pont, S.L.",
+  "nombre_comercial": null,
+  "cif": "B54219142",
+  "tipo": "empresa",
+  "telefono": "965 78 38 18",
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": [
+   {
+    "nombre": "Gloria Mar Gómez Núñez",
+    "telefono": "965 78 38 18",
+    "email": null
+   }
+  ]
+ },
+ {
+  "codigo_ext": "242",
+  "nombre": "Amj Retail 2004, S.L.",
+  "nombre_comercial": null,
+  "cif": "B99466161",
+  "tipo": "empresa",
+  "telefono": null,
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "243",
+  "nombre": "Carlos",
+  "nombre_comercial": null,
+  "cif": null,
+  "tipo": "empresa",
+  "telefono": null,
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "244",
+  "nombre": "José Zuriaga Val",
+  "nombre_comercial": null,
+  "cif": "29188153A",
+  "tipo": "particular",
+  "telefono": null,
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "245",
+  "nombre": "Jose Carreras, S.C.",
+  "nombre_comercial": null,
+  "cif": "J57895492",
+  "tipo": "empresa",
+  "telefono": "606 52 03 21",
+  "movil": null,
+  "email": "josecarreras@gmail.com",
+  "notas": null,
+  "activo": true,
+  "contactos": [
+   {
+    "nombre": "Cristian",
+    "telefono": "606 52 03 21",
+    "email": "josecarreras@gmail.com"
+   }
+  ]
+ },
+ {
+  "codigo_ext": "246",
+  "nombre": "Copcisa, S.A.",
+  "nombre_comercial": null,
+  "cif": "A08190696",
+  "tipo": "empresa",
+  "telefono": "937 88 68 15",
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "247",
+  "nombre": "Asociación de Alcaufar",
+  "nombre_comercial": null,
+  "cif": null,
+  "tipo": "empresa",
+  "telefono": null,
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "248",
+  "nombre": "Suarez Delaney, S.L.",
+  "nombre_comercial": null,
+  "cif": "B57514952",
+  "tipo": "empresa",
+  "telefono": "971 15 14 16",
+  "movil": "699 27 36 31",
+  "email": "soliverajose@gmail.com",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "249",
+  "nombre": "Jose Suarez",
+  "nombre_comercial": null,
+  "cif": null,
+  "tipo": "particular",
+  "telefono": null,
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "250",
+  "nombre": "Pedro Juanico (particular)",
+  "nombre_comercial": null,
+  "cif": null,
+  "tipo": "particular",
+  "telefono": null,
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "251",
+  "nombre": "Fundacion Hesperia",
+  "nombre_comercial": null,
+  "cif": "G85968444",
+  "tipo": "empresa",
+  "telefono": null,
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "252",
+  "nombre": "Attor Market, S.L.",
+  "nombre_comercial": null,
+  "cif": "B42505404",
+  "tipo": "empresa",
+  "telefono": "633 51 44 61",
+  "movil": null,
+  "email": "info@attor.es",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "253",
+  "nombre": "Asoc de Propietarios y Residentes de Alcaufar",
+  "nombre_comercial": null,
+  "cif": "H07841554",
+  "tipo": "comunidad",
+  "telefono": null,
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "254",
+  "nombre": "Daniel Claramonte Blaya",
+  "nombre_comercial": null,
+  "cif": null,
+  "tipo": "particular",
+  "telefono": null,
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "255",
+  "nombre": "Isba - Sociedad de Garantia Reciproca",
+  "nombre_comercial": null,
+  "cif": "V07066913",
+  "tipo": "empresa",
+  "telefono": null,
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "256",
+  "nombre": "Kevin Llopis",
+  "nombre_comercial": null,
+  "cif": null,
+  "tipo": "particular",
+  "telefono": null,
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "257",
+  "nombre": "Daniel ???",
+  "nombre_comercial": null,
+  "cif": null,
+  "tipo": "particular",
+  "telefono": null,
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "258",
+  "nombre": "Daniel Dentista",
+  "nombre_comercial": null,
+  "cif": null,
+  "tipo": "particular",
+  "telefono": null,
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "259",
+  "nombre": "Plasfoc, S.A.",
+  "nombre_comercial": null,
+  "cif": "A43708106",
+  "tipo": "empresa",
+  "telefono": "977 88 04 07",
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "260",
+  "nombre": "Energia Innovacion y Desarrollo Fotovoltaico, S.A.",
+  "nombre_comercial": null,
+  "cif": "A55025068",
+  "tipo": "empresa",
+  "telefono": "986 84 78 71",
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "261",
+  "nombre": "Luxotica Spain, S.L.",
+  "nombre_comercial": null,
+  "cif": "B78601663",
+  "tipo": "empresa",
+  "telefono": "918 46 33 01",
+  "movil": "627 30 06 35",
+  "email": "maria.soler@es.luxottica.com",
+  "notas": null,
+  "activo": true,
+  "contactos": [
+   {
+    "nombre": "María Soler",
+    "telefono": "627 30 06 35",
+    "email": "maria.soler@es.luxottica.com"
+   }
+  ]
+ },
+ {
+  "codigo_ext": "262",
+  "nombre": "Jose Gibeli",
+  "nombre_comercial": null,
+  "cif": null,
+  "tipo": "particular",
+  "telefono": "971 36 50 57",
+  "movil": "609 69 31 96",
+  "email": "fontaneriagibeli@gmail.com",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "263",
+  "nombre": "Marcos Quino",
+  "nombre_comercial": null,
+  "cif": null,
+  "tipo": "particular",
+  "telefono": "699 56 22 81",
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "264",
+  "nombre": "Trablisa",
+  "nombre_comercial": null,
+  "cif": null,
+  "tipo": "empresa",
+  "telefono": null,
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "265",
+  "nombre": "Juan Manuel García",
+  "nombre_comercial": null,
+  "cif": null,
+  "tipo": "particular",
+  "telefono": "672 30 73 14",
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "266",
+  "nombre": "Elsaclim 99, S.L.",
+  "nombre_comercial": null,
+  "cif": "B07975790",
+  "tipo": "empresa",
+  "telefono": "971 35 25 97",
+  "movil": "670 35 49 25",
+  "email": "elsaclim@elsaclim.es",
+  "notas": "Otros teléfonos: 971 36 68 28",
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "268",
+  "nombre": "Fernando Javier López",
+  "nombre_comercial": "Fernando López",
+  "cif": null,
+  "tipo": "particular",
+  "telefono": null,
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "269",
+  "nombre": "Carlos Eduardo Vigletta",
+  "nombre_comercial": null,
+  "cif": null,
+  "tipo": "particular",
+  "telefono": null,
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "270",
+  "nombre": "Carlos López",
+  "nombre_comercial": null,
+  "cif": null,
+  "tipo": "particular",
+  "telefono": null,
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "271",
+  "nombre": "Ignasi Cecilio Jover",
+  "nombre_comercial": "Instelfonair",
+  "cif": "41504181Z",
+  "tipo": "particular",
+  "telefono": "636 66 89 01",
+  "movil": null,
+  "email": "instelfonair@gmail.com",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "272",
+  "nombre": "Area 3 Equipamiento Diseño e Interiorismo, S.L.",
+  "nombre_comercial": null,
+  "cif": "B85779494",
+  "tipo": "empresa",
+  "telefono": "914 17 10 50",
+  "movil": null,
+  "email": "aausin@elecnor.com",
+  "notas": null,
+  "activo": true,
+  "contactos": [
+   {
+    "nombre": "Alba Ausin Hernandez",
+    "telefono": "914 17 10 50",
+    "email": "aausin@elecnor.com"
+   }
+  ]
+ },
+ {
+  "codigo_ext": "273",
+  "nombre": "Comunidad de Propietarios Ob. Severo 13 Es Castell",
+  "nombre_comercial": null,
+  "cif": null,
+  "tipo": "comunidad",
+  "telefono": null,
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "274",
+  "nombre": "Construcciones Valcarcel y Mendez, S.L.",
+  "nombre_comercial": null,
+  "cif": "B57006017",
+  "tipo": "empresa",
+  "telefono": "971 35 36 53",
+  "movil": null,
+  "email": "valcarcemendez@hotmail.com",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "275",
+  "nombre": "R & P Decoracion y Construccion, S.L.",
+  "nombre_comercial": null,
+  "cif": "B78529500",
+  "tipo": "empresa",
+  "telefono": "917 26 63 70",
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "276",
+  "nombre": "Bonita Menorca, S.L.",
+  "nombre_comercial": null,
+  "cif": "B01996826",
+  "tipo": "empresa",
+  "telefono": "971 15 07 15",
+  "movil": null,
+  "email": "facturas@bonitamenorca.com",
+  "notas": "Otros correos: leandro@binifadet.com",
+  "activo": true,
+  "contactos": [
+   {
+    "nombre": "Andrea Radalga Sanguino",
+    "telefono": "971 15 07 15",
+    "email": "facturas@bonitamenorca.com"
+   }
+  ]
+ },
+ {
+  "codigo_ext": "277",
+  "nombre": "Proselec Seguridad, S.A.",
+  "nombre_comercial": null,
+  "cif": "A78623048",
+  "tipo": "empresa",
+  "telefono": "911 21 71 50",
+  "movil": null,
+  "email": "ivanrodriguez@proselec.com",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "278",
+  "nombre": "Menorplast, S.L.",
+  "nombre_comercial": null,
+  "cif": "B57898264",
+  "tipo": "empresa",
+  "telefono": null,
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "279",
+  "nombre": "Asfaltos y Construcciones Elsan, S.A.",
+  "nombre_comercial": null,
+  "cif": "A81940371",
+  "tipo": "empresa",
+  "telefono": "915 19 99 62",
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "280",
+  "nombre": "Folimex Boker, S.L.",
+  "nombre_comercial": null,
+  "cif": "B66788878",
+  "tipo": "empresa",
+  "telefono": null,
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "281",
+  "nombre": "Anna Maria Schyllert (Mijo)",
+  "nombre_comercial": null,
+  "cif": "X6933921Q",
+  "tipo": "particular",
+  "telefono": "606 11 74 74",
+  "movil": null,
+  "email": "mijo.schyllert@gmail.com",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "282",
+  "nombre": "Supermercados Dia",
+  "nombre_comercial": null,
+  "cif": null,
+  "tipo": "particular",
+  "telefono": null,
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "283",
+  "nombre": "Pedro Andreu",
+  "nombre_comercial": null,
+  "cif": null,
+  "tipo": "particular",
+  "telefono": null,
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "284",
+  "nombre": "Francisco",
+  "nombre_comercial": null,
+  "cif": null,
+  "tipo": "empresa",
+  "telefono": null,
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "285",
+  "nombre": "VIviana",
+  "nombre_comercial": null,
+  "cif": null,
+  "tipo": "empresa",
+  "telefono": null,
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "286",
+  "nombre": "Ingersis, S.L.",
+  "nombre_comercial": null,
+  "cif": "B85262053",
+  "tipo": "empresa",
+  "telefono": "918 70 67 79",
+  "movil": null,
+  "email": "info@ingersis.es",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "287",
+  "nombre": "Modular Global, S.L.",
+  "nombre_comercial": null,
+  "cif": "B98758956",
+  "tipo": "empresa",
+  "telefono": null,
+  "movil": null,
+  "email": "administracion@modularglobal.com",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "288",
+  "nombre": "Best And Fast Change España, S.A.",
+  "nombre_comercial": null,
+  "cif": "A87049532",
+  "tipo": "empresa",
+  "telefono": null,
+  "movil": null,
+  "email": "t.castellanos@bestandfastchange.es",
+  "notas": null,
+  "activo": true,
+  "contactos": [
+   {
+    "nombre": "Tomás Castellanos",
+    "telefono": null,
+    "email": "t.castellanos@bestandfastchange.es"
+   }
+  ]
+ },
+ {
+  "codigo_ext": "289",
+  "nombre": "Mariano Ivan Martinez",
+  "nombre_comercial": null,
+  "cif": null,
+  "tipo": "particular",
+  "telefono": null,
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "290",
+  "nombre": "Estrella Damm",
+  "nombre_comercial": null,
+  "cif": null,
+  "tipo": "particular",
+  "telefono": null,
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "291",
+  "nombre": "Proyecto Diseño y Fabricacion Cluster, S.L.",
+  "nombre_comercial": null,
+  "cif": "B66390105",
+  "tipo": "empresa",
+  "telefono": "653 15 47 75",
+  "movil": null,
+  "email": "administracion@pdfcluster.com",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "292",
+  "nombre": "Queddar Line, S.L.",
+  "nombre_comercial": null,
+  "cif": "B19304401",
+  "tipo": "empresa",
+  "telefono": null,
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "293",
+  "nombre": "Menorca Dist, S.L.",
+  "nombre_comercial": null,
+  "cif": "B07217193",
+  "tipo": "empresa",
+  "telefono": "971 37 27 86",
+  "movil": null,
+  "email": "jsanchez@emdi.es",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "294",
+  "nombre": "Conrado y Asociados, S.A.",
+  "nombre_comercial": null,
+  "cif": "A07175458",
+  "tipo": "empresa",
+  "telefono": "971 15 02 68",
+  "movil": null,
+  "email": "tecnicos@conradoyasociados.com",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "295",
+  "nombre": "Guebourg, S.L.",
+  "nombre_comercial": null,
+  "cif": "B70512942",
+  "tipo": "empresa",
+  "telefono": null,
+  "movil": null,
+  "email": "guebourgsl@gmail.com",
+  "notas": null,
+  "activo": true,
+  "contactos": [
+   {
+    "nombre": "Xesús Fernández",
+    "telefono": null,
+    "email": "guebourgsl@gmail.com"
+   }
+  ]
+ },
+ {
+  "codigo_ext": "296",
+  "nombre": "Inspalcontrol, S.L.",
+  "nombre_comercial": null,
+  "cif": "B66122540",
+  "tipo": "empresa",
+  "telefono": "619 76 16 09",
+  "movil": null,
+  "email": "inspal@inspal.es",
+  "notas": null,
+  "activo": true,
+  "contactos": [
+   {
+    "nombre": "Angel Palomares",
+    "telefono": "619 76 16 09",
+    "email": "inspal@inspal.es"
+   }
+  ]
+ },
+ {
+  "codigo_ext": "297",
+  "nombre": "Dismenorca, S.L.",
+  "nombre_comercial": null,
+  "cif": "B57842650",
+  "tipo": "empresa",
+  "telefono": "971 35 12 49",
+  "movil": null,
+  "email": "dismenorca@dismenorca.com",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "298",
+  "nombre": "Mantenimientos Imase, S.L.",
+  "nombre_comercial": null,
+  "cif": "B81529588",
+  "tipo": "empresa",
+  "telefono": "916 16 93 36",
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "299",
+  "nombre": "Clean & Simple, S.L.",
+  "nombre_comercial": null,
+  "cif": "B57891913",
+  "tipo": "empresa",
+  "telefono": null,
+  "movil": null,
+  "email": "jsanchez@emdi.es",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "300",
+  "nombre": "Tomas Geremias Sanchez Montenegro",
+  "nombre_comercial": null,
+  "cif": "41609978B",
+  "tipo": "particular",
+  "telefono": "657 67 40 26",
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "301",
+  "nombre": "Proture Menorca, S.A.",
+  "nombre_comercial": null,
+  "cif": "A07270846",
+  "tipo": "empresa",
+  "telefono": "971 35 08 22",
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "302",
+  "nombre": "Pedro Goñalons Sintes",
+  "nombre_comercial": null,
+  "cif": null,
+  "tipo": "particular",
+  "telefono": "600 95 90 60",
+  "movil": null,
+  "email": "pgonalons@bankinter.com",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "303",
+  "nombre": "Sants Patrons Constructora, S.L.",
+  "nombre_comercial": null,
+  "cif": "B97836431",
+  "tipo": "empresa",
+  "telefono": null,
+  "movil": null,
+  "email": "emilio.spc@gmail.com",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "304",
+  "nombre": "Amper Sistemas, S.A.",
+  "nombre_comercial": null,
+  "cif": "A19024249",
+  "tipo": "empresa",
+  "telefono": "917 24 30 00",
+  "movil": null,
+  "email": "proveedores@grupoamper.com",
+  "notas": null,
+  "activo": true,
+  "contactos": [
+   {
+    "nombre": "José María Millán Sanz - Jefe de Proyecto",
+    "telefono": "917 24 30 00",
+    "email": "proveedores@grupoamper.com"
+   }
+  ]
+ },
+ {
+  "codigo_ext": "305",
+  "nombre": "Hidrobal Gestion de Aguas de Baleares, S.A.",
+  "nombre_comercial": null,
+  "cif": "A66140724",
+  "tipo": "empresa",
+  "telefono": "971 36 14 68",
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "306",
+  "nombre": "Bosch Goody, S.L.",
+  "nombre_comercial": null,
+  "cif": "B57301046",
+  "tipo": "empresa",
+  "telefono": "971 35 08 22",
+  "movil": null,
+  "email": "scardona@procusamenorca.es",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "307",
+  "nombre": "Real Aero Club de Mahon Menorca",
+  "nombre_comercial": null,
+  "cif": "G07126196",
+  "tipo": "empresa",
+  "telefono": "971 35 17 87",
+  "movil": null,
+  "email": "secretaria@aeroclubmenorca.com",
+  "notas": null,
+  "activo": true,
+  "contactos": [
+   {
+    "nombre": "Toyo Cardona",
+    "telefono": "971 35 17 87",
+    "email": "secretaria@aeroclubmenorca.com"
+   }
+  ]
+ },
+ {
+  "codigo_ext": "308",
+  "nombre": "A.victor Guerrero Castellanos",
+  "nombre_comercial": "A.victor Guerrero Castellanos Alquiler de Maquinaria, de Andamio y Montaje del Mismo",
+  "cif": "41492088L",
+  "tipo": "particular",
+  "telefono": "687 77 30 60",
+  "movil": null,
+  "email": "vguerrerocastellanos@gmail.com",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "309",
+  "nombre": "Excavaciones Moll, S.L.",
+  "nombre_comercial": null,
+  "cif": "B07698921",
+  "tipo": "empresa",
+  "telefono": "971 38 43 27",
+  "movil": "629 30 32 22",
+  "email": "oficina@excavacionesmoll.com",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "310",
+  "nombre": "Carmen Cami Des Castell",
+  "nombre_comercial": null,
+  "cif": null,
+  "tipo": "particular",
+  "telefono": null,
+  "movil": null,
+  "email": "mcprudenciodiaz@gmail.com",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "311",
+  "nombre": "Ihandling Aviation Airlines Airports, S.L.",
+  "nombre_comercial": null,
+  "cif": "B55286173",
+  "tipo": "empresa",
+  "telefono": null,
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "312",
+  "nombre": "Sampol Ingenieria y Obras, S.A.",
+  "nombre_comercial": null,
+  "cif": "A07088206",
+  "tipo": "empresa",
+  "telefono": "971 76 44 76",
+  "movil": "662 20 62 43",
+  "email": "destela@sampol.com",
+  "notas": null,
+  "activo": true,
+  "contactos": [
+   {
+    "nombre": "David Estela",
+    "telefono": "662 20 62 43",
+    "email": "destela@sampol.com"
+   }
+  ]
+ },
+ {
+  "codigo_ext": "313",
+  "nombre": "Asociación de Autoescuelas de Menorca",
+  "nombre_comercial": null,
+  "cif": null,
+  "tipo": "empresa",
+  "telefono": "662 08 96 20",
+  "movil": null,
+  "email": "may@autoescuelamay.com",
+  "notas": null,
+  "activo": true,
+  "contactos": [
+   {
+    "nombre": "May",
+    "telefono": "662 08 96 20",
+    "email": "may@autoescuelamay.com"
+   }
+  ]
+ },
+ {
+  "codigo_ext": "314",
+  "nombre": "Sonepar Iberica Spain, S.A.",
+  "nombre_comercial": null,
+  "cif": "A96933510",
+  "tipo": "empresa",
+  "telefono": "963 55 25 31",
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "315",
+  "nombre": "Vias y Construcciones, S.A.",
+  "nombre_comercial": null,
+  "cif": "A28017986",
+  "tipo": "empresa",
+  "telefono": "914 17 98 00",
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "316",
+  "nombre": "Predios y Tecnologia, S.L.",
+  "nombre_comercial": "Isafra Menorca",
+  "cif": "B16756199",
+  "tipo": "empresa",
+  "telefono": "971 36 16 04",
+  "movil": null,
+  "email": "nhv@artiemhotels.com",
+  "notas": null,
+  "activo": true,
+  "contactos": [
+   {
+    "nombre": "Nacho Homs Victory",
+    "telefono": "971 36 16 04",
+    "email": "nhv@artiemhotels.com"
+   }
+  ]
+ },
+ {
+  "codigo_ext": "317",
+  "nombre": "Alejandro Martinez",
+  "nombre_comercial": null,
+  "cif": null,
+  "tipo": "particular",
+  "telefono": "629 63 76 78",
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "318",
+  "nombre": "María Agostina Vendramini",
+  "nombre_comercial": null,
+  "cif": null,
+  "tipo": "particular",
+  "telefono": "654 37 40 32",
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "319",
+  "nombre": "Dayma Pavimentos, S.L.",
+  "nombre_comercial": null,
+  "cif": "B57499543",
+  "tipo": "empresa",
+  "telefono": "971 36 96 57",
+  "movil": "696 38 47 18",
+  "email": "pavimentosdayma@gmail.com",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "320",
+  "nombre": "Obres Gabi Gonyalons, S.L.",
+  "nombre_comercial": null,
+  "cif": "B57622151",
+  "tipo": "empresa",
+  "telefono": null,
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "321",
+  "nombre": "Alventia Tecnologia y Consultoria, S.L.",
+  "nombre_comercial": null,
+  "cif": "B87933172",
+  "tipo": "empresa",
+  "telefono": null,
+  "movil": null,
+  "email": "jc.benavides@alventia.es",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "322",
+  "nombre": "Graham Paul Spedding",
+  "nombre_comercial": null,
+  "cif": "X1482673R",
+  "tipo": "particular",
+  "telefono": "606 20 64 58",
+  "movil": null,
+  "email": "monet-gs@hotmail.com",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "323",
+  "nombre": "Kongsberg Defence & Aerospace As",
+  "nombre_comercial": null,
+  "cif": "N0978614582",
+  "tipo": "empresa",
+  "telefono": "+47 322 882 00",
+  "movil": null,
+  "email": "agarcia@gesnaer.es",
+  "notas": null,
+  "activo": true,
+  "contactos": [
+   {
+    "nombre": "Alejandro Garcia",
+    "telefono": "+47 322 882 00",
+    "email": "agarcia@gesnaer.es"
+   }
+  ]
+ },
+ {
+  "codigo_ext": "324",
+  "nombre": "Ignacio Romera Gonzalo",
+  "nombre_comercial": null,
+  "cif": null,
+  "tipo": "particular",
+  "telefono": "667 43 64 16",
+  "movil": null,
+  "email": "irg@ccoac.net",
+  "notas": null,
+  "activo": true,
+  "contactos": [
+   {
+    "nombre": "Inacio Romera Gonzalo",
+    "telefono": "667 43 64 16",
+    "email": "irg@ccoac.net"
+   }
+  ]
+ },
+ {
+  "codigo_ext": "325",
+  "nombre": "Grau Pons Antonio Juan 000256139p Sociedad Limitada Nueva Empresa",
+  "nombre_comercial": null,
+  "cif": "B57225609",
+  "tipo": "empresa",
+  "telefono": "620 92 59 80",
+  "movil": null,
+  "email": "tonigraupons@gmail.com",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "326",
+  "nombre": "Isla Centinela, S.L.",
+  "nombre_comercial": null,
+  "cif": "B07894405",
+  "tipo": "empresa",
+  "telefono": "971 45 21 10",
+  "movil": null,
+  "email": "pacoolive63@gmail.com",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "327",
+  "nombre": "Ingenieria y Servicios de Eficiencia Energetica, S.L.",
+  "nombre_comercial": null,
+  "cif": "B64734726",
+  "tipo": "empresa",
+  "telefono": "930 00 07 18",
+  "movil": null,
+  "email": "e.bartis@enertika.com",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "328",
+  "nombre": "Servicios Integrales Manuel Gallego, S.L.",
+  "nombre_comercial": null,
+  "cif": "B04930392",
+  "tipo": "empresa",
+  "telefono": null,
+  "movil": null,
+  "email": "mgallego_gracia@hotmail.com",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "329",
+  "nombre": "Atalis, S.L.",
+  "nombre_comercial": null,
+  "cif": "B16813073",
+  "tipo": "empresa",
+  "telefono": "647 74 69 67",
+  "movil": null,
+  "email": "atalis.mah@gmail.com",
+  "notas": null,
+  "activo": true,
+  "contactos": [
+   {
+    "nombre": "Xesus Fernandez",
+    "telefono": "647 74 69 67",
+    "email": "atalis.mah@gmail.com"
+   }
+  ]
+ },
+ {
+  "codigo_ext": "330",
+  "nombre": "Menorca Tragina, S.L.",
+  "nombre_comercial": null,
+  "cif": "B57981847",
+  "tipo": "empresa",
+  "telefono": "609 69 24 80",
+  "movil": null,
+  "email": "menorcaagro@gmail.com",
+  "notas": null,
+  "activo": true,
+  "contactos": [
+   {
+    "nombre": "Miguel",
+    "telefono": "609 69 24 80",
+    "email": "menorcaagro@gmail.com"
+   }
+  ]
+ },
+ {
+  "codigo_ext": "331",
+  "nombre": "Menorca Agropecuaria, S.L.",
+  "nombre_comercial": null,
+  "cif": "B57761520",
+  "tipo": "empresa",
+  "telefono": "971 15 04 36",
+  "movil": "609 69 24 80",
+  "email": "menorcaagro@gmail.com",
+  "notas": null,
+  "activo": true,
+  "contactos": [
+   {
+    "nombre": "Miguel",
+    "telefono": "609 69 24 80",
+    "email": "menorcaagro@gmail.com"
+   }
+  ]
+ },
+ {
+  "codigo_ext": "332",
+  "nombre": "Viarium Ingenieria, S.L.",
+  "nombre_comercial": null,
+  "cif": "B05225131",
+  "tipo": "empresa",
+  "telefono": "916 37 19 77",
+  "movil": null,
+  "email": "monica.arranz@viarium.es",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "333",
+  "nombre": "Grupo Empresas Alonso Mari, S.A.",
+  "nombre_comercial": null,
+  "cif": "A07404510",
+  "tipo": "empresa",
+  "telefono": "971 30 30 67",
+  "movil": null,
+  "email": "juan.sastre@insotel.com",
+  "notas": "Otros correos: victor.martinez@insotel.com",
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "334",
+  "nombre": "Virginie Sonia Marie Jeanne Pennaneach i",
+  "nombre_comercial": null,
+  "cif": "Y4784592P",
+  "tipo": "particular",
+  "telefono": null,
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "335",
+  "nombre": "Instelfonair, S.L.",
+  "nombre_comercial": null,
+  "cif": "B10664381",
+  "tipo": "empresa",
+  "telefono": "971 36 56 11",
+  "movil": null,
+  "email": "administracion@instelfonair.es",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "336",
+  "nombre": "Directe, C.B.",
+  "nombre_comercial": null,
+  "cif": "E57176166",
+  "tipo": "empresa",
+  "telefono": "971 15 17 93",
+  "movil": null,
+  "email": "directeadministracio@gmail.com",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "337",
+  "nombre": "Jordi Olvera Coll",
+  "nombre_comercial": null,
+  "cif": "41501496C",
+  "tipo": "particular",
+  "telefono": null,
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "338",
+  "nombre": "Ancodarq, S.L.",
+  "nombre_comercial": null,
+  "cif": "B81243743",
+  "tipo": "empresa",
+  "telefono": "916 57 08 19",
+  "movil": null,
+  "email": "d.estudios@ancodarq.com",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "339",
+  "nombre": "Manel de Juan",
+  "nombre_comercial": null,
+  "cif": null,
+  "tipo": "particular",
+  "telefono": null,
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "340",
+  "nombre": "Padel One Indoor, S.C.",
+  "nombre_comercial": null,
+  "cif": "J10667814",
+  "tipo": "empresa",
+  "telefono": null,
+  "movil": null,
+  "email": "oscarbenejam@hotmail.com",
+  "notas": null,
+  "activo": true,
+  "contactos": [
+   {
+    "nombre": "Oscar Benejam",
+    "telefono": null,
+    "email": "oscarbenejam@hotmail.com"
+   }
+  ]
+ },
+ {
+  "codigo_ext": "341",
+  "nombre": "Miatec Innova, S.L.",
+  "nombre_comercial": null,
+  "cif": "B62792783",
+  "tipo": "empresa",
+  "telefono": "933 11 39 74",
+  "movil": null,
+  "email": "josepmpons@miatec.cat",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "342",
+  "nombre": "PB Projectes, S.L.",
+  "nombre_comercial": null,
+  "cif": "B57653545",
+  "tipo": "empresa",
+  "telefono": null,
+  "movil": null,
+  "email": "josepmpons@miatec.cat",
+  "notas": "También código 347 en el programa de facturación",
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "343",
+  "nombre": "José Marques",
+  "nombre_comercial": null,
+  "cif": null,
+  "tipo": "particular",
+  "telefono": null,
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "344",
+  "nombre": "Diego Montes",
+  "nombre_comercial": null,
+  "cif": null,
+  "tipo": "particular",
+  "telefono": "676 12 41 44",
+  "movil": null,
+  "email": "diemonrod@gmail.com",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "345",
+  "nombre": "Unidad Tecnica de Innovacion y Desarrollo, S.L.",
+  "nombre_comercial": null,
+  "cif": "B30835334",
+  "tipo": "empresa",
+  "telefono": "937 70 80 35",
+  "movil": null,
+  "email": "mgoncer@ambiental-global.com",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "346",
+  "nombre": "Sa Paissa Deli, S.L.",
+  "nombre_comercial": null,
+  "cif": "B16570509",
+  "tipo": "empresa",
+  "telefono": "971 37 73 89",
+  "movil": null,
+  "email": "somni08@hotmail.com",
+  "notas": null,
+  "activo": true,
+  "contactos": [
+   {
+    "nombre": "Manuel Sabin Gonzalez",
+    "telefono": "971 37 73 89",
+    "email": "somni08@hotmail.com"
+   }
+  ]
+ },
+ {
+  "codigo_ext": "348",
+  "nombre": "Acciona Agua, S.A.",
+  "nombre_comercial": null,
+  "cif": "A95113361",
+  "tipo": "empresa",
+  "telefono": "917 90 77 00",
+  "movil": null,
+  "email": "angarciaol@acciona.com",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "349",
+  "nombre": "UTE Campo de Vuelo Este",
+  "nombre_comercial": null,
+  "cif": "U10769263",
+  "tipo": "empresa",
+  "telefono": null,
+  "movil": null,
+  "email": "vmperez@staeropuertos.com",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "350",
+  "nombre": "UTE Cepa Joan Mir i Mir",
+  "nombre_comercial": null,
+  "cif": "U10776631",
+  "tipo": "empresa",
+  "telefono": null,
+  "movil": null,
+  "email": "g.lira@tecopsa.es",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "351",
+  "nombre": "Nexus 75, S.L.",
+  "nombre_comercial": null,
+  "cif": "B57658577",
+  "tipo": "empresa",
+  "telefono": "610 48 46 06",
+  "movil": null,
+  "email": "psegui@ral.es",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "352",
+  "nombre": "Jose Manuel Pons Benejam",
+  "nombre_comercial": null,
+  "cif": "41501481M",
+  "tipo": "particular",
+  "telefono": null,
+  "movil": null,
+  "email": "josep@ecosis.cat",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "353",
+  "nombre": "Sara Elena García Vidal",
+  "nombre_comercial": "Sara Binixica",
+  "cif": "53560621S",
+  "tipo": "particular",
+  "telefono": null,
+  "movil": null,
+  "email": "saraelena.garcia@gmail.com",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "354",
+  "nombre": "UTE Residencia Cuartel de Santiago",
+  "nombre_comercial": null,
+  "cif": "U06938401",
+  "tipo": "empresa",
+  "telefono": "677 47 22 92",
+  "movil": null,
+  "email": "j.dura@antonioydiego.com",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "355",
+  "nombre": "Airport Food Outlets, S.L.",
+  "nombre_comercial": null,
+  "cif": "B66740432",
+  "tipo": "empresa",
+  "telefono": "933 83 84 86",
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "356",
+  "nombre": "Kai Hackelberg",
+  "nombre_comercial": null,
+  "cif": "Y8945648L",
+  "tipo": "particular",
+  "telefono": "+49 178 592 8780",
+  "movil": null,
+  "email": "kh@kh-a.net",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "357",
+  "nombre": "Valverdi Romero Maria Carolina",
+  "nombre_comercial": null,
+  "cif": "41611298C",
+  "tipo": "particular",
+  "telefono": "677 68 92 21",
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "358",
+  "nombre": "Citanias Obras y Servicios, S.L.",
+  "nombre_comercial": null,
+  "cif": "B15675515",
+  "tipo": "empresa",
+  "telefono": "981 67 43 59",
+  "movil": null,
+  "email": "jlcarreno@citanias.com",
+  "notas": "Otros correos: facturacion@citanias.com · pamaro@citanias.com",
+  "activo": true,
+  "contactos": [
+   {
+    "nombre": "Jose Luis Carreno",
+    "telefono": "981 67 43 59",
+    "email": "jlcarreno@citanias.com"
+   }
+  ]
+ },
+ {
+  "codigo_ext": "359",
+  "nombre": "Tanit Ibiza Port, S.A.",
+  "nombre_comercial": null,
+  "cif": "A57313868",
+  "tipo": "empresa",
+  "telefono": "971 19 99 56",
+  "movil": null,
+  "email": "capitania@marinaportmahon.com",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "360",
+  "nombre": "Greening Ingenieria Civil y Ambiental, S.L.",
+  "nombre_comercial": null,
+  "cif": "B18967729",
+  "tipo": "empresa",
+  "telefono": "958 46 61 29",
+  "movil": null,
+  "email": "m.hurtado@greening-e.com",
+  "notas": null,
+  "activo": true,
+  "contactos": [
+   {
+    "nombre": "Manuel Hurtado - Jefe de Obra",
+    "telefono": "958 46 61 29",
+    "email": "m.hurtado@greening-e.com"
+   }
+  ]
+ },
+ {
+  "codigo_ext": "361",
+  "nombre": "Marta Cajigas",
+  "nombre_comercial": null,
+  "cif": null,
+  "tipo": "particular",
+  "telefono": null,
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "362",
+  "nombre": "Construcciones Garmadia, S.L.",
+  "nombre_comercial": null,
+  "cif": "B16556151",
+  "tipo": "empresa",
+  "telefono": "616 56 36 70",
+  "movil": null,
+  "email": "c.garmadia@gmail.com",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "363",
+  "nombre": "Obres Gami Lozano, S.C.",
+  "nombre_comercial": null,
+  "cif": "J57421620",
+  "tipo": "empresa",
+  "telefono": "971 15 05 20",
+  "movil": "679 99 72 85",
+  "email": "obresgamilozano@telefonica.net",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "364",
+  "nombre": "Arnaud Hugues Philippe Marie Brunel de Bonneville Colomb",
+  "nombre_comercial": null,
+  "cif": "Y9943499S",
+  "tipo": "particular",
+  "telefono": null,
+  "movil": null,
+  "email": "joansoria@apabcn.cat",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "365",
+  "nombre": "Sociedad General de Aguas de Barcelona, S.A.",
+  "nombre_comercial": null,
+  "cif": "A08000234",
+  "tipo": "empresa",
+  "telefono": "933 42 20 00",
+  "movil": null,
+  "email": "antonio.orfila@hidrobal.net",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "366",
+  "nombre": "Tonislar, S.L.",
+  "nombre_comercial": null,
+  "cif": "B07992845",
+  "tipo": "empresa",
+  "telefono": "971 36 56 24",
+  "movil": "609 69 29 26",
+  "email": "ndominguez@tonislar.com",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "367",
+  "nombre": "Wedding Organizacion, S.L.",
+  "nombre_comercial": null,
+  "cif": "B86740826",
+  "tipo": "empresa",
+  "telefono": "914 35 88 55",
+  "movil": "682 73 69 10",
+  "email": "fiscal@mdconsultores.es",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "368",
+  "nombre": "Carrer Gran 25",
+  "nombre_comercial": null,
+  "cif": null,
+  "tipo": "particular",
+  "telefono": null,
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "369",
+  "nombre": "Elizabeth",
+  "nombre_comercial": null,
+  "cif": null,
+  "tipo": "empresa",
+  "telefono": null,
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "370",
+  "nombre": "Luis Box",
+  "nombre_comercial": null,
+  "cif": null,
+  "tipo": "particular",
+  "telefono": null,
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "371",
+  "nombre": "Lavanderia Insular, S.L.",
+  "nombre_comercial": null,
+  "cif": "B07025851",
+  "tipo": "empresa",
+  "telefono": "971 37 32 45",
+  "movil": null,
+  "email": "lavlainsa@gmail.com",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "372",
+  "nombre": "David Colorado",
+  "nombre_comercial": null,
+  "cif": null,
+  "tipo": "particular",
+  "telefono": "619 99 13 85",
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "373",
+  "nombre": "Ayuntamiento de Es Mercadal",
+  "nombre_comercial": null,
+  "cif": "P0703700E",
+  "tipo": "administracion",
+  "telefono": "971 37 50 02",
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": [
+   {
+    "nombre": "Adrian Moresan",
+    "telefono": "971 37 50 02",
+    "email": null
+   }
+  ]
+ },
+ {
+  "codigo_ext": "374",
+  "nombre": "Eduardo Particular (mpolo)",
+  "nombre_comercial": null,
+  "cif": null,
+  "tipo": "particular",
+  "telefono": "638 88 78 57",
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "375",
+  "nombre": "Royal Balconies Of Menorca, S.L.",
+  "nombre_comercial": null,
+  "cif": "B42675033",
+  "tipo": "empresa",
+  "telefono": "670 00 40 48",
+  "movil": null,
+  "email": "javier.puerto@azurgroup.eu",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "376",
+  "nombre": "Ana Maria Alsina Pons",
+  "nombre_comercial": null,
+  "cif": "41482695X",
+  "tipo": "particular",
+  "telefono": null,
+  "movil": null,
+  "email": "anaalsinapons@gmail.com",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "377",
+  "nombre": "Suministros y Montajes Menorca, S.L.",
+  "nombre_comercial": null,
+  "cif": "B57792053",
+  "tipo": "empresa",
+  "telefono": "971 15 09 91",
+  "movil": "606 37 44 32",
+  "email": "luis@montajesmenorca.com",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "378",
+  "nombre": "Tano",
+  "nombre_comercial": null,
+  "cif": null,
+  "tipo": "empresa",
+  "telefono": null,
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "379",
+  "nombre": "Jose Fanals",
+  "nombre_comercial": null,
+  "cif": null,
+  "tipo": "particular",
+  "telefono": null,
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "380",
+  "nombre": "Asua BG 96, S.L.",
+  "nombre_comercial": null,
+  "cif": "B48794929",
+  "tipo": "empresa",
+  "telefono": "944 71 06 13",
+  "movil": null,
+  "email": "administracion@gitma.es",
+  "notas": null,
+  "activo": true,
+  "contactos": [
+   {
+    "nombre": "Ana",
+    "telefono": "944 71 06 13",
+    "email": "administracion@gitma.es"
+   }
+  ]
+ },
+ {
+  "codigo_ext": "381",
+  "nombre": "Fusteria Es Grop, S.L.",
+  "nombre_comercial": null,
+  "cif": "B07985856",
+  "tipo": "empresa",
+  "telefono": "971 15 41 96",
+  "movil": null,
+  "email": "monica@esgrop.es",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "382",
+  "nombre": "Antonio Jané",
+  "nombre_comercial": null,
+  "cif": "39650223V",
+  "tipo": "particular",
+  "telefono": null,
+  "movil": null,
+  "email": "abctjane@yahoo.es",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "383",
+  "nombre": "Ayuntamiento de Sant Lluis",
+  "nombre_comercial": null,
+  "cif": "P0705200D",
+  "tipo": "administracion",
+  "telefono": "971 15 09 50",
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "384",
+  "nombre": "Siadde Soluciones, S.A.",
+  "nombre_comercial": null,
+  "cif": "A81286759",
+  "tipo": "empresa",
+  "telefono": "915 00 14 55",
+  "movil": null,
+  "email": "racevedo@siadde.es",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "385",
+  "nombre": "Oscar Gomila Seguí",
+  "nombre_comercial": null,
+  "cif": "41507262J",
+  "tipo": "particular",
+  "telefono": "679 81 93 83",
+  "movil": null,
+  "email": "fundiservicios@gmail.com",
+  "notas": null,
+  "activo": true,
+  "contactos": [
+   {
+    "nombre": "Vanessa",
+    "telefono": "679 81 93 83",
+    "email": "fundiservicios@gmail.com"
+   }
+  ]
+ },
+ {
+  "codigo_ext": "386",
+  "nombre": "Fernando Cid",
+  "nombre_comercial": null,
+  "cif": null,
+  "tipo": "particular",
+  "telefono": null,
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "387",
+  "nombre": "Landino Berman, S.L.",
+  "nombre_comercial": null,
+  "cif": "A07023492",
+  "tipo": "empresa",
+  "telefono": "971 36 02 64",
+  "movil": null,
+  "email": "guillermo@landino.com",
+  "notas": "Otros teléfonos: 971 36 40 56\nOtros correos: landino@landino.com",
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "388",
+  "nombre": "Pascal Perez",
+  "nombre_comercial": null,
+  "cif": null,
+  "tipo": "particular",
+  "telefono": null,
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "389",
+  "nombre": "Esgrup, S.A.",
+  "nombre_comercial": null,
+  "cif": "A58545393",
+  "tipo": "empresa",
+  "telefono": "938 41 00 64",
+  "movil": "607 51 46 92",
+  "email": "rafa@esgrup.net",
+  "notas": "Otros teléfonos: 937 91 96 23",
+  "activo": true,
+  "contactos": [
+   {
+    "nombre": "Rafael Poyatos",
+    "telefono": "607 51 46 92",
+    "email": "rafa@esgrup.net"
+   }
+  ]
+ },
+ {
+  "codigo_ext": "390",
+  "nombre": "Rosa Florit Capo",
+  "nombre_comercial": null,
+  "cif": "41496005A",
+  "tipo": "particular",
+  "telefono": "681 29 00 13",
+  "movil": null,
+  "email": "gonell61@hotmail.com",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "391",
+  "nombre": "Cdad Prop Vr-40 San Ciril 63 - Mahon",
+  "nombre_comercial": "Cdad Prop Vr-40",
+  "cif": "H07765357",
+  "tipo": "comunidad",
+  "telefono": "669 81 99 77",
+  "movil": null,
+  "email": "despachomquetglas@gmail.com",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "392",
+  "nombre": "Construcciones Hermanos Moya Valero, S.L.",
+  "nombre_comercial": null,
+  "cif": "B50494186",
+  "tipo": "empresa",
+  "telefono": "976 53 01 41",
+  "movil": "679 44 49 06",
+  "email": "moyavalero@hotmail.com",
+  "notas": null,
+  "activo": true,
+  "contactos": [
+   {
+    "nombre": "Ramón Moya",
+    "telefono": "679 44 49 06",
+    "email": "moyavalero@hotmail.com"
+   }
+  ]
+ },
+ {
+  "codigo_ext": "393",
+  "nombre": "Adelte Group, S.L.",
+  "nombre_comercial": null,
+  "cif": "B65606998",
+  "tipo": "empresa",
+  "telefono": "933 21 22 60",
+  "movil": null,
+  "email": "jmgrau@adelte.com",
+  "notas": null,
+  "activo": true,
+  "contactos": [
+   {
+    "nombre": "Pep Grau",
+    "telefono": "933 21 22 60",
+    "email": "jmgrau@adelte.com"
+   }
+  ]
+ },
+ {
+  "codigo_ext": "394",
+  "nombre": "Fernando de Cabo Fontán",
+  "nombre_comercial": null,
+  "cif": "76933199Q",
+  "tipo": "particular",
+  "telefono": null,
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "395",
+  "nombre": "Fontaneria Vista Alegre, S.L.",
+  "nombre_comercial": null,
+  "cif": "B30901474",
+  "tipo": "empresa",
+  "telefono": "968 12 36 65",
+  "movil": null,
+  "email": "fontavis@fontavis.es",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "396",
+  "nombre": "Marisol Sánchez",
+  "nombre_comercial": null,
+  "cif": "41613210T",
+  "tipo": "particular",
+  "telefono": null,
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "397",
+  "nombre": "Ingenieria 1982, S.L.",
+  "nombre_comercial": null,
+  "cif": "B57353278",
+  "tipo": "empresa",
+  "telefono": "971 15 68 51",
+  "movil": null,
+  "email": "info@i82.es",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "399",
+  "nombre": "UTE Efs Adelte Mantenimiento y Servicios Técnicos, S.l.u. Lote 2",
+  "nombre_comercial": null,
+  "cif": "U67600247",
+  "tipo": "empresa",
+  "telefono": null,
+  "movil": null,
+  "email": "scolon@adelte.com",
+  "notas": null,
+  "activo": true,
+  "contactos": [
+   {
+    "nombre": "Sheila Colon ( Dept. de Compras)",
+    "telefono": null,
+    "email": "scolon@adelte.com"
+   }
+  ]
+ },
+ {
+  "codigo_ext": "400",
+  "nombre": "Boris Bazan",
+  "nombre_comercial": null,
+  "cif": "Y9548032X",
+  "tipo": "particular",
+  "telefono": null,
+  "movil": null,
+  "email": "nicolas.andral@minorque-privee.com",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "401",
+  "nombre": "Gilles Dominique Haumont",
+  "nombre_comercial": null,
+  "cif": "Y5585576V",
+  "tipo": "particular",
+  "telefono": null,
+  "movil": null,
+  "email": "haumont@mac.com",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "402",
+  "nombre": "Ricardo Rodríguez Valtuille",
+  "nombre_comercial": null,
+  "cif": "L0212090S",
+  "tipo": "particular",
+  "telefono": null,
+  "movil": null,
+  "email": "sofiaklasberg@gmail.com",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "403",
+  "nombre": "Alfonso Perez Salazar",
+  "nombre_comercial": null,
+  "cif": "39177934X",
+  "tipo": "particular",
+  "telefono": "669 40 88 09",
+  "movil": null,
+  "email": "mecaglass@hotmail.com",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "404",
+  "nombre": "Larralki Holding, S.L.",
+  "nombre_comercial": null,
+  "cif": "B87406914",
+  "tipo": "empresa",
+  "telefono": null,
+  "movil": null,
+  "email": "sandra@m-boats.com",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "405",
+  "nombre": "Adrian Carbo",
+  "nombre_comercial": null,
+  "cif": null,
+  "tipo": "particular",
+  "telefono": null,
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "406",
+  "nombre": "Talat Contract, S.L.",
+  "nombre_comercial": null,
+  "cif": "B42901520",
+  "tipo": "empresa",
+  "telefono": "662 29 98 81",
+  "movil": null,
+  "email": "afillol@talat.es",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "407",
+  "nombre": "Construcciones e Inversiones Menorca, S.L.",
+  "nombre_comercial": null,
+  "cif": "B57902108",
+  "tipo": "empresa",
+  "telefono": "637 88 77 20",
+  "movil": null,
+  "email": "vasile.onaca@gmail.com",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "408",
+  "nombre": "Centro Penitenciario de Menorca",
+  "nombre_comercial": null,
+  "cif": "Q0700612E",
+  "tipo": "administracion",
+  "telefono": null,
+  "movil": null,
+  "email": "ignacio.sanchezrod@dgip.mir.es",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "410",
+  "nombre": "Mes Blanca Menorca, S.A.",
+  "nombre_comercial": null,
+  "cif": "A07835473",
+  "tipo": "empresa",
+  "telefono": "971 48 40 79",
+  "movil": null,
+  "email": "menorca@mesblanca.com",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "411",
+  "nombre": "Joan Gimenez",
+  "nombre_comercial": null,
+  "cif": null,
+  "tipo": "particular",
+  "telefono": null,
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "412",
+  "nombre": "Toni Lopez",
+  "nombre_comercial": null,
+  "cif": null,
+  "tipo": "particular",
+  "telefono": null,
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "413",
+  "nombre": "Marcelo Mateos",
+  "nombre_comercial": null,
+  "cif": null,
+  "tipo": "particular",
+  "telefono": null,
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "414",
+  "nombre": "Agencia Balear de l'Aigua i Qualitat Ambiental",
+  "nombre_comercial": null,
+  "cif": "Q0700507G",
+  "tipo": "administracion",
+  "telefono": "971 17 76 97",
+  "movil": null,
+  "email": "esteve.barcelo@lagencia.cat",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "415",
+  "nombre": "Manuel Hernandez",
+  "nombre_comercial": null,
+  "cif": null,
+  "tipo": "particular",
+  "telefono": null,
+  "movil": null,
+  "email": "lolohernandez@hotmail.com",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "416",
+  "nombre": "Raul Sanchez Sanchez",
+  "nombre_comercial": null,
+  "cif": null,
+  "tipo": "particular",
+  "telefono": "609 33 57 86",
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "417",
+  "nombre": "Esteban ( Biniancolla)",
+  "nombre_comercial": null,
+  "cif": null,
+  "tipo": "particular",
+  "telefono": "639 26 92 07",
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "418",
+  "nombre": "Servicio de Informatica Local de Menorca, S.A.",
+  "nombre_comercial": null,
+  "cif": "A07279227",
+  "tipo": "empresa",
+  "telefono": "971 35 27 10",
+  "movil": null,
+  "email": "servei@silme.es",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "419",
+  "nombre": "Friclima IV, S.L.",
+  "nombre_comercial": null,
+  "cif": "B57463754",
+  "tipo": "empresa",
+  "telefono": "971 35 42 32",
+  "movil": null,
+  "email": "friclima@gmail.com",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "420",
+  "nombre": "Juropa Construcciones Menorca, S.L.",
+  "nombre_comercial": null,
+  "cif": "B67837260",
+  "tipo": "empresa",
+  "telefono": "671 74 10 69",
+  "movil": null,
+  "email": "juropa.adm@gmail.com",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "421",
+  "nombre": "Andrea Ceriotti",
+  "nombre_comercial": null,
+  "cif": "Y1266273EP",
+  "tipo": "particular",
+  "telefono": null,
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "422",
+  "nombre": "Andrea Cerietti",
+  "nombre_comercial": null,
+  "cif": null,
+  "tipo": "particular",
+  "telefono": null,
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "423",
+  "nombre": "Diving Menorca, S.C.P.",
+  "nombre_comercial": null,
+  "cif": "B57698581",
+  "tipo": "empresa",
+  "telefono": null,
+  "movil": null,
+  "email": "info@divingmenorca.com",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "424",
+  "nombre": "UTE Eas",
+  "nombre_comercial": null,
+  "cif": "U09667171",
+  "tipo": "empresa",
+  "telefono": "912 30 81 64",
+  "movil": null,
+  "email": "ateculr@easparking.com",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "425",
+  "nombre": "Miriam Guardiola",
+  "nombre_comercial": null,
+  "cif": null,
+  "tipo": "particular",
+  "telefono": null,
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "426",
+  "nombre": "Fusteria Manuel Romero, S.L.",
+  "nombre_comercial": null,
+  "cif": "B16608291",
+  "tipo": "empresa",
+  "telefono": "971 67 95 83",
+  "movil": "680 87 05 64",
+  "email": "facturacion@carpinteriamanuelromero.com",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "427",
+  "nombre": "Cornel Turbuc",
+  "nombre_comercial": null,
+  "cif": null,
+  "tipo": "particular",
+  "telefono": "611 34 54 65",
+  "movil": null,
+  "email": "turbuccornel36@gmail.com",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "428",
+  "nombre": "Muzzi Pietro",
+  "nombre_comercial": null,
+  "cif": "X2502878H",
+  "tipo": "particular",
+  "telefono": null,
+  "movil": null,
+  "email": "airpietro@gmail.com",
+  "notas": "Otros correos: jonylara1jonylara1@gmail.com",
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "429",
+  "nombre": "Europcar IB, S.A.",
+  "nombre_comercial": null,
+  "cif": "A28364412",
+  "tipo": "empresa",
+  "telefono": "915 55 99 30",
+  "movil": null,
+  "email": "analia.soto@europcar.com",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "430",
+  "nombre": "Eber Muñoz Perez",
+  "nombre_comercial": null,
+  "cif": "16065353Z",
+  "tipo": "particular",
+  "telefono": null,
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "431",
+  "nombre": "Emanuel Duvernail",
+  "nombre_comercial": null,
+  "cif": null,
+  "tipo": "particular",
+  "telefono": null,
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "432",
+  "nombre": "Borja Alcalde Rubio",
+  "nombre_comercial": null,
+  "cif": "16065244C",
+  "tipo": "particular",
+  "telefono": "692 83 86 63",
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "433",
+  "nombre": "Mesprotico, S.L.",
+  "nombre_comercial": null,
+  "cif": "B42840785",
+  "tipo": "empresa",
+  "telefono": "629 66 99 57",
+  "movil": null,
+  "email": "administracion@mesprotico.com",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "434",
+  "nombre": "Susana Maria de la Puente Wiese",
+  "nombre_comercial": null,
+  "cif": "Y7592383M",
+  "tipo": "particular",
+  "telefono": null,
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "435",
+  "nombre": "Teresa Gonzalez Cubi",
+  "nombre_comercial": null,
+  "cif": "41490056B",
+  "tipo": "particular",
+  "telefono": "660 90 06 63",
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "436",
+  "nombre": "Carpintería Eutoal, S.L.",
+  "nombre_comercial": null,
+  "cif": "B57201948",
+  "tipo": "empresa",
+  "telefono": "971 36 93 78",
+  "movil": "626 16 52 93",
+  "email": "totmuntatges@gmail.com",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "437",
+  "nombre": "Asuncion Hernandez Gomez",
+  "nombre_comercial": null,
+  "cif": null,
+  "tipo": "particular",
+  "telefono": "607 44 79 81",
+  "movil": null,
+  "email": "susihernan@hotmail.com",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "438",
+  "nombre": "Pablo Pons Gomila",
+  "nombre_comercial": null,
+  "cif": null,
+  "tipo": "particular",
+  "telefono": "649 12 09 32",
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "439",
+  "nombre": "Margarita Pons Orfila",
+  "nombre_comercial": null,
+  "cif": "41485695C",
+  "tipo": "particular",
+  "telefono": "617 26 49 76",
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "440",
+  "nombre": "Ilaria Rosselli del Turco Lais",
+  "nombre_comercial": null,
+  "cif": "Y0728894S",
+  "tipo": "particular",
+  "telefono": "+44 774 831 6206",
+  "movil": null,
+  "email": "ilardt@me.com",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "441",
+  "nombre": "Servicios Profesionales Submarinos, S.L.",
+  "nombre_comercial": null,
+  "cif": "B07828502",
+  "tipo": "empresa",
+  "telefono": "971 22 64 07",
+  "movil": null,
+  "email": "sllamas@serprosub.com",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "442",
+  "nombre": "Taller Isla Motors, S.C.",
+  "nombre_comercial": null,
+  "cif": "J57714180",
+  "tipo": "empresa",
+  "telefono": "971 36 63 96",
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "443",
+  "nombre": "Marquina Peñalver, C.B.",
+  "nombre_comercial": null,
+  "cif": "E13748645",
+  "tipo": "empresa",
+  "telefono": null,
+  "movil": null,
+  "email": "definitelybar@hotmail.com",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "444",
+  "nombre": "Ignacio Rodrigo",
+  "nombre_comercial": null,
+  "cif": "21779580Y",
+  "tipo": "particular",
+  "telefono": "647 79 85 55",
+  "movil": null,
+  "email": "ignaciorodrigomuro@gmail.com",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "445",
+  "nombre": "Santiago Lappasatet",
+  "nombre_comercial": null,
+  "cif": null,
+  "tipo": "particular",
+  "telefono": null,
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "446",
+  "nombre": "Federico Sprljan",
+  "nombre_comercial": null,
+  "cif": null,
+  "tipo": "particular",
+  "telefono": null,
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "447",
+  "nombre": "Blau, S.C.",
+  "nombre_comercial": null,
+  "cif": "J72912736",
+  "tipo": "empresa",
+  "telefono": null,
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "448",
+  "nombre": "Sonia Fraga Martins",
+  "nombre_comercial": null,
+  "cif": null,
+  "tipo": "particular",
+  "telefono": null,
+  "movil": null,
+  "email": "soniafragamartins@gmail.com",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "449",
+  "nombre": "Ignacio Rodrigo",
+  "nombre_comercial": null,
+  "cif": null,
+  "tipo": "particular",
+  "telefono": null,
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "450",
+  "nombre": "Hassam",
+  "nombre_comercial": null,
+  "cif": null,
+  "tipo": "empresa",
+  "telefono": null,
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "451",
+  "nombre": "Michaela Vischer",
+  "nombre_comercial": null,
+  "cif": null,
+  "tipo": "particular",
+  "telefono": null,
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "452",
+  "nombre": "Alain Ducruezet",
+  "nombre_comercial": null,
+  "cif": "Y5951883A",
+  "tipo": "particular",
+  "telefono": "+33 663 940 606",
+  "movil": null,
+  "email": "aducruezet@aol.com",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "453",
+  "nombre": "Montserrat Abadal Tarruella",
+  "nombre_comercial": null,
+  "cif": "36235765R",
+  "tipo": "particular",
+  "telefono": "678 43 38 19",
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "454",
+  "nombre": "Amura Investments B.v.",
+  "nombre_comercial": null,
+  "cif": "NL867657273B01",
+  "tipo": "empresa",
+  "telefono": "560632779",
+  "movil": null,
+  "email": "raul.sanchez@chemogroup.net",
+  "notas": null,
+  "activo": true,
+  "contactos": [
+   {
+    "nombre": "Tomas Sanchez",
+    "telefono": "560632779",
+    "email": "raul.sanchez@chemogroup.net"
+   }
+  ]
+ },
+ {
+  "codigo_ext": "455",
+  "nombre": "Rua Nova Real Estate, S.L.",
+  "nombre_comercial": null,
+  "cif": "B06980171",
+  "tipo": "empresa",
+  "telefono": null,
+  "movil": null,
+  "email": "jesusboschcasali@hotmail.es",
+  "notas": "Otros correos: jdarriba@gmail.com",
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "456",
+  "nombre": "Luis Recabarren",
+  "nombre_comercial": null,
+  "cif": "X4709944G",
+  "tipo": "particular",
+  "telefono": "676 89 33 84",
+  "movil": null,
+  "email": "luisrecabarren@hotmail.com",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "457",
+  "nombre": "Power Choice, S.L.",
+  "nombre_comercial": null,
+  "cif": "B45877727",
+  "tipo": "empresa",
+  "telefono": null,
+  "movil": null,
+  "email": "juan.ruiz@powerchoice.es",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "458",
+  "nombre": "Fenollosa Domenech",
+  "nombre_comercial": null,
+  "cif": "46313614D",
+  "tipo": "particular",
+  "telefono": "688 95 19 53",
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "459",
+  "nombre": "Martin Alles Gornes",
+  "nombre_comercial": null,
+  "cif": "41505385E",
+  "tipo": "particular",
+  "telefono": "669 44 07 21",
+  "movil": null,
+  "email": "detotunpoc80@gmail.com",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "460",
+  "nombre": "Montero Gonzalez Mireya",
+  "nombre_comercial": null,
+  "cif": "70826274M",
+  "tipo": "particular",
+  "telefono": null,
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "461",
+  "nombre": "As.pe.ma.",
+  "nombre_comercial": null,
+  "cif": "G57783565",
+  "tipo": "empresa",
+  "telefono": "669 36 28 27",
+  "movil": null,
+  "email": "aspema3@gmail.com",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "462",
+  "nombre": "Blancarena, S.L.",
+  "nombre_comercial": null,
+  "cif": "B07155997",
+  "tipo": "empresa",
+  "telefono": "971 37 84 52",
+  "movil": null,
+  "email": "blancarena@telefonica.net",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "463",
+  "nombre": "Rg21 Capital, S.L.",
+  "nombre_comercial": null,
+  "cif": "B88016126",
+  "tipo": "empresa",
+  "telefono": "670 05 58 74",
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": [
+   {
+    "nombre": "Ivan",
+    "telefono": "670 05 58 74",
+    "email": null
+   }
+  ]
+ },
+ {
+  "codigo_ext": "464",
+  "nombre": "Efs Mantenimiento y Servicios Tecnicos, S.L.U.",
+  "nombre_comercial": null,
+  "cif": "U23847619",
+  "tipo": "empresa",
+  "telefono": null,
+  "movil": null,
+  "email": "ygarcia@adelte.com",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "465",
+  "nombre": "Hipermercado de la Cocina, S.A.",
+  "nombre_comercial": "Hipercosa",
+  "cif": "A07542335",
+  "tipo": "empresa",
+  "telefono": "971 75 16 67",
+  "movil": null,
+  "email": "hipercosa.menorca@grupoalvic.com",
+  "notas": "Otros teléfonos: 871 90 09 49",
+  "activo": true,
+  "contactos": [
+   {
+    "nombre": "Juan Majuelos",
+    "telefono": "971 75 16 67",
+    "email": "hipercosa.menorca@grupoalvic.com"
+   }
+  ]
+ },
+ {
+  "codigo_ext": "466",
+  "nombre": "Pahu Carpinteria y Reformas, S.L.",
+  "nombre_comercial": null,
+  "cif": "B94190857",
+  "tipo": "empresa",
+  "telefono": "696 42 75 86",
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "467",
+  "nombre": "Max Ventin",
+  "nombre_comercial": null,
+  "cif": null,
+  "tipo": "particular",
+  "telefono": "679 49 51 12",
+  "movil": null,
+  "email": "maxventin@gmail.com",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "468",
+  "nombre": "Alex Oliver",
+  "nombre_comercial": null,
+  "cif": null,
+  "tipo": "particular",
+  "telefono": "607 15 82 95",
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "469",
+  "nombre": "Vina Marevilla, S.L.",
+  "nombre_comercial": null,
+  "cif": "B16542086",
+  "tipo": "empresa",
+  "telefono": "615 20 07 93",
+  "movil": null,
+  "email": "victormadurga@hotmail.com",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "470",
+  "nombre": "Insyte Instalaciones, S.A.",
+  "nombre_comercial": null,
+  "cif": "A79446795",
+  "tipo": "empresa",
+  "telefono": "914 92 06 60",
+  "movil": null,
+  "email": "dcaparros@insyteinstalaciones.es",
+  "notas": "Otros correos: cdenche@insyteinstalaciones.es",
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "471",
+  "nombre": "Reformarc & Refornilles, S.L.",
+  "nombre_comercial": null,
+  "cif": "B75550434",
+  "tipo": "empresa",
+  "telefono": null,
+  "movil": null,
+  "email": "reformarcmenorca@gmail.com",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "472",
+  "nombre": "Joan Villalonga Vinent",
+  "nombre_comercial": null,
+  "cif": "41502963S",
+  "tipo": "particular",
+  "telefono": "609 05 04 97",
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "473",
+  "nombre": "Juan José Ruiz Rodríguez",
+  "nombre_comercial": null,
+  "cif": null,
+  "tipo": "particular",
+  "telefono": null,
+  "movil": null,
+  "email": "jjruiz07@gmail.com",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "474",
+  "nombre": "Consorcio Militar de Menorca",
+  "nombre_comercial": "Consorcio del Museo Militar de Menorca Ypatrimonio Historico-Militar del Puerto de Mahon y Cala San",
+  "cif": "Q5750024A",
+  "tipo": "administracion",
+  "telefono": "971 35 59 63",
+  "movil": null,
+  "email": "consorciomilitarmenorca@mde.es",
+  "notas": null,
+  "activo": true,
+  "contactos": [
+   {
+    "nombre": "Stte. D. Angel Jose del Campo Mary",
+    "telefono": "971 35 59 63",
+    "email": "consorciomilitarmenorca@mde.es"
+   }
+  ]
+ },
+ {
+  "codigo_ext": "475",
+  "nombre": "Pindea Catalin",
+  "nombre_comercial": "Pindea Catalin (hermano de Costel)",
+  "cif": null,
+  "tipo": "particular",
+  "telefono": null,
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "476",
+  "nombre": "Elecnor Servicios y Proyectos, S.A.",
+  "nombre_comercial": null,
+  "cif": "A79486833",
+  "tipo": "empresa",
+  "telefono": "913 61 20 35",
+  "movil": null,
+  "email": "rfraga@elecnor.com",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "477",
+  "nombre": "Jose Eduardo Martinez Freire",
+  "nombre_comercial": null,
+  "cif": null,
+  "tipo": "particular",
+  "telefono": null,
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "478",
+  "nombre": "Rosa Aldea Busquets",
+  "nombre_comercial": null,
+  "cif": "37287345K",
+  "tipo": "particular",
+  "telefono": "636 07 76 19",
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "479",
+  "nombre": "Tomas Guash Guash",
+  "nombre_comercial": null,
+  "cif": "37778898H",
+  "tipo": "particular",
+  "telefono": "629 64 71 41",
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "480",
+  "nombre": "Maria Eva Garrido Paredes",
+  "nombre_comercial": null,
+  "cif": "52167999C",
+  "tipo": "particular",
+  "telefono": null,
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "481",
+  "nombre": "Nicolas Guiton",
+  "nombre_comercial": null,
+  "cif": null,
+  "tipo": "particular",
+  "telefono": null,
+  "movil": null,
+  "email": "nicosab1@free.fr",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "482",
+  "nombre": "Unió Excursionista Menorquina",
+  "nombre_comercial": null,
+  "cif": "G07579147",
+  "tipo": "empresa",
+  "telefono": "696 36 24 58",
+  "movil": null,
+  "email": "martinpbellino@hotmail.com",
+  "notas": null,
+  "activo": true,
+  "contactos": [
+   {
+    "nombre": "Martin Peralez",
+    "telefono": "696 36 24 58",
+    "email": "martinpbellino@hotmail.com"
+   }
+  ]
+ },
+ {
+  "codigo_ext": "483",
+  "nombre": "El Boujaddaini, S.L.",
+  "nombre_comercial": null,
+  "cif": "B16642431",
+  "tipo": "empresa",
+  "telefono": "696 24 25 76",
+  "movil": null,
+  "email": "elboujaddaini3@gmail.com",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "484",
+  "nombre": "Sergio Alvarez Bedoya",
+  "nombre_comercial": null,
+  "cif": null,
+  "tipo": "particular",
+  "telefono": null,
+  "movil": null,
+  "email": "zonasergio@gmail.com",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "485",
+  "nombre": "Elsa Casadevall",
+  "nombre_comercial": null,
+  "cif": null,
+  "tipo": "particular",
+  "telefono": null,
+  "movil": null,
+  "email": "elsacasadevall@gmail.com",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "486",
+  "nombre": "Manolo y Marita",
+  "nombre_comercial": null,
+  "cif": null,
+  "tipo": "particular",
+  "telefono": null,
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "487",
+  "nombre": "Helya Peña Luengo",
+  "nombre_comercial": null,
+  "cif": null,
+  "tipo": "particular",
+  "telefono": "61781644",
+  "movil": null,
+  "email": "helyantic@hotmail.com",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "488",
+  "nombre": "Sune BY SN, S.L.",
+  "nombre_comercial": null,
+  "cif": "B65452690",
+  "tipo": "empresa",
+  "telefono": "932 72 35 24",
+  "movil": "674 51 53 86",
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": [
+   {
+    "nombre": "Carlos Clotet",
+    "telefono": "674 51 53 86",
+    "email": null
+   }
+  ]
+ },
+ {
+  "codigo_ext": "489",
+  "nombre": "Fanny C. Anais Lucheux",
+  "nombre_comercial": null,
+  "cif": "8254835B",
+  "tipo": "particular",
+  "telefono": null,
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "490",
+  "nombre": "Pablo Gomez",
+  "nombre_comercial": null,
+  "cif": null,
+  "tipo": "particular",
+  "telefono": null,
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "491",
+  "nombre": "Azimut 360 S.c.c.l.",
+  "nombre_comercial": null,
+  "cif": "F65202624",
+  "tipo": "empresa",
+  "telefono": "932 17 19 63",
+  "movil": null,
+  "email": "salvador.soler@azimut360.coop",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "492",
+  "nombre": "Norbak Europe, S.L.",
+  "nombre_comercial": "El Kabron Menorca",
+  "cif": "B25991845",
+  "tipo": "empresa",
+  "telefono": "637 38 20 25",
+  "movil": null,
+  "email": "ana@elkabron.com",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "493",
+  "nombre": "Joan Gimenez",
+  "nombre_comercial": null,
+  "cif": null,
+  "tipo": "particular",
+  "telefono": null,
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "494",
+  "nombre": "Ies Joan Ramis i Ramis",
+  "nombre_comercial": null,
+  "cif": "S0718061E",
+  "tipo": "administracion",
+  "telefono": "971 36 01 33",
+  "movil": null,
+  "email": "iesjoanramisiramis@educaib.eu",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "495",
+  "nombre": "Toni Orfila",
+  "nombre_comercial": "Toni Orfila (ramis)",
+  "cif": "41495789V",
+  "tipo": "particular",
+  "telefono": null,
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "496",
+  "nombre": "Diego Chiluisa",
+  "nombre_comercial": null,
+  "cif": "60854357Z",
+  "tipo": "particular",
+  "telefono": null,
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "497",
+  "nombre": "Menorca Alquiler y Servicios, S.L.",
+  "nombre_comercial": null,
+  "cif": "B07047210",
+  "tipo": "empresa",
+  "telefono": "+39 333 433 2116",
+  "movil": null,
+  "email": "giovannakika@gmail.com",
+  "notas": null,
+  "activo": true,
+  "contactos": [
+   {
+    "nombre": "Giovanna",
+    "telefono": "+39 333 433 2116",
+    "email": "giovannakika@gmail.com"
+   }
+  ]
+ },
+ {
+  "codigo_ext": "498",
+  "nombre": "Catalina Ortega Vives",
+  "nombre_comercial": null,
+  "cif": "41496544J",
+  "tipo": "particular",
+  "telefono": "618 11 80 29",
+  "movil": null,
+  "email": "catiorvi47@gmail.com",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "499",
+  "nombre": "Suni Giovanna",
+  "nombre_comercial": null,
+  "cif": null,
+  "tipo": "particular",
+  "telefono": "+39 333 433 2116",
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "500",
+  "nombre": "Joaquin Ensesa",
+  "nombre_comercial": null,
+  "cif": null,
+  "tipo": "particular",
+  "telefono": null,
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "501",
+  "nombre": "Addaya, S.A.",
+  "nombre_comercial": null,
+  "cif": "A07014970",
+  "tipo": "empresa",
+  "telefono": "971 18 88 71",
+  "movil": "696 17 54 54",
+  "email": "puertoaddaya@puertoaddaya.com",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "502",
+  "nombre": "Inversiones Valencianas Velázquez, S.L.",
+  "nombre_comercial": null,
+  "cif": "B98692015",
+  "tipo": "empresa",
+  "telefono": "619 54 28 63",
+  "movil": null,
+  "email": "rafael.corpas@orenesgrupo.com",
+  "notas": null,
+  "activo": true,
+  "contactos": [
+   {
+    "nombre": "Jose Luis",
+    "telefono": "619 54 28 63",
+    "email": "rafael.corpas@orenesgrupo.com"
+   }
+  ]
+ },
+ {
+  "codigo_ext": "503",
+  "nombre": "Jhonnatan Amores Garcia",
+  "nombre_comercial": null,
+  "cif": null,
+  "tipo": "particular",
+  "telefono": "677 29 85 59",
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "504",
+  "nombre": "Escardo Serveis Tecnics, S.L.",
+  "nombre_comercial": null,
+  "cif": "B43599216",
+  "tipo": "empresa",
+  "telefono": "977 31 22 44",
+  "movil": null,
+  "email": "a.alonso@escardoserveis.com",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "505",
+  "nombre": "Gabriel Alles Gomez de Orozco, S.L.",
+  "nombre_comercial": null,
+  "cif": "B16530750",
+  "tipo": "empresa",
+  "telefono": "971 35 14 20",
+  "movil": null,
+  "email": "info@extintoresalles.com",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "506",
+  "nombre": "Angeles Andrew",
+  "nombre_comercial": null,
+  "cif": null,
+  "tipo": "particular",
+  "telefono": "620 43 45 66",
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "507",
+  "nombre": "Jose Segura Pons",
+  "nombre_comercial": null,
+  "cif": "41499140X",
+  "tipo": "particular",
+  "telefono": "633 95 01 02",
+  "movil": null,
+  "email": "biniarrocapetitpepe@hotmail.com",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "508",
+  "nombre": "Pere Cyrille",
+  "nombre_comercial": null,
+  "cif": null,
+  "tipo": "particular",
+  "telefono": "+33 607 431 384",
+  "movil": null,
+  "email": "cyrille@quai13.com",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "509",
+  "nombre": "Alexandra Marie Prigent",
+  "nombre_comercial": null,
+  "cif": "Y8078360S",
+  "tipo": "particular",
+  "telefono": "+44 778 872 4035",
+  "movil": null,
+  "email": "alexleo.labeis@gmail.com",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "510",
+  "nombre": "Sergio Hernan Russo",
+  "nombre_comercial": null,
+  "cif": null,
+  "tipo": "particular",
+  "telefono": null,
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "511",
+  "nombre": "Vidaurre Moyano Sergio Sebastian",
+  "nombre_comercial": null,
+  "cif": null,
+  "tipo": "particular",
+  "telefono": "649 11 83 16",
+  "movil": null,
+  "email": "seba.vidaurre@gmail.com",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "512",
+  "nombre": "CHM Obras e Infraestructuras, S.A.",
+  "nombre_comercial": null,
+  "cif": "A28582013",
+  "tipo": "empresa",
+  "telefono": "965 14 52 05",
+  "movil": null,
+  "email": "gonzalomartinez@chm.es",
+  "notas": null,
+  "activo": true,
+  "contactos": [
+   {
+    "nombre": "Gonzalo Martínez Castilla",
+    "telefono": "965 14 52 05",
+    "email": "gonzalomartinez@chm.es"
+   }
+  ]
+ },
+ {
+  "codigo_ext": "513",
+  "nombre": "Hidrogestion, S.A.",
+  "nombre_comercial": null,
+  "cif": "A79408886",
+  "tipo": "empresa",
+  "telefono": "916 33 24 54",
+  "movil": null,
+  "email": "ivanjaner@hidrogestion.es",
+  "notas": null,
+  "activo": true,
+  "contactos": [
+   {
+    "nombre": "Ivan Janer",
+    "telefono": "916 33 24 54",
+    "email": "ivanjaner@hidrogestion.es"
+   }
+  ]
+ },
+ {
+  "codigo_ext": "514",
+  "nombre": "Ainsa Bisbal Joaquin",
+  "nombre_comercial": null,
+  "cif": "41493182D",
+  "tipo": "particular",
+  "telefono": "669 48 42 75",
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "515",
+  "nombre": "Segenet Control, S.L.",
+  "nombre_comercial": null,
+  "cif": "B56037518",
+  "tipo": "empresa",
+  "telefono": "957 13 80 35",
+  "movil": "630 91 19 22",
+  "email": "administracion@segenet.es",
+  "notas": null,
+  "activo": true,
+  "contactos": [
+   {
+    "nombre": "María José Borland",
+    "telefono": "630 91 19 22",
+    "email": "administracion@segenet.es"
+   }
+  ]
+ },
+ {
+  "codigo_ext": "516",
+  "nombre": "Hipolito Mercadal Alsina",
+  "nombre_comercial": null,
+  "cif": "41494881Y",
+  "tipo": "particular",
+  "telefono": "619 88 18 76",
+  "movil": null,
+  "email": "hipolito.mercadal@hotmail.com",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "517",
+  "nombre": "Javier (Porto Cristo)",
+  "nombre_comercial": null,
+  "cif": null,
+  "tipo": "particular",
+  "telefono": null,
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "518",
+  "nombre": "Colabora Media Group, S.L.",
+  "nombre_comercial": null,
+  "cif": null,
+  "tipo": "empresa",
+  "telefono": "607 88 30 06",
+  "movil": null,
+  "email": "agustin@colaboramedia.es",
+  "notas": null,
+  "activo": true,
+  "contactos": [
+   {
+    "nombre": "Agustin Pedrini",
+    "telefono": "607 88 30 06",
+    "email": "agustin@colaboramedia.es"
+   }
+  ]
+ },
+ {
+  "codigo_ext": "519",
+  "nombre": "Climatizacion de Ambientes Tecnicos, S.L.",
+  "nombre_comercial": null,
+  "cif": "B84557297",
+  "tipo": "empresa",
+  "telefono": "917 10 97 59",
+  "movil": null,
+  "email": "f.falcon@cliatec.com",
+  "notas": null,
+  "activo": true,
+  "contactos": [
+   {
+    "nombre": "Frank Falcon",
+    "telefono": "917 10 97 59",
+    "email": "f.falcon@cliatec.com"
+   }
+  ]
+ },
+ {
+  "codigo_ext": "520",
+  "nombre": "Sonia Rodriguez",
+  "nombre_comercial": null,
+  "cif": null,
+  "tipo": "particular",
+  "telefono": null,
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "521",
+  "nombre": "Michael Collins",
+  "nombre_comercial": null,
+  "cif": null,
+  "tipo": "particular",
+  "telefono": "687 82 25 70",
+  "movil": null,
+  "email": "info@casasplus.com",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "522",
+  "nombre": "Maria del Carmen Gonzalez",
+  "nombre_comercial": null,
+  "cif": null,
+  "tipo": "particular",
+  "telefono": null,
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "523",
+  "nombre": "Jefatura Intendencia Economico Admtva. 4",
+  "nombre_comercial": null,
+  "cif": "S0830042H",
+  "tipo": "administracion",
+  "telefono": null,
+  "movil": null,
+  "email": "consorciomilitarmenorca@mde.es",
+  "notas": null,
+  "activo": true,
+  "contactos": [
+   {
+    "nombre": "Cabo Miguel Gallinal",
+    "telefono": null,
+    "email": "consorciomilitarmenorca@mde.es"
+   }
+  ]
+ },
+ {
+  "codigo_ext": "524",
+  "nombre": "Ramon Asen Pons Miralles",
+  "nombre_comercial": null,
+  "cif": "43208755N",
+  "tipo": "particular",
+  "telefono": "660 11 23 04",
+  "movil": null,
+  "email": "ramonponsmiralles@gmail.com",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "525",
+  "nombre": "Golf Son Saura, S.L.",
+  "nombre_comercial": null,
+  "cif": "B07037138",
+  "tipo": "empresa",
+  "telefono": "971 18 88 75",
+  "movil": "679 49 51 12",
+  "email": "office@maximiliantoventin.eu",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "526",
+  "nombre": "Mondragon Sistemas de Informacion, S. Coop.",
+  "nombre_comercial": null,
+  "cif": "F20585576",
+  "tipo": "empresa",
+  "telefono": "943 59 44 00",
+  "movil": "607 16 86 45",
+  "email": "adelrey@msigrupo.com",
+  "notas": null,
+  "activo": true,
+  "contactos": [
+   {
+    "nombre": "Asier del Rey",
+    "telefono": "607 16 86 45",
+    "email": "adelrey@msigrupo.com"
+   }
+  ]
+ },
+ {
+  "codigo_ext": "527",
+  "nombre": "Óscar Santos Díaz",
+  "nombre_comercial": null,
+  "cif": "20267461E",
+  "tipo": "particular",
+  "telefono": "636 21 19 06",
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": [
+   {
+    "nombre": "Oscar",
+    "telefono": "636 21 19 06",
+    "email": null
+   }
+  ]
+ },
+ {
+  "codigo_ext": "528",
+  "nombre": "Laurent Labeis",
+  "nombre_comercial": null,
+  "cif": "Y8078361Q",
+  "tipo": "particular",
+  "telefono": "+44 774 818 6110",
+  "movil": null,
+  "email": "alexleo.labeis@gmail.com",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "529",
+  "nombre": "Cati",
+  "nombre_comercial": null,
+  "cif": null,
+  "tipo": "empresa",
+  "telefono": "607 21 11 24",
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "530",
+  "nombre": "Jose Pons Casasnovas C.de B",
+  "nombre_comercial": "Comercial de Hierro y Metales -Almacen Recuperador",
+  "cif": null,
+  "tipo": "empresa",
+  "telefono": "600 38 90 29",
+  "movil": null,
+  "email": null,
+  "notas": "Fax: 971 38 06 82",
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "531",
+  "nombre": "Gerard Vallmajo Roura",
+  "nombre_comercial": null,
+  "cif": null,
+  "tipo": "particular",
+  "telefono": "680 63 56 58",
+  "movil": null,
+  "email": "gvallmajo@gmail.com",
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ },
+ {
+  "codigo_ext": "532",
+  "nombre": "Estación de Servicio Gasolinera San Luis, S.L.",
+  "nombre_comercial": null,
+  "cif": "B07514441",
+  "tipo": "empresa",
+  "telefono": "971 15 00 00",
+  "movil": null,
+  "email": null,
+  "notas": null,
+  "activo": true,
+  "contactos": []
+ }
+]

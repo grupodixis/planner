@@ -130,9 +130,65 @@ async function migrarUnaVez() {
   console.log(`Obras y clientes: ${ps.length} proyectos enlazados`);
 }
 
+// Clientes del programa de facturación (src/datos/clientes-facturacion.json, ya normalizados): se cargan una vez por
+// versión del archivo. Cada uno se busca por código, NIF o nombre (sin la forma jurídica) y, si existe, se sustituyen sus datos.
+const sinForma = (n) => norm(String(n || '').replace(/,?\s*(s\.?\s*a\.?\s*,?\s*s\.?\s*m\.?\s*e\.?|s\.?\s*l\.?\s*u\.?|s\.?\s*l\.?|s\.?\s*a\.?|s\.?\s*c\.?\s*p\.?|s\.?\s*c\.?|c\.?\s*b\.?|s\.\s*coop\.?|sociedad limitada|sociedad an[oó]nima)\s*$/i, ''));
+async function importarClientes() {
+  const fs = require('fs'); const path = require('path'); const crypto = require('crypto');
+  const archivo = path.join(__dirname, 'datos', 'clientes-facturacion.json');
+  if (!fs.existsSync(archivo)) return;
+  const crudo = fs.readFileSync(archivo, 'utf8');
+  const huella = crypto.createHash('sha1').update(crudo).digest('hex');
+  const { rows: ya } = await query(`SELECT valor FROM ajustes WHERE clave = 'clientes_facturacion'`);
+  if (ya[0]?.valor?.huella === huella) return;
+  const lista = JSON.parse(crudo);
+  const res = await tx(async (c) => {
+    const { rows: act } = await c.query('SELECT id, nombre, cif, codigo_ext FROM clientes');
+    const porCod = new Map(act.filter((x) => x.codigo_ext).map((x) => [x.codigo_ext, x]));
+    const porCif = new Map(act.filter((x) => x.cif).map((x) => [x.cif.replace(/[\s.-]/g, '').toUpperCase(), x]));
+    const porNom = new Map(act.map((x) => [sinForma(x.nombre), x]));
+    let nuevos = 0; let sustituidos = 0; let contactos = 0;
+    const usados = new Set();
+    for (const d of lista) {
+      let x = porCod.get(d.codigo_ext) || (d.cif && porCif.get(d.cif)) || porNom.get(sinForma(d.nombre)) || (d.nombre_comercial && porNom.get(sinForma(d.nombre_comercial)));
+      if (x && usados.has(x.id)) x = null; // dos de la hoja no pisan el mismo
+      const vals = [d.nombre, d.nombre_comercial, d.cif, d.tipo, d.telefono, d.movil, d.email, d.notas, d.activo !== false, d.codigo_ext];
+      let id;
+      if (x) {
+        await c.query(`UPDATE clientes SET nombre = $2, nombre_comercial = $3, cif = $4, tipo = $5, telefono = $6, movil = $7, email = $8, notas = $9, activo = $10, codigo_ext = $11
+                        WHERE id = $1`, [x.id, ...vals]);
+        id = x.id; sustituidos += 1;
+      } else {
+        const { rows } = await c.query(`INSERT INTO clientes (nombre, nombre_comercial, cif, tipo, telefono, movil, email, notas, activo, codigo_ext)
+                                        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING id`, vals);
+        id = rows[0].id; nuevos += 1;
+      }
+      usados.add(id);
+      for (const k of d.contactos || []) {
+        const { rows: hay } = await c.query('SELECT id, nombre FROM cliente_contactos WHERE cliente_id = $1', [id]);
+        if (hay.some((h) => norm(h.nombre) === norm(k.nombre))) continue;
+        await c.query('INSERT INTO cliente_contactos (cliente_id, nombre, telefono, email) VALUES ($1,$2,$3,$4)', [id, k.nombre, k.telefono || null, k.email || null]);
+        contactos += 1;
+      }
+    }
+    // los proyectos llevan el nombre nuevo; los que no tenían cliente enlazado se enlazan por nombre
+    await c.query('UPDATE proyectos p SET cliente = k.nombre FROM clientes k WHERE k.id = p.cliente_id');
+    const { rows: sin } = await c.query(`SELECT id, cliente FROM proyectos WHERE cliente_id IS NULL AND cliente IS NOT NULL`);
+    const { rows: todos } = await c.query('SELECT id, nombre, nombre_comercial FROM clientes');
+    for (const p of sin) {
+      const k = todos.find((t) => sinForma(t.nombre) === sinForma(p.cliente) || (t.nombre_comercial && sinForma(t.nombre_comercial) === sinForma(p.cliente)));
+      if (k) await c.query('UPDATE proyectos SET cliente_id = $2, cliente = $3 WHERE id = $1', [p.id, k.id, k.nombre]);
+    }
+    await c.query(`INSERT INTO ajustes (clave, valor) VALUES ('clientes_facturacion', $1) ON CONFLICT (clave) DO UPDATE SET valor = $1`,
+      [JSON.stringify({ huella, en: new Date().toISOString(), nuevos, sustituidos, contactos })]);
+    return { nuevos, sustituidos, contactos };
+  });
+  console.log(`Clientes del programa de facturación: ${res.nuevos} nuevos, ${res.sustituidos} sustituidos, ${res.contactos} contactos`);
+}
+
 /* ---------- API ---------- */
 const CAMPOS_OBRA = { nombre: 120, direccion: 300, localidad: 80, contacto: 120, telefono: 60, acceso: 300, promotor: 160, direccion_facultativa: 160, constructora: 160, notas: 2000 };
-const CAMPOS_CLIENTE = { nombre: 200, nombre_comercial: 160, cif: 30, direccion_fiscal: 300, telefono: 60, email: 160, email_facturas: 160, forma_pago: 120, notas: 2000 };
+const CAMPOS_CLIENTE = { nombre: 200, nombre_comercial: 160, cif: 30, direccion_fiscal: 300, telefono: 60, movil: 60, email: 160, email_facturas: 160, forma_pago: 120, notas: 2000 };
 const CAMPOS_CONTACTO = { nombre: 160, papel: 80, telefono: 60, email: 160, notas: 500 };
 function leer(b, campos) {
   const o = {};
@@ -366,4 +422,4 @@ function montar(app, asyncH) {
   }));
 }
 
-module.exports = { montar, adoptar, migrarUnaVez, asignarObra, asignarCliente, lineaDeObra, SQL_OBRA_ACTIVA, SQL_OBRA_PROYECTOS, APRUEBA, norm };
+module.exports = { montar, adoptar, migrarUnaVez, importarClientes, asignarObra, asignarCliente, lineaDeObra, SQL_OBRA_ACTIVA, SQL_OBRA_PROYECTOS, APRUEBA, norm };

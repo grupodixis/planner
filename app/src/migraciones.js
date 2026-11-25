@@ -1378,6 +1378,9 @@ const MIGRACIONES = [
      ADD COLUMN IF NOT EXISTS cliente_id INT REFERENCES clientes(id) ON DELETE SET NULL`,
   `CREATE INDEX IF NOT EXISTS proyectos_obra_idx ON proyectos (obra_id)`,
   `CREATE INDEX IF NOT EXISTS proyectos_cliente_idx ON proyectos (cliente_id)`,
+  // Código del cliente en el programa de facturación y su móvil (importación de clientes)
+  `ALTER TABLE clientes ADD COLUMN IF NOT EXISTS codigo_ext TEXT, ADD COLUMN IF NOT EXISTS movil TEXT`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS clientes_codigo_ext_idx ON clientes (codigo_ext) WHERE codigo_ext IS NOT NULL`,
 ];
 
 async function migrar() {

@@ -51,7 +51,7 @@
       return { items: filtro === 'activos' && !q ? r.filter((c) => c.activos) : r };
     },
     item: (c) => el('li', { class: c.activo ? '' : 'baja' },
-      el('b', {}, c.nombre), el('small', {}, [c.cif, TIPOS[c.tipo], c.contactos].filter(Boolean).join(' · ')),
+      el('b', {}, c.nombre), el('small', {}, [c.cif, TIPOS[c.tipo], c.telefono, c.contactos].filter(Boolean).join(' · ')),
       el('span', { class: 'fc-chips' }, c.activos ? el('span', { class: 'fc-chip v' }, `${c.activos} activo${c.activos > 1 ? 's' : ''}`) : el('span', { class: 'fc-chip' }, `${c.proyectos} proyecto${c.proyectos === 1 ? '' : 's'}`),
         c.activo ? null : el('span', { class: 'fc-chip' }, 'de baja'))),
     cargar: (id) => api('GET', `/api/clientes/${id}`),
@@ -66,7 +66,7 @@
       const c = (k, etiqueta, extra = {}) => campo({ k, etiqueta, valor: cl[k], editar, guardar, ...extra });
       return [el('div', { class: 'fc-centro' },
         el('section', { class: 'panel fc-datos' },
-          el('div', { class: 'fc-cab' }, el('h2', {}, cl.nombre), cl.activo ? null : el('span', { class: 'fc-chip' }, 'de baja'),
+          el('div', { class: 'fc-cab' }, el('h2', {}, cl.nombre), cl.codigo_ext ? el('span', { class: 'fc-chip', title: 'Código en el programa de facturación' }, `cód. ${cl.codigo_ext}`) : null, cl.activo ? null : el('span', { class: 'fc-chip' }, 'de baja'),
             editar ? el('button', { type: 'button', class: 'ghost borrar mini', onclick: async () => {
               if (!cl.activo) { await api('PUT', `/api/clientes/${cl.id}`, { activo: true }); return recargar(); }
               if (!confirm(cl.proyectos.length ? `«${cl.nombre}» tiene proyectos: se dará de baja (no se borra). ¿Seguir?` : `¿Borrar «${cl.nombre}»?`)) return;
@@ -75,7 +75,8 @@
           el('div', { class: 'ficha fc-campos' },
             c('nombre', 'Razón social / nombre', { ancho: 'c1', obligatorio: true, max: 200 }), c('nombre_comercial', 'Nombre comercial', { ancho: 'c1', max: 160 }), c('cif', 'CIF / NIF', { ancho: 'c1', max: 30 }),
             c('direccion_fiscal', 'Dirección fiscal', { ancho: 'c2' }), c('tipo', 'Tipo', { ancho: 'c1', opciones: TIPOS }),
-            c('telefono', 'Teléfono', { ancho: 'c1', tipo: 'tel', max: 60 }), c('email', 'Correo general', { ancho: 'c1', tipo: 'email', max: 160 }), c('email_facturas', 'Correo de facturas', { ancho: 'c1', tipo: 'email', max: 160 }),
+            c('telefono', 'Teléfono', { ancho: 'c1', tipo: 'tel', max: 60 }), c('movil', 'Móvil', { ancho: 'c1', tipo: 'tel', max: 60 }), c('email', 'Correo general', { ancho: 'c1', tipo: 'email', max: 160 }),
+            c('email_facturas', 'Correo de facturas', { ancho: 'c1', tipo: 'email', max: 160 }),
             c('forma_pago', 'Forma de pago', { ancho: 'c1', max: 120 }), c('anticipo_pct', 'Anticipo habitual (%)', { ancho: 'c1', tipo: 'number' }), c('notas', 'Notas', { ancho: 'c1', filas: 2, max: 2000 }))),
         contactos(cl, ctx)),
       el('div', { class: 'fc-lado' }, el('section', { class: 'panel' }, el('h3', {}, '📁 Proyectos y obras'),

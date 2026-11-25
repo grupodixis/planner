@@ -344,6 +344,7 @@ const PORT = Number(process.env.PORT || 3000);
   await esperarBD();
   await migrar();
   await require('./obras-clientes').migrarUnaVez().catch((e) => console.error('Obras y clientes:', e.message));
+  await require('./obras-clientes').importarClientes().catch((e) => console.error('Clientes de facturación:', e.message));
   await require('./correo').cargar().catch((e) => console.error('Correo:', e.message));
   await auth.asegurarAdmin();
   await require('./capacidades').sembrar().catch((e) => console.error('Capacidades:', e.message));
