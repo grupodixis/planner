@@ -51,6 +51,7 @@
       // logística: confirmar desde el móvil (pedir a proveedores se hace en el ordenador)
       ctx.logistica ? ['📦', 'Revisar stock', () => { cerrar(); window.midiaStock.ver('revisar'); }, cuentaTxt(ctx.cuentas?.revisar, 'por revisar'), !!ctx.cuentas?.revisar] : null,
       ctx.logistica ? ['🚚', 'Recibir material', () => { cerrar(); window.midiaStock.ver('recibir'); }, cuentaTxt(ctx.cuentas?.recibir, 'por llegar'), !!ctx.cuentas?.recibir] : null,
+      ctx.ia && window.s360chat ? ['✨', 'Asistente', () => { cerrar(); window.s360chat.abrir(true); }, 'Pregunta: OTs, quién está libre, pedidos…'] : null,
       ...(window.midiaSuper?.opcionesMenu(ir) || []).reduce((a, o, i, t) => [...a, ...(i ? [] : [['§', 'Supervisar']]), o, ...(i === t.length - 1 ? [['§', '']] : [])], []),
       ctx.comun ? null : ['🔔', 'Avisos al móvil', () => { cerrar(); window.s360pwa?.ajustes(); }],
       ['❓', 'Ayuda', () => { cerrar(); window.s360ayuda?.abrirPanel(); }, 'Cómo se usa'],

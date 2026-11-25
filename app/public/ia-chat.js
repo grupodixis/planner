@@ -57,16 +57,17 @@
     return out.join('');
   }
 
-  const est = { conv: Number(guardado('iac-conv')) || null, mensajes: [], enviando: false, info: null };
+  const est = { conv: Number(guardado('iac-conv')) || null, mensajes: [], enviando: false, info: null, nombre: '' };
+  const MOVIL = document.body.classList.contains('midia-pant');
   let panel; let lista; let entrada; let boton;
 
   function construir() {
-    const yo = window.s360.usuario?.() || {};
-    entrada = el('textarea', { rows: 1, placeholder: 'Pregunta algo…', 'aria-label': 'Pregunta para el asistente',
+    const yo = window.s360.usuario?.() || { nombre: est.nombre };
+    entrada = el('textarea', { rows: 1, placeholder: MOVIL ? 'Pregunta o dicta con 🎤…' : 'Pregunta algo…', enterkeyhint: 'send', 'aria-label': 'Pregunta para el asistente',
       onkeydown: (ev) => { if (ev.key === 'Enter' && !ev.shiftKey && !ev.isComposing) { ev.preventDefault(); enviar(); } },
       oninput: () => { entrada.style.height = 'auto'; entrada.style.height = `${Math.min(entrada.scrollHeight, 140)}px`; } });
     lista = el('div', { class: 'iac-lista', 'aria-live': 'polite' });
-    panel = el('aside', { class: 'iac', id: 'iac', 'aria-label': 'Asistente', hidden: true },
+    panel = el('aside', { class: `iac${MOVIL ? ' iac-movil' : ''}`, id: 'iac', 'aria-label': 'Asistente', hidden: true },
       el('div', { class: 'iac-cab' },
         el('b', {}, '✨ Asistente'),
         el('span', { class: 'iac-quien', title: 'La IA consulta con tus permisos' }, `como ${yo.nombre || ''}`),
@@ -75,10 +76,28 @@
         el('button', { type: 'button', class: 'ghost mini', title: 'Cerrar (Esc)', 'aria-label': 'Cerrar', onclick: () => abrir(false) }, '✕')),
       lista,
       el('form', { class: 'iac-pie', onsubmit: (ev) => { ev.preventDefault(); enviar(); } },
-        entrada, el('button', { type: 'submit', class: 'primario', 'aria-label': 'Enviar', title: 'Enviar (Intro)' }, '➤')),
+        entrada, microfono(), el('button', { type: 'submit', class: 'primario', 'aria-label': 'Enviar', title: 'Enviar (Intro)' }, '➤')),
       el('div', { class: 'iac-nota' }, 'Solo consulta: no cambia nada. Puede equivocarse; comprueba lo importante.'));
     panel.addEventListener('keydown', (ev) => { if (ev.key === 'Escape') abrir(false); });
     document.body.append(panel);
+  }
+
+  // 🎤 Dictado (reconocimiento de voz del navegador; Chrome/Android y Safari/iPhone). Rellena el cuadro; se envía con ➤.
+  function microfono() {
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) return null;
+    let rec = null; let base = '';
+    const b = el('button', { type: 'button', class: 'iac-mic', 'aria-label': 'Dictar', title: 'Dictar con la voz', onclick: () => {
+      if (rec) { rec.stop(); return; }
+      rec = new SR(); rec.lang = 'es-ES'; rec.interimResults = true; rec.continuous = false;
+      base = entrada.value ? `${entrada.value.trim()} ` : '';
+      rec.onresult = (ev) => { entrada.value = base + [...ev.results].map((r) => r[0].transcript).join(''); entrada.dispatchEvent(new Event('input')); };
+      rec.onerror = (ev) => { if (ev.error === 'not-allowed' || ev.error === 'service-not-allowed') window.s360.aviso?.('Permite el micrófono para dictar', true); };
+      rec.onend = () => { rec = null; b.classList.remove('oyendo'); b.setAttribute('aria-label', 'Dictar'); entrada.focus(); };
+      b.classList.add('oyendo'); b.setAttribute('aria-label', 'Parar el dictado');
+      try { rec.start(); } catch { rec = null; b.classList.remove('oyendo'); }
+    } }, '🎤');
+    return b;
   }
 
   function pintar() {
@@ -114,7 +133,7 @@
       est.conv = r.conversacion_id; guardado('iac-conv', String(r.conversacion_id));
       est.mensajes.pop(); est.mensajes.push(r.mensaje);
     } catch (e) {
-      est.mensajes.pop(); est.mensajes.push({ rol: 'ia', error: e.message, reintento: t });
+      est.mensajes.pop(); est.mensajes.push({ rol: 'ia', error: navigator.onLine === false ? 'Sin conexión: el asistente necesita internet.' : e.message, reintento: t });
     }
     est.enviando = false;
     pintar(); entrada.focus();
@@ -150,16 +169,23 @@
     panel.hidden = !si;
     document.body.classList.toggle('iac-abierto', si);
     boton?.setAttribute('aria-expanded', String(si));
-    guardado('iac-abierto', si ? '1' : null);
+    if (!MOVIL) guardado('iac-abierto', si ? '1' : null);
+    document.documentElement.classList.toggle('iac-bloqueo', si && MOVIL);
     if (!si) return;
     if (!est.info) {
       try { est.info = await api('GET', '/api/ia/asistente'); } catch { est.info = { disponible: false, motivo: 'No se pudo consultar el asistente' }; }
       if (est.conv && !est.mensajes.length) await cargar(est.conv); else pintar();
     }
-    entrada.focus();
+    if (!MOVIL) entrada.focus();
   }
 
+  // En Mi día (app móvil) no hay botón en la cabecera: se abre desde Menú › ✨ Asistente o Inicio
+  function prepararMovil(nombre) {
+    est.nombre = nombre || '';
+    if (!panel) construir();
+  }
   function iniciar() {
+    if (MOVIL) return;
     const salir = document.getElementById('salir');
     if (!salir || document.getElementById('btn-ia')) return;
     construir();
@@ -168,6 +194,6 @@
     document.addEventListener('keydown', (ev) => { if (ev.altKey && (ev.key === 'a' || ev.key === 'A')) { ev.preventDefault(); abrir(); } });
     if (guardado('iac-abierto') === '1') abrir(true);
   }
-  window.s360chat = { abrir, md };
+  window.s360chat = { abrir, md, prepararMovil };
   iniciar();
 })();

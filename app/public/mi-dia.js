@@ -353,7 +353,9 @@
     });
     if (!estado.oficina) await cargar(); else estado.d = { comun: false };
     const logistica = (yo.permisos || []).includes('logistica');
-    window.midiaMenu?.iniciar({ comun: !!estado.d.comun, logistica, compras: estado.pedirCompras, oficina: estado.oficina });
+    const usaIA = !estado.d.comun && (yo.permisos || []).some((k) => k === 'ia' || k === 'usuarios');
+    if (usaIA) window.s360chat?.prepararMovil(yo.nombre);
+    window.midiaMenu?.iniciar({ comun: !!estado.d.comun, logistica, compras: estado.pedirCompras, oficina: estado.oficina, ia: usaIA && !!window.s360chat });
     if (logistica) await window.midiaStock?.iniciar();
     if (estado.pedirCompras) await window.midiaCompras?.precargar();
     await window.midiaSuper?.iniciar(yo.permisos);
