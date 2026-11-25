@@ -445,7 +445,7 @@ module.exports = function montar(app, asyncH) {
                FROM tareas t JOIN ordenes o ON o.id = t.orden_id
               WHERE ((o.proyecto_id = $1::int) OR ($1::int IS NULL AND o.id = $2::int)) AND t.id <> $3
               ORDER BY o.codigo, t.orden_en_of, t.id`, [t[0].proyecto_id, t[0].orden_id, id]),
-      query(`SELECT depende_de_id AS id, espera_h::float AS espera_h FROM tarea_dependencias WHERE tarea_id = $1`, [id]),
+      query(`SELECT depende_de_id AS id, espera_h::float AS espera_h, nota FROM tarea_dependencias WHERE tarea_id = $1`, [id]),
       dependientesDe({ query }, id),
     ]);
     for (const p of posibles) p.ciclo = ciclo.has(p.id);
@@ -478,14 +478,53 @@ module.exports = function montar(app, asyncH) {
         const malas = ok.filter((x) => ciclo.has(x.id));
         if (malas.length) throw fallo(400, `«${malas[0].nombre}» ya va después de esta tarea: no puede ir antes (sería un círculo)`);
       }
+      const { rows: notas } = await c.query('SELECT depende_de_id, nota FROM tarea_dependencias WHERE tarea_id = $1', [id]);
+      const notaDe = new Map(notas.map((n) => [n.depende_de_id, n.nota]));
       await c.query('DELETE FROM tarea_dependencias WHERE tarea_id = $1', [id]);
       for (const [pid, espera] of deps) {
-        await c.query('INSERT INTO tarea_dependencias (tarea_id, depende_de_id, espera_h) VALUES ($1,$2,$3)', [id, pid, espera]);
+        await c.query('INSERT INTO tarea_dependencias (tarea_id, depende_de_id, espera_h, nota) VALUES ($1,$2,$3,$4)', [id, pid, espera, notaDe.get(pid) ?? null]);
       }
       await c.query('INSERT INTO historial (usuario_id, tarea_id, accion, detalle) VALUES ($1,$2,$3,$4)',
         [req.usuario.id, id, 'dependencias', JSON.stringify({ previas: [...deps].map(([pid, e]) => ({ id: pid, espera_h: e })) })]);
     });
     res.json({ ok: true });
+  }));
+
+  // Una dependencia suelta (desde el Gantt): crear o cambiar { tarea_id, depende_de_id, espera_h, nota } y quitar
+  const leerDep = (b) => {
+    const tid = Number(b?.tarea_id); const pid = Number(b?.depende_de_id);
+    if (!Number.isInteger(tid) || !Number.isInteger(pid) || tid === pid) throw fallo(400, 'Tareas no válidas');
+    return { tid, pid };
+  };
+  app.post('/api/dependencias', auth.permiso('proyectos', 'planificar'), asyncH(async (req, res) => {
+    const { tid, pid } = leerDep(req.body);
+    const espera = Number(req.body?.espera_h || 0);
+    if (!Number.isFinite(espera) || espera < 0 || espera > 720 || (espera * 2) % 1 !== 0) throw fallo(400, 'Espera no válida (0–720 h, en medias horas)');
+    const nota = String(req.body?.nota ?? '').trim().slice(0, 120) || null;
+    const out = await tx(async (c) => {
+      const { rows } = await c.query(
+        `SELECT t.id, t.codigo, t.nombre, o.proyecto_id, o.id AS orden_id FROM tareas t JOIN ordenes o ON o.id = t.orden_id WHERE t.id = ANY($1)`, [[tid, pid]]);
+      const t = rows.find((x) => x.id === tid); const p = rows.find((x) => x.id === pid);
+      if (!t || !p) throw fallo(404, 'Tarea no encontrada');
+      if ((t.proyecto_id || null) !== (p.proyecto_id || null) || (!t.proyecto_id && t.orden_id !== p.orden_id)) throw fallo(400, 'Solo puede depender de tareas del mismo proyecto');
+      if ((await dependientesDe(c, tid)).has(pid)) throw fallo(400, `${p.codigo} ya va después de ${t.codigo}: no puede ir antes (sería un círculo)`);
+      const { rows: antes } = await c.query('SELECT espera_h::float AS espera_h, nota FROM tarea_dependencias WHERE tarea_id = $1 AND depende_de_id = $2', [tid, pid]);
+      await c.query(
+        `INSERT INTO tarea_dependencias (tarea_id, depende_de_id, espera_h, nota) VALUES ($1,$2,$3,$4)
+         ON CONFLICT (tarea_id, depende_de_id) DO UPDATE SET espera_h = EXCLUDED.espera_h, nota = EXCLUDED.nota`, [tid, pid, espera, nota]);
+      await c.query('INSERT INTO historial (usuario_id, tarea_id, accion, detalle) VALUES ($1,$2,$3,$4)',
+        [req.usuario.id, tid, 'dependencias', JSON.stringify({ previa: pid, espera_h: espera, nota, antes: antes[0] || null })]);
+      return { antes: antes[0] || null };
+    });
+    res.json({ ok: true, ...out });
+  }));
+  app.delete('/api/dependencias', auth.permiso('proyectos', 'planificar'), asyncH(async (req, res) => {
+    const { tid, pid } = leerDep(req.query);
+    const { rows } = await query('DELETE FROM tarea_dependencias WHERE tarea_id = $1 AND depende_de_id = $2 RETURNING espera_h::float AS espera_h, nota', [tid, pid]);
+    if (!rows.length) throw fallo(404, 'Esa dependencia ya no existe');
+    await query('INSERT INTO historial (usuario_id, tarea_id, accion, detalle) VALUES ($1,$2,$3,$4)',
+      [req.usuario.id, tid, 'dependencias', JSON.stringify({ quitada: pid, antes: rows[0] })]);
+    res.json({ ok: true, antes: rows[0] });
   }));
 
   // Reordenar tareas dentro de la OT

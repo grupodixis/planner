@@ -32,6 +32,7 @@
     escala: leer('escala', 'semanas'), agrupar: leer('agrupar', 'proyecto'), orden: leer('orden', 'entrega'),
     soloRiesgo: leer('soloRiesgo', false), cerradas: false, q: '', desde: q0.get('desde') || null,
     flechas: leer('flechas', true),
+    etiq: leer('etiq', 'personas'),   // qué se ve dentro de las barras de tarea: nada | personas | area | horas
     prop: null,   // propuesta de «Planificar» en curso: { alc (ot | partida | proyecto), op: { modo, fecha, ajustes, areas, sinEsperar }, pila, res, cargando }
     abiertas: new Set(leer('abiertas', [])), plegados: new Set(leer('plegados', [])), carga: leer('carga', 'oficios'), datos: null,
   };
@@ -66,6 +67,8 @@
       b('Desplegar todo', false, () => { est.abiertas = new Set(est.datos.ots.map((o) => o.id)); guardar('abiertas', [...est.abiertas]); pintar(); }),
       b('Plegar todo', false, () => { est.abiertas.clear(); guardar('abiertas', []); pintar(); }),
       b('📄 Exportar', false, () => exportar(), 'Gantt de un proyecto en PDF o imagen, para enviar o presentar'),
+      el('span', { class: 'gt-etiq' }, el('b', {}, 'En las barras:'), [['nada', 'Nada'], ['personas', 'Personas'], ['area', 'Área'], ['horas', 'Horas']].map(([v, t]) =>
+        b(t, est.etiq === v, () => { est.etiq = v; guardar('etiq', v); pintar(); }))),
       el('input', { type: 'search', class: 'gt-buscar', placeholder: '🔍 Obra, cliente, proyecto, OT…', value: est.q, 'aria-label': 'Buscar',
         oninput: (ev) => { clearTimeout(tq); tq = setTimeout(() => { est.q = ev.target.value; pintar(); }, 200); } })].flat(Infinity));
   }
@@ -122,6 +125,15 @@
       });
       return el(onclick ? 'button' : 'div', { type: onclick ? 'button' : null, class: `gt-bb ${cls}${a < d.desde ? ' corta-i' : ''}${b > d.hasta ? ' corta-d' : ''}`, style: { left: `${pos(ini)}%`, width: `${ancho(ini, fin)}%` }, title, onclick: pulsar }, txt ? el('span', {}, txt) : null);
     };
+    // punto al final de la última barra de una tarea, para unirla con otra (crear «después de»)
+    const conector = (t) => {
+      if (!puedeDeps() || est.prop || t.hecha || !t.segmentos.length) return null;
+      const u = t.segmentos[t.segmentos.length - 1][1];
+      if (u < d.desde || u > d.hasta) return null;
+      const n = el('span', { class: 'gt-con', style: { left: `calc(${pos(masDias(u, 1))}% - 6px)` }, title: `Arrastra hasta otra tarea: irá después de ${t.codigo}`, 'aria-hidden': 'true' });
+      n.addEventListener('pointerdown', (ev) => unir(ev, t, n));
+      return n;
+    };
     const filas = [];
     for (const [k, g] of grupos) {
       const plegado = est.plegados.has(k);
@@ -175,14 +187,23 @@
               el('button', { type: 'button', class: 'gt-t-n', title: 'Abrir la tarea', onclick: () => ir(cerca) }, el('b', { class: 'cod' }, t.codigo), ` ${t.nombre}`),
               el('div', { class: 'gt-sub' }, [t.proveedor ? `${{ ext: '🏭', trp: '🚚', sub: '🏗' }[t.clase] || ''} ${t.proveedor}` : t.area, t.hecha ? '✔ hecha' : t.sin_plan ? 'sin planificar' : t.falta_h ? `faltan ${t.falta_h} h` : null].filter(Boolean).join(' · '))),
             el('div', { class: 'gt-tl' }, fondo(),
-              t.segmentos.map(([a, b]) => barra(a, b, `${t.hecha ? 'hecha' : t.clase}`, t.clase === 'propia' ? '' : t.proveedor, `${t.codigo} ${t.nombre} · ${dm(a)}${a !== b ? ` → ${dm(b)}` : ''} · pulsa para abrir la tarea`, ir)),
-              barrasPropuesta(est.prop?.res, t, barra, dias))));
+              t.segmentos.map(([a, b], i) => {
+                const n = barra(a, b, `${t.hecha ? 'hecha' : t.clase}`, i === 0 ? etiqueta(t) : null, null, ir);
+                if (n) n.dataset.tid = t.id;
+                return n;
+              }),
+              barrasPropuesta(est.prop?.res, t, barra, dias),
+              conector(t))));
         }
       }
     }
     $('#gt-g').replaceChildren(cab, ...(filas.length ? filas : [el('p', { class: 'ayuda gt-vacio' }, est.soloRiesgo ? 'Ninguna OT con riesgo en lo que se ve. 👍' : 'No hay OTs que mostrar.')]));
     pintarBanner();
-    requestAnimationFrame(flechas);
+    requestAnimationFrame(() => {
+      // en barras muy cortas no se pone texto (queda la ficha al pasar el ratón)
+      for (const sp of document.querySelectorAll('#gt-g .gt-bb[data-tid] > span')) sp.hidden = sp.parentElement.clientWidth < 30;
+      flechas();
+    });
     pintarCarga(pos, dias);
     $('#gt-ley').replaceChildren(...Object.entries(CLASE).map(([k, t]) => el('span', {}, el('i', { class: `gt-bb ${k}` }), t)),
       el('span', {}, el('i', { class: 'gt-bb hecha' }), 'Hecho'), el('span', {}, el('i', { class: 'gt-bb falta' }), 'Falta planificar'), el('span', {}, '↳ dependencia', el('small', { class: 'gt-ley-mal' }, ' (roja si la de detrás empieza antes)')),
@@ -267,6 +288,151 @@
     refrescar();
   }
 
+  /* ---------- datos en las barras y ficha al pasar el ratón ---------- */
+  const puedeDeps = () => !!(window.s360.tiene?.('proyectos') || window.s360.tiene?.('planificar'));
+  const iniciales = (n) => n.split(/\s+/).filter(Boolean).slice(0, 2).map((x) => x[0]).join('').toUpperCase();
+  function etiqueta(t) {
+    if (t.clase !== 'propia') return t.proveedor;
+    if (est.etiq === 'area') return t.area || '';
+    if (est.etiq === 'horas') return `${Math.round(t.plan_h * 10) / 10}/${t.duracion_h} h`;
+    if (est.etiq !== 'personas' || !t.gente || t.hecha) return null;
+    const ini = t.gente.nombres.map(iniciales).join(' · ');
+    const chip = t.gente.falta > 0 ? el('i', { class: 'gt-falta' }, t.gente.nombres.length ? `👷 ${t.gente.pide - t.gente.falta}/${t.gente.pide}` : 'sin gente') : null;
+    return [ini, chip];
+  }
+  function tareaPorId(id) { for (const o of est.datos.ots) for (const t of o.tareas) if (t.id === id) return t; return null; }
+  function fichaTarea(t) {
+    const deps = est.datos.deps || [];
+    const esp = (d) => (d.espera_h ? ` (+${d.espera_h} h${d.nota ? ` ${d.nota}` : ''})` : d.nota ? ` (${d.nota})` : '');
+    const prev = deps.filter((d) => d.a === t.id).map((d) => { const p = tareaPorId(d.de); return p ? `${p.codigo} ${p.nombre}${esp(d)}` : null; }).filter(Boolean);
+    const sig = deps.filter((d) => d.de === t.id).map((d) => { const p = tareaPorId(d.a); return p ? `${p.codigo} ${p.nombre}${esp(d)}` : null; }).filter(Boolean);
+    const segs = t.segmentos;
+    const fila = (k, v, cls) => (v ? el('div', {}, el('span', { class: 'k' }, k), el('span', { class: cls || '' }, v)) : null);
+    return el('div', { class: 'gt-ficha', role: 'tooltip' },
+      el('b', {}, `${t.codigo} ${t.nombre}`),
+      fila('Días', segs.length ? `${fmt(segs[0][0])} → ${fmt(segs.at(-1)[1])}` : 'sin planificar'),
+      fila('Horas', t.clase === 'propia' || t.clase === 'sub' ? `${Math.round(t.plan_h * 10) / 10} h planificadas de ${t.duracion_h} h${t.falta_h ? ` · faltan ${t.falta_h} h` : ''}` : null),
+      fila('Área', t.area),
+      fila('Proveedor', t.proveedor),
+      t.gente ? fila('Personas', `${t.gente.nombres.join(', ') || 'nadie asignado'}${t.gente.falta > 0 ? ` · falta${t.gente.falta > 1 ? 'n' : ''} ${t.gente.falta} (pide ${t.gente.pide})` : ''}`, t.gente.falta > 0 ? 'mal' : '') : null,
+      fila('Después de', prev.join(' · ')),
+      fila('Antes de', sig.join(' · ')),
+      fila('Estado', t.hecha ? '✔ hecha' : null),
+      el('small', {}, 'Pulsa para abrir la tarea'));
+  }
+  let fichaAbierta = null;
+  document.addEventListener('mouseover', (ev) => {
+    const b = ev.target.closest?.('.gt-bb[data-tid]');
+    if (!b || document.body.classList.contains('gt-arrastre')) { if (fichaAbierta && !ev.target.closest?.('.gt-ficha')) { fichaAbierta.remove(); fichaAbierta = null; } return; }
+    if (fichaAbierta?.dataset.tid === b.dataset.tid) return;
+    fichaAbierta?.remove();
+    const t = tareaPorId(Number(b.dataset.tid)); if (!t) return;
+    fichaAbierta = fichaTarea(t); fichaAbierta.dataset.tid = b.dataset.tid;
+    document.body.append(fichaAbierta);
+    const r = b.getBoundingClientRect(); const f = fichaAbierta.getBoundingClientRect();
+    const x = Math.min(innerWidth - f.width - 8, Math.max(8, ev.clientX - 20));
+    const y = r.bottom + 6 + f.height > innerHeight ? r.top - f.height - 6 : r.bottom + 6;
+    Object.assign(fichaAbierta.style, { left: `${x}px`, top: `${y}px` });
+  });
+
+  /* ---------- dependencias: unir arrastrando, editar o quitar pulsando la flecha ---------- */
+  const ESPERAS = [0, 4, 24, 48, 72];
+  function dialogoDep({ titulo, dep, aviso, nueva, alGuardar, alQuitar, alDetras }) {
+    const d = dialogo(titulo, 'chico');
+    const v = { espera_h: dep?.espera_h || 0, nota: dep?.nota || '' };
+    const horas = el('input', { type: 'number', min: 0, max: 720, step: 0.5, value: v.espera_h, class: 'gt-dep-h', 'aria-label': 'Horas de espera', oninput: (ev) => { v.espera_h = Number(ev.target.value) || 0; marcar(); } });
+    const atajos = el('div', { class: 'gt-dep-pres' }, ESPERAS.map((h) => el('button', { type: 'button', 'data-h': h, onclick: () => { v.espera_h = h; horas.value = h; marcar(); } }, h ? `${h} h` : 'Sin espera')));
+    const marcar = () => atajos.querySelectorAll('button').forEach((x) => x.classList.toggle('on', Number(x.dataset.h) === v.espera_h));
+    marcar();
+    d.append(
+      el('div', { class: 'gt-pl-cab' }, el('h2', {}, titulo), el('button', { type: 'button', class: 'ghost', 'aria-label': 'Cerrar', onclick: () => d.close() }, '✕')),
+      el('div', { class: 'gt-pl-caja' },
+        el('label', { class: 'gt-dep-fila' }, 'Espera entre las dos: ', horas, ' h'), atajos,
+        el('label', { class: 'gt-dep-fila' }, 'Observación ', el('input', { type: 'text', maxlength: 120, value: v.nota, placeholder: 'opcional (p. ej. secado, curado…)', class: 'gt-dep-nota', oninput: (ev) => { v.nota = ev.target.value; } })),
+        el('p', { class: 'ayuda' }, 'La espera cuenta horas seguidas, también noches y fines de semana.'),
+        aviso ? el('p', { class: aviso.mal ? 'gt-dep-mal' : 'gt-dep-ok' }, aviso.texto) : null),
+      el('div', { class: 'gt-pl-pie gt-dep-pie' },
+        alQuitar ? el('button', { type: 'button', class: 'gt-prop-desc', onclick: async () => { d.close(); await alQuitar(); } }, '🗑 Quitar dependencia') : el('span'),
+        el('span', { class: 'gt-dep-der' },
+          alDetras ? el('button', { type: 'button', onclick: async () => { d.close(); await alDetras(); } }, alDetras.texto) : null,
+          el('button', { type: 'button', onclick: () => d.close() }, nueva ? 'Cancelar' : 'Cerrar'),
+          el('button', { type: 'button', class: 'primario', onclick: async () => {
+            if (!(v.espera_h >= 0 && v.espera_h <= 720)) { window.s360.aviso?.('Espera entre 0 y 720 h'); return; }
+            d.close(); await alGuardar({ espera_h: Math.round(v.espera_h * 2) / 2, nota: v.nota.trim() });
+          } }, nueva ? 'Unir' : 'Guardar'))));
+    d.showModal();
+    horas.focus();
+  }
+  async function guardarDep(a, de, v, antes) {
+    try {
+      await api('POST', '/api/dependencias', { tarea_id: a, depende_de_id: de, ...v });
+      await cargar();
+      const ta = tareaPorId(a); const tp = tareaPorId(de);
+      avisoDeshacer(antes ? `✔ Dependencia cambiada` : `✔ ${ta?.codigo || ''} va después de ${tp?.codigo || ''}${v.espera_h ? ` (+${v.espera_h} h)` : ''}`, async () => {
+        try {
+          if (antes) await api('POST', '/api/dependencias', { tarea_id: a, depende_de_id: de, espera_h: antes.espera_h, nota: antes.nota || '' });
+          else await api('DELETE', `/api/dependencias?tarea_id=${a}&depende_de_id=${de}`);
+          await cargar(); window.s360.aviso?.('↶ Deshecho');
+        } catch (e) { window.s360.aviso?.(e.message); }
+      });
+    } catch (e) { window.s360.aviso?.(e.message); }
+  }
+  // arrastrar desde el punto de una tarea hasta otra
+  function unir(ev, t, punto) {
+    ev.preventDefault(); ev.stopPropagation();
+    const linea = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    linea.setAttribute('class', 'gt-unir');
+    const r0 = punto.getBoundingClientRect(); const x0 = r0.left + r0.width / 2; const y0 = r0.top + r0.height / 2;
+    document.body.append(linea); document.body.classList.add('gt-arrastre');
+    let destino = null;
+    const mover = (e) => {
+      linea.innerHTML = `<path d="M${x0} ${y0} H${x0 + 8} V${e.clientY} H${e.clientX}" /><circle cx="${e.clientX}" cy="${e.clientY}" r="4"/>`;
+      const f = document.elementFromPoint(e.clientX, e.clientY)?.closest('.gt-t[data-t]');
+      if (destino && destino !== f) destino.classList.remove('gt-destino');
+      destino = f && Number(f.dataset.t) !== t.id ? f : null;
+      destino?.classList.add('gt-destino');
+    };
+    const fin = async () => {
+      removeEventListener('pointermove', mover); removeEventListener('pointerup', fin);
+      linea.remove(); document.body.classList.remove('gt-arrastre'); destino?.classList.remove('gt-destino');
+      if (!destino) return;
+      const b = tareaPorId(Number(destino.dataset.t)); if (!b) return;
+      const ya = (est.datos.deps || []).find((x) => x.a === b.id && x.de === t.id);
+      dialogoDep({ titulo: `${b.codigo} ${b.nombre} va después de ${t.codigo} ${t.nombre}`, dep: ya, nueva: !ya,
+        alGuardar: (v) => guardarDep(b.id, t.id, v, ya ? { espera_h: ya.espera_h, nota: ya.nota } : null) });
+    };
+    addEventListener('pointermove', mover); addEventListener('pointerup', fin);
+  }
+  // pulsar una flecha
+  function editarFlecha(de, a, mal) {
+    const dep = (est.datos.deps || []).find((x) => x.de === de && x.a === a); if (!dep) return;
+    const tp = tareaPorId(de); const ta = tareaPorId(a);
+    const fin = tp?.segmentos.at(-1)?.[1]; const ini = ta?.segmentos.find((s2) => s2[1] >= est.datos.hoy)?.[0] || ta?.segmentos[0]?.[0];
+    const aviso = fin && ini ? (mal ? { mal: true, texto: `✕ ${ta.codigo} empieza el ${fmt(ini)}, antes de que acabe ${tp.codigo} (${fmt(fin)})` } : { texto: `✔ ${tp.codigo} acaba el ${fmt(fin)} y ${ta.codigo} empieza el ${fmt(ini)}` }) : null;
+    const antes = { espera_h: dep.espera_h, nota: dep.nota };
+    const detras = mal && puedePlan() ? async () => {
+      try {
+        const v = await api('POST', `/api/plan-vista/tareas/${a}/detras`, { depende_de_id: de });
+        if (!confirm(`Mover ${ta.codigo} ${v.dias} día${v.dias === 1 ? '' : 's'} laborable${v.dias === 1 ? '' : 's'}: ${v.n} tramo${v.n === 1 ? '' : 's'}, empezaría el ${fmt(v.a)}.${v.avisos.length ? `\n\n⚠ ${v.avisos.map((x) => x.texto).join('\n⚠ ')}` : ''}\n\n¿Mover?`)) return;
+        const x = await api('POST', `/api/tareas/${a}/detras`, { depende_de_id: de });
+        await cargar(); avisoDeshacer(`↔ ${x.resumen}`, x.planificacion_id);
+      } catch (e) { window.s360.aviso?.(e.message); }
+    } : null;
+    if (detras) detras.texto = `↔ Mover ${ta.codigo} detrás`;
+    dialogoDep({ titulo: `${ta?.codigo} va después de ${tp?.codigo}`, dep, aviso,
+      alGuardar: (v) => guardarDep(a, de, v, antes),
+      alQuitar: puedeDeps() ? async () => {
+        try {
+          await api('DELETE', `/api/dependencias?tarea_id=${a}&depende_de_id=${de}`);
+          await cargar();
+          avisoDeshacer(`🗑 Quitada: ${ta?.codigo} ya no va después de ${tp?.codigo}`, async () => {
+            try { await api('POST', '/api/dependencias', { tarea_id: a, depende_de_id: de, ...antes, nota: antes.nota || '' }); await cargar(); window.s360.aviso?.('↶ Deshecho'); } catch (e) { window.s360.aviso?.(e.message); }
+          });
+        } catch (e) { window.s360.aviso?.(e.message); }
+      } : null,
+      alDetras: detras });
+  }
+
   /* ---------- flechas de dependencias ---------- */
   // De la última barra de la previa a la primera de la que va detrás. Si una OT está plegada, la flecha sale o llega a la
   // barra de la OT (una sola por pareja). En rojo si la de detrás empieza antes de que acabe la previa. Con una propuesta
@@ -299,7 +465,12 @@
       let d;
       if (x2 >= x1 + 12) d = `M${x1} ${y1} H${x1 + 6} V${y2} H${x2 - 1}`;
       else { const ym = y2 > y1 ? rb.top - caja.top - 4 : rb.bottom - caja.top + 4; d = `M${x1} ${y1} H${x1 + 6} V${ym} H${x2 - 8} V${y2} H${x2 - 1}`; }
-      camino.push(`<path class="${mal ? 'mal' : ''}" d="${d}" marker-end="url(#gt-pt${mal ? 'm' : ''})"><title>${dep.espera_h ? `+${dep.espera_h} h de espera` : 'después de'}</title></path>`);
+      const txt = `${dep.espera_h ? `⏳ ${dep.espera_h} h` : ''}${dep.nota ? `${dep.espera_h ? ' · ' : ''}${dep.nota}` : ''}`;
+      const esc = (x) => String(x).replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
+      const tareas2 = !!(fa.dataset.t && fb.dataset.t);
+      camino.push(`<g class="gt-fl${mal ? ' mal' : ''}${tareas2 ? ' edit' : ''}" data-de="${dep.de}" data-a="${dep.a}"><path class="ver" d="${d}" marker-end="url(#gt-pt${mal ? 'm' : ''})"/>`
+        + `<path class="toque" d="${d}"><title>${esc(tareas2 ? `${txt || 'Después de'} · pulsa para cambiar o quitar` : 'Despliega las OTs para cambiarla')}</title></path>`
+        + (txt ? `<text x="${Math.max(x1 + 10, Math.min(x2, x1 + 10))}" y="${(y2 >= y1 ? y2 : y1) - 7}">${esc(txt)}</text>` : '') + '</g>');
     }
     if (!camino.length) return;
     const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
@@ -308,6 +479,10 @@
     svg.innerHTML = `<defs><marker id="gt-pt" viewBox="0 0 6 6" refX="5" refY="3" markerWidth="6" markerHeight="6" orient="auto"><path d="M0 0 L6 3 L0 6 z" fill="#9aa6b2"/></marker>
       <marker id="gt-ptm" viewBox="0 0 6 6" refX="5" refY="3" markerWidth="6" markerHeight="6" orient="auto"><path d="M0 0 L6 3 L0 6 z" fill="#ff7a7a"/></marker></defs>${camino.join('')}`;
     g.append(svg);
+    svg.addEventListener('click', (e) => {
+      const f = e.target.closest('g.gt-fl.edit'); if (!f || !puedeDeps()) return;
+      editarFlecha(Number(f.dataset.de), Number(f.dataset.a), f.classList.contains('mal'));
+    });
   }
   try { new ResizeObserver(() => requestAnimationFrame(flechas)).observe($('#gt-g')); } catch { /* sin ResizeObserver */ }
 
@@ -370,7 +545,7 @@
   function avisoDeshacer(texto, plId) {
     $('#gt-undo')?.remove();
     const t = el('div', { id: 'gt-undo', class: 'gt-undo', role: 'status' }, el('span', {}, texto),
-      el('button', { type: 'button', onclick: () => { t.remove(); deshacer(plId); } }, '↶ Deshacer'),
+      el('button', { type: 'button', onclick: () => { t.remove(); if (typeof plId === 'function') plId(); else deshacer(plId); } }, '↶ Deshacer'),
       el('button', { type: 'button', class: 'ghost', 'aria-label': 'Cerrar', onclick: () => t.remove() }, '✕'));
     document.body.append(t);
     setTimeout(() => t.remove(), 15000);

@@ -878,6 +878,22 @@ La pantalla de planificación diaria (`/`, `public/app.js`) se llama **Cuadrante
   - Con una propuesta en curso, usa las barras rayadas.
 - En rojo discontinuo si la de detrás empieza antes de que acabe la previa.
 - Botón «↳ Dependencias» (recordado); se redibuja al pintar y al cambiar el tamaño.
+- **Editar en el Gantt:**
+  - `tarea_dependencias.nota` es una observación libre (el `PUT /api/tareas/:id/dependencias` de Proyectos la conserva).
+  - `POST /api/dependencias {tarea_id, depende_de_id, espera_h, nota}` crea o cambia una dependencia (mismo proyecto, sin ciclos; devuelve `antes` para deshacer). `DELETE /api/dependencias?tarea_id&depende_de_id` la quita.
+  - Pantalla:
+    - punto azul al final de la última barra de cada tarea (`.gt-con`), arrastrable hasta otra fila de tarea;
+    - las flechas entre tareas desplegadas se pueden pulsar (trazo invisible ancho `path.toque`) y muestran «⏳ N h · nota»;
+    - diálogo con atajos 0/4/24/48/72 h, observación, Quitar y (si está en rojo) «Mover detrás»;
+    - aviso con ↶ Deshacer, que aplica la operación inversa.
+- **Mover detrás:** `POST /api/plan-vista/tareas/:id/detras` y `POST /api/tareas/:id/detras {depende_de_id}`.
+  - Calcula los días laborables justos para que la tarea empiece cuando acaba su previa más la espera (al día siguiente si a esa hora ya no cabe).
+  - Mueve sus tramos de hoy en adelante con `planMover` limitado a esa tarea y se guarda como `planificaciones` `mover`, que se puede deshacer.
+- **Datos en las barras:** «En las barras: Nada / Personas / Área / Horas» (recordado).
+  - El Gantt devuelve por tarea `gente {nombres, falta, pide}` de los tramos de hoy en adelante (tareas propias) y `duracion_h`.
+  - Personas: iniciales y un chip naranja «👷 x/y» o «sin gente».
+  - En barras de menos de 30 px no se pone texto.
+  - Ficha al pasar el ratón (`.gt-ficha`): días, horas, área, proveedor, personas, después de y antes de (con espera y nota).
 
 ## Gantt de un proyecto para enviar (PDF / imagen)
 

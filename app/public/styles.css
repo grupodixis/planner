@@ -2796,6 +2796,34 @@ body.gt-pant > .gt-ctl { position: sticky; top: var(--gt-h1, 0px); z-index: 7; b
 .gt-pl-ots .ok { color: #6fcf7f; } .gt-pl-ots .mal { color: #ff8a8a; }
 body.gt-pant .gt-prop-ban { position: sticky; top: var(--gt-h2-total, calc(var(--gt-h1, 0px) + var(--gt-h2, 0px))); z-index: 7; margin-bottom: 0; box-shadow: 0 6px 14px #000a; }
 svg.gt-flechas { position: absolute; left: 0; top: 0; pointer-events: none; z-index: 4; overflow: visible; }
-svg.gt-flechas path:not(defs path) { fill: none; stroke: #9aa6b2; stroke-width: 1.3; opacity: .85; }
-svg.gt-flechas path.mal { stroke: #ff7a7a; stroke-dasharray: 3 2; opacity: 1; }
+svg.gt-flechas path.ver { fill: none; stroke: #9aa6b2; stroke-width: 1.3; opacity: .85; }
+svg.gt-flechas .mal path.ver { stroke: #ff7a7a; stroke-dasharray: 3 2; opacity: 1; }
+svg.gt-flechas path.toque { fill: none; stroke: transparent; stroke-width: 10; pointer-events: stroke; }
+svg.gt-flechas g.edit path.toque { cursor: pointer; }
+svg.gt-flechas g.edit:hover path.ver { stroke: #cfe3ff; stroke-width: 2.2; opacity: 1; }
+svg.gt-flechas text { font-size: 10px; fill: #cfe3ff; paint-order: stroke; stroke: #151515; stroke-width: 3px; pointer-events: none; }
 .gt-ley-mal { color: #ff7a7a; }
+
+/* Gantt: datos en las barras, ficha al pasar, unir tareas */
+.gt-etiq { display: inline-flex; gap: 4px; align-items: center; margin-left: 4px; }
+.gt-bb .gt-falta { font-style: normal; background: #f0a24a; color: #000; font-weight: 700; border-radius: 7px; padding: 0 5px; margin-left: 4px; font-size: 9.5px; }
+.gt-ficha { position: fixed; z-index: 70; background: #1e1e1e; border: 1px solid #3a3a3a; border-radius: 10px; box-shadow: 0 14px 40px #000c; padding: 9px 12px; width: 340px; font-size: 12px; pointer-events: none; }
+.gt-ficha > div { margin: 3px 0; display: flex; gap: 8px; }
+.gt-ficha .k { color: var(--suave); flex: 0 0 82px; }
+.gt-ficha .mal { color: #f0b060; }
+.gt-ficha small { color: var(--suave); display: block; margin-top: 5px; }
+.gt-con { position: absolute; top: 50%; width: 12px; height: 12px; margin-top: -6px; border-radius: 50%; background: #9cc3ff; border: 2px solid #151515; box-shadow: 0 0 0 2px #9cc3ff66; cursor: crosshair; z-index: 5; opacity: 0; transition: opacity .12s; touch-action: none; }
+.gt-t:hover .gt-con, .gt-con:focus { opacity: 1; }
+svg.gt-unir { position: fixed; inset: 0; width: 100vw; height: 100vh; pointer-events: none; z-index: 80; }
+svg.gt-unir path { fill: none; stroke: #9cc3ff; stroke-width: 1.6; stroke-dasharray: 4 3; }
+svg.gt-unir circle { fill: #9cc3ff; }
+.gt-t.gt-destino { outline: 2px solid #9cc3ff; outline-offset: -2px; background: #9cc3ff14; }
+.gt-dep-fila { display: flex; gap: 8px; align-items: center; margin: 6px 0; }
+.gt-dep-h { width: 80px; }
+.gt-dep-nota { flex: 1; }
+.gt-dep-pres { display: flex; gap: 6px; flex-wrap: wrap; margin: 4px 0 8px; }
+.gt-dep-pres button { border-radius: 14px; padding: 2px 10px; font-size: 12px; }
+.gt-dep-pres button.on { border-color: #10776c; background: #10776c33; }
+.gt-dep-mal { color: #ff8a8a; margin: 6px 0 0; } .gt-dep-ok { color: #6fcf7f; margin: 6px 0 0; }
+.gt-dep-pie { justify-content: space-between; }
+.gt-dep-der { display: flex; gap: 8px; }

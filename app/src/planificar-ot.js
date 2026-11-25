@@ -350,12 +350,12 @@ async function proponer(c, alcance, op) {
 }
 
 /* ---------- MOVER OT ---------- */
-async function planMover(c, ordenId, dias) {
+async function planMover(c, ordenId, dias, tareaId = null) {
   dias = Math.trunc(Number(dias));
   if (!dias || Math.abs(dias) > 250) throw fallo(400, 'Días no válidos');
   const hoy = hoyMadrid();
   const { ot, tareas, deps } = await leerOT(c, ordenId);
-  const ids = tareas.filter((t) => t.estado !== 'hecha').map((t) => t.id);
+  const ids = tareas.filter((t) => t.estado !== 'hecha' && (!tareaId || t.id === tareaId)).map((t) => t.id);
   const { rows: tramos } = ids.length ? await c.query(
     `SELECT x.id, x.tarea_id, x.fecha::text AS fecha, x.hora_inicio::float AS hora_inicio, x.duracion_h::float AS duracion_h, x.linea_id,
             l.exclusiva, l.nombre AS area, t.codigo,
@@ -365,7 +365,7 @@ async function planMover(c, ordenId, dias) {
       WHERE x.tarea_id = ANY($1) AND x.fecha >= $2 AND x.cierre IS NULL
         AND NOT EXISTS (SELECT 1 FROM registros g WHERE g.tramo_id = x.id)
       ORDER BY x.fecha, x.hora_inicio`, [ids, hoy]) : { rows: [] };
-  if (!tramos.length) throw fallo(409, `${ot.codigo} no tiene nada planificado de hoy en adelante que se pueda mover`);
+  if (!tramos.length) throw fallo(409, `${tareaId ? 'Esa tarea' : ot.codigo} no tiene nada planificado de hoy en adelante que se pueda mover`);
   const cal = await calendario(c, fecha(num(hoy) - 30), fecha(num(hoy) + 500));
   const movidos = tramos.map((x) => ({ ...x, nueva: cal.sumarLab(x.fecha, dias) }));
   if (movidos.some((x) => x.nueva < hoy)) throw fallo(409, `No se puede adelantar tanto: algún tramo quedaría antes de hoy`);
@@ -527,6 +527,55 @@ function montar(app, asyncH) {
         `INSERT INTO planificaciones (tipo, orden_id, ordenes, usuario_id, resumen, detalle) VALUES ('mover', $1, $2, $3, $4, $5) RETURNING id`,
         [ordenId, [ordenId], req.usuario.id, resumen, { tramos: det, dias: p.dias }]);
       return { planificacion_id: pl[0].id, ot: p.ot, n: p.n, dias: p.dias, resumen };
+    });
+    res.json(out);
+  }));
+
+  // «Mover detrás»: la tarea :id se corre los días laborables justos para empezar cuando acaba su previa (+ espera)
+  async function planDetras(c, tid, pid) {
+    const { rows: d } = await c.query(
+      `SELECT d.espera_h::float AS espera_h, t.orden_id, t.codigo, p.codigo AS p_codigo,
+              (SELECT json_build_object('fecha', x.fecha::text, 'hora', (x.hora_inicio + x.duracion_h)::float) FROM tramos x WHERE x.tarea_id = p.id ORDER BY x.fecha DESC, x.hora_inicio + x.duracion_h DESC LIMIT 1) AS fin_p,
+              (SELECT json_build_object('fecha', x.fecha::text, 'hora', x.hora_inicio::float) FROM tramos x WHERE x.tarea_id = t.id AND x.fecha >= $3 ORDER BY x.fecha, x.hora_inicio LIMIT 1) AS ini_t
+         FROM tarea_dependencias d JOIN tareas t ON t.id = d.tarea_id JOIN tareas p ON p.id = d.depende_de_id
+        WHERE d.tarea_id = $1 AND d.depende_de_id = $2`, [tid, pid, hoyMadrid()]);
+    if (!d.length) throw fallo(404, 'Esa dependencia ya no existe');
+    const x = d[0];
+    if (!x.fin_p) throw fallo(409, `${x.p_codigo} no está planificada: no se sabe cuándo acaba`);
+    if (!x.ini_t) throw fallo(409, `${x.codigo} no tiene nada planificado de hoy en adelante que se pueda mover`);
+    const cal = await calendario(c, fecha(num(x.ini_t.fecha) - 30), fecha(num(x.fin_p.fecha) + 400));
+    let t = cal.normal(num(x.fin_p.fecha) * 24 + x.fin_p.hora + x.espera_h);
+    let dia = fecha(Math.floor(t / 24));
+    if (t - Math.floor(t / 24) * 24 > x.ini_t.hora + 1e-9) dia = cal.sumarLab(dia, 1);   // a esa hora ya no cabe ese día
+    if (dia <= x.ini_t.fecha) throw fallo(409, `${x.codigo} ya empieza después de ${x.p_codigo}`);
+    return { orden_id: x.orden_id, dias: cal.labEntre(x.ini_t.fecha, dia) };
+  }
+  app.post('/api/plan-vista/tareas/:id/detras', auth.permiso('planificar'), asyncH(async (req, res) => {
+    const d = await planDetras({ query }, Number(req.params.id), Number(req.body?.depende_de_id));
+    const p = await planMover({ query }, d.orden_id, d.dias, Number(req.params.id));
+    res.json({ ...p, movidos: undefined });
+  }));
+  app.post('/api/tareas/:id/detras', auth.permiso('planificar'), asyncH(async (req, res) => {
+    const tid = Number(req.params.id);
+    const out = await tx(async (c) => {
+      await c.query('SELECT pg_advisory_xact_lock($1)', [LOCK]);
+      const d = await planDetras(c, tid, Number(req.body?.depende_de_id));
+      const p = await planMover(c, d.orden_id, d.dias, tid);
+      const det = [];
+      for (const x of p.movidos) {
+        await c.query('UPDATE tramos SET fecha = $2, actualizado_por = $3 WHERE id = $1', [x.id, x.nueva, req.usuario.id]);
+        for (const g of x.quitar) await c.query('DELETE FROM tramo_asignaciones WHERE tramo_id = $1 AND recurso_id = $2', [x.id, g.recurso_id]);
+        await extras.sincronizar(c, x.id, req.usuario);
+        det.push({ id: x.id, tarea_id: x.tarea_id, antes: { fecha: x.fecha, hora_inicio: x.hora_inicio, duracion_h: x.duracion_h, linea_id: x.linea_id },
+          despues: { fecha: x.nueva, hora_inicio: x.hora_inicio, duracion_h: x.duracion_h, linea_id: x.linea_id }, quitados: x.quitar.map((g) => ({ recurso_id: g.recurso_id, desde: g.desde, hasta: g.hasta })) });
+      }
+      await c.query('INSERT INTO historial (usuario_id, tarea_id, accion, detalle) VALUES ($1,$2,$3,$4)', [req.usuario.id, tid, 'mover_tarea', { dias: p.dias }]);
+      const cod = p.movidos[0]?.codigo || '';
+      const resumen = `Mover ${cod} detrás de su previa: +${p.dias} día${p.dias === 1 ? '' : 's'} laborable${p.dias === 1 ? '' : 's'} · ${p.n} tramos`;
+      const { rows: pl } = await c.query(
+        `INSERT INTO planificaciones (tipo, orden_id, ordenes, usuario_id, resumen, detalle) VALUES ('mover', $1, $2, $3, $4, $5) RETURNING id`,
+        [d.orden_id, [d.orden_id], req.usuario.id, resumen, { tramos: det, dias: p.dias, tarea_id: tid }]);
+      return { planificacion_id: pl[0].id, n: p.n, dias: p.dias, resumen, codigo: cod };
     });
     res.json(out);
   }));

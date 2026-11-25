@@ -1401,6 +1401,8 @@ const MIGRACIONES = [
   `ALTER TABLE planificaciones ADD COLUMN IF NOT EXISTS alcance JSONB`,
   `UPDATE planificaciones SET ordenes = ARRAY[orden_id] WHERE ordenes IS NULL AND orden_id IS NOT NULL`,
   `CREATE INDEX IF NOT EXISTS planificaciones_ordenes ON planificaciones USING gin (ordenes)`,
+  // Observación libre en una dependencia («secado de pintura», «curado»…)
+  `ALTER TABLE tarea_dependencias ADD COLUMN IF NOT EXISTS nota TEXT`,
 ];
 
 async function migrar() {

@@ -62,6 +62,20 @@ async function datosOTs({ cerradas = false, proyectoId = null, desde, hasta, hoy
     `SELECT x.tarea_id, x.fecha::text AS fecha, x.duracion_h::float AS h FROM tramos x JOIN tareas t ON t.id = x.tarea_id WHERE t.orden_id = ANY($1)`, [otIds]) : { rows: [] };
   const porTarea = new Map();
   for (const x of tramos) { if (!porTarea.has(x.tarea_id)) porTarea.set(x.tarea_id, []); porTarea.get(x.tarea_id).push(x); }
+  // gente asignada (de hoy en adelante) y si algún tramo tiene menos personas de las que pide la tarea
+  const { rows: gente } = otIds.length ? await query(
+    `SELECT x.tarea_id, x.id AS tramo_id, GREATEST(COALESCE(t.operarios_req, 1), 1) AS pide,
+            COALESCE(array_agg(r.nombre ORDER BY r.nombre) FILTER (WHERE r.id IS NOT NULL), '{}') AS nombres
+       FROM tramos x JOIN tareas t ON t.id = x.tarea_id
+       LEFT JOIN tramo_asignaciones a ON a.tramo_id = x.id LEFT JOIN recursos r ON r.id = a.recurso_id
+      WHERE t.orden_id = ANY($1) AND x.fecha >= $2 AND t.proveedor_id IS NULL GROUP BY x.tarea_id, x.id, t.operarios_req`, [otIds, hoy]) : { rows: [] };
+  const genteDe = new Map();
+  for (const g of gente) {
+    const e = genteDe.get(g.tarea_id) || { nombres: new Set(), falta: 0, pide: g.pide };
+    for (const n of g.nombres) e.nombres.add(n);
+    e.falta = Math.max(e.falta, g.pide - g.nombres.length);
+    genteDe.set(g.tarea_id, e);
+  }
   const av = await avance.resumen({ proyectoIds: [...new Set(ots.map((o) => o.proyecto_id))] }).catch(() => ({ ordenes: {} }));
 
   const tareasDe = new Map();
@@ -77,7 +91,8 @@ async function datosOTs({ cerradas = false, proyectoId = null, desde, hasta, hoy
     const x = {
       id: t.id, codigo: t.codigo, nombre: t.nombre, estado: t.estado, clase, hecha: t.estado === 'hecha' || ['terminado', 'entregado'].includes(t.ext_estado),
       area: t.area, proveedor: t.proveedor, segmentos: segs, plan_h, falta_h, ext_fin: t.ext_fin, sin_plan: !segs.length && t.estado !== 'hecha',
-      primera: xs.length ? xs.map((y) => y.fecha).sort()[0] : null,
+      primera: xs.length ? xs.map((y) => y.fecha).sort()[0] : null, duracion_h: t.duracion_h,
+      gente: genteDe.has(t.id) ? { nombres: [...genteDe.get(t.id).nombres], falta: genteDe.get(t.id).falta, pide: genteDe.get(t.id).pide } : null,
     };
     if (!tareasDe.has(t.orden_id)) tareasDe.set(t.orden_id, []);
     tareasDe.get(t.orden_id).push(x);
@@ -110,7 +125,7 @@ async function datosOTs({ cerradas = false, proyectoId = null, desde, hasta, hoy
   // dependencias entre las tareas que salen (para las flechas)
   const ids = salida.flatMap((o) => o.tareas.map((t) => t.id));
   const { rows: deps } = ids.length ? await query(
-    `SELECT depende_de_id AS de, tarea_id AS a, COALESCE(espera_h, 0)::float AS espera_h FROM tarea_dependencias
+    `SELECT depende_de_id AS de, tarea_id AS a, COALESCE(espera_h, 0)::float AS espera_h, nota FROM tarea_dependencias
       WHERE tarea_id = ANY($1) AND depende_de_id = ANY($1)`, [ids]) : { rows: [] };
   return { salida, libres, deps };
 }
