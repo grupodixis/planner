@@ -1787,7 +1787,7 @@
     .flatMap((x) => x.asignados.filter((a) => a.id === recursoId).map((a) => ({ x, desde: a.desde, hasta: a.hasta })));
 
   // Lista de recursos propuestos para un tramo: primero los libres a esa hora
-  function candidatos(lista, tr, { asignar, boton = 'Asignar', prefiere = () => false, motivo = '' }) {
+  function candidatos(lista, tr, { asignar, boton = 'Asignar', prefiere = () => false, motivo = '', extra = null, vacio = null }) {
     const ini = tr.hora_inicio, fin = tr.hora_inicio + tr.duracion_h;
     const filas = lista.map((r) => {
       const choca = ocupaciones(r.id, tr.fecha, tr.id).filter((o) => o.desde < fin && ini < o.hasta);
@@ -1796,13 +1796,14 @@
     }).sort((a, b) => (!!a.aus - !!b.aus) || (a.choca.length - b.choca.length) || (b.pref - a.pref) || a.r.nombre.localeCompare(b.r.nombre, 'es'));
     const libres = filas.filter((f) => !f.choca.length && !f.aus);
     const ocupados = filas.filter((f) => f.choca.length && !f.aus);
-    if (!filas.length) return el('p', { class: 'ayuda' }, 'No hay ningún recurso que encaje dado de alta.');
+    if (!filas.length) return el('p', { class: 'ayuda' }, vacio || 'No hay ningún recurso que encaje dado de alta.');
     return el('div', {},
       libres.length ? null : el('p', { class: 'ayuda' }, `Nadie libre de ${hhmm(ini)} a ${hhmm(fin)}.`),
       el('ul', { class: 'cands' },
         libres.slice(0, 8).map(({ r, pref }) => el('li', {},
           el('span', { class: 'cand-nom' }, r.nombre, r.vinculo === 'subcontratado' ? el('span', { class: 'sub-tag' }, 'sub') : null),
           el('span', { class: 'cand-info' }, pref && motivo ? `✓ ${typeof motivo === 'function' ? motivo(r) : motivo}` : (r.tipos_txt || 'libre')),
+          extra ? extra(r) : null,
           el('button', { type: 'button', class: 'primario mini', onclick: () => asignar(r) }, boton))),
         ocupados.slice(0, 4).map(({ r, choca }) => el('li', { class: 'ocupado' },
           el('span', { class: 'cand-nom' }, r.nombre),
@@ -1841,12 +1842,32 @@
       }
       case 'capacidad': {
         const nombre = (t.capacidades || []).find((q) => q.id === c.capacidad_id)?.nombre || 'esa capacidad';
+        const sabe = (r) => (r.capacidades || []).includes(c.capacidad_id);
+        const puedeMarcar = window.s360.tiene?.('recursos');
+        const marcar = (r) => api('PUT', `/api/capacidades/${c.capacidad_id}/personas/${r.id}`, { sabe: true });
+        // los ya asignados que no la tienen: marcar que la saben, de un clic
+        const asignadosSin = tr.asignados.filter((r) => r.tipo === 'operario' && !sabe(recurso(r.id) || r));
+        const yaAsignados = asignadosSin.length && puedeMarcar ? el('div', { class: 'sol-sub' },
+          el('p', { class: 'ayuda' }, `Ya están en el tramo y no tienen marcada «${nombre}»:`),
+          el('ul', { class: 'cands' }, asignadosSin.map((r) => el('li', {},
+            el('span', { class: 'cand-nom' }, r.nombre), el('span', { class: 'cand-info' }, 'asignado'),
+            el('button', { type: 'button', class: 'primario mini', title: `Marcar en Capacidades que ${r.nombre} sabe «${nombre}»`,
+              onclick: () => accion(() => marcar(r), `${r.nombre} sabe «${nombre}»`) }, '＋ Sabe'))))) : null;
+        // cualquier otro operario: asignarlo tal cual, o marcar que sabe y asignarlo
+        const otros = activos('operario').filter((r) => !sabe(r) && !yaEn.has(r.id));
+        const cualquiera = el('details', { class: 'sol-sub', open: !!c.sin_gente },
+          el('summary', {}, `Asignar a cualquier operario${puedeMarcar ? ' (y marcar que sabe)' : ''}`),
+          candidatos(otros, tr, {
+            asignar, boton: 'Asignar', vacio: 'No hay más operarios.',
+            extra: puedeMarcar ? (r) => el('button', { type: 'button', class: 'mini', title: `Marcar en Capacidades que ${r.nombre} sabe «${nombre}» y asignarlo`,
+              onclick: () => accion(async () => { await marcar(r); await api('POST', `/api/tramos/${tr.id}/asignaciones`, { recurso_id: r.id }); }, `${r.nombre} sabe «${nombre}» y queda asignado`) }, '＋ Sabe y asignar') : null,
+          }));
         if (c.sin_gente) {
-          return caja(el('p', { class: 'ayuda' }, `Nadie tiene marcada «${nombre}». Márcasela a quien la sepa hacer en el panel de Capacidades.`),
-            el('a', { class: 'boton ghost', href: `/capacidades.html?capacidad=${c.capacidad_id}` }, 'Abrir Capacidades'));
+          return caja(el('p', { class: 'ayuda' }, `Nadie tiene marcada «${nombre}».`), yaAsignados, cualquiera,
+            el('a', { class: 'boton ghost mini', href: `/capacidades.html?capacidad=${c.capacidad_id}` }, 'Abrir Capacidades'));
         }
         return caja(el('p', { class: 'ayuda' }, `Saben «${nombre}»${c.falta > 1 ? ` · faltan ${c.falta}` : ''}:`),
-          candidatos(activos('operario').filter((r) => (r.capacidades || []).includes(c.capacidad_id) && !yaEn.has(r.id)), tr, { asignar }));
+          candidatos(activos('operario').filter((r) => sabe(r) && !yaEn.has(r.id)), tr, { asignar }), yaAsignados, cualquiera);
       }
       case 'requisito_tipo': {
         const nombre = (t.requisitos_tipo || []).find((q) => q.id === c.tipo_recurso_id)?.nombre || 'ese tipo';

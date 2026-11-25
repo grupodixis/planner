@@ -917,6 +917,15 @@ La pantalla de planificación diaria (`/`, `public/app.js`) se llama **Cuadrante
 - En el Gantt: botón **📄 Exportar** y 📄 en cada proyecto. Diálogo con vista previa, opciones recordadas y descarga PDF o PNG.
 - Al pulsar una tarea del Gantt se abre su ventana (el cuadrante en modo «solo detalle» en un diálogo); al cerrar, si cambió algo, el Gantt se recarga.
 
+## Avisos de capacidad: asignar a cualquiera y marcar la capacidad
+
+En el cuadrante, «Solucionar» de un aviso `capacidad` (también con `sin_gente`) ofrece tres cosas:
+- quien la sabe (como antes);
+- **«Ya están en el tramo y no la tienen»**: «＋ Sabe» marca la capacidad (`PUT /api/capacidades/:id/personas/:recursoId {sabe:true}`, queda validada);
+- **«Asignar a cualquier operario»** (desplegable, abierto si nadie la sabe): «Asignar» tal cual, o «＋ Sabe y asignar» (marca y asigna).
+
+Marcar capacidades exige permiso de Recursos; sin él solo se ve «Asignar». `candidatos()` acepta `extra(r)` para un segundo botón por fila.
+
 ## Gantt (Planificación › Gantt)
 
 `src/gantt.js` (`GET /api/gantt?desde=&semanas=&cerradas=1`), `public/gantt.html/js`. Es el plan por semanas, solo para consultar: se planifica en el cuadrante.

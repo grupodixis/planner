@@ -2829,3 +2829,6 @@ svg.gt-unir circle { fill: #9cc3ff; }
 .gt-dep-der { display: flex; gap: 8px; }
 .gt-bb[data-tid] { min-width: 4px; }
 .gt-acc.gt-acc-mal { border-color: #8a3a3a; color: #ff9a9a; }
+.sol-sub { margin-top: 8px; border-top: 1px solid var(--borde); padding-top: 6px; }
+.sol-sub > summary { cursor: pointer; font-size: 12.5px; color: var(--azul, #9cc3ff); margin-bottom: 4px; }
+.cands li:has(> button + button) { grid-template-columns: auto 1fr auto auto; }
