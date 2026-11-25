@@ -2693,3 +2693,42 @@ button.gt-bb:hover { filter: brightness(1.25); }
 .gt-ley { display: flex; flex-wrap: wrap; gap: 14px; font-size: 12px; color: var(--suave); }
 .gt-ley .gt-bb { position: static; display: inline-block; transform: none; width: 16px; height: 10px; vertical-align: middle; margin-right: 5px; padding: 0; }
 .gt-hoy-ley { display: inline-block; width: 2px; height: 12px; background: var(--azul); vertical-align: middle; margin-right: 5px; }
+
+/* Cuadrante en modo «solo detalle» (dentro del Gantt): solo la ventana de la tarea, a toda la página */
+body.solo-detalle { background: var(--panel, #1c1c1c); overflow: hidden; }
+body.solo-detalle > :not(dialog):not(.toast) { display: none !important; }
+body.solo-detalle dialog.dlg-detalle { position: static; inset: auto; width: 100%; height: 100vh; max-height: 100vh; box-shadow: none; border-left: 0; border-right: 0; border-bottom: 0; }
+body.solo-detalle .det-cab { cursor: default; }
+
+/* Gantt: ventana de la tarea (el cuadrante en modo «solo detalle» dentro) */
+dialog.gt-det { padding: 0; width: min(480px, calc(100vw - 32px)); height: min(86vh, 820px); border: 0; background: var(--panel, #1c1c1c); overflow: hidden; }
+dialog.gt-det::backdrop { background: #0008; }
+dialog.gt-det iframe { width: 100%; height: 100%; border: 0; display: block; }
+.gt-det-carga { position: absolute; inset: 0; display: grid; place-items: center; color: var(--suave); pointer-events: none; }
+#det-cuadrante { padding: 2px 8px; text-decoration: none; }
+.gt-t .gt-lab { display: flex; align-items: baseline; gap: 4px; flex-wrap: wrap; }
+.gt-t .gt-lab .gt-sub { flex-basis: 100%; padding-left: 22px; }
+.gt-cuad { text-decoration: none; font-size: 12px; opacity: .55; }
+.gt-cuad:hover, .gt-cuad:focus-visible { opacity: 1; }
+.gt-t-n { all: unset; cursor: pointer; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gt-t-n:hover { text-decoration: underline; }
+.gt-t-n:focus-visible { outline: 2px solid var(--azul); }
+
+/* Gantt: exportar un proyecto (PDF / imagen) */
+.gt-exp { all: unset; cursor: pointer; margin-left: 6px; font-size: 12px; opacity: .55; }
+.gt-exp:hover, .gt-exp:focus-visible { opacity: 1; }
+dialog.gt-exp-dlg { width: min(1200px, calc(100vw - 32px)); max-height: calc(100vh - 32px); padding: 0; display: none; flex-direction: column; }
+dialog.gt-exp-dlg[open] { display: flex; }
+.gt-exp-cab { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; border-bottom: 1px solid var(--linea); }
+.gt-exp-cab h2 { margin: 0; font-size: 16px; }
+.gt-exp-cuerpo { display: grid; grid-template-columns: 300px 1fr; gap: 16px; padding: 14px 16px; overflow: auto; min-height: 0; }
+.gt-exp-form { display: flex; flex-direction: column; gap: 10px; }
+.gt-exp-form fieldset { border: 1px solid var(--linea); border-radius: 8px; padding: 6px 10px 8px; margin: 0; display: flex; flex-direction: column; gap: 4px; }
+.gt-exp-form legend { font-size: 12px; color: var(--suave); padding: 0 4px; }
+.gt-exp-op { display: flex; gap: 8px; align-items: flex-start; font-size: 13px; cursor: pointer; }
+.gt-exp-op input { margin-top: 2px; }
+.gt-exp-campo { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--suave); }
+.gt-exp-campo select, .gt-exp-campo input, .gt-exp-campo textarea { width: 100%; box-sizing: border-box; font: 13px/1.4 inherit; font-family: inherit; }
+.gt-exp-bot { display: flex; gap: 8px; flex-wrap: wrap; }
+.gt-exp-vista { background: #3a3a3a; border-radius: 8px; padding: 10px; overflow: auto; min-height: 300px; display: flex; align-items: flex-start; justify-content: center; }
+.gt-exp-img { width: 100%; height: auto; background: #fff; box-shadow: 0 4px 18px #0008; }

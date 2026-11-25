@@ -49,7 +49,7 @@
         { k: 'codigo', e: 'Nº empleado', ancho: 'c1', max: 30 },
         { k: 'vinculo', e: 'Vínculo', ancho: 'c1', opciones: { plantilla: 'Plantilla', subcontratado: 'Subcontratado' } },
         { k: 'empresa', e: 'Empresa (o autónomo)', ancho: 'c2', max: 120, si: (r) => r.vinculo === 'subcontratado' },
-        { k: 'tipos', e: 'Categoría / puesto', ancho: 'c4', tipos: true, ayuda: 'Oficial 1ª, 2º, Encargado… Sirve para agruparlo en el tablero. Lo que sabe hacer va en Capacidades' },
+        { k: 'tipos', e: 'Categoría / puesto', ancho: 'c4', tipos: true, ayuda: 'Oficial 1ª, 2º, Encargado… Sirve para agruparlo en el cuadrante. Lo que sabe hacer va en Capacidades' },
         { k: 'telefono', e: 'Teléfono', ancho: 'c1', max: 40, tipo: 'tel' },
         { k: 'email', e: 'Email', ancho: 'c2', max: 120, tipo: 'email' },
         { k: 'coste_hora', e: 'Coste €/h', ancho: 'c1', tipo: 'number' },
@@ -77,7 +77,7 @@
     subcontrata: {
       titulo: 'Subcontratas y alquileres', singular: 'subcontrata o alquiler', alta: 'Nombre (p. ej. Grúa 30t, Lacado)',
       campos: [
-        { k: 'nombre', e: 'Nombre en el tablero', ancho: 'c2', obligatorio: true, max: 80 },
+        { k: 'nombre', e: 'Nombre en el cuadrante', ancho: 'c2', obligatorio: true, max: 80 },
         { k: 'categoria', e: 'Clase', ancho: 'c1', opciones: { '': '—', Subcontrata: 'Subcontrata', Alquiler: 'Alquiler' } },
         { k: 'tipos', e: 'Tipo (grúa, lacado, plataforma…)', ancho: 'c4', tipos: true },
         { k: 'coste_hora', e: 'Coste €/h', ancho: 'c1', tipo: 'number' },
@@ -99,9 +99,9 @@
   const CLASE_PLURAL = { operario: 'Categorías de operario', maquina: 'Tipos de máquina', subcontrata: 'Subcontratas / alquileres' };
   const USO_TXT = { taller: 'taller', obra: 'obra', ambos: 'taller y obra' };
   const CLASE_AYUDA = {
-    maquina: 'Una tarea puede pedir el tipo («un Taladro magnético») y en el tablero se asigna cuál; avisa si se piden más de los que hay. Si la máquina está fija en un área, va sola con lo que se planifique allí.',
-    subcontrata: 'Una tarea puede pedirlo («Grúa») y queda pendiente de confirmar en el tablero.',
-    operario: 'Para agrupar a los operarios en el tablero (Oficial 1ª, 2º, Encargado…). Lo que cada uno sabe hacer —y lo que piden las tareas— va en Capacidades.',
+    maquina: 'Una tarea puede pedir el tipo («un Taladro magnético») y en el cuadrante se asigna cuál; avisa si se piden más de los que hay. Si la máquina está fija en un área, va sola con lo que se planifique allí.',
+    subcontrata: 'Una tarea puede pedirlo («Grúa») y queda pendiente de confirmar en el cuadrante.',
+    operario: 'Para agrupar a los operarios en el cuadrante (Oficial 1ª, 2º, Encargado…). Lo que cada uno sabe hacer —y lo que piden las tareas— va en Capacidades.',
   };
 
   const q0 = new URLSearchParams(location.search);
@@ -277,7 +277,7 @@
     if (r.activo) {
       baja.textContent = usado ? 'Dar de baja' : 'Borrar';
       baja.className = 'ghost borrar';
-      baja.title = usado ? 'Tiene historial: se da de baja (deja de salir en el tablero) pero se conserva' : 'Nunca se ha usado: se borra';
+      baja.title = usado ? 'Tiene historial: se da de baja (deja de salir en el cuadrante) pero se conserva' : 'Nunca se ha usado: se borra';
       baja.onclick = async () => {
         if (!confirm(usado ? `¿Dar de baja «${r.nombre}»? Dejará de salir para asignar, pero se conserva su historial.` : `¿Borrar «${r.nombre}»?`)) return;
         try {
@@ -290,7 +290,7 @@
     } else {
       baja.textContent = 'Reactivar';
       baja.className = 'primario';
-      baja.title = 'Vuelve a salir en el tablero para asignar';
+      baja.title = 'Vuelve a salir en el cuadrante para asignar';
       baja.onclick = () => guardar('activo', true).then(() => toast(`${r.nombre} reactivado`)).catch((e) => toast(e.message, true));
     }
     const verTablero = $('#ver-tablero');
@@ -443,7 +443,7 @@
   // Tras apuntar una ausencia: tenía trabajo asignado en esas fechas
   function avisoAfectados(r, afectados) {
     const dlg = $('#dlg-afectados');
-    $('#afectados-texto').textContent = `${r.nombre} tenía trabajo asignado en esas fechas. En el tablero sale como aviso, con «Solucionar» para pasárselo a otro:`;
+    $('#afectados-texto').textContent = `${r.nombre} tenía trabajo asignado en esas fechas. En el cuadrante sale como aviso, con «Solucionar» para pasárselo a otro:`;
     $('#afectados-lista').replaceChildren(...afectados.map((x) => el('li', {},
       el('a', { href: `/?fecha=${x.fecha}&periodo=dia` }, fechaCorta(x.fecha)), ` · ${deHora(x.desde)}–${deHora(x.hasta)} · ${x.tarea}`)));
     dlg.showModal();

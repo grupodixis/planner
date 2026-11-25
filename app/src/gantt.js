@@ -1,4 +1,4 @@
-// Gantt (Planificación › Gantt): plan por semanas de Proyecto › OT › tareas, a partir de lo planificado en el tablero.
+// Gantt (Planificación › Gantt): plan por semanas de Proyecto › OT › tareas, a partir de lo planificado en el cuadrante.
 //  · Cada tarea: sus tramos juntados en tramos de días seguidos (segmentos), su clase (propia, taller externo, transporte,
 //    subcontrata en obra) y si está hecha. Las de un taller externo sin tramos usan su fecha prevista.
 //  · Cada OT: de su primer a su último día planificado, avance, entrega y riesgo:
@@ -37,6 +37,77 @@ function laborablesEntre(a, b, libres) { // días laborables de a (excl.) a b (i
   return n;
 }
 
+// OTs (con sus tareas, segmentos, avance y riesgo): todas las activas, o las de un proyecto
+async function datosOTs({ cerradas = false, proyectoId = null, desde, hasta, hoy = hoyMadrid() }) {
+  const { rows: fest } = await query('SELECT fecha::text AS f FROM festivos WHERE fecha BETWEEN $1 AND $2', [masDias(desde, -400), masDias(hasta, 400)]);
+  const libres = new Set(fest.map((x) => x.f));
+
+  const { rows: ots } = await query(
+    `SELECT o.id, o.codigo, o.titulo, o.prioridad, o.estado, o.color, o.fecha_entrega::text AS entrega, o.proyecto_id,
+            p.codigo AS p_codigo, p.nombre AS p_nombre, p.cliente, p.cliente_id, p.obra_id, ob.nombre AS obra, p.estado AS p_estado
+       FROM ordenes o JOIN proyectos p ON p.id = o.proyecto_id LEFT JOIN obras ob ON ob.id = p.obra_id
+      WHERE NOT COALESCE(o.baja_presupuesto, false) AND ($1 OR (o.estado <> 'cerrada' AND p.estado = 'activo'))
+        AND ($2::int IS NULL OR p.id = $2)
+      ORDER BY p.codigo, o.codigo`, [cerradas, proyectoId || null]);
+  const otIds = ots.map((o) => o.id);
+  const { rows: tareas } = otIds.length ? await query(
+    `SELECT t.id, t.orden_id, t.codigo, t.nombre, t.estado, t.duracion_h::float AS duracion_h, t.operarios_req, t.proveedor_id, t.ext_en_obra,
+            t.ext_fin_prevista::text AS ext_fin, t.ext_estado, pv.nombre AS proveedor, l.nombre AS area, l.tipo AS area_tipo, t.baja_presupuesto,
+            (SELECT bool_or(lw.tipo = 'transporte') FROM lineas lw WHERE lw.id = t.linea_id) AS es_transporte, pv.transportista
+       FROM tareas t LEFT JOIN proveedores pv ON pv.id = t.proveedor_id LEFT JOIN lineas l ON l.id = t.linea_id
+      WHERE t.orden_id = ANY($1) AND NOT t.baja_presupuesto ORDER BY t.orden_id, t.orden_en_of NULLS LAST, t.id`, [otIds]) : { rows: [] };
+  const { rows: tramos } = otIds.length ? await query(
+    `SELECT x.tarea_id, x.fecha::text AS fecha, x.duracion_h::float AS h FROM tramos x JOIN tareas t ON t.id = x.tarea_id WHERE t.orden_id = ANY($1)`, [otIds]) : { rows: [] };
+  const porTarea = new Map();
+  for (const x of tramos) { if (!porTarea.has(x.tarea_id)) porTarea.set(x.tarea_id, []); porTarea.get(x.tarea_id).push(x); }
+  const av = await avance.resumen({ proyectoIds: [...new Set(ots.map((o) => o.proyecto_id))] }).catch(() => ({ ordenes: {} }));
+
+  const tareasDe = new Map();
+  for (const t of tareas) {
+    const xs = porTarea.get(t.id) || [];
+    const plan_h = xs.reduce((s, x) => s + x.h, 0);
+    const clase = t.proveedor_id ? (t.ext_en_obra ? 'sub' : (t.transportista || t.es_transporte ? 'trp' : 'ext')) : 'propia';
+    let segs = segmentos(xs.map((x) => x.fecha), libres);
+    // taller externo sin tramos: su fecha prevista (lo que dice el taller)
+    if (!segs.length && clase !== 'propia' && clase !== 'sub' && t.ext_fin) segs = [[t.ext_fin, t.ext_fin]];
+    const externa = t.proveedor_id && !t.ext_en_obra;
+    const falta_h = t.estado === 'hecha' || externa ? 0 : Math.max(0, Math.round((t.duracion_h - plan_h) * 10) / 10);
+    const x = {
+      id: t.id, codigo: t.codigo, nombre: t.nombre, estado: t.estado, clase, hecha: t.estado === 'hecha' || ['terminado', 'entregado'].includes(t.ext_estado),
+      area: t.area, proveedor: t.proveedor, segmentos: segs, plan_h, falta_h, ext_fin: t.ext_fin, sin_plan: !segs.length && t.estado !== 'hecha',
+      primera: xs.length ? xs.map((y) => y.fecha).sort()[0] : null,
+    };
+    if (!tareasDe.has(t.orden_id)) tareasDe.set(t.orden_id, []);
+    tareasDe.get(t.orden_id).push(x);
+  }
+
+  const salida = [];
+  for (const o of ots) {
+    const ts = tareasDe.get(o.id) || [];
+    const ini = ts.flatMap((t) => t.segmentos.map((s) => s[0])).sort()[0] || null;
+    const fin = ts.flatMap((t) => t.segmentos.map((s) => s[1])).sort().pop() || null;
+    const falta_h = Math.round(ts.reduce((s, t) => s + t.falta_h, 0) * 10) / 10;
+    const sinPlan = ts.filter((t) => t.sin_plan && !t.hecha);
+    const hecha = o.estado === 'cerrada' || (ts.length && ts.every((t) => t.hecha));
+    let riesgo; let txt;
+    if (hecha) { riesgo = 'hecha'; txt = '✔ hecha'; }
+    else if (o.entrega && o.entrega < hoy) { riesgo = 'no_llega'; txt = `retrasada: la entrega era el ${o.entrega.slice(8, 10)}/${o.entrega.slice(5, 7)}${falta_h ? ` · faltan ${falta_h} h` : ''}`; }
+    else if (!ini) { riesgo = 'sin_planificar'; txt = `sin planificar${falta_h ? ` (${falta_h} h)` : ''}`; }
+    else if (o.entrega && fin > o.entrega) { riesgo = 'no_llega'; txt = `no llega: termina ${fin.slice(8, 10)}/${fin.slice(5, 7)}${falta_h ? ` y faltan ${falta_h} h` : ''}`; }
+    else if (o.entrega && (falta_h > 0 || sinPlan.length) && laborablesEntre(hoy, o.entrega, libres) <= 15) { riesgo = 'faltan'; txt = falta_h ? `faltan ${falta_h} h por planificar` : `${sinPlan.length} tarea(s) sin planificar`; }
+    else if (o.entrega && laborablesEntre(fin, o.entrega, libres) <= 2) { const m = laborablesEntre(fin, o.entrega, libres); riesgo = 'justo'; txt = m <= 0 ? 'justo: termina el día de entrega' : `justo: ${m} día${m > 1 ? 's' : ''} de margen`; }
+    else if (!o.entrega) { riesgo = 'sin_entrega'; txt = falta_h ? `sin fecha de entrega · faltan ${falta_h} h` : 'sin fecha de entrega'; }
+    else { riesgo = 'a_tiempo'; txt = falta_h ? `a tiempo · faltan ${falta_h} h` : 'a tiempo'; }
+    salida.push({
+      id: o.id, codigo: o.codigo, titulo: o.titulo, prioridad: o.prioridad, color: o.color, entrega: o.entrega, estado: o.estado,
+      proyecto: { id: o.proyecto_id, codigo: o.p_codigo, nombre: o.p_nombre, cliente: o.cliente, cliente_id: o.cliente_id, obra: o.obra, obra_id: o.obra_id, estado: o.p_estado },
+      inicio: ini, fin, falta_h, riesgo, riesgo_txt: txt, avance: av.ordenes?.[o.id] || null, tareas: ts,
+    });
+  }
+
+  return { salida, libres };
+}
+
 function montar(app, asyncH) {
   app.get('/api/gantt', asyncH(async (req, res) => {
     const hoy = hoyMadrid();
@@ -45,70 +116,7 @@ function montar(app, asyncH) {
     const hasta = masDias(desde, semanas * 7 - 1);
     const cerradas = req.query.cerradas === '1';
 
-    const { rows: fest } = await query('SELECT fecha::text AS f FROM festivos WHERE fecha BETWEEN $1 AND $2', [masDias(desde, -400), masDias(hasta, 400)]);
-    const libres = new Set(fest.map((x) => x.f));
-
-    const { rows: ots } = await query(
-      `SELECT o.id, o.codigo, o.titulo, o.prioridad, o.estado, o.color, o.fecha_entrega::text AS entrega, o.proyecto_id,
-              p.codigo AS p_codigo, p.nombre AS p_nombre, p.cliente, p.cliente_id, p.obra_id, ob.nombre AS obra, p.estado AS p_estado
-         FROM ordenes o JOIN proyectos p ON p.id = o.proyecto_id LEFT JOIN obras ob ON ob.id = p.obra_id
-        WHERE NOT COALESCE(o.baja_presupuesto, false) AND ($1 OR (o.estado <> 'cerrada' AND p.estado = 'activo'))
-        ORDER BY p.codigo, o.codigo`, [cerradas]);
-    const otIds = ots.map((o) => o.id);
-    const { rows: tareas } = otIds.length ? await query(
-      `SELECT t.id, t.orden_id, t.codigo, t.nombre, t.estado, t.duracion_h::float AS duracion_h, t.operarios_req, t.proveedor_id, t.ext_en_obra,
-              t.ext_fin_prevista::text AS ext_fin, t.ext_estado, pv.nombre AS proveedor, l.nombre AS area, l.tipo AS area_tipo, t.baja_presupuesto,
-              (SELECT bool_or(lw.tipo = 'transporte') FROM lineas lw WHERE lw.id = t.linea_id) AS es_transporte, pv.transportista
-         FROM tareas t LEFT JOIN proveedores pv ON pv.id = t.proveedor_id LEFT JOIN lineas l ON l.id = t.linea_id
-        WHERE t.orden_id = ANY($1) AND NOT t.baja_presupuesto ORDER BY t.orden_id, t.orden_en_of NULLS LAST, t.id`, [otIds]) : { rows: [] };
-    const { rows: tramos } = otIds.length ? await query(
-      `SELECT x.tarea_id, x.fecha::text AS fecha, x.duracion_h::float AS h FROM tramos x JOIN tareas t ON t.id = x.tarea_id WHERE t.orden_id = ANY($1)`, [otIds]) : { rows: [] };
-    const porTarea = new Map();
-    for (const x of tramos) { if (!porTarea.has(x.tarea_id)) porTarea.set(x.tarea_id, []); porTarea.get(x.tarea_id).push(x); }
-    const av = await avance.resumen({ proyectoIds: [...new Set(ots.map((o) => o.proyecto_id))] }).catch(() => ({ ordenes: {} }));
-
-    const tareasDe = new Map();
-    for (const t of tareas) {
-      const xs = porTarea.get(t.id) || [];
-      const plan_h = xs.reduce((s, x) => s + x.h, 0);
-      const clase = t.proveedor_id ? (t.ext_en_obra ? 'sub' : (t.transportista || t.es_transporte ? 'trp' : 'ext')) : 'propia';
-      let segs = segmentos(xs.map((x) => x.fecha), libres);
-      // taller externo sin tramos: su fecha prevista (lo que dice el taller)
-      if (!segs.length && clase !== 'propia' && clase !== 'sub' && t.ext_fin) segs = [[t.ext_fin, t.ext_fin]];
-      const externa = t.proveedor_id && !t.ext_en_obra;
-      const falta_h = t.estado === 'hecha' || externa ? 0 : Math.max(0, Math.round((t.duracion_h - plan_h) * 10) / 10);
-      const x = {
-        id: t.id, codigo: t.codigo, nombre: t.nombre, estado: t.estado, clase, hecha: t.estado === 'hecha' || ['terminado', 'entregado'].includes(t.ext_estado),
-        area: t.area, proveedor: t.proveedor, segmentos: segs, plan_h, falta_h, ext_fin: t.ext_fin, sin_plan: !segs.length && t.estado !== 'hecha',
-        primera: xs.length ? xs.map((y) => y.fecha).sort()[0] : null,
-      };
-      if (!tareasDe.has(t.orden_id)) tareasDe.set(t.orden_id, []);
-      tareasDe.get(t.orden_id).push(x);
-    }
-
-    const salida = [];
-    for (const o of ots) {
-      const ts = tareasDe.get(o.id) || [];
-      const ini = ts.flatMap((t) => t.segmentos.map((s) => s[0])).sort()[0] || null;
-      const fin = ts.flatMap((t) => t.segmentos.map((s) => s[1])).sort().pop() || null;
-      const falta_h = Math.round(ts.reduce((s, t) => s + t.falta_h, 0) * 10) / 10;
-      const sinPlan = ts.filter((t) => t.sin_plan && !t.hecha);
-      const hecha = o.estado === 'cerrada' || (ts.length && ts.every((t) => t.hecha));
-      let riesgo; let txt;
-      if (hecha) { riesgo = 'hecha'; txt = '✔ hecha'; }
-      else if (o.entrega && o.entrega < hoy) { riesgo = 'no_llega'; txt = `retrasada: la entrega era el ${o.entrega.slice(8, 10)}/${o.entrega.slice(5, 7)}${falta_h ? ` · faltan ${falta_h} h` : ''}`; }
-      else if (!ini) { riesgo = 'sin_planificar'; txt = `sin planificar${falta_h ? ` (${falta_h} h)` : ''}`; }
-      else if (o.entrega && fin > o.entrega) { riesgo = 'no_llega'; txt = `no llega: termina ${fin.slice(8, 10)}/${fin.slice(5, 7)}${falta_h ? ` y faltan ${falta_h} h` : ''}`; }
-      else if (o.entrega && (falta_h > 0 || sinPlan.length) && laborablesEntre(hoy, o.entrega, libres) <= 15) { riesgo = 'faltan'; txt = falta_h ? `faltan ${falta_h} h por planificar` : `${sinPlan.length} tarea(s) sin planificar`; }
-      else if (o.entrega && laborablesEntre(fin, o.entrega, libres) <= 2) { const m = laborablesEntre(fin, o.entrega, libres); riesgo = 'justo'; txt = m <= 0 ? 'justo: termina el día de entrega' : `justo: ${m} día${m > 1 ? 's' : ''} de margen`; }
-      else if (!o.entrega) { riesgo = 'sin_entrega'; txt = falta_h ? `sin fecha de entrega · faltan ${falta_h} h` : 'sin fecha de entrega'; }
-      else { riesgo = 'a_tiempo'; txt = falta_h ? `a tiempo · faltan ${falta_h} h` : 'a tiempo'; }
-      salida.push({
-        id: o.id, codigo: o.codigo, titulo: o.titulo, prioridad: o.prioridad, color: o.color, entrega: o.entrega, estado: o.estado,
-        proyecto: { id: o.proyecto_id, codigo: o.p_codigo, nombre: o.p_nombre, cliente: o.cliente, cliente_id: o.cliente_id, obra: o.obra, obra_id: o.obra_id, estado: o.p_estado },
-        inicio: ini, fin, falta_h, riesgo, riesgo_txt: txt, avance: av.ordenes?.[o.id] || null, tareas: ts,
-      });
-    }
+    const { salida, libres } = await datosOTs({ cerradas, desde, hasta, hoy });
 
     /* ---- carga por semana ---- */
     const weeks = Array.from({ length: semanas }, (_, i) => masDias(desde, i * 7));
@@ -169,4 +177,4 @@ function montar(app, asyncH) {
   }));
 }
 
-module.exports = { montar };
+module.exports = { montar, datosOTs, masDias, lunes, finde, hoyMadrid };

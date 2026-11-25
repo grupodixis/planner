@@ -1,11 +1,11 @@
 // Subcontratas en obra: una tarea que hace un proveedor aquí (en la obra o en nuestras áreas), no en su taller.
-//  · Se elige en la OT («Área / taller» › Subcontrata en obra): la tarea conserva su área y se planifica en el tablero
+//  · Se elige en la OT («Área / taller» › Subcontrata en obra): la tarea conserva su área y se planifica en el cuadrante
 //    como las demás, pero no ocupa operarios propios (la gente la pone la subcontrata).
 //  · Presupuesto y pedido: los de la subcontratación (subcontratacion.js), con días de trabajo, personas y cuándo puede
 //    empezar en su respuesta. Al enviar el pedido, su enlace de seguimiento (seguimiento-ext.js) va con él.
 //  · Confirmar días: en su enlace ve los días planificados y los confirma, propone otros o dice que no puede. Se guarda
 //    la «firma» del plan que confirmó: si después se mueve un tramo, vuelve a «sin confirmar» y se le avisa otra vez.
-//    En el tablero, aviso leve mientras no confirme. El día antes, recordatorio.
+//    En el cuadrante, aviso leve mientras no confirme. El día antes, recordatorio.
 //  · Parte: cada día que trabaja, personas, horas, avance, comentario, fotos y «terminado». Lo valida quien planifica
 //    (✔, o ✕ con una incidencia de calidad contra la subcontrata). Un parte «terminado» validado cierra la tarea.
 const { query, tx } = require('./db');
@@ -166,7 +166,7 @@ function montarGestion(app, asyncH) {
     await tx(async (c) => {
       const { rows } = await c.query(`SELECT t.*, ${SQL_FIRMA('t')} AS firma FROM tareas t WHERE t.id = $1 AND t.ext_en_obra AND t.proveedor_id IS NOT NULL FOR UPDATE`, [id]);
       if (!rows.length) throw fallo(404, 'No es una tarea de subcontrata en obra');
-      if (!rows[0].firma) throw fallo(400, 'Planifica antes sus días en el tablero');
+      if (!rows[0].firma) throw fallo(400, 'Planifica antes sus días en el cuadrante');
       await c.query(`UPDATE tareas SET ext_conf = 'confirmada', ext_conf_firma = $2, ext_conf_en = now(), ext_conf_por = $3, ext_conf_propuesta = NULL,
                        ext_conf_motivo = NULL, ext_conf_aviso_firma = $2 WHERE id = $1`, [id, rows[0].firma, `por teléfono (${req.usuario.nombre})`]);
       await novedad(c, rows[0], null, `✔ días confirmados por teléfono (anotado por ${req.usuario.nombre})`);

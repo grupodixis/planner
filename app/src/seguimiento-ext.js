@@ -6,7 +6,7 @@
 //    En las suyas pone estado (sin empezar / en curso / terminado / entregado), avance, cuándo terminará,
 //    comentario, fotos y, al entregar, a quién (otro taller de la OT, nosotros u otro), fecha, bultos y albarán.
 //  · Lo que pone actualiza la tarea (y la situación del producto) y avisa a quien planifica. Solo avisa: si
-//    retrasa su fecha, el plan no se mueve solo (sale como aviso en el tablero).
+//    retrasa su fecha, el plan no se mueve solo (sale como aviso en el cuadrante).
 //  · Recordatorio: si pasa su fecha prevista (o la nuestra) sin terminar y no ha dicho nada ese día, un correo
 //    al día, solo días laborables, hasta que actualice o lo termine.
 const crypto = require('crypto');
@@ -443,7 +443,7 @@ function montarGestion(app, asyncH) {
     res.json(rows[0]);
   }));
 
-  // Fotos y albaranes que ha subido el taller (para verlos desde la OT o el tablero)
+  // Fotos y albaranes que ha subido el taller (para verlos desde la OT o el cuadrante)
   app.get('/api/ext-archivos/:id', asyncH(async (req, res) => {
     const { rows } = await query(`SELECT tipo, nombre, datos FROM archivos WHERE id = $1 AND ref_tipo IN ('ext_foto','ext_albaran')`, [Number(req.params.id)]);
     if (!rows.length) throw fallo(404, 'Archivo no encontrado');

@@ -1,4 +1,4 @@
-// Reglas de conflicto del tablero diario. Recibe los tramos del día, cada uno con los datos
+// Reglas de conflicto del cuadrante diario. Recibe los tramos del día, cada uno con los datos
 // de su tarea (operarios_req, requisitos, orden_codigo, nombre…) y sus recursos asignados,
 // cada recurso con su franja efectiva (desde–hasta) dentro del tramo.
 const hhmm = (h) => `${String(Math.floor(h)).padStart(2, '0')}:${String(Math.round((h % 1) * 60)).padStart(2, '0')}`;

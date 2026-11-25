@@ -72,7 +72,7 @@
       c.resolucion ? el('div', { class: 'md-ok' }, `✔ ${c.resolucion}${c.resuelta_por_nombre ? ` (${c.resuelta_por_nombre})` : ''}`) : null,
       el('div', { class: 'cap-acc' },
         c.maquina_id && !c.maquina_parada && ['bandeja', 'asunto'].includes(c.estado) ? el('button', { type: 'button', class: 'ghost mini',
-          title: 'La máquina queda no disponible hoy en el tablero (amplíalo en Recursos si dura más)',
+          title: 'La máquina queda no disponible hoy en el cuadrante (amplíalo en Recursos si dura más)',
           onclick: () => hacer(async () => { const r = await api('POST', `/api/capturas/${c.id}/maquina-parada`); return `${c.maquina} parada hoy${r.afectados ? ` · afecta a ${r.afectados} tramo(s)` : ''}`; }) }, 'Máquina parada hoy') : null,
         c.estado === 'bandeja' ? el('button', { type: 'button', class: 'primario mini', onclick: () => { est.abierta = est.abierta === c.id ? null : c.id; pintar(); } },
           est.abierta === c.id ? 'Cerrar' : 'Clasificar') : null,

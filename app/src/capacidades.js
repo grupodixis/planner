@@ -1,5 +1,5 @@
 // Capacidades (saber hacer) de las personas: «sabe soldar MIG/MAG», «carretilla elevadora»…
-// Una tarea pide capacidades (y cuántas personas a la vez); el tablero avisa si a quien se asigna le falta.
+// Una tarea pide capacidades (y cuántas personas a la vez); el cuadrante avisa si a quien se asigna le falta.
 // La categoría (Oficial 1ª, 2º…) sigue en la ficha del operario para el coste.
 const { query, tx } = require('./db');
 const auth = require('./auth');

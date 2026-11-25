@@ -2,7 +2,7 @@
 //  · Peso de una tarea = horas-persona previstas al importarla/crearla
 //      (estimación inicial × operarios que pide, mín. 1). No cambia aunque luego se reestime.
 //  · Avance = peso de las tareas TERMINADAS ÷ peso total. Una tarea cuenta solo al terminarla
-//      (lo confirma el encargado en el parte o en el tablero).
+//      (lo confirma el encargado en el parte o en el cuadrante).
 //  · Rendimiento = peso de lo terminado ÷ horas reales que costó (del parte).
 //      > 100 % = se hizo en menos horas de las previstas. Solo cuentan las tareas terminadas
 //      que tienen horas reales apuntadas.

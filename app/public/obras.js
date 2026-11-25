@@ -35,7 +35,7 @@
         try { const p = await api('POST', '/api/proyectos', { nombre: v.nombre, obra_id: o.id }); location.href = `/proyectos.html?p=${p.id}`; } catch (e) { toast(e.message, true); }
       };
       const datos = o.sin_obra ? null : el('section', { class: 'panel fc-datos' },
-        el('div', { class: 'fc-cab' }, el('h2', {}, o.nombre), el('span', { class: 'ayuda' }, o.proyectos.some((p) => p.estado === 'activo') ? '· activa (sale en el tablero)' : '· sin proyectos activos'),
+        el('div', { class: 'fc-cab' }, el('h2', {}, o.nombre), el('span', { class: 'ayuda' }, o.proyectos.some((p) => p.estado === 'activo') ? '· activa (sale en el cuadrante)' : '· sin proyectos activos'),
           editar && !o.proyectos.length ? el('button', { type: 'button', class: 'ghost borrar mini', onclick: async () => {
             if (!confirm(`¿Borrar la obra «${o.nombre}»?`)) return;
             try { await api('DELETE', `/api/obras/${o.id}`); toast('Obra borrada'); ir(null); } catch (e) { toast(e.message, true); }

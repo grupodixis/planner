@@ -106,7 +106,7 @@
   /* ---------- Menú principal agrupado ---------- */
   // [href, texto, permiso(s) o null = todos, descripción]
   const GRUPOS = [
-    ['Planificación', [['/', 'Tablero', null, 'Planificar tareas en áreas y operarios'],
+    ['Planificación', [['/', 'Cuadrante', null, 'Planificar tareas en áreas y operarios'],
       ['/gantt.html', 'Gantt', ['planificar', 'proyectos'], 'Plan por semanas: entregas, riesgo y carga'], ['/parte.html', 'Supervisión de partes', 'planificar', 'Revisar y confirmar lo hecho cada día'],
       ['/bandeja.html', 'Bandeja', 'planificar', 'Capturas por clasificar'],
       ['/incidencias.html', 'Incidencias', ['planificar', 'compras', 'logistica', 'proyectos', 'escandallo', 'aprobar_compras'], 'Material, transporte, calidad, averías…: seguimiento y cierre'],
@@ -197,6 +197,8 @@
   // Lo llama cada pantalla al cargar el usuario (/api/me)
   function iniciar(u) {
     usuario = u;
+    // ventana de detalle dentro de otra pantalla (Gantt): sin menú, ayuda ni redirecciones
+    if (document.body.classList.contains('solo-detalle')) return;
     // los operarios (solo «Mi día») no tienen nada que hacer en el resto de pantallas
     if (u.solo_mi_dia && location.pathname !== '/mi-dia.html') { location.replace('/mi-dia.html'); return; }
     // En el teléfono solo va la app móvil (Mi día con su menú: supervisar, autorizar, recibir, capturar…); el resto, en el ordenador
@@ -242,7 +244,7 @@
       el('div', {},
         el('p', {}, `«${nombreTarea}» aún tiene ${tramos.length} tramo${tramos.length > 1 ? 's' : ''} planificado${tramos.length > 1 ? 's' : ''} después (${dur(total)}):`),
         el('ul', { class: 'lista-sobrantes' }, tramos.map((x) => el('li', {}, `${dia(x.fecha)} · ${dur(x.duracion_h)}`))),
-        el('p', { class: 'ayuda' }, '¿Los quito del tablero? Así quedan libres esas personas, máquinas y puestos. Si después deshaces este cierre, vuelven a ponerse.')),
+        el('p', { class: 'ayuda' }, '¿Los quito del cuadrante? Así quedan libres esas personas, máquinas y puestos. Si después deshaces este cierre, vuelven a ponerse.')),
       [{ valor: true, texto: 'Quitarlos', clase: 'primario' }, { valor: false, texto: 'Dejarlos' }, { valor: null, texto: 'Volver', clase: 'ghost' }]);
   }
 
@@ -408,6 +410,6 @@
     return { get ultimo() { return quien; } };
   }
 
-  window.s360 = { iniciar, tiene, api, preguntar, preguntarTramosSobrantes, alCambiar, chipAvance, tituloAvance, claseRend,
+  window.s360 = { iniciar, tiene, api, aviso, preguntar, preguntarTramosSobrantes, alCambiar, chipAvance, tituloAvance, claseRend,
     subirArchivo, adjuntos, refrescarPendientes, usuario: () => usuario };
 })();

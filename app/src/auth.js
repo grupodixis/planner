@@ -6,7 +6,7 @@ const DURACION_MS = 1000 * 60 * 60 * 12; // 12 h
 
 // Permisos que puede tener un rol. Ver lo tiene cualquiera con cuenta.
 const PERMISOS = {
-  planificar: 'Planificar en el tablero y rellenar el parte del día (horas reales, faltas)',
+  planificar: 'Planificar en el cuadrante y rellenar el parte del día (horas reales, faltas)',
   proyectos: 'Proyectos, partidas, OTs, tareas e importación',
   recursos: 'Recursos, áreas de trabajo, tipos y semillero',
   usuarios: 'Usuarios y roles',
@@ -25,7 +25,7 @@ const PERMISOS = {
 };
 // Permisos de un usuario «u»: los de su rol más los de sus roles añadidos (varios roles)
 const SQL_PERMISOS = `ARRAY(SELECT DISTINCT p FROM roles rr, unnest(rr.permisos) p WHERE rr.clave = u.rol OR rr.clave = ANY(u.roles_extra))`;
-// Quien solo tiene «mi_dia» únicamente ve su pantalla Mi día (ni tablero, ni costes, ni lo de otros)
+// Quien solo tiene «mi_dia» únicamente ve su pantalla Mi día (ni cuadrante, ni costes, ni lo de otros)
 const soloMiDia = (u) => !!u && (u.permisos || []).includes('mi_dia') && (u.permisos || []).every((k) => k === 'mi_dia');
 
 function hashPassword(password) {

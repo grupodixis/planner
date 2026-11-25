@@ -328,7 +328,7 @@
       Object.entries(d.motivos).map(([k, t]) => el('option', { value: k }, t)));
     const notas = el('input', { placeholder: 'Notas (opcional)', maxlength: 1000, 'aria-label': 'Notas' });
     zona.replaceChildren(el('div', { class: 'corregir' },
-      el('p', { class: 'ayuda' }, 'Se quita del tablero y sus horas vuelven a «Por planificar». Queda registrado para los informes.'),
+      el('p', { class: 'ayuda' }, 'Se quita del cuadrante y sus horas vuelven a «Por planificar». Queda registrado para los informes.'),
       el('div', { class: 'cor-pie' }, motivo, notas,
         el('button', {
           type: 'button', class: 'peligro',

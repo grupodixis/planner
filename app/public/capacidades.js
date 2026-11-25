@@ -96,7 +96,7 @@
     const porPersona = new Map();
     for (const k of d.capacidades) for (const pid of k.propuestas || []) { if (!porPersona.has(pid)) porPersona.set(pid, []); porPersona.get(pid).push(k); }
     $('#der').replaceChildren(
-      el('p', { class: 'ayuda' }, 'Lo que cada operario ha marcado en «Mis capacidades» desde su móvil. Hasta que lo valides no cuenta en el tablero.'),
+      el('p', { class: 'ayuda' }, 'Lo que cada operario ha marcado en «Mis capacidades» desde su móvil. Hasta que lo valides no cuenta en el cuadrante.'),
       ...[...porPersona].map(([pid, ks]) => {
         const p = d.personas.find((x) => x.id === pid) || { id: pid, nombre: `#${pid}` };
         return el('section', { class: 'cap-val' },

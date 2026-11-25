@@ -1,7 +1,7 @@
 // Talleres externos: una tarea de una OT la hace un taller de fuera (un proveedor: Ferro Puig, una carpintería
 // de aluminio, la galvanizadora…). No hay etapas fijas: las etapas son las tareas de la OT, en su orden.
 //  · La tarea externa lleva su taller (tareas.proveedor_id) y se planifica en el área de ese taller
-//    (lineas.tipo = 'externo', una por proveedor, se crea sola). En el tablero, esas áreas van en el bloque
+//    (lineas.tipo = 'externo', una por proveedor, se crea sola). En el cuadrante, esas áreas van en el bloque
 //    «Talleres externos» y solo salen mientras el taller tiene tareas activas, como las obras.
 //  · No ocupa a nadie de aquí: sin avisos de operarios, requisitos ni jornada.
 //  · Situación del producto: dónde está la OT cuando está fuera (qué taller, qué tarea, avance, hasta cuándo).
@@ -9,7 +9,7 @@ const { query } = require('./db');
 
 const ddmm = (f) => (f ? `${String(f).slice(8, 10)}/${String(f).slice(5, 7)}` : '');
 
-// Área del tablero de un taller externo (la crea si no existe)
+// Área del cuadrante de un taller externo (la crea si no existe)
 async function areaExterna(c, proveedorId) {
   const { rows } = await c.query(`SELECT id FROM lineas WHERE tipo = 'externo' AND proveedor_id = $1`, [proveedorId]);
   if (rows.length) {

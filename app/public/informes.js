@@ -63,7 +63,7 @@
   const COLS = [
     ['prev_h', 'Presup.', 'Horas-persona presupuestadas (estimación inicial × operarios)', h],
     ['est_h', 'Estimado', 'Estimación actual (cambia si en el parte se dice «faltan X h»)', h],
-    ['plan_h', 'Planif.', 'Horas-persona planificadas en el tablero (incluye lo futuro)', h],
+    ['plan_h', 'Planif.', 'Horas-persona planificadas en el cuadrante (incluye lo futuro)', h],
     ['real_h', 'Real', 'Horas-persona reales del parte del día', h],
     ['avance_pct', 'Avance', 'Horas previstas de las tareas terminadas sobre el total previsto', (x) => (x == null ? '—' : `${nf1.format(x)} %`)],
     ['rendimiento_pct', 'Rend.', 'Horas previstas de lo terminado ÷ horas reales que costó. Más de 100 % = se hizo en menos tiempo',

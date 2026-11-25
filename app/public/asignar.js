@@ -80,10 +80,10 @@
     const nM = marcadas.size + marcadosEq.size;
     const btn = el('button', { type: 'button', class: 'primario asg-agregar', disabled: !editar || !t || !nM, onclick: agregarHerramientas },
       t ? `＋ Agregar ${nM || ''} a «${t.nombre}»` : 'Elige una tarea a la derecha');
-    // equipos de los que hay pocos: la tarea los pide; en el tablero se asigna uno concreto y se controla que no se crucen
+    // equipos de los que hay pocos: la tarea los pide; en el cuadrante se asigna uno concreto y se controla que no se crucen
     const eqs = (d.equipos || []).filter((e) => !q || norm(e.nombre).includes(q));
     const bloqueEq = eqs.length ? [
-      el('div', { class: 'asg-fam eq' }, '⚙ Equipos (hay pocos) · en el tablero se asigna cuál'),
+      el('div', { class: 'asg-fam eq' }, '⚙ Equipos (hay pocos) · en el cuadrante se asigna cuál'),
       ...eqs.map((e) => {
         const todasFijas = e.n && e.n_fijas === e.n;
         return el('label', { class: `asg-herr eq${todasFijas ? ' fija' : ''}` },
@@ -94,7 +94,7 @@
       })] : [];
     izq.replaceChildren(
       el('div', { class: 'asg-tit' }, 'Herramientas y equipos · marca y agrega a la tarea seleccionada'),
-      el('p', { class: 'ayuda asg-nota' }, 'Las máquinas fijas (sierra, plegadora, cizalla, cabina…) no se asignan aquí: van con el área donde se planifica la tarea (Tablero › Áreas de trabajo › Equipo fijo).'),
+      el('p', { class: 'ayuda asg-nota' }, 'Las máquinas fijas (sierra, plegadora, cizalla, cabina…) no se asignan aquí: van con el área donde se planifica la tarea (Cuadrante › Áreas de trabajo › Equipo fijo).'),
       buscar,
       el('div', { class: 'asg-herr-lista' },
         ...bloqueEq,
@@ -179,7 +179,7 @@
   function chip(x) {
     const mat = tab === 'material';
     const txt = mat ? `${cant(x.cantidad)} ${x.unidad || ''} · ${x.descripcion}` : `${x.cantidad != null ? `${cant(x.cantidad)} · ` : ''}${x.descripcion}`;
-    return el('span', { class: `asg-chip${mat ? '' : ' h'}${x.equipo ? ' eq' : ''}`, title: mat ? 'Pulsa para cambiar la cantidad' : x.equipo ? 'Equipo: en el tablero se asigna cuál' : '' },
+    return el('span', { class: `asg-chip${mat ? '' : ' h'}${x.equipo ? ' eq' : ''}`, title: mat ? 'Pulsa para cambiar la cantidad' : x.equipo ? 'Equipo: en el cuadrante se asigna cuál' : '' },
       x.equipo ? '⚙ ' : null,
       el('span', { onclick: mat && editar ? () => cambiarCantidad(x) : null }, txt),
       editar ? el('button', { type: 'button', class: 'asg-chip-x', 'aria-label': `Quitar ${x.descripcion}`, onclick: async (ev) => {

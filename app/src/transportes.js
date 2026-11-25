@@ -8,7 +8,7 @@
 // Antes, el transportista ACEPTA las condiciones de la recogida en su enlace (o propone otra fecha / precio, o dice que no
 // puede); al aceptar, cada pedido que se recoge activa su enlace de seguimiento y el proveedor recibe la recogida confirmada.
 // El transportista los marca en su enlace (sin cuenta), con fecha de llegada, su referencia y foto del CMR; también la
-// oficina. Efectos: la tarea de transporte va en curso / hecha y su fecha prevista es la llegada (avisos del tablero
+// oficina. Efectos: la tarea de transporte va en curso / hecha y su fecha prevista es la llegada (avisos del cuadrante
 // por dependencias); el material de los pedidos pasa a llegar ese día; la situación de la OT dice dónde está.
 // Coste del envío: se reparte entre sus líneas por kg (o a mano) y entra en costes como subcontrata de la tarea.
 const crypto = require('crypto');

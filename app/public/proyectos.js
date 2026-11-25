@@ -204,7 +204,7 @@
           alta.querySelector('input').focus();
         } }, el('b', {}, esObra ? '＋ Crear obra nueva' : `＋ Crear cliente${txt ? ` «${txt}»` : ''}`)),
         el('button', { type: 'button', class: 'ficha-op quitar', onclick: () => elegir(null) },
-          el('b', {}, esObra ? '— Sin obra' : '— Sin cliente'), el('small', {}, esObra ? ' · trabajo solo de taller o venta (no sale fila de obra en el tablero)' : '')));
+          el('b', {}, esObra ? '— Sin obra' : '— Sin cliente'), el('small', {}, esObra ? ' · trabajo solo de taller o venta (no sale fila de obra en el cuadrante)' : '')));
       };
       alta.onsubmit = async (ev) => {
         ev.preventDefault();
@@ -232,7 +232,7 @@
         o.contacto || o.telefono ? el('span', {}, ` · contacto en obra ${[o.contacto, o.telefono].filter(Boolean).join(' ')}`) : null,
         o.acceso ? el('span', {}, ` · ${o.acceso}`) : null,
         o.otros ? el('a', { class: 'obra-otros', href: `/obras.html?id=${o.id}` }, ` · otros ${o.otros} proyecto${o.otros > 1 ? 's' : ''} en esta obra`) : null),
-    ] : [el('p', { class: 'ayuda' }, 'Sin obra: no tiene fila de obra en el tablero. Si hay trabajo en el sitio del cliente, elige o crea su obra arriba.')]));
+    ] : [el('p', { class: 'ayuda' }, 'Sin obra: no tiene fila de obra en el cuadrante. Si hay trabajo en el sitio del cliente, elige o crea su obra arriba.')]));
   }
 
   // Condiciones previas: lo que hay que confirmar antes de ejecutar (pago, RAL, pilares…)
@@ -388,7 +388,7 @@
     };
     const proyectos = Object.fromEntries(estado.proyectos.map((p) => [p.id, `${p.codigo} · ${p.nombre || ''}`]));
 
-    const colores = el('div', { class: 'campo c3' }, el('span', { class: 'etq' }, 'Color en el tablero'),
+    const colores = el('div', { class: 'campo c3' }, el('span', { class: 'etq' }, 'Color en el cuadrante'),
       el('div', { class: 'colores', role: 'radiogroup', 'aria-label': 'Color' }, estado.catalogo.colores.map((c) =>
         el('button', {
           type: 'button', class: `color${c === o.color ? ' sel' : ''}`, style: `--c:${c}`, role: 'radio',
@@ -539,7 +539,7 @@
         const fams = new Map();
         if (clase === 'maquina') for (const ti of lista) { const f = ti.familia || 'Otras'; if (!fams.has(f)) fams.set(f, []); fams.get(f).push(ti); }
         bloques.push(el('section', { class: 'dreq-sec' },
-          el('h3', {}, `${ico} ${titulo}`, clase === 'maquina' ? el('span', { class: 'ayuda' }, ' · en el tablero se asigna cuál') : null),
+          el('h3', {}, `${ico} ${titulo}`, clase === 'maquina' ? el('span', { class: 'ayuda' }, ' · en el cuadrante se asigna cuál') : null),
           clase === 'maquina'
             ? el('div', { class: 'dreq-fams' }, [...fams].map(([fam, ts]) => el('div', { class: 'dreq-fam' }, el('h4', {}, fam), ts.map(filaTipo))))
             : el('div', { class: 'dreq-grid' }, lista.map(filaTipo))));
@@ -654,7 +654,7 @@
     const cerrar = () => { dlg.close(); dlg.remove(); };
     dlg.append(
       el('h2', { id: 'deps-tit' }, 'Va después de…'),
-      el('p', { class: 'ayuda' }, `«${t.nombre}» no debería empezar hasta que terminen estas tareas (y pase la espera, si la hay). El tablero avisa si se planifica antes.`),
+      el('p', { class: 'ayuda' }, `«${t.nombre}» no debería empezar hasta que terminen estas tareas (y pase la espera, si la hay). El cuadrante avisa si se planifica antes.`),
       lista, sel,
       d.importada ? el('p', { class: 'ayuda aviso-imp' }, 'Esta tarea viene del compositor: si se vuelve a importar, sus dependencias vuelven a ser las del compositor.') : null,
       el('div', { class: 'acciones' },
@@ -707,7 +707,7 @@
         || (!hp ? 'Sin planificar' : hp !== t.duracion_h ? `${durTxt(hp)}/${durTxt(t.duracion_h)}` : 'Planificada');
       const clasePlan = ESTADO_TAREA[t.estado] ? t.estado : !hp ? 'pendiente' : hp < t.duracion_h ? 'parcial' : hp > t.duracion_h ? 'exceso' : 'planificada';
       const plan = t.primera_fecha
-        ? el('a', { href: `/?fecha=${t.primera_fecha}`, class: 'plan', title: `${t.n_tramos} tramo(s) en el tablero` },
+        ? el('a', { href: `/?fecha=${t.primera_fecha}`, class: 'plan', title: `${t.n_tramos} tramo(s) en el cuadrante` },
           t.primera_fecha === t.ultima_fecha ? fechaCorta(t.primera_fecha).slice(0, 5)
             : `${fechaCorta(t.primera_fecha).slice(0, 5)}→${fechaCorta(t.ultima_fecha).slice(0, 5)}`)
         : null;
@@ -761,7 +761,7 @@
           title: bloqueada ? 'No se puede borrar una tarea en curso o hecha' : 'Borrar tarea',
           'aria-label': `Borrar ${t.nombre}`,
           onclick: async () => {
-            if (t.n_tramos && !confirm(`«${t.nombre}» tiene ${t.n_tramos} tramo(s) en el tablero. ¿Borrarla igualmente?`)) return;
+            if (t.n_tramos && !confirm(`«${t.nombre}» tiene ${t.n_tramos} tramo(s) en el cuadrante. ¿Borrarla igualmente?`)) return;
             try { await api('DELETE', `/api/tareas/${t.id}`); toast('Tarea borrada'); await refrescarOT(); }
             catch (e) { toast(e.message, true); }
           },
@@ -819,7 +819,7 @@
   }
 
   // Subcontrata en obra: sus días (y si los ha confirmado) y sus partes por validar
-  const CONF = { sin_plan: ['', 'Sin días planificados: planifícalos en el tablero'], pendiente: ['pend', '⏳ Días sin confirmar'],
+  const CONF = { sin_plan: ['', 'Sin días planificados: planifícalos en el cuadrante'], pendiente: ['pend', '⏳ Días sin confirmar'],
     confirmada: ['ok', '✔ Días confirmados'], propuesta: ['pend', '📅 Propone otros días'], rechazada: ['mal', '✕ No puede esos días'] };
   const hh = (h) => `${String(Math.floor(h)).padStart(2, '0')}:${String(Math.round((h % 1) * 60)).padStart(2, '0')}`;
   function obraTarea(t, ob, editar) {
@@ -840,8 +840,8 @@
       el('div', { class: 'obra-conf' },
         el('span', { class: `obra-chip ${cls}` }, txt), ob.cambiado ? el('small', { class: 'ayuda' }, ' (cambiaron los días; se le ha pedido confirmar otra vez)') : null,
         ob.conf_por && ob.conf !== 'pendiente' ? el('small', { class: 'ayuda' }, ` · ${ob.conf_por}${ob.conf_en ? ` · ${haceTxt(ob.conf_en)}` : ''}`) : null,
-        ob.conf === 'propuesta' && ob.propuesta ? el('div', { class: 'obra-prop' }, `Propone ${ob.propuesta.desde ? `empezar el ${dm(ob.propuesta.desde)}` : 'otros días'}${ob.propuesta.nota ? ` · «${ob.propuesta.nota}»` : ''}. Muévelo en el tablero: se le pedirá confirmar los días nuevos.`) : null,
-        ob.conf === 'rechazada' ? el('div', { class: 'obra-prop' }, `«${ob.motivo || ''}». Cambia los días en el tablero o elige otra subcontrata.`) : null,
+        ob.conf === 'propuesta' && ob.propuesta ? el('div', { class: 'obra-prop' }, `Propone ${ob.propuesta.desde ? `empezar el ${dm(ob.propuesta.desde)}` : 'otros días'}${ob.propuesta.nota ? ` · «${ob.propuesta.nota}»` : ''}. Muévelo en el cuadrante: se le pedirá confirmar los días nuevos.`) : null,
+        ob.conf === 'rechazada' ? el('div', { class: 'obra-prop' }, `«${ob.motivo || ''}». Cambia los días en el cuadrante o elige otra subcontrata.`) : null,
         editar && ['pendiente', 'propuesta', 'rechazada'].includes(ob.conf) ? el('button', { type: 'button', class: 'ghost mini', onclick: async () => {
           if (!confirm(`¿${t.proveedor} te ha confirmado estos días por teléfono o WhatsApp?`)) return;
           try { await api('POST', `/api/tareas/${t.id}/subcontrata/confirmar`); toast('Días confirmados'); await refrescarOT(); } catch (e) { toast(e.message, true); }
@@ -1340,7 +1340,7 @@
     const q = new URLSearchParams(location.search);
     let p = Number(q.get('p')) || null;
     const ot = Number(q.get('ot')) || null;
-    // Viniendo del tablero solo llega la OT: se busca su proyecto
+    // Viniendo del cuadrante solo llega la OT: se busca su proyecto
     if (ot && !p) p = (await api('GET', `/api/ordenes/${ot}`).catch(() => null))?.proyecto_id || null;
     if (p && estado.proyectos.some((x) => x.id === p)) {
       await elegirProyecto(p);

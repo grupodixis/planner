@@ -1,4 +1,4 @@
-// Tablero diario y tramos.
+// Cuadrante diario y tramos.
 //  · Una tarea se planifica en uno o varios TRAMOS (día, hora, horas, área).
 //  · Cada recurso asignado a un tramo tiene su FRANJA (desde–hasta). NULL = todo el tramo.
 //    Así se registra que un operario estuvo 4h y otro 8h en el mismo tramo.
@@ -174,7 +174,7 @@ function planEmpuje(base, tramosDia, nombres) {
 }
 
 module.exports = function montar(app, asyncH) {
-  /* ---------- Tablero (un día, una semana o un mes) ---------- */
+  /* ---------- Cuadrante (un día, una semana o un mes) ---------- */
   // ?fecha=YYYY-MM-DD (un día) o ?desde=YYYY-MM-DD&hasta=YYYY-MM-DD (rango, máx. 62 días)
   app.get('/api/tablero', asyncH(async (req, res) => {
     const desde = leerFecha(req.query.desde ?? req.query.fecha);
@@ -430,7 +430,7 @@ module.exports = function montar(app, asyncH) {
 
       const t = await horasTarea(c, prev[0].tarea_id);
       await registrar(c, req.usuario.id, prev[0].tarea_id, 'mover', { tramo_id: id, ...cambios });
-      // Lo que pase de lo estimado NO cambia la estimación: queda como excedente sin estimar (rayado en el tablero)
+      // Lo que pase de lo estimado NO cambia la estimación: queda como excedente sin estimar (rayado en el cuadrante)
       const ex = await extras.sincronizar(c, id, req.usuario);
       return { ...rows[0], exceso: Math.max(0, r1(-t.pendientes)), extras: ex };
     });
@@ -487,7 +487,7 @@ module.exports = function montar(app, asyncH) {
   app.post('/api/tramos/:id/repartir', auth.permiso('planificar'), asyncH(async (req, res) => {
     const id = Number(req.params.id);
     const horasDia = req.body?.horas_dia != null ? leerDuracion(req.body.horas_dia) : jornada.horas;
-    if (horasDia > jornada.vistaFin - jornada.inicio) throw fallo(400, 'Más horas por día de las que caben en el tablero');
+    if (horasDia > jornada.vistaFin - jornada.inicio) throw fallo(400, 'Más horas por día de las que caben en el cuadrante');
 
     const out = await tx(async (c) => {
       const { rows: ref } = await c.query('SELECT * FROM tramos WHERE id = $1', [id]);

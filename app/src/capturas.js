@@ -3,7 +3,7 @@
 //     Puede decir de qué proyecto / OT es (por defecto, el trabajo en el que está hoy) y qué tipo de
 //     asunto es (falta material, avería, calidad, seguridad, mejora…). Las antiguas «incidencias» son esto.
 //  2. CLARIFICAR (quien planifica): cada captura de la bandeja se convierte en
-//       · tarea nueva en una OT (pasa a «Por planificar» en el tablero),
+//       · tarea nueva en una OT (pasa a «Por planificar» en el cuadrante),
 //       · asunto con responsable, prioridad y fecha límite, que se sigue hasta resolverlo,
 //       · información que queda en el proyecto / OT,
 //       · o se descarta.

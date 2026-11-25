@@ -1,4 +1,4 @@
-/* s360_planificacion · tablero operativo diario (vanilla JS, sin build)
+/* s360_planificacion · cuadrante operativo diario (vanilla JS, sin build)
  *
  * Cada bloque del calendario es un TRAMO de una tarea. Una tarea larga se planifica
  * en varios tramos (días); al soltarla se crea un tramo hasta el fin de jornada y el resto
@@ -48,6 +48,13 @@
     filtro: '',
     vista: leerPref('vista', 'areas'),   // 'areas' | 'operarios'
   };
+  // ?tarea=ID (con ?fecha): abre esa tarea seleccionada. Con ?solo=detalle (dentro de otra pantalla, p. ej. el Gantt)
+  // solo se ve su ventana de detalle; al cerrarla o cambiar algo se avisa a la pantalla que la contiene.
+  const tareaURL = Number(params.get('tarea')) || null;
+  const SOLO = params.get('solo') === 'detalle' && window.parent !== window;
+  let soloListo = false, soloCambio = false;
+  const avisarPadre = (tipo) => { if (SOLO) window.parent.postMessage({ s360: tipo, cambio: soloCambio }, location.origin); };
+  if (SOLO) { document.body.classList.add('solo-detalle'); estado.periodo = 'dia'; }
 
   /* ---------- utilidades ---------- */
   // Preferencias por navegador (opcionales: si el almacenamiento falla, se usan los valores por defecto)
@@ -120,7 +127,7 @@
 
   const hhmm = (h) => `${String(Math.floor(h)).padStart(2, '0')}:${String(Math.round((h % 1) * 60)).padStart(2, '0')}`;
   const durTxt = (h) => `${String(h).replace('.', ',')}h`;
-  // Permisos del rol: «planificar» para el tablero, «recursos» para las áreas de trabajo
+  // Permisos del rol: «planificar» para el cuadrante, «recursos» para las áreas de trabajo
   const puedeEditar = () => window.s360.tiene('planificar');
   const puedeAreas = () => window.s360.tiene('recursos');
   const puedeAusencias = () => window.s360.tiene('planificar') || window.s360.tiene('recursos');
@@ -153,7 +160,7 @@
     if (r.status === 401) { location.href = '/login.html'; throw new Error('No autenticado'); }
     const data = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error(data.error || `Error ${r.status}`);
-    // tras un cambio del tablero: horas extra por pedir (diálogo)
+    // tras un cambio del cuadrante: horas extra por pedir (diálogo)
     if (metodo !== 'GET') {
       const tid = Number((/\/api\/tramos\/(\d+)/.exec(url) || [])[1]) || data.tramo?.id;
       if (Array.isArray(data.extras) && data.extras.some((x) => x.estado === 'pendiente' && !x.avisado)) estado.extrasPorPedir = { tramo_id: tid, extras: data.extras };
@@ -253,6 +260,7 @@
     url.searchParams.set('fecha', estado.fecha);
     url.searchParams.set('periodo', estado.periodo);
     url.searchParams.delete('ot');
+    if (!SOLO) url.searchParams.delete('tarea');
     history.replaceState(null, '', url);
     // si lo seleccionado ya no existe (otro usuario lo quitó), se deselecciona
     if (estado.sel?.tipo === 'tramo' && !tramo(estado.sel.id)) estado.sel = null;
@@ -266,7 +274,7 @@
     destacarOT();
   }
 
-  /* ---------- OT señalada al venir de «Ver en tablero» (Proyectos): recuadro que se apaga en 5 s ---------- */
+  /* ---------- OT señalada al venir de «Ver en cuadrante» (Proyectos): recuadro que se apaga en 5 s ---------- */
   const DESTACAR_MS = 5000;
   const destacando = () => estado.destacarOT && Date.now() - estado.destacarDesde < DESTACAR_MS;
   function destacarOT() {
@@ -1531,7 +1539,7 @@
         : null);
   }
 
-  // soltar un tramo del calendario en el panel derecho = quitarlo del tablero
+  // soltar un tramo del calendario en el panel derecho = quitarlo del cuadrante
   function prepararDropOrdenes() {
     const panel = $('.ordenes');
     panel.addEventListener('dragover', (ev) => {
@@ -1548,7 +1556,7 @@
       const id = estado.arrastre.id;
       const tareaId = tramo(id)?.tarea_id;
       estado.sel = tareaId ? { tipo: 'tarea', id: tareaId } : null;
-      await accion(() => api('DELETE', `/api/tramos/${id}`), 'Tramo quitado del tablero: sus horas vuelven a pendientes');
+      await accion(() => api('DELETE', `/api/tramos/${id}`), 'Tramo quitado del cuadrante: sus horas vuelven a pendientes');
     });
   }
 
@@ -1577,7 +1585,7 @@
     const tr = s?.tipo === 'tramo' ? tramo(s.id) : null;
     const t = tr ? tarea(tr.tarea_id) : s?.tipo === 'tarea' ? tarea(s.id) : null;
     const dlg = $('#dlg-detalle');
-    if (!t) { if (dlg.open) dlg.close(); return; }
+    if (!t) { if (dlg.open) dlg.close(); if (SOLO && soloListo) avisarPadre('cerrar'); return; }
     const scroll = dlg.open ? caja.scrollTop : 0;
     const editar = puedeEditar();
     const pend = pendientes(t);
@@ -1722,6 +1730,7 @@
         el('a', { class: 'boton ghost', href: `/proyectos.html?ot=${t.orden_id}` }, 'Editar OT')));
     }
     caja.replaceChildren(...partes);
+    if (SOLO) $('#det-cuadrante').href = `/?tarea=${t.id}&fecha=${tr ? tr.fecha : estado.fecha}&periodo=dia`;
     if (!dlg.open) dlg.show();
     caja.scrollTop = scroll;
   }
@@ -2089,7 +2098,7 @@
             estado.sel = { tipo: 'tarea', id: t.id };
             return 'Tramo quitado: sus horas vuelven a pendientes';
           }),
-        }, 'Quitar del tablero'),
+        }, 'Quitar del cuadrante'),
       ),
     );
     return sec;
@@ -2184,8 +2193,9 @@
   }
 
   async function accion(fn, okMsg) {
-    try { const r = await fn(); toast(typeof r === 'string' ? r : okMsg); } catch (e) { toast(e.message, true); }
+    try { const r = await fn(); toast(typeof r === 'string' ? r : okMsg); soloCambio = true; } catch (e) { toast(e.message, true); }
     await cargar();
+    avisarPadre('cambio');
   }
 
   function finArrastre() {
@@ -2194,7 +2204,7 @@
     document.querySelectorAll('.marca-drop').forEach((n) => n.remove());
   }
 
-  /* ---------- falta / ausencia rápida desde el tablero ---------- */
+  /* ---------- falta / ausencia rápida desde el cuadrante ---------- */
   // Nombre de operario que abre el apunte de ausencia (vistas por operarios)
   function nombreOperario(r) {
     if (!puedeAusencias()) return r.nombre;
@@ -2287,6 +2297,24 @@
     $('#dlg-areas-cerrar').onclick = () => $('#dlg-areas').close();
   }
 
+  // Tarea pedida por la dirección (desde el Gantt): su tramo de ese día, o el más cercano
+  async function abrirTareaURL() {
+    if (!estado.datos) return;
+    let x = estado.datos.tramos.find((tr) => tr.tarea_id === tareaURL && tr.fecha === estado.fecha);
+    const t = tarea(tareaURL);
+    if (!x && t?.tramos?.length) {
+      const otro = t.tramos.find((tr) => tr.fecha >= estado.fecha) || t.tramos[t.tramos.length - 1];
+      if (otro.fecha !== estado.fecha) { estado.fecha = otro.fecha; await cargar(); }
+      x = tramo(otro.id);
+    }
+    seleccionar(x ? { tipo: 'tramo', id: x.id } : t ? { tipo: 'tarea', id: t.id } : null);
+    soloListo = true;
+    if (SOLO) avisarPadre(estado.sel ? 'listo' : 'sin-tarea');
+    else if (x) document.querySelector(`[data-tramo="${x.id}"]`)?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  }
+  // Dentro de otra pantalla los enlaces se abren en la pantalla entera
+  if (SOLO) document.addEventListener('click', (ev) => { const a = ev.target.closest('a[href]'); if (a) a.target = '_top'; }, true);
+
   /* ---------- arranque ---------- */
   function irA(fecha) { estado.fecha = fecha; cargar(); }
 
@@ -2317,7 +2345,8 @@
     };
     $('#solo-pend').onchange = (ev) => { guardarPref('solo_pend', ev.target.checked ? '1' : '0'); pintarOrdenes(); aplicarFiltro(); };
     $('#det-cerrar').onclick = () => { estado.solucion = null; seleccionar(null); };
-    moverDetalle();
+    if (!SOLO) moverDetalle();
+    else $('#det-cerrar').before(el('a', { id: 'det-cuadrante', class: 'boton ghost', href: '/', title: 'Ver en el cuadrante', 'aria-label': 'Ver en el cuadrante' }, '📋'));
     $('#dlg-detalle').addEventListener('cancel', (ev) => { ev.preventDefault(); estado.solucion = null; seleccionar(null); });
     document.addEventListener('keydown', (ev) => {
       if (ev.key === 'Escape' && $('#dlg-detalle').open && !document.querySelector('dialog[open]:modal')) { estado.solucion = null; seleccionar(null); }
@@ -2331,6 +2360,7 @@
     });
 
     await cargar();
+    if (tareaURL) await abrirTareaURL();
     // Multiusuario: lo que guardan otros llega al momento (no durante un arrastre)…
     window.s360.alCambiar(() => cargar(), { esperar: () => !!estado.arrastre });
     // …y por si se pierde algún aviso, un repaso cada minuto

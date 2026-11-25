@@ -94,7 +94,7 @@ function situacion(p) {
   return `🚚 recogida por ${p.transportista || 'programar'}${p.recogida_fecha ? ` · ${ddmm(p.recogida_fecha)}` : ''}${p.listo_recogida ? ` · listo ${ddmm(p.listo_recogida)}` : ''}`;
 }
 
-// la fecha prevista de llegada del pedido pasa al material (los avisos del tablero la usan)
+// la fecha prevista de llegada del pedido pasa al material (los avisos del cuadrante la usan)
 async function fechaAlMaterial(c, pedidoId, fecha) {
   if (!fecha) return;
   await c.query(`UPDATE partida_escandallo SET fecha_prevista = $2 WHERE pedido_compra_id = $1 AND compra = 'pedido'`, [pedidoId, fecha]);

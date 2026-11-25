@@ -76,7 +76,7 @@ docker-compose.yml        web (Node 22) + db (PostgreSQL 16)
 db/init/01_schema.sql     tablas
 db/init/02_seed.sql       datos del boceto, planificados en la fecha de hoy
 app/src/server.js         API REST (Express): login, áreas, editar tareas
-app/src/tramos.js         tablero del día y tramos (planificar, mover, repartir, recursos)
+app/src/tramos.js         cuadrante del día y tramos (planificar, mover, repartir, recursos)
 app/src/config.js         jornada laboral (JORNADA_INICIO / JORNADA_FIN)
 app/src/gestion.js        API de proyectos, OTs y sus tareas
 app/src/recursos.js       API de operarios, maquinaria y subcontratas
@@ -101,7 +101,7 @@ app/src/externos.js       talleres externos: área de cada taller y situación d
 app/src/costes.js         control de costes por proyecto (presupuesto, real, previsión, margen)
 app/src/importar.js       importación de proyectos del compositor (s360-import/2 y /1) y catálogo
 app/src/migraciones.js    cambios de esquema que se aplican solos al arrancar
-app/public/               frontend sin compilación: index (tablero), proyectos, recursos, usuarios,
+app/public/               frontend sin compilación: index (cuadrante), proyectos, recursos, usuarios,
                           parte, informes, pin (entrar con PIN) y mi-dia (operarios)
 ```
 
@@ -124,7 +124,7 @@ semana o un mes. La URL y el navegador recuerdan el periodo (`?fecha=…&periodo
 - El panel de recursos muestra las horas del periodo frente a su capacidad (jornada × días
   laborables) y la lista de conflictos, los del periodo con su fecha.
 
-## Tablero operativo diario (fase 1, incluido)
+## Cuadrante operativo diario (fase 1, incluido)
 
 - **Izquierda – recursos:** acordeones Operarios / Maquinaria propia / Subcontratas, cada uno
   con «libres/total» del periodo, y dentro por **categoría** (oficio, tipo de máquina, tipo de
@@ -147,9 +147,9 @@ semana o un mes. La URL y el navegador recuerdan el periodo (`?fecha=…&periodo
   recursos; un tramo nuevo hereda los del anterior de la misma tarea.
   En el detalle del tramo: horas (2h / 4h / 8h / hasta fin de jornada), **«Repartir lo pendiente
   en días siguientes»** (jornadas completas en días laborables, mismo área y recursos), mover a
-  otro día, quitar del tablero y lista de todos los tramos de la tarea para saltar entre días.
+  otro día, quitar del cuadrante y lista de todos los tramos de la tarea para saltar entre días.
   Las 2h después del fin de jornada se ven rayadas: se pueden usar como horas extra y avisan.
-  Soltar un tramo en el panel derecho lo quita del tablero (sus horas vuelven a pendientes).
+  Soltar un tramo en el panel derecho lo quita del cuadrante (sus horas vuelven a pendientes).
 - **Redimensionar tramos:** arrastra el borde derecho de un bloque para cambiar la hora de fin,
   o el izquierdo para la de inicio (encaje cada 30 min; Mayús + ← / → con el bloque
   seleccionado). Un tramo **puede superar lo estimado**: la parte de más se ve con una cola
@@ -169,7 +169,7 @@ semana o un mes. La URL y el navegador recuerdan el periodo (`?fecha=…&periodo
   persona (en el área por defecto de la tarea). Los tramos sin nadie salen en «Sin operario».
 - **Obras:** son áreas **de un proyecto**. Se crean solas al poner la dirección de obra en el
   proyecto o al importarlo (tareas «de obra»), y desde la ficha del proyecto se renombran o se añade
-  otra obra. En el tablero van al final, bajo el rótulo «Obras», con el código del proyecto, y
+  otra obra. En el cuadrante van al final, bajo el rótulo «Obras», con el código del proyecto, y
   **solo mientras el proyecto está activo**: al cerrarlo desaparecen solas (los días con trabajo ya
   planificado se siguen viendo, marcados «proyecto cerrado»). No aparecen en «Áreas de trabajo»;
   allí solo hay, plegadas, las que se quedaron sin proyecto.
@@ -180,7 +180,7 @@ semana o un mes. La URL y el navegador recuerdan el periodo (`?fecha=…&periodo
 - **Detalle (ventana flotante):** al pulsar un bloque o una tarea se abre una ventana con el
   proyecto y la partida de la OT, la tarea (requisitos, planificado, dependencias, notas,
   condiciones), el tramo (recursos asignados, avisos, horas, empujar, repartir, mover) y todos sus
-  tramos. No bloquea el tablero (se siguen arrastrando recursos); se mueve arrastrando su cabecera
+  tramos. No bloquea el cuadrante (se siguen arrastrando recursos); se mueve arrastrando su cabecera
   (doble clic la devuelve a su sitio) y se cierra con ✕ o Esc.
 - **Sin asignar / conflictos:** faltan operarios, falta máquina/subcontrata o tipo requerido,
   mismo recurso en dos tareas a la vez, fuera de jornada, exceso sobre lo estimado, tarea que
@@ -204,11 +204,11 @@ semana o un mes. La URL y el navegador recuerdan el periodo (`?fecha=…&periodo
   activo/cerrado. Buscador y filtro de cerrados. Un proyecto con OTs no se borra: se cierra.
 - **Órdenes de trabajo (OT):** sustituyen a las antiguas OF y OM (OF-1565 → OT-1565). Código
   automático, título, partida, prioridad (urgente/alta/normal/baja), fecha de entrega, color
-  en el tablero, descripción, abierta/cerrada. Progreso de tareas planificadas y hechas.
+  en el cuadrante, descripción, abierta/cerrada. Progreso de tareas planificadas y hechas.
   Una OT con tareas planificadas o hechas no se borra: se cierra.
 - **Tareas de la OT:** nombre, horas, operarios necesarios, área por defecto y requisitos:
   un **tipo de recurso** con cantidad («una Soldadora MIG», «2 × Oficial 3º») o un recurso
-  concreto («MIG 1»). Se ordenan con ↑↓. Son lo que se arrastra al tablero.
+  concreto («MIG 1»). Se ordenan con ↑↓. Son lo que se arrastra al cuadrante.
 - Todo se guarda al salir de cada campo. La URL recuerda el proyecto y la OT abiertos.
 
 ## Tipos de recurso
@@ -216,7 +216,7 @@ semana o un mes. La URL y el navegador recuerdan el periodo (`?fecha=…&periodo
 Oficios (Soldador, Oficial 3º…), tipos de máquina (Soldadora MIG, Plegadora…) y tipos de
 subcontrata / alquiler (Grúa, Lacado…). Se gestionan en Recursos › «Tipos de recurso» y cada
 recurso puede tener varios (un operario, varios oficios). Una tarea puede pedir un tipo aunque
-no estén dadas de alta todas las máquinas: en el tablero el requisito se cumple con cualquier
+no estén dadas de alta todas las máquinas: en el cuadrante el requisito se cumple con cualquier
 recurso asignado de ese tipo; si falta, aviso; si no hay ninguno de ese tipo dado de alta, aviso
 suave («no hay ninguno dado de alta»). Al seleccionar una tarea, el panel de recursos marca con ✓
 los que cumplen lo que pide.
@@ -229,17 +229,17 @@ al salir de cada campo:
 - **Operarios:** nombre, nº de empleado, **vínculo** (plantilla / subcontratado, con su empresa
   o «Autónomo»), oficios / roles, teléfono, email, coste €/h, área habitual, notas. Un
   subcontratado que trabaja de operario (pintor, oficial…) cuenta en los operarios de las
-  tareas, cumple oficios y suma horas-persona; en el tablero lleva la etiqueta «SUB».
+  tareas, cumple oficios y suma horas-persona; en el cuadrante lleva la etiqueta «SUB».
 - **Maquinaria:** nombre, nº / matrícula, tipo(s) de máquina, ubicación habitual, coste €/h,
   notas (mantenimiento, capacidades…).
 - **Subcontratas y alquileres:** empresas que hacen un trabajo entero o alquileres (lacado
-  externo, grúa, plataforma): nombre en el tablero, clase (subcontrata / alquiler), tipo,
+  externo, grúa, plataforma): nombre en el cuadrante, clase (subcontrata / alquiler), tipo,
   empresa o proveedor, teléfono y email de contacto, coste €/h, notas. Si alguien está aquí pero
   es una persona que trabaja de operario, «Pasar a Operarios» lo convierte en operario subcontratado.
 
 Cada ficha muestra su **uso**: horas asignadas en las próximas 2 semanas, próxima y última
 asignación e historial. **Baja:** si el recurso se ha usado alguna vez se **da de baja**
-(deja de salir en el panel del tablero para asignar, pero conserva su historial y sigue
+(deja de salir en el panel del cuadrante para asignar, pero conserva su historial y sigue
 viéndose los días en que ya tenía trabajo); si nunca se usó, se borra. «Reactivar» lo devuelve.
 
 ## Usuarios y roles
@@ -255,7 +255,7 @@ Menú **Usuarios** (solo quien tiene el permiso «usuarios»).
 
   | Permiso | Qué deja cambiar |
   |---|---|
-  | planificar | tablero: tramos, asignaciones, estado de las tareas |
+  | planificar | cuadrante: tramos, asignaciones, estado de las tareas |
   | proyectos | proyectos, partidas, OTs, tareas, importación |
   | recursos | recursos, áreas de trabajo, tipos, semillero |
   | usuarios | usuarios y roles |
@@ -292,7 +292,7 @@ toca: lo real se guarda aparte y se compara.
     quien estaba ausente todo el día).
   - **✎ Corregir**: quién trabajó (personas y máquinas) y de qué hora a qué hora, con motivo
     opcional del cambio.
-  - **✗ No se hizo**: con motivo. Se quita del tablero y sus horas vuelven a «Por planificar»
+  - **✗ No se hizo**: con motivo. Se quita del cuadrante y sus horas vuelven a «Por planificar»
     (queda registrado para los informes; «Deshacer» lo vuelve a poner).
 - Y cómo va la tarea:
   - **sigue**: va según lo previsto; no cambia nada (pasa a «en curso»).
@@ -301,8 +301,8 @@ toca: lo real se guarda aparte y se compara.
     vez se guarda la estimación original. La diferencia con lo que ya hay planificado después
     sale en «Por planificar» (o como exceso, si sobra).
   - **terminada**: pasa a hecha (fecha y quién). Si quedan tramos planificados después,
-    **pregunta si se quitan** del tablero (Quitarlos / Dejarlos / Volver). Lo mismo al poner
-    una tarea en «hecha» desde el tablero.
+    **pregunta si se quitan** del cuadrante (Quitarlos / Dejarlos / Volver). Lo mismo al poner
+    una tarea en «hecha» desde el cuadrante.
   - Si la tarea tiene **tramos anteriores sin cerrar**, la tarjeta avisa: «faltan» y
     «terminada» los dan por hechos tal como estaban.
 - **Deshacer** un cierre devuelve también la tarea a como estaba (estado, estimación) y
@@ -311,10 +311,10 @@ toca: lo real se guarda aparte y se compara.
 - **Horas fuera del plan**: trabajo en una tarea que no estaba planificado, o tiempo no
   productivo (desplazamiento, espera, limpieza, mantenimiento del taller, formación).
 - **Cerrar el día** (valida como estaba lo que quede). Un día cerrado no se replanifica en el
-  tablero; se puede reabrir. Se avisa de los días pasados con trabajo sin cerrar.
+  cuadrante; se puede reabrir. Se avisa de los días pasados con trabajo sin cerrar.
 - Motivos de desvío: falta de material, avería, retrabajo / error, cliente, clima, ausencia,
   mal estimado, otro.
-- En el tablero: ✓ / ≠ en los tramos cerrados (no se arrastran), 🔒 en los días cerrados y
+- En el cuadrante: ✓ / ≠ en los tramos cerrados (no se arrastran), 🔒 en los días cerrados y
   aviso «parte sin cerrar» en los días pasados. Lo cerrado y las tareas hechas ya no dan avisos.
 - Cada hora real guarda el coste/hora del recurso de ese momento (si después cambia, el
   histórico no cambia; si no tenía, se usa el actual).
@@ -334,14 +334,14 @@ Mismas reglas en todas las pantallas (`app/src/avance.js`):
   aparte y avisan (⚠) si ya se han pasado de lo previsto.
 - Los **hitos** son las OTs (con su fecha de entrega) y las partidas: para seguir un momento
   como hito, el compositor lo hace OT.
-- Se ve en el tablero (OTs y proyectos con algo hecho), en Proyectos (lista, ficha, partidas,
+- Se ve en el cuadrante (OTs y proyectos con algo hecho), en Proyectos (lista, ficha, partidas,
   OTs y cada tarea: «real 32 h · 125 %» o «llevas 45 h de 40») y en Informes (columnas Avance y
   Rend., tarjetas).
 
 ## Menú principal
 
 Agrupado (`comun.js › GRUPOS`), cada grupo con desplegable (al pasar el ratón o pulsar) y la suma de
-lo pendiente de sus pantallas: **Planificación** (Tablero, Supervisión de partes, Bandeja, Mi día) ·
+lo pendiente de sus pantallas: **Planificación** (Cuadrante, Supervisión de partes, Bandeja, Mi día) ·
 **Proyectos** (Proyectos y OTs, Logística y compras) · **Recursos** (Operarios, máquinas y subcontratas,
 Áreas de trabajo, Capacidades, Usuarios y accesos) · **Informes**. Solo salen las pantallas que permite el rol; un grupo con una sola pantalla
 es un enlace directo. **＋ Capturar** va como botón junto al usuario.
@@ -349,10 +349,10 @@ es un enlace directo. **＋ Capturar** va como botón junto al usuario.
 ## Recursos (pantalla)
 
 Pestañas: Operarios · Maquinaria · Subcontratas y alquileres · Vacaciones y festivos · **Áreas de trabajo**
-(misma gestión que el botón del tablero, en `areas-ui.js`; también en el menú Recursos) · *Capacidades ↗*
+(misma gestión que el botón del cuadrante, en `areas-ui.js`; también en el menú Recursos) · *Capacidades ↗*
 (otra pantalla) · **⚙ Tipos** (catálogo, a la derecha). Ficha en dos columnas en pantallas anchas:
 datos a la izquierda; uso y ausencias a la derecha.
-- Operario: «Categoría / puesto» (Oficial 1ª, 2º, Encargado…) solo agrupa en el tablero; lo que sabe
+- Operario: «Categoría / puesto» (Oficial 1ª, 2º, Encargado…) solo agrupa en el cuadrante; lo que sabe
   hacer y lo que piden las tareas va en Capacidades. Debajo, sus datos personales (Mi perfil) y sus
   capacidades (validadas y por validar).
 - Tipos de máquina con **familia** (naturaleza: Soldadura, Corte y mecanizado, Fijación y montaje,
@@ -382,12 +382,12 @@ La categoría (Oficial 1ª, 2º…) se queda en la ficha del operario para el co
   izquierda las secciones Saber hacer (por familias, en columnas) · Equipos y máquinas · Subcontratas
   y alquileres · Categorías · Recurso concreto, con cuántos hay de cada uno y cantidad al marcar.
   Se guarda todo junto con «Guardar». Tablas `capacidades`, `recurso_capacidades`, `tarea_capacidades`.
-- **Tablero**: aviso «necesita 2 que sepan … (X no la tiene)»; leve si nadie la tiene marcada. «Solucionar»
+- **Cuadrante**: aviso «necesita 2 que sepan … (X no la tiene)»; leve si nadie la tiene marcada. «Solucionar»
   propone a quien la sabe. Al seleccionar una tarea se marca ✓ a quien cumple; el tooltip del recurso
   dice «Sabe: …».
 - **Lo propone el operario, lo valida el supervisor**: en Mi día › Menú › *Mis capacidades* el operario
   marca lo que sabe hacer; queda «⏳ pendiente» (`recurso_capacidades.estado = 'propuesta'`) y solo
-  cuenta en el tablero cuando alguien con permiso «recursos» lo valida (pestaña **Por validar** del
+  cuenta en el cuadrante cuando alguien con permiso «recursos» lo valida (pestaña **Por validar** del
   panel, con contador en el menú y aviso al móvil `cap_propuesta`). Lo validado ya no lo puede quitar
   él. Lo que marca el supervisor directamente queda validado.
 - **Lista inicial y conversión** (una vez, `ajustes.capacidades_semilla`): ~79 capacidades. Los oficios
@@ -417,7 +417,7 @@ albarán. Se ven en la línea («Pedido nº … · albarán nº …») y se pued
 (`partida_escandallo.num_pedido / num_albaran`, `PUT /api/escandallo/:id/documentos`).
 Botón **⚠ Incidencia** (en Recibir junto a «Ha llegado», y en Revisar stock): comentario + fotos con la
 cámara; se guarda en `escandallo_incidencias` (las fotos van a la línea), avisa a compras, al técnico y a Operaciones
-(`mat_incidencia`, con las tareas afectadas y su primer día planificado); en el **tablero** la tarea que usa ese material lleva
+(`mat_incidencia`, con las tareas afectadas y su primer día planificado); en el **cuadrante** la tarea que usa ese material lleva
 «🧰 ⚠», un aviso grave con el texto de la incidencia y la incidencia en el material del detalle (y en Mi día), hasta que se resuelve y en Logística y compras se ve en naranja hasta que alguien pulsa «✔ Resuelta»
 (`POST /api/escandallo/:id/incidencias`, `PUT /api/escandallo-incidencias/:id/resolver`).
 
@@ -431,7 +431,7 @@ lo revisa y confirma siempre en el Parte.
 
 - **Acceso** (Usuarios › «Personas: entrada con PIN»): se le pone un **PIN de 4 cifras** (no
   vale 0000, 1234…; botón 🎲 para uno al azar). Se crea un usuario con el rol **Operario**
-  (permiso «mi_dia» solo): no ve el tablero, ni costes, ni lo de los demás.
+  (permiso «mi_dia» solo): no ve el cuadrante, ni costes, ni lo de los demás.
 - **El PIN es la autorización**: en la misma tabla, la columna **Rol** (desplegable con casillas:
   **uno o varios roles**, se suman sus permisos; se guarda al cerrarlo) cambia lo que puede hacer
   esa persona (Logística, Técnico, Compras, Operaciones…; no se ofrecen roles con permiso
@@ -475,14 +475,14 @@ para cambiar su PIN).
     sola al calendario de ausencias.
 - **Avisar · No vengo o llego tarde**: enfermo, médico, llego tarde, asunto personal u otro;
   un día (o varios, hasta 15) o unas horas; nota y foto del justificante. Queda como **falta
-  pendiente de justificante** en el tablero y en el parte (con la marca «avisó él»). Puede
+  pendiente de justificante** en el cuadrante y en el parte (con la marca «avisó él»). Puede
   quitar el aviso mientras no haya pasado el día.
 - **Justificantes pendientes**: sus faltas sin justificante; sube la foto. RRHH / el encargado
   la ve en Recursos › «Faltas pendientes de justificante» y marca justificada o no.
 - **Incidencias** (ahora son capturas, ver «Bandeja de capturas»): falta material, avería (con qué máquina), calidad, seguridad u otro, con
   texto y fotos; desde la pestaña o con «⚠ Avisar de una incidencia» en un trabajo de hoy. El
   encargado las ve en el Parte («Incidencias abiertas»): **Máquina parada hoy** (la máquina
-  queda no disponible en el tablero; se amplía en Recursos) y **Resuelta** (con nota que ve
+  queda no disponible en el cuadrante; se amplía en Recursos) y **Resuelta** (con nota que ve
   el operario).
 - **Mi mes**: día a día lo planificado, lo trabajado (confirmado), ausencias y festivos; al
   pulsar un día se abre en Mi día.
@@ -558,7 +558,7 @@ con PIN (si el móvil está autorizado) o con email.
 - **Por persona**: la página le dice al service worker quién usa el móvil; lo apuntado solo se envía con la sesión de esa
   persona (tablet común) y al cambiar de persona o salir se borran los datos guardados.
 - Sigue necesitando red: cambiar el PIN o la contraseña, ver cuántos días son unas vacaciones antes de pedirlas (se calcula
-  al enviarlas), buscar «Otra tarea…» en compras locales (sin red salen solo las tuyas), entrar la primera vez, el tablero y
+  al enviarlas), buscar «Otra tarea…» en compras locales (sin red salen solo las tuyas), entrar la primera vez, el cuadrante y
   la oficina.
 
 ## Avisos al móvil (notificaciones)
@@ -608,12 +608,12 @@ Menú **Informes** (permiso «informes»; de serie solo el Administrador). Expor
 
 ## Vacaciones, ausencias y festivos
 
-- **Falta rápida desde el tablero:** clic en un operario del panel de recursos (o en su nombre
+- **Falta rápida desde el cuadrante:** clic en un operario del panel de recursos (o en su nombre
   en la vista por operarios) → día, «Todo el día / Se fue a las… / Llegó a las…» y un botón:
   **Falta**, Baja, Permiso, Vacaciones… Con una máquina: Avería, Mantenimiento, ITV.
   Lo puede hacer quien planifica. Si ya hay algo apuntado ese día, sale con «Quitar».
 - **Justificante de las faltas:** toda falta nace «pendiente de justificante». Se marca
-  justificada / sin justificar desde el mismo diálogo del tablero, desde la ficha del operario o
+  justificada / sin justificar desde el mismo diálogo del cuadrante, desde la ficha del operario o
   desde la lista «Faltas pendientes de justificante» (Recursos › Vacaciones y festivos). Las
   faltas no restan vacaciones y se cuentan en su columna (total, sin justificar, pendientes).
 - **Ausencias** en la ficha de cada recurso (Recursos › Operarios / Maquinaria): desde–hasta, o
@@ -621,7 +621,7 @@ Menú **Informes** (permiso «informes»; de serie solo el Administrador). Expor
   - Operarios: vacaciones, baja, permiso, formación, falta (con justificante), otro.
   - Máquinas, vehículos y alquileres: avería, mantenimiento, ITV / revisión, otro.
   - Si tenía trabajo asignado en esas fechas, al apuntarla se avisa con la lista de tramos.
-- **En el tablero:**
+- **En el cuadrante:**
   - Quien falta todo el día sale atenuado en el panel de recursos con el motivo y no se puede
     arrastrar; en semana / mes, «Xd fuera» y la capacidad descuenta esos días.
   - Si está asignado a un tramo, aviso grave «está de vacaciones y tiene asignado…» con
@@ -631,16 +631,16 @@ Menú **Informes** (permiso «informes»; de serie solo el Administrador). Expor
   - «Repartir» salta los festivos y no asigna a quien falta ese día.
 - **Festivos** (Recursos › Vacaciones y festivos): vienen cargados los de Illes Balears y los
   locales de Sant Lluís de 2026 y 2027 (BOIB). Se añaden a mano los de años siguientes y los
-  cierres de empresa. En festivo el tablero lo marca y avisa si hay algo planificado.
+  cierres de empresa. En festivo el cuadrante lo marca y avisa si hay algo planificado.
 - **Saldo de vacaciones:** 22 días laborables al año por convenio (`VACACIONES_DIAS`); cada
   persona puede tener los suyos en su ficha. Se cuentan días laborables (lunes a viernes sin
   festivos) y medio día / unas horas en proporción. La pestaña Vacaciones y festivos muestra,
   por año, apuntados, ya disfrutados, los que quedan, otras ausencias y la ausencia actual o
   próxima. Los subcontratados no llevan saldo.
 
-## Orden de los departamentos en el tablero
+## Orden de los departamentos en el cuadrante
 
-Las cabeceras de departamento del tablero (vista día por áreas) se reordenan **arrastrándolas**
+Las cabeceras de departamento del cuadrante (vista día por áreas) se reordenan **arrastrándolas**
 (o con **Alt + ↑ / ↓** teniendo la cabecera enfocada). Hace falta el permiso «recursos». Obras y
 «Otras áreas» quedan siempre al final. El semillero ya no pisa este orden al recargarse; los
 departamentos nuevos se añaden al final.
@@ -653,7 +653,7 @@ subcontratas. El planificador lo carga desde **Recursos → «Cargar semillero�
 luego aplicar; renombra en vez de duplicar, fusiona tipos repetidos y desactiva lo que sobra si
 tiene historial). El compositor usa los mismos nombres, y sus nombres antiguos están como alias.
 
-- **Departamentos:** las áreas se agrupan en el tablero en bloques plegables por departamento
+- **Departamentos:** las áreas se agrupan en el cuadrante en bloques plegables por departamento
   (y las obras al final).
 - **Áreas de «un trabajo a la vez»** (puestos de oficina, máquinas fijas): si coinciden dos
   tramos, aviso leve con «Solucionar» (empezar cuando quede libre o pasar a otro puesto libre).
@@ -741,11 +741,11 @@ Jerárquicos y automáticos (triggers en `migraciones.js`): el proyecto `P-2026-
 cambia al reordenar). Al cambiar una OT de proyecto o el código del proyecto, se renumeran OT y tareas. Si otro proyecto
 más antiguo ya usa el mismo número (p. ej. `P-2027-0061`), se antepone el año: **27-61.01**. El código anterior de cada
 OT (el del compositor, `OT-0058-ING`, o `OT-1568`) queda en `ordenes.codigo_antiguo`, se ve en la ficha («antes …») y se
-puede buscar en el tablero; al reimportar, el código del compositor ya no pisa el nuevo. Las OTs sin proyecto conservan
-`OT-NNNN`. En el tablero, cada tarea sale con su código y nombre (grande) y debajo OT, partida, obra y cliente.
+puede buscar en el cuadrante; al reimportar, el código del compositor ya no pisa el nuevo. Las OTs sin proyecto conservan
+`OT-NNNN`. En el cuadrante, cada tarea sale con su código y nombre (grande) y debajo OT, partida, obra y cliente.
 
 **Nombres breves**: el importador avisa (`nombre_largo`) si proyecto > 40, partida > 30, OT > 35 o tarea > 40
-caracteres (el detalle va en descripción/notas). En el tablero, los avisos citan la tarea por su código y un nombre
+caracteres (el detalle va en descripción/notas). En el cuadrante, los avisos citan la tarea por su código y un nombre
 corto (y dentro del detalle de la tarea, sin repetirla); cliente sin forma jurídica y obra = localidad (completo al
 pasar el ratón).
 
@@ -767,7 +767,7 @@ el transporte…). No hay etapas fijas: las etapas son **las tareas de la OT**, 
 - **Sin requisitos propios**: en una tarea externa, Oper. y Requiere no aplican («no aplica (fuera)»; se conservan por
   si vuelve a hacerse aquí), la duración se ve en **días** (1 día = una jornada) y no cuenta en horas-persona, avance
   ni mano de obra de costes e informes.
-- **Avance y cómo va**: `ext_avance` (%) y `ext_nota`, en la tabla de tareas y en el detalle del tablero. Los pone el
+- **Avance y cómo va**: `ext_avance` (%) y `ext_nota`, en la tabla de tareas y en el detalle del cuadrante. Los pone el
   propio taller desde su enlace de seguimiento (abajo) o, a mano, la oficina.
 - **Seguimiento con el taller** (`src/seguimiento-ext.js`, página pública `seguimiento.html?t=…`): en la OT, debajo de cada
   tarea externa (fila a lo ancho), **▶ Comenzar seguimiento** crea el enlace de ese taller para esa OT
@@ -780,14 +780,14 @@ el transporte…). No hay etapas fijas: las etapas son **las tareas de la OT**, 
   (`ext_entregado_a`, `ext_entrega_*`, archivo `ext_albaran`). Si entrega a otro taller de la OT, la siguiente tarea de ese
   taller queda «material recibido» (`ext_recibido`). Cada cambio queda en `ext_novedades` y avisa a quien planifica
   (push `ext_seguimiento`). **Solo avisa**: si su fecha pasa de la planificada sale el aviso `retraso_taller` en el
-  tablero y la dependencia de lo siguiente usa su fecha («según el taller»), pero el plan no se mueve solo.
+  cuadrante y la dependencia de lo siguiente usa su fecha («según el taller»), pero el plan no se mueve solo.
   **Recordatorio**: si una tarea suya sin terminar tiene su fecha (la suya o, si no puso, la nuestra) pasada y no ha
   actualizado ese día, un correo al día (laborables, 9–19 h, sin festivos) hasta que actualice o la termine; el primero
   avisa también a quien planifica. API: `POST /api/ordenes/:id/seguimientos {proveedor_id, email, enviar}`,
   `POST /api/seguimientos/:id/enlace {nuevo}`, `PATCH /api/seguimientos/:id {activo}`, `GET /api/ext-archivos/:id`;
   pública `GET·PUT /api/seguimiento/:t`, `POST /api/seguimiento/:t/tareas/:tid/archivos[?albaran=1]`,
   `GET·DELETE /api/seguimiento/:t/archivos/:id`.
-- **Tablero**: bloque **Talleres externos** al final (después de las obras), una fila por taller **solo mientras tiene
+- **Cuadrante**: bloque **Talleres externos** al final (después de las obras), una fila por taller **solo mientras tiene
   tareas activas** (no hechas, de OTs abiertas) o tramos en las fechas vistas. Se planifica igual (arrastrar, repartir en
   días). No ocupa a nadie de aquí: sin avisos de operarios, requisitos, capacidades ni jornada (`externa` en
   `conflictos.js`; solo dependencias y exceso). Si una tarea va después de una tarea externa que aún no ha terminado, el
@@ -795,7 +795,7 @@ el transporte…). No hay etapas fijas: las etapas son **las tareas de la OT**, 
 - **Situación del producto** (por OT): recorre sus tareas externas en orden → «En Ferros Puig · Fabricación · 60 % ·
   termina ~26/11 · «nota»», «En Tenas: galvanizado terminado · lo siguiente: Transporte (Ydica)», «Aún no ha salido…» o
   «Ya no está fuera». En Proyectos (lista de OTs y ficha, con las tareas externas y sus fechas) y en el detalle del
-  tablero. `situacion` en `/api/ordenes` y `/api/ordenes/:id`; `situaciones` en `/api/tablero`.
+  cuadrante. `situacion` en `/api/ordenes` y `/api/ordenes/:id`; `situaciones` en `/api/tablero`.
 - **Subcontratación** (`src/subcontratacion.js`): en la OT, **🏭 Subcontratar…** marca tareas externas (+ líneas sueltas:
   transporte, portes) y crea en Compras una **petición de presupuesto** a uno o varios talleres o un **pedido** a uno
   (`POST /api/ordenes/:id/subcontratacion {tarea_ids, extras, accion: presupuesto|pedido, proveedor_ids|proveedor_id, notas,
@@ -807,9 +807,34 @@ el transporte…). No hay etapas fijas: las etapas son **las tareas de la OT**, 
   costes: lo de los pedidos de subcontratación enviados suma en **Subcontratas** (las líneas sueltas, a la primera tarea).
 - **Siguientes pasos**: recepción desde el móvil; transportes dentro de la isla.
 
+## Cuadrante (antes «tablero»)
+
+La pantalla de planificación diaria (`/`, `public/app.js`) se llama **Cuadrante** en menús, ayuda y avisos. Las URL y la API no cambian (`/api/tablero`). Una migración actualiza la descripción del rol Planificador.
+
+- `/?tarea=ID&fecha=…` abre esa tarea seleccionada (su tramo de ese día o el más cercano).
+- `/?solo=detalle&tarea=ID&fecha=…`, dentro de un iframe, muestra solo la ventana de la tarea (sin menú ni ayuda, `body.solo-detalle`) con 📋 «Ver en el cuadrante».
+  - Avisa a la pantalla que la contiene con `postMessage({ s360: 'listo' | 'cambio' | 'cerrar' | 'sin-tarea', cambio })`.
+  - Los enlaces se abren en la pantalla entera.
+  - Asignar gente sigue siendo arrastrando en el cuadrante.
+
+## Gantt de un proyecto para enviar (PDF / imagen)
+
+`src/gantt-informe.js`: `GET /api/gantt/proyecto/:id/informe.pdf|svg` (permiso planificar o proyectos; `&descargar=1` para adjunto).
+
+- El mismo dibujo SVG sirve para las dos salidas:
+  - PDF (pdfkit + `svg-to-pdfkit`, A4 o A3 horizontal, por páginas, sin partir una OT si cabe);
+  - imagen: la pantalla convierte el SVG a PNG a 2×.
+- Opciones: `nivel=ot|tareas`, `avance`, `hoy`, `quien` (nombre de talleres, subcontratas y transporte), `papel=a4|a3`, `titulo`, `nota`.
+- Cabecera con la empresa (Compras › Ajustes), proyecto, cliente y obra; leyenda y nota al pie.
+- Escala automática: días (≤ 10 semanas, con fines de semana y festivos sombreados), semanas (≤ 10 meses) o meses.
+- Solo lo planificado: sin riesgo ni horas que faltan; lo que no tiene días sale «por planificar».
+- Texto limitado a Latin-1 (Helvetica del PDF): los emojis se quitan.
+- En el Gantt: botón **📄 Exportar** y 📄 en cada proyecto. Diálogo con vista previa, opciones recordadas y descarga PDF o PNG.
+- Al pulsar una tarea del Gantt se abre su ventana (el cuadrante en modo «solo detalle» en un diálogo); al cerrar, si cambió algo, el Gantt se recarga.
+
 ## Gantt (Planificación › Gantt)
 
-`src/gantt.js` (`GET /api/gantt?desde=&semanas=&cerradas=1`), `public/gantt.html/js`. Es el plan por semanas, solo para consultar: se planifica en el tablero.
+`src/gantt.js` (`GET /api/gantt?desde=&semanas=&cerradas=1`), `public/gantt.html/js`. Es el plan por semanas, solo para consultar: se planifica en el cuadrante.
 
 **Filas:** Proyecto › OT › tareas. Se pueden agrupar por proyecto, obra, cliente o sin agrupar, y ordenar por entrega, riesgo o código. Hay filtros «Solo con riesgo», «Incluir cerradas» y buscador.
 
@@ -817,7 +842,7 @@ el transporte…). No hay etapas fijas: las etapas son **las tareas de la OT**, 
 - Sus tramos se juntan en segmentos de días seguidos (un fin de semana o festivo en medio no los corta).
 - Clase: propia, 🏭 taller externo, 🚚 transporte (proveedor transportista o área de transporte) o 🏗 subcontrata en obra.
 - Un taller externo sin tramos se muestra en su fecha prevista.
-- Al pulsar una tarea se abre el tablero ese día.
+- Al pulsar una tarea se abre el cuadrante ese día.
 
 **OT**
 - La barra va del primer al último día planificado y muestra el avance; ⚑ marca la entrega.
@@ -849,7 +874,7 @@ el transporte…). No hay etapas fijas: las etapas son **las tareas de la OT**, 
   - localidad, contacto en obra y teléfono;
   - acceso y horario (sale en el enlace de las subcontratas);
   - promotor, dirección facultativa, constructora y notas.
-- Tiene **una fila en el tablero** (`lineas` tipo `obra` con `obra_id`), que comparten todos sus proyectos.
+- Tiene **una fila en el cuadrante** (`lineas` tipo `obra` con `obra_id`), que comparten todos sus proyectos.
   - La fila sale mientras alguno de sus proyectos está activo (`SQL_OBRA_ACTIVA`), y lleva los códigos de los proyectos activos.
   - Al cambiar un proyecto de obra, lo suyo planificado en la fila anterior pasa a la nueva.
 - Las filas de obra ya no se gestionan en «Áreas de trabajo».
@@ -883,7 +908,7 @@ el transporte…). No hay etapas fijas: las etapas son **las tareas de la OT**, 
 
 **Cómo se marca y se planifica**
 - En la OT, **Área / taller › Subcontrata en obra › 🏗 proveedor** (`PATCH /api/tareas/:id {proveedor_id, en_obra: true}` → `tareas.ext_en_obra`).
-- La tarea **conserva su área** (si era de un taller, se quita), se mide en horas y se planifica en el tablero como las demás.
+- La tarea **conserva su área** (si era de un taller, se quita), se mide en horas y se planifica en el cuadrante como las demás.
 - Es «externa»: no pide operarios, capacidades ni jornada. **Oper.** son las personas que pone la subcontrata (se le comunican).
 - No cuenta en la situación del producto ni en «Dónde está».
 
@@ -895,7 +920,7 @@ el transporte…). No hay etapas fijas: las etapas son **las tareas de la OT**, 
 - Ve sus días planificados (fecha y horario, personas y obra) y **confirma**, **propone otro inicio** o **no puede**.
 - Se guarda la **firma del plan** (md5 de sus tramos) con la respuesta (`ext_conf`, `ext_conf_firma`, `ext_conf_*`).
 - Si después se mueve algún tramo, vuelve a **sin confirmar** (`SQL_CONF`).
-- En el tablero:
+- En el cuadrante:
   - **🏗⏳ / 🏗📅 / 🏗✕ / 🏗✔** en el bloque y en el detalle;
   - aviso `subcontrata_conf` (leve; grave si no puede) en los tramos de hoy en adelante;
   - «Solucionar» ofrece **✔ Me lo ha confirmado por teléfono** (`POST /api/tareas/:id/subcontrata/confirmar`).
@@ -934,7 +959,7 @@ donde también está su **zona**) que recoge en la península y lo trae a Menorc
   iguales si no hay kg) o **a mano**. Estados: preparando → recogido → en_barco → en_mao → entregado (con la fecha de cada
   uno en `fechas`); anular devuelve lo que lleva a pendiente.
 - **Efectos** (`aplicar`): la tarea de transporte pasa a en curso / hecha y su fecha prevista es la llegada (así el
-  tablero avisa con `retraso_taller` y la dependencia del montaje «según el taller»); al recogerlo, la tarea del taller
+  cuadrante avisa con `retraso_taller` y la dependencia del montaje «según el taller»); al recogerlo, la tarea del taller
   anterior queda entregada al transportista; el material de los pedidos pasa a llegar ese día (`fecha_prevista`, avisos
   de material); novedad en la OT y aviso `ext_seguimiento` a planificar y logística. La **situación** de la OT dice
   «🚚 En barco con Ydica (ENV-…) · llega ~29/11». La ficha marca en rojo si lo siguiente de la OT aquí empieza antes.
@@ -968,7 +993,7 @@ con ese proveedor, se recuerda solo).
 - **▶ Activar seguimiento** (`POST /api/compras/pedidos/:id/seguimiento {activar, nuevo, enviar, email}`): enlace del proveedor
   (firma HMAC sobre `seg_nonce`), va en el correo y el PDF del pedido o se copia / envía aparte. En él confirma el pedido y,
   según el modo, fecha y agencia + tracking, «ya lo hemos entregado en el almacén» (fecha, bultos, kg, albarán) o cuándo estará
-  listo para recoger. La fecha de llegada que da pasa al material (`fecha_prevista`), así el tablero avisa si llega tarde.
+  listo para recoger. La fecha de llegada que da pasa al material (`fecha_prevista`), así el cuadrante avisa si llega tarde.
 - **Recordatorios** (laborables 9–19 h, con el seguimiento activo): sin nº de seguimiento a 1 día de la fecha; pasada la fecha
   sin llegar (o sin entregar en el almacén) → correo cada 2 días laborables y aviso a Compras; la segunda vez, **incidencia de
   transporte** contra el proveedor (`incidencia_trp_id`).
@@ -1059,7 +1084,7 @@ operario, ya pasada a capturas.)
   sin resolver → aviso al responsable y a Operaciones.
 - **Resolución automática**: al marcar «Recibido» el material en Logística, sus incidencias abiertas quedan resueltas.
   «Marcar resuelta» con texto y abono opcional.
-- **Tablero**: aviso `incidencia` en los tramos (hoy en adelante, sin cerrar) de las tareas afectadas, con «Solucionar →
+- **Cuadrante**: aviso `incidencia` en los tramos (hoy en adelante, sin cerrar) de las tareas afectadas, con «Solucionar →
   Abrir la incidencia»; el material con incidencia sigue con «🧰 ⚠».
 - Contador en el menú (`pendientes.incidencias`: las mías por gestionar + las que me toca cerrar). Aviso push `incidencia`.
 - API: `GET /api/incidencias?vista=mias|abiertas|esperando|por_cerrar|cerradas&tipo=`, `GET·PATCH /api/incidencias/:id`,
@@ -1080,12 +1105,12 @@ operario, ya pasada a capturas.)
   El **último tramo de una tarea terminada** lleva «✔ −3h menos» (verde) o «✔ +2h más» (rojo). (`tarea_excedentes` quedó
   de la primera versión, que sí subía la estimación; una migración deshizo lo sumado.)
 - **Turnos** (`turnos`: nombre, inicio, fin, por defecto; «Normal» 07:00–15:00 se crea solo): se gestionan en la pestaña;
-  cada operario tiene el suyo en su ficha (`recursos.turno_id`, vacío = el por defecto). El tablero enseña desde el inicio
+  cada operario tiene el suyo en su ficha (`recursos.turno_id`, vacío = el por defecto). El cuadrante enseña desde el inicio
   más temprano hasta el fin más tardío + 2 h.
 - **Horas extra** (`horas_extra`, una fila por persona y tramo): al planificar (crear, estirar, mover, repartir, empujar,
   asignar, cambiar franja) se calcula lo que cae fuera del turno de cada operario. Queda **pendiente**, o **autorizada** al
   momento si quien planifica tiene el permiso nuevo **autorizar_horas_extra** (Dirección y Administrador). Si las horas
-  crecen sobre lo ya decidido, se vuelve a pedir. En el tablero:
+  crecen sobre lo ya decidido, se vuelve a pedir. En el cuadrante:
   - diálogo «Horas extra» con el motivo → **Pedir autorización** (aviso `horas_extra` a Dirección: móvil › Supervisar ›
     Aprobar, u ordenador › Recursos) o **Solo hasta el fin de su turno** (recorta);
   - la parte extra del bloque rayada en rojo con «⏱ 4h extra ⏳» (verde ✔ autorizadas), aviso `horas_extra` con
@@ -1161,7 +1186,7 @@ solo). Sin ese permiso, **Informes** sale sin euros (ni coste, ni importe, ni ma
 
 - **«?»** arriba a la derecha en todas las pantallas (en Mi día, **Menú › Ayuda**): panel con para
   qué sirve la pantalla, **recorridos guiados** de su rol, un **vídeo corto** (se amplía al pulsarlo;
-  tablero, proyectos/importar, logística y Mi día), el **esquema del circuito**, pasos típicos y
+  cuadrante, proyectos/importar, logística y Mi día), el **esquema del circuito**, pasos típicos y
   «Qué significa…».
 - **Recorridos «hazlo conmigo»**: oscurecen la pantalla y resaltan un elemento cada vez. En los
   pasos «lo haces tú» el recorrido espera a que la persona pulse o escriba de verdad (solo cosas que
@@ -1177,7 +1202,7 @@ solo). Sin ese permiso, **Informes** sale sin euros (ni coste, ni importe, ni ma
   `data-ayuda="…"` o a ids estables. Lo visto se guarda en el navegador.
 - **Comprobación**: `herramientas/ayuda/comprobar.js` recorre todos los recorridos en la copia de
   prueba y avisa si algún paso ya no encuentra su elemento (`opcional: true` = depende de los datos).
-- **Vídeos**: `herramientas/ayuda/grabar.js [logistica|tablero|proyectos|midia]` los vuelve a grabar
+- **Vídeos**: `herramientas/ayuda/grabar.js [logistica|cuadrante|proyectos|midia]` los vuelve a grabar
   sobre la copia de prueba (¡cambia datos, nunca contra producción!) y los deja en `app/public/ayuda/`.
 - **Regla**: cada funcionalidad nueva añade su ayuda, su paso de recorrido si hace falta, su línea
   en `novedades`, y pasa `comprobar.js`; si cambia una pantalla con vídeo, se vuelve a grabar.
@@ -1221,27 +1246,27 @@ API: `/api/catalogo-llevar` · `/api/partidas/:id/escandallo` (+ `/enviar`) · `
 
 **Tres clases de «herramienta»** (no se mezclan)
 1. **Máquina fija → Área de trabajo** (sierra de cinta, plegadora, cizalla, torno, cabina…). En
-   Tablero › Áreas de trabajo, columna **Equipo fijo**: se marcan las máquinas (recursos) que están
+   Cuadrante › Áreas de trabajo, columna **Equipo fijo**: se marcan las máquinas (recursos) que están
    fijas allí (`recursos.fijo_area`) y se escriben otros elementos fijos (`lineas.equipamiento`: carpa,
    compresor…). Lo que se planifica en el área **los lleva solo**: las máquinas fijas cumplen lo que
-   pida la tarea (no sale «requiere … sin asignar»), el detalle del tablero muestra «En el área» y Mi
+   pida la tarea (no sale «requiere … sin asignar»), el detalle del cuadrante muestra «En el área» y Mi
    día «Ya está en …».
 2. **Equipo del que hay pocos → Recurso máquina** (taladro magnético ×2, soldadoras, llaves de
    impacto…). En Asignación › Herramientas, bloque **⚙ Equipos (hay pocos)**: se marca el tipo y la
-   tarea queda «requiere …» (`tarea_requisitos_tipo`); en el tablero se asigna cuál y se controla que
+   tarea queda «requiere …» (`tarea_requisitos_tipo`); en el cuadrante se asigna cuál y se controla que
    no se cruce. Los tipos cuyas máquinas son todas fijas de un área salen desactivados («planifica la
    tarea allí»). En Mi día, las máquinas asignadas al tramo salen con casilla (`equipo_check`).
 3. **Herramienta de mano → lista sencilla** (radial, martillo, sargentos, EPIs…), sin control de
    cantidad. El catálogo base ya no ofrece como herramienta las máquinas fijas, equipos contados,
    vehículos, grúas ni plataformas (`NO_DE_MANO` en `generar.py`; al cambiar la base se desactivan).
 
-**Lo ven en el tablero y en Mi día**
-- **Tablero**: cada tarea con material o herramientas lleva un icono en su bloque, en las fichas de
+**Lo ven en el cuadrante y en Mi día**
+- **Cuadrante**: cada tarea con material o herramientas lleva un icono en su bloque, en las fichas de
   semana/mes y en «Por planificar»: 🧰 ✔ (todo en almacén), 🧰 24/11 (pedido, llega ese día),
   🧰 falta (sin pedir), 🧰 ? (sin revisar), 🔧 (solo herramientas). En **rojo «llega dd/mm»** si llega
   después del día del tramo. Al pasar el ratón, la lista; en el detalle de la tarea, «Material» (con
   estado, proveedor y fecha de llegada) y «Herramientas».
-- **Avisos del tablero**: «el material llega el dd/mm» (rojo) si llega después del día planificado,
+- **Avisos del cuadrante**: «el material llega el dd/mm» (rojo) si llega después del día planificado,
   y «falta material sin pedir» (leve). Solo días de hoy en adelante y tramos sin cerrar.
 - **Aviso al móvil** (`mat_tarde`) a quien planifica y al técnico cuando compras marca una fecha
   de llegada posterior a un día ya planificado de una tarea que usa ese material.
@@ -1250,7 +1275,7 @@ API: `/api/catalogo-llevar` · `/api/partidas/:id/escandallo` (+ `/enviar`) · `
   y las herramientas 🔧. Cada operario **marca con una casilla** el material que ha recibido y las
   herramientas que va preparando (contador «recibido 2/3 · preparadas 1/2»; «todo listo ✔» al
   completarlo). Las marcas son de cada persona (tabla `llevar_check`; `PUT /api/mi-dia/llevar`
-  `{tipo: material|herramienta, id, hecho}`) y en el detalle de la tarea del tablero se ve
+  `{tipo: material|herramienta, id, hecho}`) y en el detalle de la tarea del cuadrante se ve
   «✔ recibido: Juan Robles» / «✔ preparada: …».
 
 ## API
@@ -1355,7 +1380,7 @@ API: `/api/catalogo-llevar` · `/api/partidas/:id/escandallo` (+ `/enviar`) · `
 
 ## Plan por fases
 
-**Fase 1 – Tablero operativo diario (hecho).** Vista día, drag & drop, conflictos, login y roles.
+**Fase 1 – Cuadrante operativo diario (hecho).** Vista día, drag & drop, conflictos, login y roles.
 
 **Fase 2 – Mantenimiento de datos.** Hecho: áreas de trabajo, proyectos, OTs y sus tareas.
 Hecho también: recursos (operarios, maquinaria, subcontratas) y usuarios con roles configurables,

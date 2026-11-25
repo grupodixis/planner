@@ -1,5 +1,6 @@
 /* Gantt: Proyecto › OT › tareas por semanas (o meses), con entrega ⚑, avance, riesgo y la carga por oficios, áreas,
-   talleres externos y subcontratas. No se planifica aquí: al pulsar una tarea se abre el tablero ese día. */
+   talleres externos y subcontratas. No se planifica aquí: al pulsar una tarea se abre su ventana (la misma del cuadrante),
+   con 📋 para verla en el cuadrante. */
 (() => {
   'use strict';
   const $ = (s) => document.querySelector(s);
@@ -60,6 +61,7 @@
       b('Incluir cerradas', est.cerradas, () => { est.cerradas = !est.cerradas; cargar(); }),
       b('Desplegar todo', false, () => { est.abiertas = new Set(est.datos.ots.map((o) => o.id)); guardar('abiertas', [...est.abiertas]); pintar(); }),
       b('Plegar todo', false, () => { est.abiertas.clear(); guardar('abiertas', []); pintar(); }),
+      b('📄 Exportar', false, () => exportar(), 'Gantt de un proyecto en PDF o imagen, para enviar o presentar'),
       el('input', { type: 'search', class: 'gt-buscar', placeholder: '🔍 Obra, cliente, proyecto, OT…', value: est.q, 'aria-label': 'Buscar',
         oninput: (ev) => { clearTimeout(tq); tq = setTimeout(() => { est.q = ev.target.value; pintar(); }, 200); } })].flat(Infinity));
   }
@@ -108,7 +110,13 @@
     const barra = (a, b, cls, txt, title, onclick) => {
       const ini = a < d.desde ? d.desde : a; const fin = b > d.hasta ? d.hasta : b;
       if (fin < d.desde || ini > d.hasta) return null;
-      return el(onclick ? 'button' : 'div', { type: onclick ? 'button' : null, class: `gt-bb ${cls}${a < d.desde ? ' corta-i' : ''}${b > d.hasta ? ' corta-d' : ''}`, style: { left: `${pos(ini)}%`, width: `${ancho(ini, fin)}%` }, title, onclick }, txt ? el('span', {}, txt) : null);
+      // al pulsar, el día que queda bajo el ratón
+      const pulsar = onclick && ((ev) => {
+        const r = ev.currentTarget.getBoundingClientRect();
+        const n = Math.round((Date.parse(`${fin}T12:00:00Z`) - Date.parse(`${ini}T12:00:00Z`)) / 864e5) + 1;
+        onclick(masDias(ini, Math.min(n - 1, Math.max(0, Math.floor(((ev.clientX - r.left) / (r.width || 1)) * n)))));
+      });
+      return el(onclick ? 'button' : 'div', { type: onclick ? 'button' : null, class: `gt-bb ${cls}${a < d.desde ? ' corta-i' : ''}${b > d.hasta ? ' corta-d' : ''}`, style: { left: `${pos(ini)}%`, width: `${ancho(ini, fin)}%` }, title, onclick: pulsar }, txt ? el('span', {}, txt) : null);
     };
     const filas = [];
     for (const [k, g] of grupos) {
@@ -117,7 +125,8 @@
         filas.push(el('div', { class: 'gt-fila gt-grupo' },
           el('div', { class: 'gt-lab' }, el('button', { type: 'button', class: 'gt-pleg', 'aria-expanded': String(!plegado), onclick: () => { if (plegado) est.plegados.delete(k); else est.plegados.add(k); guardar('plegados', [...est.plegados]); pintar(); } }, plegado ? '▸' : '▾'),
             g.u ? el('a', { href: g.u }, el('b', {}, g.t)) : el('b', {}, g.t), g.s ? el('div', { class: 'gt-sub' }, g.s) : null,
-            plegado ? el('span', { class: 'gt-sub' }, ` · ${g.ots.length} OT`) : null),
+            plegado ? el('span', { class: 'gt-sub' }, ` · ${g.ots.length} OT`) : null,
+            est.agrupar === 'proyecto' ? el('button', { type: 'button', class: 'gt-exp', title: 'Exportar el Gantt de este proyecto (PDF o imagen)', 'aria-label': 'Exportar', onclick: () => exportar(g.ots[0].proyecto.id) }, '📄') : null),
           el('div', { class: 'gt-tl' }, fondo())));
       }
       if (plegado) continue;
@@ -143,12 +152,14 @@
           tl));
         if (!abierta) continue;
         for (const t of o.tareas) {
-          const ir = t.primera ? () => { location.href = `/?fecha=${t.segmentos.find((s) => s[1] >= d.hoy)?.[0] || t.primera}`; } : null;
+          const cerca = t.segmentos.find((s) => s[1] >= d.hoy)?.[0] || t.primera || t.segmentos[0]?.[0] || d.hoy;
+          const ir = (f) => abrirTarea(t, f, o.color);
           filas.push(el('div', { class: 'gt-fila gt-t' },
-            el('div', { class: 'gt-lab' }, el('b', { class: 'cod' }, t.codigo), ` ${t.nombre}`,
+            el('div', { class: 'gt-lab' }, el('a', { class: 'gt-cuad', href: `/?tarea=${t.id}&fecha=${cerca}&periodo=dia`, title: 'Ver en el cuadrante', 'aria-label': `Ver ${t.codigo} en el cuadrante` }, '📋'),
+              el('button', { type: 'button', class: 'gt-t-n', title: 'Abrir la tarea', onclick: () => ir(cerca) }, el('b', { class: 'cod' }, t.codigo), ` ${t.nombre}`),
               el('div', { class: 'gt-sub' }, [t.proveedor ? `${{ ext: '🏭', trp: '🚚', sub: '🏗' }[t.clase] || ''} ${t.proveedor}` : t.area, t.hecha ? '✔ hecha' : t.sin_plan ? 'sin planificar' : t.falta_h ? `faltan ${t.falta_h} h` : null].filter(Boolean).join(' · '))),
             el('div', { class: 'gt-tl' }, fondo(),
-              t.segmentos.map(([a, b]) => barra(a, b, `${t.hecha ? 'hecha' : t.clase}`, t.clase === 'propia' ? '' : t.proveedor, `${t.codigo} ${t.nombre} · ${dm(a)}${a !== b ? ` → ${dm(b)}` : ''}${ir ? ' · abrir en el tablero' : ''}`, ir)))));
+              t.segmentos.map(([a, b]) => barra(a, b, `${t.hecha ? 'hecha' : t.clase}`, t.clase === 'propia' ? '' : t.proveedor, `${t.codigo} ${t.nombre} · ${dm(a)}${a !== b ? ` → ${dm(b)}` : ''} · pulsa para abrir la tarea`, ir)))));
         }
       }
     }
@@ -157,6 +168,84 @@
     $('#gt-ley').replaceChildren(...Object.entries(CLASE).map(([k, t]) => el('span', {}, el('i', { class: `gt-bb ${k}` }), t)),
       el('span', {}, el('i', { class: 'gt-bb hecha' }), 'Hecho'), el('span', {}, el('i', { class: 'gt-bb falta' }), 'Falta planificar'),
       el('span', {}, el('b', { class: 'gt-hoy-ley' }), 'hoy'), el('span', {}, '⚑ entrega (roja si no llega)'));
+  }
+
+  /* ---------- ventana de la tarea: la misma del cuadrante (en modo «solo detalle») ---------- */
+  let cambiado = false;
+  function abrirTarea(t, fecha, color) {
+    let dlg = $('#gt-det');
+    if (!dlg) {
+      dlg = el('dialog', { id: 'gt-det', class: 'gt-det', 'aria-label': 'Tarea' });
+      dlg.addEventListener('click', (ev) => { if (ev.target === dlg) dlg.close(); });
+      dlg.addEventListener('close', () => { dlg.replaceChildren(); if (cambiado) { cambiado = false; cargar().catch(() => {}); } });
+      document.body.append(dlg);
+    }
+    dlg.style.setProperty('--c', color || '');
+    dlg.replaceChildren(el('div', { class: 'gt-det-carga' }, `Abriendo ${t.codigo}…`),
+      el('iframe', { src: `/?solo=detalle&tarea=${t.id}&fecha=${fecha}&periodo=dia`, title: `${t.codigo} ${t.nombre}` }));
+    if (!dlg.open) dlg.showModal();
+  }
+  window.addEventListener('message', (ev) => {
+    if (ev.origin !== location.origin || !ev.data?.s360) return;
+    const dlg = $('#gt-det');
+    if (ev.data.cambio) cambiado = true;
+    if (ev.data.s360 === 'listo') dlg?.querySelector('.gt-det-carga')?.remove();
+    if (ev.data.s360 === 'cerrar' && dlg?.open) dlg.close();
+    if (ev.data.s360 === 'sin-tarea' && dlg?.open) { dlg.close(); window.s360.aviso?.('Esa tarea ya no está en el cuadrante'); }
+  });
+
+  /* ---------- exportar el Gantt de un proyecto (PDF o imagen) ---------- */
+  const NOTA = 'Planificación prevista a la fecha de emisión. Las fechas pueden ajustarse según el avance de los trabajos y la confirmación de suministros.';
+  async function exportar(proyectoId) {
+    const proys = [];
+    for (const o of est.datos?.ots || []) if (!proys.some((p) => p.id === o.proyecto.id)) proys.push(o.proyecto);
+    let todos = proys;
+    try { const r = await api('GET', '/api/proyectos'); const l = Array.isArray(r) ? r : r.proyectos || []; if (l.length) todos = l.map((p) => ({ id: p.id, codigo: p.codigo, nombre: p.nombre, estado: p.estado })); } catch { /* los del Gantt */ }
+    const op = { nivel: 'tareas', avance: true, quien: false, hoy: true, papel: 'a4', titulo: 'Planificación del proyecto', nota: NOTA, ...leer('export', {}) };
+    let pid = proyectoId || proys[0]?.id || todos[0]?.id;
+    const d = el('dialog', { class: 'gt-exp-dlg', 'aria-labelledby': 'gt-exp-tit' });
+    const url = (fmt, extra = '') => `/api/gantt/proyecto/${pid}/informe.${fmt}?${new URLSearchParams({ nivel: op.nivel, avance: op.avance ? 1 : 0, quien: op.quien ? 1 : 0, hoy: op.hoy ? 1 : 0, papel: op.papel, titulo: op.titulo, nota: op.nota })}${extra}`;
+    const vista = el('img', { class: 'gt-exp-img', alt: 'Vista previa' });
+    let tv;
+    const refrescar = () => { guardar('export', { ...op }); clearTimeout(tv); tv = setTimeout(() => { vista.src = url('svg', `&_=${Date.now()}`); }, 250); };
+    const radio = (k, v, t) => el('label', { class: 'gt-exp-op' }, el('input', { type: 'radio', name: `gx-${k}`, checked: op[k] === v, onchange: () => { op[k] = v; refrescar(); } }), t);
+    const chk = (k, t) => el('label', { class: 'gt-exp-op' }, el('input', { type: 'checkbox', checked: op[k], onchange: (ev) => { op[k] = ev.target.checked; refrescar(); } }), t);
+    const ocupado = (b, fn) => async () => { const t0 = b.textContent; b.disabled = true; b.textContent = 'Preparando…'; try { await fn(); } catch (e) { window.s360.aviso?.(e.message || 'No se pudo exportar'); } b.disabled = false; b.textContent = t0; };
+    const bajar = (blob, nombre) => { const a = el('a', { href: URL.createObjectURL(blob), download: nombre }); document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000); };
+    const codigo = () => (todos.find((p) => p.id === pid)?.codigo || 'proyecto').replace(/[^\w.-]+/g, '-');
+    const bPdf = el('button', { type: 'button', class: 'primario' }, '⬇ PDF');
+    bPdf.onclick = ocupado(bPdf, async () => { const r = await fetch(url('pdf', '&descargar=1')); if (!r.ok) throw new Error('No se pudo generar el PDF'); bajar(await r.blob(), `Planificacion-${codigo()}.pdf`); });
+    const bPng = el('button', { type: 'button' }, '⬇ Imagen (PNG)');
+    bPng.onclick = ocupado(bPng, async () => {
+      const r = await fetch(url('svg')); if (!r.ok) throw new Error('No se pudo generar la imagen');
+      const svg = await r.text();
+      const img = new Image();
+      await new Promise((ok, ko) => { img.onload = ok; img.onerror = ko; img.src = URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml' })); });
+      const k = 2; const c = el('canvas'); c.width = img.naturalWidth * k; c.height = img.naturalHeight * k;
+      const g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height); g.drawImage(img, 0, 0, c.width, c.height);
+      URL.revokeObjectURL(img.src);
+      bajar(await new Promise((ok) => c.toBlob(ok, 'image/png')), `Planificacion-${codigo()}.png`);
+    });
+    d.append(
+      el('div', { class: 'gt-exp-cab' }, el('h2', { id: 'gt-exp-tit' }, '📄 Exportar el Gantt de un proyecto'),
+        el('button', { type: 'button', class: 'ghost', 'aria-label': 'Cerrar', onclick: () => d.close() }, '✕')),
+      el('div', { class: 'gt-exp-cuerpo' },
+        el('div', { class: 'gt-exp-form' },
+          el('label', { class: 'gt-exp-campo' }, el('span', {}, 'Proyecto'),
+            el('select', { onchange: (ev) => { pid = Number(ev.target.value); refrescar(); } },
+              todos.map((p) => el('option', { value: p.id, selected: p.id === pid }, `${p.codigo} · ${p.nombre}${p.estado && p.estado !== 'activo' ? ` (${p.estado})` : ''}`)))),
+          el('fieldset', {}, el('legend', {}, 'Detalle'), radio('nivel', 'tareas', 'OTs y sus tareas'), radio('nivel', 'ot', 'Solo las OTs')),
+          el('fieldset', {}, el('legend', {}, 'Mostrar'), chk('avance', 'Avance (%)'), chk('hoy', 'Línea de hoy'), chk('quien', 'Quién hace los trabajos externos (talleres, subcontratas)')),
+          el('label', { class: 'gt-exp-campo' }, el('span', {}, 'Título'), el('input', { value: op.titulo, maxlength: 120, oninput: (ev) => { op.titulo = ev.target.value; refrescar(); } })),
+          el('label', { class: 'gt-exp-campo' }, el('span', {}, 'Nota al pie'), el('textarea', { rows: 3, maxlength: 600, oninput: (ev) => { op.nota = ev.target.value; refrescar(); } }, op.nota)),
+          el('fieldset', {}, el('legend', {}, 'Papel del PDF'), radio('papel', 'a4', 'A4 horizontal'), radio('papel', 'a3', 'A3 horizontal')),
+          el('p', { class: 'ayuda' }, 'Sale solo lo planificado, sin datos internos (riesgo, horas que faltan, personas). Lo que aún no tiene días sale «por planificar».'),
+          el('div', { class: 'gt-exp-bot' }, bPdf, bPng)),
+        el('div', { class: 'gt-exp-vista' }, vista)));
+    d.addEventListener('close', () => d.remove());
+    document.body.append(d);
+    d.showModal();
+    refrescar();
   }
 
   /* ---------- carga ---------- */

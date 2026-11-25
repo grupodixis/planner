@@ -355,7 +355,7 @@ function montar(app, asyncH) {
     res.json({ ok: true, ...out });
   }));
 
-  // Avisos de ausencia de los operarios (para el parte y el tablero)
+  // Avisos de ausencia de los operarios (para el parte y el cuadrante)
   const encargado = auth.permiso('planificar');
   app.get('/api/avisos-ausencia', encargado, asyncH(async (req, res) => {
     const desde = FECHA_RE.test(req.query.desde || '') ? req.query.desde : sumarDias(hoyMadrid(), -1);

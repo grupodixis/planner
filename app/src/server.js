@@ -38,7 +38,7 @@ require('./capturas').montar(app, asyncH);
 require('./notificaciones').montar(app, asyncH);   // avisos al móvil (push) y avisos programados   // bandeja de capturas (texto, audio, foto, vídeo) → tarea / asunto / info
 eventos.montar(app);   // GET /api/eventos (con sesión)
 
-/* ---------- Tablero y tramos ---------- */
+/* ---------- Cuadrante y tramos ---------- */
 
 require('./partes').montar(app, asyncH);
 require('./midia').montar(app, asyncH);   // «Mi día» de cada operario y lo que declara para el parte   // parte del día (va antes: protege lo ya cerrado)
@@ -302,8 +302,9 @@ require('./transportes').montarGestion(app, asyncH);   // envíos península →
 require('./compras-locales').montar(app, asyncH);   // compras locales: pedir, autorizar, ticket, cuadrar
 require('./supervision').montar(app, asyncH);   // supervisar desde el móvil: recibir, parte, aprobar, dónde está
 require('./horas-extra').montar(app, asyncH);   // turnos, excedentes y horas extra (autoriza Dirección)
-require('./obras-clientes').montar(app, asyncH);
-require('./gantt').montar(app, asyncH);   // Gantt: plan por semanas, riesgo de cada OT y carga   // Obras (dirección con sus proyectos) y Clientes (con sus contactos)
+require('./obras-clientes').montar(app, asyncH);   // Obras (dirección con sus proyectos) y Clientes (con sus contactos)
+require('./gantt').montar(app, asyncH);   // Gantt: plan por semanas, riesgo de cada OT y carga
+require('./gantt-informe').montar(app, asyncH);   // Gantt de un proyecto en PDF o imagen (para clientes, proveedores, pliegos)
 require('./incidencias').montar(app, asyncH);   // incidencias: material, transporte, calidad… con reclamación y cierre
 require('./pedido-transporte').montar(app, asyncH);   // cómo llega cada pedido: proveedor, recogida o almacén del transportista
 require('./recursos')(app, asyncH);

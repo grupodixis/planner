@@ -144,7 +144,7 @@ function montar(app, asyncH) {
     res.json(rows.map((a) => ({ ...a, dias_laborables: Math.round(laborables(a, fest) * 100) / 100, texto: textoAusencia(a), archivos: adj.get(a.id) || [] })));
   }));
 
-  // Las apunta quien gestiona recursos y también quien planifica (una falta se registra desde el tablero)
+  // Las apunta quien gestiona recursos y también quien planifica (una falta se registra desde el cuadrante)
   app.post('/api/ausencias', auth.permiso('recursos', 'planificar'), asyncH(async (req, res) => {
     const b = req.body || {};
     const d = leerAusencia(b, false);

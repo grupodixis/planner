@@ -1,5 +1,5 @@
 // Obras y clientes (Proyectos › Obras · Proyectos › Clientes).
-//  · Obra: una dirección que reúne proyectos (de uno o varios clientes). Tiene una fila en el tablero (lineas tipo
+//  · Obra: una dirección que reúne proyectos (de uno o varios clientes). Tiene una fila en el cuadrante (lineas tipo
 //    'obra', obra_id), que sale mientras alguno de sus proyectos está activo. Un proyecto está en una obra o en ninguna.
 //  · Cliente: datos fiscales y de contacto y sus personas (con lo que aprueba cada una y cómo se le avisa).
 //  · proyectos.obra (la dirección) y proyectos.cliente (el nombre) se mantienen como copia del texto de la ficha.
@@ -15,13 +15,13 @@ const norm = (s) => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-
 const sinPrefijo = (n) => String(n || '').replace(/^obra\s*[·:-]\s*/i, '').trim();
 const TIPOS_CLIENTE = ['empresa', 'particular', 'comunidad', 'administracion'];
 const APRUEBA = ['todo', 'planos', 'muestras', 'cambios', 'actas', 'citas'];
-// Una obra sale en el tablero mientras tiene algún proyecto activo (las filas de obra antiguas, sin ficha, por su proyecto)
+// Una obra sale en el cuadrante mientras tiene algún proyecto activo (las filas de obra antiguas, sin ficha, por su proyecto)
 const SQL_OBRA_ACTIVA = (l = 'l', p = 'p') => `((${l}.obra_id IS NOT NULL AND EXISTS (SELECT 1 FROM proyectos px WHERE px.obra_id = ${l}.obra_id AND px.estado = 'activo'))
   OR (${l}.obra_id IS NULL AND ${p}.estado = 'activo'))`;
 const SQL_OBRA_PROYECTOS = (l = 'l') => `(SELECT string_agg(px.codigo, ' · ' ORDER BY px.codigo) FROM proyectos px WHERE px.obra_id = ${l}.obra_id AND px.estado = 'activo')`;
 
 /* ---------- obras ---------- */
-// La fila del tablero de la obra (se crea si no la tiene)
+// La fila del cuadrante de la obra (se crea si no la tiene)
 async function lineaDeObra(c, obraId) {
   const { rows: ya } = await c.query(`SELECT id FROM lineas WHERE obra_id = $1 AND tipo = 'obra' ORDER BY activo DESC, id LIMIT 1`, [obraId]);
   if (ya.length) { await c.query('UPDATE lineas SET activo = TRUE WHERE id = $1', [ya[0].id]); return ya[0].id; }
@@ -62,7 +62,7 @@ async function clientePorNombre(c, nombre) {
   return r[0].id;
 }
 
-// Pone (o quita) la obra de un proyecto; deja su fila del tablero lista y el texto copiado
+// Pone (o quita) la obra de un proyecto; deja su fila del cuadrante lista y el texto copiado
 async function asignarObra(c, proyectoId, obraId) {
   if (obraId) {
     const { rows } = await c.query('SELECT direccion FROM obras WHERE id = $1', [obraId]);
@@ -280,7 +280,7 @@ function montar(app, asyncH) {
     const o = await tx(async (c) => {
       const { rows } = await c.query(`UPDATE obras SET ${cols.map((k, i) => `${k} = $${i + 2}`).join(', ')} WHERE id = $1 RETURNING *`, [id, ...cols.map((k) => d[k])]);
       if (!rows.length) throw fallo(404, 'Obra no encontrada');
-      // la fila del tablero y el texto de sus proyectos siguen a la ficha
+      // la fila del cuadrante y el texto de sus proyectos siguen a la ficha
       if (d.nombre) {
         const { rows: ocupado } = await c.query(`SELECT 1 FROM lineas WHERE lower(nombre) = lower($1) AND obra_id IS DISTINCT FROM $2`, [`Obra · ${d.nombre}`, id]);
         await c.query(`UPDATE lineas SET nombre = $2 WHERE obra_id = $1 AND tipo = 'obra'`, [id, `Obra · ${d.nombre}${ocupado.length ? ` (${id})` : ''}`.slice(0, 120)]);
@@ -295,7 +295,7 @@ function montar(app, asyncH) {
     res.json(o);
   }));
 
-  // Borrar: solo sin proyectos (su fila del tablero se quita si no tiene trabajo)
+  // Borrar: solo sin proyectos (su fila del cuadrante se quita si no tiene trabajo)
   app.delete('/api/obras/:id', p, asyncH(async (req, res) => {
     const id = Number(req.params.id);
     await tx(async (c) => {

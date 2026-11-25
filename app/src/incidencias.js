@@ -682,7 +682,7 @@ async function contar(u) {
   }).length;
 }
 
-// incidencias abiertas que afectan a cada tarea (para el tablero)
+// incidencias abiertas que afectan a cada tarea (para el cuadrante)
 async function porTareas(tareaIds) {
   const out = new Map();
   if (!tareaIds.length) return out;

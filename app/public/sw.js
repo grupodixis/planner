@@ -9,7 +9,7 @@
 //    pedir compra local, ticket) va a una BANDEJA DE SALIDA (IndexedDB) y se envía solo, en orden, en cuanto hay red.
 //    Mientras tanto, lo pendiente se ve ya aplicado en Mi día y en Mis compras. Las fotos sin enviar llevan un id
 //    provisional negativo que se cambia por el de verdad al enviarlas.
-const VERSION = 'v16';
+const VERSION = 'v17';
 const SHELL = `planealo-shell-${VERSION}`;
 const DATOS = 'planealo-datos-v1';
 const OFFLINE = '/offline.html';

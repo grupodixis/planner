@@ -261,7 +261,7 @@ function montar(app, asyncH) {
     res.json({ ok: true });
   }));
 
-  // Pedir (con el motivo) las extra que acaba de crear un cambio del tablero
+  // Pedir (con el motivo) las extra que acaba de crear un cambio del cuadrante
   app.post('/api/tramos/:id/horas-extra/pedir', auth.permiso('planificar'), asyncH(async (req, res) => {
     const id = Number(req.params.id);
     const motivo = String(req.body?.motivo || '').trim().slice(0, 500) || null;

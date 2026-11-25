@@ -76,7 +76,7 @@ async function cargar(c, S, opciones = {}) {
   for (const [i, d] of S.departamentos.entries()) {
     const { rows: [ya] } = await c.query('SELECT * FROM departamentos WHERE clave = $1', [d.clave]);
     if (ya) {
-      // el orden lo decide cada empresa arrastrando en el tablero: el semillero no lo pisa
+      // el orden lo decide cada empresa arrastrando en el cuadrante: el semillero no lo pisa
       await c.query('UPDATE departamentos SET nombre = $2 WHERE id = $1', [ya.id, d.nombre]);
       if (ya.nombre !== d.nombre) anota('departamentos', 'renombrar', d.nombre, `antes «${ya.nombre}»`);
       depId.set(d.clave, ya.id);
@@ -364,7 +364,7 @@ module.exports = function montar(app, asyncH) {
     res.json(rows);
   }));
 
-  // Reordenar departamentos (grupos del tablero): lista de ids en el orden deseado
+  // Reordenar departamentos (grupos del cuadrante): lista de ids en el orden deseado
   app.put('/api/departamentos/orden', auth.permiso('recursos'), asyncH(async (req, res) => {
     const ids = Array.isArray(req.body?.ids) ? req.body.ids.map(Number).filter(Number.isInteger) : [];
     if (!ids.length) throw fallo(400, 'Falta el orden');

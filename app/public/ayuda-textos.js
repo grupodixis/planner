@@ -6,7 +6,7 @@
 window.S360_AYUDA = {
   pantallas: {
     '/': {
-      titulo: 'Tablero de planificación',
+      titulo: 'Cuadrante de planificación',
       para_que: 'Aquí se reparte el trabajo: qué tarea se hace, qué día, en qué área y con quién. A la derecha lo que falta por planificar, en el centro el calendario y a la izquierda la gente, las máquinas y las subcontratas.',
       video: { src: '/ayuda/tablero-planificar.mp4', poster: '/ayuda/tablero-planificar.jpg', texto: 'Planificar una tarea: arrastrarla al calendario y asignarle una persona.' },
       esquema: {
@@ -22,7 +22,7 @@ window.S360_AYUDA = {
       recorridos: [
         {
           id: 'tab-basico', version: 1, si: 'planificar', ofrecer: true, conmigo: true, duracion: '2 min',
-          titulo: 'Cómo planificar en el tablero',
+          titulo: 'Cómo planificar en el cuadrante',
           pasos: [
             { texto: 'En dos minutos: dónde está lo que falta por hacer, cómo se pone en el calendario y cómo se asigna la gente. <b>No cambiaremos nada</b>: los pasos que tocan datos solo te los enseño.' },
             { sel: '#ordenes-lista', texto: '<b>Por planificar</b>: todo lo pendiente, agrupado <b>Proyecto › Partida › OT</b>. Las cabeceras se pliegan; ⚠ son condiciones previas sin cumplir (pago, RAL…).' },
@@ -41,7 +41,7 @@ window.S360_AYUDA = {
       ],
       secciones: [
         { titulo: '⏱ Excedente y horas extra', texto: 'Si <b>alargas un tramo</b> más allá de lo estimado, <b>la estimación no cambia</b>: lo que pasa se ve <b>rayado</b> en el bloque con «+1h excedente» (sin estimar). En el detalle de la tarea, «Real» compara las horas del parte con las previstas; al <b>terminarla</b>, su último tramo lleva «✔ −3h menos» (verde) o «+2h más» (rojo). Si queda <b>fuera del turno</b> de alguien (por defecto 07:00–15:00; cada persona puede tener el suyo), son <b>horas extra</b>: sale «Horas extra» para poner el motivo y <b>Pedir autorización</b> a Dirección, o «Solo hasta el fin de su turno». Mientras no se autorizan, el bloque lleva la parte extra rayada en rojo y «⏱ 2h extra ⏳»; autorizadas, en verde. Si Dirección dice que no, la franja vuelve al fin de su turno. Si tienes el permiso de autorizar, quedan autorizadas al momento.' },
-        { titulo: '🏭 Talleres externos', texto: 'Al final del tablero, el bloque <b>Talleres externos</b>: una fila por taller de fuera mientras tenga tareas activas (como las obras). Sus tareas se planifican ahí, arrastrándolas, y no ocupan a nadie de aquí (sin avisos de operarios ni jornada). Si el montaje está planificado antes de que termine lo de fuera, sale un aviso en rojo. Al pulsar una tarea ves la <b>📍 situación</b> de la OT y puedes poner su avance.' },
+        { titulo: '🏭 Talleres externos', texto: 'Al final del cuadrante, el bloque <b>Talleres externos</b>: una fila por taller de fuera mientras tenga tareas activas (como las obras). Sus tareas se planifican ahí, arrastrándolas, y no ocupan a nadie de aquí (sin avisos de operarios ni jornada). Si el montaje está planificado antes de que termine lo de fuera, sale un aviso en rojo. Al pulsar una tarea ves la <b>📍 situación</b> de la OT y puedes poner su avance.' },
         {
           titulo: 'Planificar una tarea', si: 'planificar',
           pasos: [
@@ -84,7 +84,7 @@ window.S360_AYUDA = {
       esquema: {
         titulo: 'De lo planificado a lo real',
         pasos: [
-          { que: 'Se planifica', quien: 'Tablero' },
+          { que: 'Se planifica', quien: 'Cuadrante' },
           { que: 'Cada operario apunta su día', quien: 'Mi día (móvil)' },
           { que: 'Se revisa y confirma', quien: 'Encargado', aqui: true },
           { que: 'Se cierra el día', quien: 'Encargado', aqui: true },
@@ -101,7 +101,7 @@ window.S360_AYUDA = {
             { sel: '#tramos', texto: 'Cada trabajo planificado, con lo que apuntó el operario. Ciérralo con <b>✓ Como estaba</b>, <b>✎ Corregir</b> (quién y de qué hora a qué hora) o <b>✗ No se hizo</b>.', aviso: 'Y dile cómo va la tarea: <b>sigue</b>, <b>faltan X h</b> (reestima) o <b>terminada</b>.' },
             { sel: '#personas', texto: '<b>Por persona</b>: las horas de cada uno ese día, para ver de un vistazo si cuadra.' },
             { sel: '#form-horas', texto: '<b>Horas fuera del plan</b>: trabajo no planificado o tiempo no productivo (desplazamiento, limpieza, formación…).' },
-            { sel: '#cerrar-dia', texto: '<b>Cerrar el día</b>: lo que quede se da por hecho tal cual. Un día cerrado ya no se cambia en el tablero (se puede reabrir).' },
+            { sel: '#cerrar-dia', texto: '<b>Cerrar el día</b>: lo que quede se da por hecho tal cual. Un día cerrado ya no se cambia en el cuadrante (se puede reabrir).' },
           ],
         },
       ],
@@ -112,7 +112,7 @@ window.S360_AYUDA = {
             ['<b>✓ Como estaba</b>', 'Se hizo tal cual estaba planificado.'],
             ['<b>✓ Confirmar lo apuntado</b>', 'Da por bueno lo que apuntó el operario en su móvil.'],
             ['<b>✎ Corregir</b>', 'Otra gente u otras horas; con motivo (falta de material, avería, clima…).'],
-            ['<b>✗ No se hizo</b>', 'Se quita del tablero y sus horas vuelven a «Por planificar».'],
+            ['<b>✗ No se hizo</b>', 'Se quita del cuadrante y sus horas vuelven a «Por planificar».'],
             ['<b>faltan X h</b>', 'Horas de reloj que le quedan a la tarea: reestima lo pendiente.'],
             ['<b>terminada</b>', 'La tarea cuenta para el avance; pregunta si quitar lo planificado después.'],
           ],
@@ -131,7 +131,7 @@ window.S360_AYUDA = {
           { que: 'Proyecto', quien: 'Cliente, obra, condiciones previas', aqui: true },
           { que: 'Partida', quien: 'La del presupuesto, con su material', aqui: true },
           { que: 'OT (orden de trabajo)', quien: 'Hito con fecha de entrega', aqui: true },
-          { que: 'Tarea', quien: 'Horas, operarios, lo que pide → al tablero', aqui: true },
+          { que: 'Tarea', quien: 'Horas, operarios, lo que pide → al cuadrante', aqui: true },
         ],
       },
       recorridos: [
@@ -142,17 +142,17 @@ window.S360_AYUDA = {
             { sel: '#btn-importar', texto: '<b>Importar…</b>: se arrastra el archivo del compositor. Antes de cambiar nada sale una <b>vista previa</b>; reimportar actualiza sin duplicar.' },
             { sel: '#lista-proyectos li:not(.ayuda)', esperar: 'click', texto: 'Los proyectos activos. <b>Pulsa uno</b> para abrirlo.', saltar_si: () => !document.getElementById('proyecto-ficha')?.hidden },
             { sel: '#proyecto-campos', texto: 'Sus datos. <b>Cliente</b> y <b>Obra</b> se eligen de sus fichas (buscador: elegir, crear o «Sin obra»); lo demás se guarda al salir de cada campo.' },
-            { sel: '#proyecto-condiciones', texto: '<b>Condiciones previas</b> (anticipo, RAL confirmado…): mientras estén sin marcar, el tablero lo avisa.' },
+            { sel: '#proyecto-condiciones', texto: '<b>Condiciones previas</b> (anticipo, RAL confirmado…): mientras estén sin marcar, el cuadrante lo avisa.' },
             { sel: '.gp-mat', opcional: true, texto: 'Cada partida tiene su material: <b>📋 Escandallo</b> (lo que hace falta, lo envía el técnico a logística) y <b>🧩 Asignar</b> (qué tarea usa cada material y herramienta).' },
             { sel: '#lista-ots li:not(.grupo-partida):not(.ayuda)', esperar: 'click', texto: 'Las <b>OTs</b> de cada partida. <b>Pulsa una</b> para ver sus tareas.', saltar_si: () => !document.getElementById('ot-ficha')?.hidden },
-            { sel: '#tareas-tbody', texto: 'Las <b>tareas</b>: horas, operarios, área. Son lo que luego se arrastra al tablero. Se ordenan con el asa ⠿.' },
+            { sel: '#tareas-tbody', texto: 'Las <b>tareas</b>: horas, operarios, área. Son lo que luego se arrastra al cuadrante. Se ordenan con el asa ⠿.' },
             { sel: '.req-btn', opcional: true, texto: '<b>Requiere</b>: lo que tienen que saber hacer los operarios, equipos, subcontratas… Se abre un cuadro para marcarlo.' },
-            { sel: '#ot-tablero', texto: '<b>Ver en el tablero</b> te lleva a esta OT en la planificación.' },
+            { sel: '#ot-tablero', texto: '<b>Ver en el cuadrante</b> te lleva a esta OT en la planificación.' },
           ],
         },
       ],
       secciones: [
-        { titulo: '🏗 Subcontrata en obra', texto: 'Si el trabajo lo hace aquí (en la obra o en el taller) una subcontrata, en <b>Área / taller</b> elige «🏗 nombre» (grupo «Subcontrata en obra»): la tarea conserva su área y se planifica en el tablero como las demás, sin operarios propios; en <b>Oper.</b> pones las personas que pone ella. <b>🏭 Subcontratar…</b> le pide presupuesto (responde precio, días, personas y cuándo puede empezar) o hace el pedido. En su enlace <b>confirma los días</b> que le planificas (o propone otros); si los cambias, se le pide confirmar otra vez, y el día antes le llega un recordatorio. Cada día apunta su <b>parte</b> (personas, horas, avance, fotos); tú lo <b>validas</b> debajo de la tarea o abres una incidencia de calidad. El parte «terminado» validado cierra la tarea.' },
+        { titulo: '🏗 Subcontrata en obra', texto: 'Si el trabajo lo hace aquí (en la obra o en el taller) una subcontrata, en <b>Área / taller</b> elige «🏗 nombre» (grupo «Subcontrata en obra»): la tarea conserva su área y se planifica en el cuadrante como las demás, sin operarios propios; en <b>Oper.</b> pones las personas que pone ella. <b>🏭 Subcontratar…</b> le pide presupuesto (responde precio, días, personas y cuándo puede empezar) o hace el pedido. En su enlace <b>confirma los días</b> que le planificas (o propone otros); si los cambias, se le pide confirmar otra vez, y el día antes le llega un recordatorio. Cada día apunta su <b>parte</b> (personas, horas, avance, fotos); tú lo <b>validas</b> debajo de la tarea o abres una incidencia de calidad. El parte «terminado» validado cierra la tarea.' },
         { titulo: '🏭 Tareas que hace un taller de fuera', texto: 'En la columna <b>Área / taller</b> de la tarea, elige el taller externo (Ferros Puig, la carpintería de aluminio, la galvanizadora, el transporte…). No hay etapas fijas: las etapas son las tareas de la OT, en su orden (con «después de…»). Debajo pones el <b>avance</b> y <b>cómo va</b>. Arriba de las tareas, la <b>📍 situación del producto</b>: dónde está ahora, hasta cuándo y lo que queda fuera.' },
         { titulo: '📨 Seguimiento con el taller', texto: 'Debajo de su tarea, <b>▶ Comenzar seguimiento</b> le manda al taller (por correo, o copias el enlace para WhatsApp) un <b>enlace sin usuario</b>. Ahí ve sus tareas de la OT con nuestras fechas y nos dice: <b>sin empezar / en curso / terminado / entregado</b>, el avance, cuándo terminará, fotos, comentarios y, al entregar, <b>a quién</b> (otro taller, nosotros u otro), con bultos y foto del albarán. Lo que pone sale aquí (con sus fotos y las novedades) y en la situación del producto, y te avisa al móvil. Si dice que termina más tarde que el plan, <b>solo avisa</b>: el plan no se mueve solo. Si pasa su fecha sin terminar y sin noticias, le llega un correo <b>cada día laborable</b> hasta que actualice. Cada taller empieza cuando tú pulses su botón (p. ej. Tenas cuando le llega la pieza). «🔗 Enlace» lo copia otra vez, «Nuevo» anula el anterior y «⏹ Parar» lo cierra.' },
         { titulo: '🧾 Pedir presupuesto o hacer el pedido al taller', texto: 'En la situación del producto, <b>🏭 Subcontratar…</b>: marca las tareas de fuera de la OT, añade líneas sueltas si hace falta (transporte, portes) y elige <b>Pedir presupuesto</b> (a uno o varios talleres: contestan precio y plazo en su enlace y se comparan en Compras › Peticiones de precio) o <b>Hacer el pedido</b> (a un taller). Se abre en Compras, donde se ponen los precios, se aprueba si pasa del límite y se envía. Al enviar el pedido va con él su <b>enlace de seguimiento</b>; si en el comparativo eliges otro taller, las tareas pasan a ese taller. Debajo de cada tarea ves en qué pedido o petición está, y el importe entra en el control de costes como subcontrata.' },
@@ -187,7 +187,7 @@ window.S360_AYUDA = {
 
     '/asignar.html': {
       titulo: 'Asignar material y herramientas',
-      para_que: 'Aquí se dice qué tarea usa cada material de la partida y qué herramientas hay que preparar. Así el operario lo ve en Mi día y el tablero avisa si algo llega tarde.',
+      para_que: 'Aquí se dice qué tarea usa cada material de la partida y qué herramientas hay que preparar. Así el operario lo ve en Mi día y el cuadrante avisa si algo llega tarde.',
       recorridos: [
         {
           id: 'asig-basico', version: 1, ofrecer: true, duracion: '40 s',
@@ -206,7 +206,7 @@ window.S360_AYUDA = {
           titulo: 'Tres clases de herramienta',
           terminos: [
             ['<b>Máquina fija</b>', 'Sierra, plegadora, cabina… Va con el área: planifica la tarea allí y no hace falta pedirla.'],
-            ['<b>Equipo (hay pocos)</b>', 'Taladro magnético, soldadoras, llaves de impacto… Se pide el tipo y en el tablero se asigna cuál.'],
+            ['<b>Equipo (hay pocos)</b>', 'Taladro magnético, soldadoras, llaves de impacto… Se pide el tipo y en el cuadrante se asigna cuál.'],
             ['<b>Herramienta de mano</b>', 'Radial, sargentos, nivel, arnés… Lista para que el operario la prepare.'],
           ],
         },
@@ -240,7 +240,7 @@ window.S360_AYUDA = {
         {
           titulo: 'Qué significa…',
           terminos: [
-            ['<b>Categoría / puesto</b>', 'Oficial 1ª, 2º, Encargado… Solo agrupa en el tablero y sirve para el coste.'],
+            ['<b>Categoría / puesto</b>', 'Oficial 1ª, 2º, Encargado… Solo agrupa en el cuadrante y sirve para el coste.'],
             ['<b>¿Se mueve?</b>', 'Una máquina «fija en esa área» va sola con lo que se planifica allí.'],
             ['<b>Familia y uso</b>', 'De los tipos de máquina: qué es (Soldadura, Corte…) y dónde se usa (taller, obra).'],
             ['<b>Baja</b>', 'Ya no se planifica con él, pero su historial se conserva. «Reactivar» lo devuelve.'],
@@ -251,13 +251,13 @@ window.S360_AYUDA = {
 
     '/capacidades.html': {
       titulo: 'Capacidades',
-      para_que: 'Lo que sabe hacer cada persona (soldar MIG, manejar la plegadora, PRL 60 h…). Las tareas piden capacidades y el tablero avisa si se asigna a alguien que no la tiene.',
+      para_que: 'Lo que sabe hacer cada persona (soldar MIG, manejar la plegadora, PRL 60 h…). Las tareas piden capacidades y el cuadrante avisa si se asigna a alguien que no la tiene.',
       esquema: {
         titulo: 'Cómo se valida',
         pasos: [
           { que: 'El operario marca lo que sabe', quien: 'Mi día › Mis capacidades' },
           { que: 'El supervisor la valida', quien: 'Pestaña «Por validar»', aqui: true },
-          { que: 'Cuenta en el tablero', quien: '✓ al elegir gente para una tarea' },
+          { que: 'Cuenta en el cuadrante', quien: '✓ al elegir gente para una tarea' },
         ],
       },
       recorridos: [
@@ -278,11 +278,12 @@ window.S360_AYUDA = {
 
     '/gantt.html': {
       titulo: 'Gantt',
-      para_que: 'El plan por semanas de cada proyecto y sus OTs: si llegan a su entrega, qué va antes de qué y dónde se acumula el trabajo. Se planifica en el tablero; aquí se mira.',
+      para_que: 'El plan por semanas de cada proyecto y sus OTs: si llegan a su entrega, qué va antes de qué y dónde se acumula el trabajo. Se planifica en el cuadrante; aquí se mira.',
       secciones: [
         { titulo: 'Cómo se lee', texto: 'Filas: proyecto › OT › tareas (▸ despliega las tareas). La barra de la OT va de su primer a su último día planificado; la parte clara es su avance; <b>⚑</b> es la entrega (roja si no llega). En rayado rojo, las horas que faltan por planificar. Colores de las tareas: gente propia, 🏭 taller externo, 🚚 transporte, 🏗 subcontrata en obra, gris si está hecha. La línea azul es hoy.' },
         { titulo: 'Riesgo de cada OT', texto: '<b>Retrasada</b> (la entrega ya pasó) o <b>no llega</b> (lo planificado termina después), <b>faltan X h por planificar</b> con la entrega cerca, <b>justo</b> (2 días laborables de margen o menos), <b>sin planificar</b>, <b>a tiempo</b>. «Solo con riesgo» deja las que hay que mirar; «Ordenar: Riesgo» las pone arriba.' },
-        { titulo: 'Controles', texto: 'Semanas (6, día a día) o Meses (26 semanas). Agrupar por proyecto, obra o cliente (las mismas filas, ordenadas de otra forma). Al pulsar una barra de tarea se abre el tablero ese día; el nombre de la OT abre su ficha.' },
+        { titulo: 'Controles', texto: 'Semanas (6, día a día) o Meses (26 semanas). Agrupar por proyecto, obra o cliente (las mismas filas, ordenadas de otra forma). Al pulsar una tarea (su nombre o su barra) se abre su ventana, la misma del cuadrante: cambiar estado, ver tramos, dependencias, material… Con <b>📋</b> se va al cuadrante ese día (para asignar gente). El nombre de la OT abre su ficha.' },
+        { titulo: 'Exportar para enviar', texto: '<b>📄 Exportar</b> (o 📄 junto a cada proyecto): el Gantt de un proyecto en <b>PDF</b> (A4 o A3 horizontal) o <b>imagen PNG</b>, para el cliente, proveedores o un pliego. Elige solo OTs u OTs y tareas, avance, línea de hoy, quién hace lo externo, título y nota al pie. Sale solo lo planificado, sin datos internos.' },
         { titulo: 'Carga por semana', texto: '<b>Oficios</b>: horas-persona planificadas frente a lo que pueden hacer sus operarios (su turno, sin festivos ni ausencias). <b>Áreas</b>: horas en cada área frente a la jornada. <b>Talleres externos</b>: días con trabajo. <b>Subcontratas</b>: horas × personas. En naranja a partir del 85 %, en rojo si se pasa.' },
       ],
     },
@@ -290,8 +291,8 @@ window.S360_AYUDA = {
       titulo: 'Obras',
       para_que: 'Cada obra es una dirección que reúne proyectos (de uno o varios clientes): sus datos, sus proyectos, lo próximo que hay allí y sus incidencias.',
       secciones: [
-        { titulo: 'Qué es una obra', texto: 'La dirección donde se trabaja: <b>Obra › Proyectos › Partidas › OT › Tareas</b>. Un proyecto está en una obra o en ninguna («Sin obra»: trabajos solo de taller o venta). Cada obra tiene <b>una fila en el tablero</b> (bajo «Obras») que comparten sus proyectos y que sale mientras alguno está activo.' },
-        { titulo: 'Sus datos', texto: 'Nombre y dirección son obligatorios; el resto, opcional: contacto en obra y teléfono, <b>acceso y horario</b> (lo ven las subcontratas en su enlace), promotor, dirección facultativa, constructora y notas. Se guarda al salir de cada campo; cambiar el nombre o la dirección cambia su fila del tablero y el texto de sus proyectos.' },
+        { titulo: 'Qué es una obra', texto: 'La dirección donde se trabaja: <b>Obra › Proyectos › Partidas › OT › Tareas</b>. Un proyecto está en una obra o en ninguna («Sin obra»: trabajos solo de taller o venta). Cada obra tiene <b>una fila en el cuadrante</b> (bajo «Obras») que comparten sus proyectos y que sale mientras alguno está activo.' },
+        { titulo: 'Sus datos', texto: 'Nombre y dirección son obligatorios; el resto, opcional: contacto en obra y teléfono, <b>acceso y horario</b> (lo ven las subcontratas en su enlace), promotor, dirección facultativa, constructora y notas. Se guarda al salir de cada campo; cambiar el nombre o la dirección cambia su fila del cuadrante y el texto de sus proyectos.' },
         { titulo: 'Proyectos y lo próximo', texto: 'Debajo, sus proyectos (cliente, OTs, entrega, avance) y «＋ Nuevo proyecto aquí». A la derecha, el mapa, lo planificado de hoy en adelante (con las subcontratas 🏗 y talleres 🏭) y las incidencias abiertas.' },
       ],
     },
@@ -331,7 +332,7 @@ window.S360_AYUDA = {
       secciones: [
         { titulo: 'Reclamar y esperar', texto: 'Al reclamar se pide <b>reponer</b>, <b>cambiar</b> o un <b>abono</b>, para cuándo lo necesitamos y un plazo de respuesta (2 días laborables por defecto). El proveedor, transportista o subcontrata contesta en su enlace (sin cuenta) qué hará y la <b>fecha de resolución</b> (obligatoria). Sin respuesta en el plazo: correo de recordatorio cada 2 días laborables y aviso al responsable. Con la fecha aceptada: ese día, recordatorio a los dos; si pasa sin resolver, aviso al responsable y a Operaciones para decidir.' },
         { titulo: 'Resolver y cerrar', texto: 'Las de material se resuelven solas cuando Logística marca «Recibido». Si no, «Marcar resuelta» (con el abono, si lo hubo) o «Decidir» (otro proveedor, stock, abono…). Después firman el cierre el responsable del área y Operaciones; en calidad hay que poner la causa y qué se hará para que no se repita.' },
-        { titulo: 'En el tablero', texto: 'Las tareas afectadas llevan el aviso «⚠ INC-…» en sus tramos de hoy en adelante, con «Solucionar → Abrir la incidencia».' },
+        { titulo: 'En el cuadrante', texto: 'Las tareas afectadas llevan el aviso «⚠ INC-…» en sus tramos de hoy en adelante, con «Solucionar → Abrir la incidencia».' },
       ],
     },
     '/bandeja.html': {
@@ -353,7 +354,7 @@ window.S360_AYUDA = {
           pasos: [
             { sel: '#tab-bandeja', texto: '<b>Por clasificar</b>: lo nuevo. <b>Asuntos abiertos</b>: lo que tiene responsable y aún no está resuelto. <b>Todo</b>: lo de los últimos 120 días.' },
             { sel: '#filtro-proyecto', texto: 'Filtra por proyecto.' },
-            { sel: '#lista', texto: 'Cada captura con su foto, audio o vídeo. Clasifícala como <b>Tarea en una OT</b> (pasa a Por planificar), <b>Asunto con responsable</b> (con fecha), <b>Información</b> o <b>Descartar</b>.', aviso: 'Si es una avería, «Máquina parada hoy» la quita del tablero ese día.' },
+            { sel: '#lista', texto: 'Cada captura con su foto, audio o vídeo. Clasifícala como <b>Tarea en una OT</b> (pasa a Por planificar), <b>Asunto con responsable</b> (con fecha), <b>Información</b> o <b>Descartar</b>.', aviso: 'Si es una avería, «Máquina parada hoy» la quita del cuadrante ese día.' },
           ],
         },
       ],
@@ -493,7 +494,7 @@ window.S360_AYUDA = {
         },
       ],
       secciones: [
-        { titulo: '🚚 Transportes península → Menorca', texto: 'Pestaña <b>Transportes</b>. A la izquierda, <b>Para enviar a Menorca</b>: sale solo lo que espera transporte — las OT cuya tarea de transporte la hace un transportista (Ydica, Tragina…; se marca en su ficha de Proveedores) cuando el taller ya ha terminado o se lo ha entregado (en gris, lo que aún está en el taller) y los pedidos a proveedores de <b>península</b> que no han llegado. Se marca y <b>＋ Nuevo envío</b> (o se arrastra a un envío). En el envío: transportista, recogida, llegada a Maó, bultos y kg, y el <b>coste</b>, que se reparte por kg (o a mano) y cuenta en costes de la OT. <b>✉ Enviar al transportista</b> le manda su enlace (sin usuario): primero <b>acepta la recogida</b> (fecha, direcciones, bultos, precio) o propone otra fecha o precio (se acepta o no desde la ficha; también «Aceptada por teléfono»); al aceptarla, cada pedido que se recoge activa su seguimiento y el proveedor recibe la recogida confirmada con su enlace. Si se cambian la fecha, el precio, el transportista o lo que va, hay que volver a pedírsela. Después, en el mismo enlace, marca recogido / en barco / en Maó / entregado, la llegada y el CMR. La tarea de transporte y la situación de la OT se actualizan solas, el material de los pedidos pasa a llegar ese día y, si llega después de lo que se necesita (montaje), el tablero avisa. Si se pasa la fecha sin noticias, recordatorio diario por correo.' },
+        { titulo: '🚚 Transportes península → Menorca', texto: 'Pestaña <b>Transportes</b>. A la izquierda, <b>Para enviar a Menorca</b>: sale solo lo que espera transporte — las OT cuya tarea de transporte la hace un transportista (Ydica, Tragina…; se marca en su ficha de Proveedores) cuando el taller ya ha terminado o se lo ha entregado (en gris, lo que aún está en el taller) y los pedidos a proveedores de <b>península</b> que no han llegado. Se marca y <b>＋ Nuevo envío</b> (o se arrastra a un envío). En el envío: transportista, recogida, llegada a Maó, bultos y kg, y el <b>coste</b>, que se reparte por kg (o a mano) y cuenta en costes de la OT. <b>✉ Enviar al transportista</b> le manda su enlace (sin usuario): primero <b>acepta la recogida</b> (fecha, direcciones, bultos, precio) o propone otra fecha o precio (se acepta o no desde la ficha; también «Aceptada por teléfono»); al aceptarla, cada pedido que se recoge activa su seguimiento y el proveedor recibe la recogida confirmada con su enlace. Si se cambian la fecha, el precio, el transportista o lo que va, hay que volver a pedírsela. Después, en el mismo enlace, marca recogido / en barco / en Maó / entregado, la llegada y el CMR. La tarea de transporte y la situación de la OT se actualizan solas, el material de los pedidos pasa a llegar ese día y, si llega después de lo que se necesita (montaje), el cuadrante avisa. Si se pasa la fecha sin noticias, recordatorio diario por correo.' },
         { titulo: '🛒 Compras locales', texto: 'Pestaña <b>Compras locales</b>: lo que piden los operarios desde el móvil (ferretería, almacén de la isla…) a cuenta de la empresa. Cada compra va siempre a una <b>tarea de una OT</b>. <b>Por autorizar</b>: Operaciones pulsa ✔ Autorizar o ✗ No (con motivo); al autorizar se crea un <b>código de autorización</b> al azar y único que el operario da en la tienda (sale también aquí y en el cuadre, para comprobarlo en el albarán o la factura). <b>Autorizadas sin ticket</b>: falta la foto del ticket (a los 2 días se le recuerda). <b>Por cuadrar con factura</b>: por tienda y mes; marca las de una factura, pon su número y «Cuadrar». En rojo, lo que pasó más de un 15 % de lo autorizado. El importe del ticket cuenta como material de la tarea en el control de costes. En la ficha del proveedor, «Tiene cuenta de crédito» decide qué tiendas salen en el móvil.' },
         {
           titulo: 'Preparar y enviar', si: 'compras',
@@ -602,7 +603,7 @@ window.S360_AYUDA = {
           titulo: 'Cómo pedir lo que falta',
           pasos: [
             { sel: 'log-pestana-comprar', esperar: 'click', texto: 'En <b>Por pedir</b> está lo que logística ha dicho que falta.', saltar_si: (n) => n.getAttribute('aria-selected') === 'true' },
-            { sel: 'log-pedir', opcional: true, texto: 'Elige <b>proveedor</b>, <b>cuándo llega</b>, el <b>nº de pedido</b> y, si lo tienes, adjunta el PDF. Luego <b>🛒 Pedido</b>.', aviso: 'Al marcarlo como pedido se avisa al técnico y a logística, y el tablero comprueba si llega a tiempo para la tarea.' },
+            { sel: 'log-pedir', opcional: true, texto: 'Elige <b>proveedor</b>, <b>cuándo llega</b>, el <b>nº de pedido</b> y, si lo tienes, adjunta el PDF. Luego <b>🛒 Pedido</b>.', aviso: 'Al marcarlo como pedido se avisa al técnico y a logística, y el cuadrante comprueba si llega a tiempo para la tarea.' },
             { sel: 'log-pestana-recibir', texto: 'Lo pedido pasa a <b>Pedido · por recibir</b>, donde logística lo recibe con el albarán.' },
           ],
         },
@@ -635,7 +636,7 @@ window.S360_AYUDA = {
           terminos: [
             ['<b>N con falta</b>', 'Materiales de la partida de los que no hay bastante en el almacén.'],
             ['<b>N tarde</b>', 'Hacían falta antes de hoy y todavía no están disponibles.'],
-            ['<b>Sin planificar</b>', 'Ninguna tarea de la partida está todavía en el tablero: aún no hay fecha.'],
+            ['<b>Sin planificar</b>', 'Ninguna tarea de la partida está todavía en el cuadrante: aún no hay fecha.'],
             ['<b>Fuera de presupuesto</b>', 'Al reimportar el proyecto, este material ya no venía; se conserva porque ya estaba revisado o pedido.'],
             ['<b>⚠ Incidencia</b>', 'Un aviso desde el móvil (llegó una parte, dañado…). Se ve hasta que alguien pulsa «Resuelta».'],
           ],
@@ -656,21 +657,22 @@ window.S360_AYUDA = {
     { id: 9, fecha: '2026-11-19', si: 'usuarios', titulo: 'Correo de salida en Ajustes', texto: 'La cuenta de correo desde la que salen pedidos y peticiones de precio se cambia ya desde <b>Compras › ⚙ Ajustes</b>, con botón para probarla.', ir: '/compras.html?vista=ajustes' },
     { id: 10, fecha: '2026-11-19', si: ['compras', 'aprobar_compras'], titulo: 'Los proveedores ponen sus precios', texto: 'Las peticiones de precio llevan un <b>enlace para que el proveedor responda en la plataforma</b>: precio por línea, «No lo tengo», alternativas, entrega, portes y su PDF. Su oferta aparece sola en el comparativo.', ir: '/compras.html?vista=precios' },
     { id: 12, fecha: '2026-11-19', titulo: 'La ayuda, en voz alta', texto: 'En el panel <b>?</b>, <b>🔊 Escuchar</b> lee la ayuda de la pantalla (con pausa, velocidad y voz). En los recorridos, el botón <b>🔇/🔊</b> de la burbuja lee cada paso al avanzar.' },
-    { id: 13, fecha: '2026-11-19', si: ['planificar', 'proyectos'], titulo: 'Talleres externos', texto: 'Una tarea de una OT la puede hacer un <b>taller de fuera</b>: elígelo en <b>Área / taller</b>. El taller sale en el tablero, en <b>Talleres externos</b>, mientras tenga tareas activas, y la OT muestra la <b>📍 situación del producto</b> (dónde está y hasta cuándo).', ir: '/proyectos.html' },
-    { id: 14, fecha: '2026-11-19', titulo: 'Planéalo y códigos nuevos', texto: 'El planificador se llama <b>Planéalo</b>. Los códigos ahora cuelgan unos de otros: proyecto <b>61</b>, OT <b>61.03</b>, tarea <b>61.03.2</b>. El código anterior de cada OT se conserva («antes OT-…») y se puede buscar. En el tablero, cada tarea muestra primero su código y nombre, y debajo la OT, la partida, la obra y el cliente.' },
+    { id: 13, fecha: '2026-11-19', si: ['planificar', 'proyectos'], titulo: 'Talleres externos', texto: 'Una tarea de una OT la puede hacer un <b>taller de fuera</b>: elígelo en <b>Área / taller</b>. El taller sale en el cuadrante, en <b>Talleres externos</b>, mientras tenga tareas activas, y la OT muestra la <b>📍 situación del producto</b> (dónde está y hasta cuándo).', ir: '/proyectos.html' },
+    { id: 14, fecha: '2026-11-19', titulo: 'Planéalo y códigos nuevos', texto: 'El planificador se llama <b>Planéalo</b>. Los códigos ahora cuelgan unos de otros: proyecto <b>61</b>, OT <b>61.03</b>, tarea <b>61.03.2</b>. El código anterior de cada OT se conserva («antes OT-…») y se puede buscar. En el cuadrante, cada tarea muestra primero su código y nombre, y debajo la OT, la partida, la obra y el cliente.' },
     { id: 15, fecha: '2026-11-19', si: ['planificar', 'proyectos'], titulo: 'Seguimiento de los talleres externos', texto: 'En la OT, debajo de cada tarea de fuera, <b>▶ Comenzar seguimiento</b> manda al taller un enlace (sin usuario) para que nos diga cómo va: estado, avance, cuándo termina, fotos y a quién lo entrega. Te avisa al móvil, la situación del producto se actualiza sola y, si se pasa su fecha sin noticias, le recordamos por correo cada día.', ir: '/proyectos.html' },
     { id: 16, fecha: '2026-11-19', si: ['planificar', 'proyectos', 'compras'], titulo: 'Subcontratar a talleres externos', texto: 'En la OT, <b>🏭 Subcontratar…</b> pide presupuesto a uno o varios talleres (o hace el pedido) con las tareas de fuera y el transporte. Va por Compras como cualquier pedido, y al enviarlo el taller recibe también su enlace de seguimiento. El importe cuenta en el control de costes.', ir: '/proyectos.html' },
-    { id: 17, fecha: '2026-11-19', si: ['compras', 'logistica', 'planificar'], titulo: 'Transportes a Menorca', texto: 'En <b>Compras › 🚚 Transportes</b>, los envíos de península a Menorca: lo que espera transporte sale solo (piezas de los talleres y pedidos de península), se agrupa en un envío y el transportista dice en su enlace cuándo lo recoge, en qué barco va y cuándo llega. La situación de la OT y el tablero se actualizan solos y el coste se reparte entre las OT.', ir: '/compras.html?vista=transportes' },
+    { id: 17, fecha: '2026-11-19', si: ['compras', 'logistica', 'planificar'], titulo: 'Transportes a Menorca', texto: 'En <b>Compras › 🚚 Transportes</b>, los envíos de península a Menorca: lo que espera transporte sale solo (piezas de los talleres y pedidos de península), se agrupa en un envío y el transportista dice en su enlace cuándo lo recoge, en qué barco va y cuándo llega. La situación de la OT y el cuadrante se actualizan solos y el coste se reparte entre las OT.', ir: '/compras.html?vista=transportes' },
     { id: 18, fecha: '2026-11-21', titulo: 'Compras locales desde el móvil', texto: 'En Mi día › Menú › <b>🛒 Compra local</b> pides autorización para comprar en la ferretería u otra tienda a cuenta de la empresa. Operaciones la autoriza desde Compras › Compras locales y te avisa; después subes la foto del ticket.' },
     { id: 19, fecha: '2026-11-21', si: ['mi_dia'], titulo: 'Mi día funciona sin cobertura', texto: 'Sin conexión, la app abre igual con lo último que tenías y puedes apuntar tu día, trabajo no planificado, capturas con fotos y compras locales. Arriba verás «📴 Sin conexión · N por enviar»; se envía solo cuando vuelve la cobertura.' },
     { id: 20, fecha: '2026-11-22', si: ['logistica', 'planificar', 'proyectos', 'aprobar_compras', 'vacaciones_ops', 'vacaciones_rrhh', 'autorizar_compras_locales'], titulo: 'Supervisar desde el móvil', texto: 'En Mi día › Menú › <b>Supervisar</b>: <b>recibir envíos y piezas</b> (por líneas y bultos, albarán, fotos, lo que falta), <b>parte de hoy</b> para confirmar, <b>aprobar</b> pedidos, vacaciones y compras locales, y <b>dónde está cada cosa</b>. Cada apartado sale solo si tu rol lo tiene.' },
     { id: 21, fecha: '2026-11-23', si: ['planificar', 'autorizar_horas_extra', 'recursos'], titulo: 'Excedente, turnos y horas extra', texto: 'Al <b>alargar un tramo</b> por encima de lo estimado, la estimación no cambia: el excedente se ve rayado («+1h excedente»). Al terminar una tarea se ve si costó menos o más de lo previsto. Lo que queda <b>fuera del turno</b> de cada persona son <b>horas extra</b> y las autoriza <b>Dirección</b> (en Recursos › Turnos y horas extra o en el móvil, Supervisar › Aprobar). Los turnos se definen allí y cada operario tiene el suyo. En costes solo llevan recargo las autorizadas.' },
-    { id: 22, fecha: '2026-11-23', si: ['planificar', 'compras', 'logistica', 'proyectos', 'escandallo'], titulo: 'Incidencias: un solo sitio para todas', texto: 'Menú Planificación › <b>Incidencias</b>: material, transporte, calidad, averías… con responsable, <b>reclamación al proveedor</b> (correo con informe PDF, WhatsApp o enlace donde responde qué hará y la fecha), <b>recordatorios</b> automáticos y <b>cierre</b> por el responsable y Operaciones. Las que afectan a tareas se ven en el tablero.' },
+    { id: 22, fecha: '2026-11-23', si: ['planificar', 'compras', 'logistica', 'proyectos', 'escandallo'], titulo: 'Incidencias: un solo sitio para todas', texto: 'Menú Planificación › <b>Incidencias</b>: material, transporte, calidad, averías… con responsable, <b>reclamación al proveedor</b> (correo con informe PDF, WhatsApp o enlace donde responde qué hará y la fecha), <b>recordatorios</b> automáticos y <b>cierre</b> por el responsable y Operaciones. Las que afectan a tareas se ven en el cuadrante.' },
     { id: 23, fecha: '2026-11-23', si: ['compras', 'logistica'], titulo: 'Cómo llega cada pedido', texto: 'En cada pedido, <b>🚚 Cómo llega</b>: <b>📦 lo trae el proveedor</b> (fecha pactada, agencia MRW / Ecoscooting / UPS / Correos y nº de seguimiento con enlace), <b>🚚 lo vamos a buscar</b> (Menorca Tragina o Luchana recogen en una dirección; se avisa al proveedor del día) o <b>🏬 al almacén del transportista</b> (Idyca Gavà para Tragina, con «Para Dixis Menorca»; Luchana en Sant Feliu). <b>▶ Activar seguimiento</b> da al proveedor un enlace para confirmar y decir cómo va; sin noticias pasada la fecha, recordatorio y luego incidencia. En Transportes, nueva columna «Lo traen los proveedores».' },
     { id: 24, fecha: '2026-11-24', si: ['compras', 'logistica'], titulo: 'El transportista acepta la recogida', texto: 'Al enviar un envío al transportista, en su enlace ve las <b>condiciones de la recogida</b> (fecha, dónde, bultos y kg, precio) y la <b>acepta</b>, propone otra fecha o precio, o dice que no puede. En la ficha del envío se ve en qué punto está y se acepta o no su propuesta. Al aceptarla, el proveedor de cada pedido recibe la <b>recogida confirmada</b> con su enlace de seguimiento.', ir: '/compras.html?vista=transportes' },
     { id: 25, fecha: '2026-11-24', titulo: 'En el teléfono, solo la app móvil', texto: 'Desde el teléfono, Planéalo abre siempre la <b>app móvil</b>. Si no tienes ficha de operario, empiezas en <b>🏠 Inicio</b> con lo que se hace desde el móvil (recibir, aprobar, compras locales, parte de hoy, dónde está cada cosa, capturar). Planificar, pedir y lo demás, en el ordenador.' },
-    { id: 26, fecha: '2026-11-24', si: ['planificar', 'proyectos', 'compras'], titulo: 'Subcontratas en obra', texto: 'Una tarea puede hacerla aquí una <b>subcontrata</b> (Área / taller › 🏗). Presupuesto con días y personas, pedido, y en su enlace <b>confirma los días</b> planificados y apunta el <b>parte</b> de cada día, que tú validas. En el tablero, 🏗⏳ hasta que confirma y 🏗✔ cuando lo ha hecho; el día antes se le recuerda.', ir: '/proyectos.html' },
-    { id: 27, fecha: '2026-11-25', si: ['proyectos', 'planificar'], titulo: 'Obras y Clientes', texto: 'Nuevas pantallas en <b>Proyectos › Obras</b> y <b>Proyectos › Clientes</b>. La obra es una dirección que reúne proyectos y tiene una sola fila en el tablero; en el proyecto, Cliente y Obra se eligen con un buscador (o «Sin obra»). Los proyectos que ya había se han pasado solos a su obra y su cliente.', ir: '/obras.html' },
+    { id: 26, fecha: '2026-11-24', si: ['planificar', 'proyectos', 'compras'], titulo: 'Subcontratas en obra', texto: 'Una tarea puede hacerla aquí una <b>subcontrata</b> (Área / taller › 🏗). Presupuesto con días y personas, pedido, y en su enlace <b>confirma los días</b> planificados y apunta el <b>parte</b> de cada día, que tú validas. En el cuadrante, 🏗⏳ hasta que confirma y 🏗✔ cuando lo ha hecho; el día antes se le recuerda.', ir: '/proyectos.html' },
+    { id: 27, fecha: '2026-11-25', si: ['proyectos', 'planificar'], titulo: 'Obras y Clientes', texto: 'Nuevas pantallas en <b>Proyectos › Obras</b> y <b>Proyectos › Clientes</b>. La obra es una dirección que reúne proyectos y tiene una sola fila en el cuadrante; en el proyecto, Cliente y Obra se eligen con un buscador (o «Sin obra»). Los proyectos que ya había se han pasado solos a su obra y su cliente.', ir: '/obras.html' },
     { id: 28, fecha: '2026-11-25', si: ['planificar', 'proyectos'], titulo: 'Gantt', texto: 'Nueva pantalla <b>Planificación › Gantt</b>: el plan por semanas de cada proyecto y sus OTs, con la entrega ⚑, el avance y el <b>riesgo</b> (retrasada, no llega, faltan horas, justo…), y abajo la <b>carga por semana</b> de oficios, áreas, talleres externos y subcontratas.', ir: '/gantt.html' },
+    { id: 29, fecha: '2026-11-25', si: ['planificar', 'proyectos'], titulo: 'El tablero ahora es el Cuadrante · Gantt para enviar', texto: 'El <b>tablero</b> pasa a llamarse <b>Cuadrante</b> (Planificación › Cuadrante). En el <b>Gantt</b>, al pulsar una tarea se abre su ventana sin salir (📋 para verla en el cuadrante), y con <b>📄 Exportar</b> sacas el Gantt de un proyecto en <b>PDF o imagen</b> para el cliente, proveedores o pliegos.', ir: '/gantt.html' },
   ],
 };

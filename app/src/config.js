@@ -3,7 +3,7 @@ const num = (v, def) => (Number.isFinite(Number(v)) && v !== '' && v != null ? N
 
 const inicio = num(process.env.JORNADA_INICIO, 7);
 const fin = num(process.env.JORNADA_FIN, 15);
-// El tablero enseña un poco más allá del fin de jornada para poder planificar horas extra
+// El cuadrante enseña un poco más allá del fin de jornada para poder planificar horas extra
 const vistaFin = Math.min(24, num(process.env.VISTA_FIN, fin + 2));
 
 // Días laborables de vacaciones al año por convenio (cada persona puede tener los suyos)

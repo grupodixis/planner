@@ -1,5 +1,5 @@
 /* Áreas de trabajo (zonas del taller, cabina, oficina…): alta, orden, «1 a la vez», equipo fijo.
-   Se usa en Recursos › Áreas de trabajo y en el botón «Áreas de trabajo» del tablero. */
+   Se usa en Recursos › Áreas de trabajo y en el botón «Áreas de trabajo» del cuadrante. */
 (() => {
   'use strict';
   const el = (tag, attrs = {}, ...hijos) => {
@@ -15,7 +15,7 @@
   };
   const TIPO_TXT = { taller: 'Taller', obra: 'Obra', oficina: 'Oficina', pintura: 'Pintura', transporte: 'Transporte', otro: 'Otro' };
 
-  // raiz: contenedor; opts.alCambiar: se llama tras cada cambio (p. ej. recargar el tablero)
+  // raiz: contenedor; opts.alCambiar: se llama tras cada cambio (p. ej. recargar el cuadrante)
   function montar(raiz, opts = {}) {
     const $ = (s) => raiz.querySelector(s);
     const api = (...a) => window.s360.api(...a);
@@ -31,7 +31,7 @@
 
     raiz.replaceChildren(
       el('p', { class: 'ayuda' }, 'Áreas fijas: cada una es una fila del calendario (una zona del taller, la cabina de pintura, la oficina técnica…). Los cambios se guardan al salir de cada campo. ',
-        el('b', {}, 'Las obras no van aquí'), ': se crean en la ficha de su proyecto y salen solas del tablero cuando el proyecto se cierra.'),
+        el('b', {}, 'Las obras no van aquí'), ': se crean en la ficha de su proyecto y salen solas del cuadrante cuando el proyecto se cierra.'),
       el('form', { id: 'form-area', class: 'form-area' },
         el('input', { name: 'nombre', placeholder: 'Nombre (p. ej. Cabina de pintura)', required: true, maxlength: 80 }),
         el('select', { name: 'departamento_id', 'aria-label': 'Departamento' }),
@@ -46,7 +46,7 @@
         el('tbody', { id: 'areas-tbody' }))),
       el('details', { id: 'obras-sueltas', class: 'obras-sueltas', hidden: true },
         el('summary', {}),
-        el('p', { class: 'ayuda' }, 'Obras que se han quedado sin proyecto (por ejemplo, porque se borró). No salen en el tablero. Si vuelves a importar o crear su proyecto se enlazan solas.'),
+        el('p', { class: 'ayuda' }, 'Obras que se han quedado sin proyecto (por ejemplo, porque se borró). No salen en el cuadrante. Si vuelves a importar o crear su proyecto se enlazan solas.'),
         el('ul', { id: 'obras-sueltas-lista' })));
     $('#form-area').hidden = !puedeAreas();
     $('#form-area').addEventListener('submit', async (ev) => {

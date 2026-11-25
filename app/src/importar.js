@@ -777,7 +777,7 @@ async function importar(c, archivo, resoluciones, usuario, simular) {
            ON CONFLICT DO NOTHING`, [id, h.nombre.trim(), h.cantidad, h.nota, usuario.id]);
         resumen.herramientas += r.rowCount;
         if (tipos.some((tp) => tp.clase === 'maquina' && norm(tp.nombre) === norm(h.nombre))) {
-          avisos.push({ ruta: `${x.ruta}.herramientas`, mensaje: `«${h.nombre}» es un equipo del que hay pocos: mejor en «equipos» para que el tablero controle que no se cruce` });
+          avisos.push({ ruta: `${x.ruta}.herramientas`, mensaje: `«${h.nombre}» es un equipo del que hay pocos: mejor en «equipos» para que el cuadrante controle que no se cruce` });
         }
       }
     }

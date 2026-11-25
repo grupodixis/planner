@@ -297,7 +297,7 @@ function montar(app, asyncH) {
     const t = texto((req.body || {}).texto, 1000);
     const fotos = Array.isArray(req.body?.archivos) ? req.body.archivos : [];
     if (!t && !fotos.length) throw fallo(400, 'Escribe qué pasa o saca una foto');
-    // va al sistema unificado de incidencias (avisa a Compras y Operaciones; se ve en el tablero)
+    // va al sistema unificado de incidencias (avisa a Compras y Operaciones; se ve en el cuadrante)
     await tx((c) => require('./incidencias').crear(c, { tipo: 'material', escandallo_id: id, titulo: l0.descripcion, resumen: t || 'ver foto', texto: t || '(foto)', archivos: fotos }, req.usuario));
     res.status(201).json(await linea(id));
   }));
@@ -348,7 +348,7 @@ function montar(app, asyncH) {
     const { rows: herr } = await query(
       `SELECT h.id, h.tarea_id, h.descripcion, h.cantidad::float, h.nota FROM tarea_herramienta h
         WHERE h.tarea_id = ANY($1::int[]) ORDER BY h.id`, [tareas.map((t) => t.id)]);
-    // equipos de los que hay pocos (tipos de máquina): la tarea los pide y en el tablero se asigna uno concreto
+    // equipos de los que hay pocos (tipos de máquina): la tarea los pide y en el cuadrante se asigna uno concreto
     const { rows: equipos } = await query(
       `SELECT ti.id, ti.nombre,
               (SELECT count(*)::int FROM recurso_tipos rt JOIN recursos r ON r.id = rt.recurso_id WHERE rt.tipo_recurso_id = ti.id AND r.activo) AS n,
@@ -463,7 +463,7 @@ function montar(app, asyncH) {
   }));
 }
 
-// Lo que lleva cada tarea (tablero y Mi día): tareaId → { materiales, herramientas, estado, llega }
+// Lo que lleva cada tarea (cuadrante y Mi día): tareaId → { materiales, herramientas, estado, llega }
 //  estado = el peor de sus materiales (por_pedir > sin_revisar > pedido > disponible); llega = la última fecha prevista de lo pedido
 const PESO = { por_pedir: 4, sin_revisar: 3, pedido: 2, disponible: 1 };
 async function deTareas(ids, recursoId = null) {

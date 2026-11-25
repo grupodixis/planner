@@ -1381,6 +1381,8 @@ const MIGRACIONES = [
   // Código del cliente en el programa de facturación y su móvil (importación de clientes)
   `ALTER TABLE clientes ADD COLUMN IF NOT EXISTS codigo_ext TEXT, ADD COLUMN IF NOT EXISTS movil TEXT`,
   `CREATE UNIQUE INDEX IF NOT EXISTS clientes_codigo_ext_idx ON clientes (codigo_ext) WHERE codigo_ext IS NOT NULL`,
+  // 2026-11 · El tablero pasa a llamarse «Cuadrante»
+  `UPDATE roles SET descripcion = replace(replace(descripcion, 'el tablero', 'el cuadrante'), 'Tablero', 'Cuadrante') WHERE descripcion ILIKE '%tablero%'`,
 ];
 
 async function migrar() {
