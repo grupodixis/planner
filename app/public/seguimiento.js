@@ -108,6 +108,8 @@
     caja.append(...[
       el('h3', {}, el('span', { class: 'cod' }, t.codigo), t.nombre),
       el('div', { class: 'plan' }, `📍 ${datos.proyecto.obra || 'En obra'}${t.personas ? ` · ${t.personas} personas` : ''}`),
+      datos.proyecto.obra_contacto ? el('div', { class: 'plan' }, `👷 Contacto en obra: ${datos.proyecto.obra_contacto}`) : null,
+      datos.proyecto.obra_acceso ? el('div', { class: 'plan' }, `🚪 ${datos.proyecto.obra_acceso}`) : null,
       // días
       t.conf === 'sin_plan' ? el('div', { class: 'banda' }, 'Aún no os hemos planificado los días. Os avisaremos para que los confirméis.') : [
         el('h4', { class: 'obra-tit' }, '📅 Os hemos planificado'),

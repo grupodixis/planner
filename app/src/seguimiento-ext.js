@@ -48,9 +48,9 @@ async function porToken(t, c = { query }) {
   const id = Number(m[1]);
   const { rows } = await c.query(
     `SELECT s.*, p.nombre AS proveedor, o.codigo AS ot_codigo, o.titulo AS ot_titulo, o.estado AS ot_estado,
-            pr.nombre AS proyecto, pr.obra, pr.cliente
+            pr.nombre AS proyecto, pr.obra, pr.cliente, ob.nombre AS obra_nombre, ob.contacto AS obra_contacto, ob.telefono AS obra_telefono, ob.acceso AS obra_acceso
        FROM ext_seguimientos s JOIN proveedores p ON p.id = s.proveedor_id JOIN ordenes o ON o.id = s.orden_id
-       LEFT JOIN proyectos pr ON pr.id = o.proyecto_id
+       LEFT JOIN proyectos pr ON pr.id = o.proyecto_id LEFT JOIN obras ob ON ob.id = pr.obra_id
       WHERE s.id = $1`, [id]);
   const r = rows[0];
   if (!r || !r.activo) throw noVale;
@@ -121,7 +121,8 @@ async function vista(s) {
     proveedor: s.proveedor,
     pedidos: [...new Set(ts.filter((t) => t.proveedor_id === s.proveedor_id && t.pedido_estado === 'enviado').map((t) => t.pedido_codigo))],
     ot: { codigo: s.ot_codigo, titulo: s.ot_titulo, abierta: s.ot_estado !== 'cerrada' },
-    proyecto: { nombre: s.proyecto, obra: s.obra },
+    proyecto: { nombre: s.proyecto, obra: s.obra, obra_nombre: s.obra_nombre,
+      obra_contacto: [s.obra_contacto, s.obra_telefono].filter(Boolean).join(' · ') || null, obra_acceso: s.obra_acceso || null },
     tareas, destinos, hoy,
   };
 }

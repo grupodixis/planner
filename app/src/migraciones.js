@@ -1354,6 +1354,30 @@ const MIGRACIONES = [
      UNIQUE (tarea_id, fecha))`,
   `ALTER TABLE solicitud_proveedores ADD COLUMN IF NOT EXISTS dias_trabajo NUMERIC(5,1), ADD COLUMN IF NOT EXISTS personas INT,
      ADD COLUMN IF NOT EXISTS inicio_posible DATE`,
+  // Obras y clientes como fichas propias. La obra es una dirección que reúne proyectos (uno o varios clientes) y tiene
+  // UNA fila en el tablero (lineas tipo 'obra' con obra_id). El cliente lleva sus datos y sus personas de contacto.
+  // proyectos.cliente / proyectos.obra quedan como texto copiado de la ficha (para listados, correos e informes).
+  `CREATE TABLE IF NOT EXISTS clientes (
+     id SERIAL PRIMARY KEY, nombre TEXT NOT NULL, nombre_comercial TEXT, cif TEXT,
+     tipo TEXT NOT NULL DEFAULT 'empresa' CHECK (tipo IN ('empresa','particular','comunidad','administracion')),
+     direccion_fiscal TEXT, telefono TEXT, email TEXT, email_facturas TEXT, forma_pago TEXT, anticipo_pct NUMERIC(5,2), notas TEXT,
+     activo BOOLEAN NOT NULL DEFAULT true, creado TIMESTAMPTZ NOT NULL DEFAULT now())`,
+  `CREATE TABLE IF NOT EXISTS cliente_contactos (
+     id SERIAL PRIMARY KEY, cliente_id INT NOT NULL REFERENCES clientes(id) ON DELETE CASCADE,
+     nombre TEXT NOT NULL, papel TEXT, telefono TEXT, email TEXT,
+     aprueba TEXT[] NOT NULL DEFAULT '{}', avisos_correo BOOLEAN NOT NULL DEFAULT true, avisos_whatsapp BOOLEAN NOT NULL DEFAULT false,
+     resumen TEXT NOT NULL DEFAULT 'hitos' CHECK (resumen IN ('semanal','hitos','no')), notas TEXT,
+     activo BOOLEAN NOT NULL DEFAULT true, creado TIMESTAMPTZ NOT NULL DEFAULT now())`,
+  `CREATE TABLE IF NOT EXISTS obras (
+     id SERIAL PRIMARY KEY, nombre TEXT NOT NULL, direccion TEXT NOT NULL, localidad TEXT,
+     contacto TEXT, telefono TEXT, acceso TEXT, promotor TEXT, direccion_facultativa TEXT, constructora TEXT, notas TEXT,
+     activo BOOLEAN NOT NULL DEFAULT true, creado TIMESTAMPTZ NOT NULL DEFAULT now())`,
+  `ALTER TABLE lineas ADD COLUMN IF NOT EXISTS obra_id INT REFERENCES obras(id) ON DELETE SET NULL`,
+  `CREATE INDEX IF NOT EXISTS lineas_obra_idx ON lineas (obra_id)`,
+  `ALTER TABLE proyectos ADD COLUMN IF NOT EXISTS obra_id INT REFERENCES obras(id) ON DELETE SET NULL,
+     ADD COLUMN IF NOT EXISTS cliente_id INT REFERENCES clientes(id) ON DELETE SET NULL`,
+  `CREATE INDEX IF NOT EXISTS proyectos_obra_idx ON proyectos (obra_id)`,
+  `CREATE INDEX IF NOT EXISTS proyectos_cliente_idx ON proyectos (cliente_id)`,
 ];
 
 async function migrar() {

@@ -144,8 +144,8 @@
     $('#proyecto-campos').replaceChildren(
       campo({ etiqueta: 'Código', valor: p.codigo, max: 30, ancho: 'c1', obligatorio: true, guardar: guardar('codigo') }),
       campo({ etiqueta: 'Nombre', valor: p.nombre, max: 120, ancho: 'c3', obligatorio: true, guardar: guardar('nombre') }),
-      campo({ etiqueta: 'Cliente', valor: p.cliente, max: 120, ancho: 'c2', guardar: guardar('cliente') }),
-      campo({ etiqueta: 'Obra / ubicación', valor: p.obra, max: 200, ancho: 'c2', guardar: guardar('obra') }),
+      elegirFicha(p, 'cliente'),
+      elegirFicha(p, 'obra'),
       campo({ etiqueta: 'Notas', valor: p.notas, max: 2000, ancho: 'c3', filas: 2, guardar: guardar('notas') }),
       campo({ etiqueta: 'Estado', valor: p.estado, opciones: { activo: 'Activo', cerrado: 'Cerrado' }, ancho: 'c1', guardar: guardar('estado') }),
     );
@@ -160,62 +160,79 @@
   const condPendientes = (p) => (p.condiciones || []).filter((c) => !c.cumplida).length;
   const fechaHoraTxt = (iso) => new Date(iso).toLocaleString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 
-  // Obras del proyecto: sus filas en el tablero (se ven mientras el proyecto está activo)
-  function pintarObras(p) {
-    const caja = $('#proyecto-obras');
+  // Cliente y obra del proyecto: fichas propias (Proyectos › Clientes / Obras). Buscador para elegir, crear o quitar.
+  async function recargarProyecto() {
+    [estado.catalogo] = await Promise.all([api('GET', '/api/catalogo'), cargarProyectos()]);
+    pintarFichaProyecto();
+  }
+  function elegirFicha(p, cual) {
+    const esObra = cual === 'obra';
+    const ficha = esObra ? p.obra_ficha : p.cliente_ficha;
     const editar = puedeEditar();
-    const obras = p.obras || [];
-    const recargar = async () => {
-      [estado.catalogo] = await Promise.all([api('GET', '/api/catalogo'), cargarProyectos()]);
-      pintarFichaProyecto();
+    const id = `c-${cual}-${p.id}`;
+    const pop = el('div', { class: 'ficha-pop', hidden: true });
+    const boton = el('button', {
+      type: 'button', id, class: `ficha-sel${ficha ? '' : ' vacio'}`, disabled: !editar, 'aria-haspopup': 'listbox',
+      onclick: () => (pop.hidden ? abrir() : cerrar()),
+    }, el('span', { class: 'ficha-txt' }, ficha ? `${esObra ? '📍' : '👤'} ${ficha.nombre}${esObra && ficha.localidad ? ` · ${ficha.localidad}` : ''}` : (esObra ? '— Sin obra' : '— Sin cliente')),
+    editar ? el('span', { class: 'ficha-caret', 'aria-hidden': 'true' }, '▾') : null);
+    const enlace = ficha ? el('a', { class: 'ficha-ir', href: `/${esObra ? 'obras' : 'clientes'}.html?id=${ficha.id}`, title: 'Abrir su ficha' }, 'ficha ↗') : null;
+    const cerrar = () => { pop.hidden = true; document.removeEventListener('pointerdown', fuera, true); };
+    const fuera = (ev) => { if (!caja.contains(ev.target)) cerrar(); };
+    const elegir = async (nuevoId) => {
+      try { await api('PUT', `/api/proyectos/${p.id}/${cual}`, { [`${cual}_id`]: nuevoId }); toast(esObra ? (nuevoId ? 'Obra puesta' : 'Sin obra') : 'Cliente puesto'); cerrar(); await recargarProyecto(); }
+      catch (e) { toast(e.message, true); }
     };
-    const guardar = (o, k) => async (ev) => {
-      const v = ev.target.value.trim();
-      if (v === (o[k] || '')) return;
-      if (k === 'nombre' && !v) { ev.target.value = o.nombre; return toast('El nombre es obligatorio', true); }
-      try { await api('PATCH', `/api/areas/${o.id}`, { [k]: v }); toast('Obra guardada'); await recargar(); }
-      catch (e) { toast(e.message, true); ev.target.value = o[k] || ''; }
-    };
-    // sin obra pero con dirección en el proyecto: el alta sale ya rellena con ella
-    const corta = String(p.obra || '').split(',').map((x) => x.trim()).filter(Boolean);
-    const propuesta = !obras.length && p.obra ? { nombre: `Obra · ${(corta[corta.length - 1] || corta[0] || '').slice(0, 60)}`, ubicacion: p.obra } : null;
-    caja.replaceChildren(...[
-      el('div', { class: 'cond-cab' }, el('h3', {}, 'Obras'),
-        el('span', { class: 'ayuda' }, p.estado === 'cerrado'
-          ? 'proyecto cerrado: no salen en el tablero'
-          : obras.length ? 'filas del tablero mientras el proyecto esté activo'
-            : propuesta ? 'aún no tiene: pulsa «Añadir obra» para crearla con la dirección del proyecto'
-              : 'sin obra: añádela si hay trabajo en el sitio del cliente')),
-      el('p', { class: 'ayuda obras-que' }, 'Cada obra es una fila del tablero (bajo «Obras») para planificar lo que se hace allí: montajes, mediciones, retoques…'),
-      obras.length ? el('ul', { class: 'obras-lista' }, obras.map((o) => el('li', { class: o.activo ? '' : 'cumplida' },
-        el('input', { value: o.nombre, maxlength: 80, disabled: !editar, 'aria-label': 'Nombre de la obra', onchange: guardar(o, 'nombre') }),
-        el('input', { value: o.ubicacion || '', maxlength: 200, disabled: !editar, placeholder: 'Dirección', 'aria-label': 'Dirección de la obra', onchange: guardar(o, 'ubicacion') }),
-        editar ? el('button', {
-          type: 'button', class: 'ghost borrar mini',
-          title: o.usos ? 'Tiene tareas o tramos: se desactiva (deja de salir en el tablero)' : 'Quitar la obra',
-          onclick: async () => {
-            try {
-              const r = o.activo || !o.usos ? await api('DELETE', `/api/areas/${o.id}`) : await api('PATCH', `/api/areas/${o.id}`, { activo: true });
-              toast(r.desactivada ? 'Tiene trabajo: se ha desactivado' : r.borrada ? 'Obra quitada' : 'Obra reactivada');
-              await recargar();
-            } catch (e) { toast(e.message, true); }
-          },
-        }, o.activo || !o.usos ? (o.usos ? 'Desactivar' : 'Quitar') : 'Reactivar') : null))) : null,
-      editar ? el('form', {
-        class: 'alta cond-alta',
-        onsubmit: async (ev) => {
-          ev.preventDefault();
-          const f = ev.target;
-          try {
-            await api('POST', `/api/proyectos/${p.id}/obras`, { nombre: f.nombre.value, ubicacion: f.ubicacion.value });
-            toast('Obra añadida'); await recargar();
-          } catch (e) { toast(e.message, true); }
-        },
-      },
-      el('input', { name: 'nombre', placeholder: obras.length ? 'Otra obra (nombre)' : 'Nombre (p. ej. Obra · Finca Alaior)', maxlength: 80, 'aria-label': 'Nombre de la nueva obra', value: propuesta?.nombre || '' }),
-      el('input', { name: 'ubicacion', placeholder: 'Dirección', maxlength: 200, 'aria-label': 'Dirección de la nueva obra', value: propuesta?.ubicacion || '' }),
-      el('button', { type: 'submit' }, 'Añadir obra')) : null,
-    ].filter(Boolean));
+    async function abrir() {
+      const q = el('input', { type: 'search', placeholder: esObra ? 'Buscar obra o dirección…' : 'Buscar cliente…', 'aria-label': 'Buscar' });
+      const lista = el('div', { class: 'ficha-lista', role: 'listbox' });
+      const alta = el('form', { class: 'ficha-alta', hidden: true });
+      let t = null;
+      const buscar = async () => {
+        const txt = q.value.trim();
+        const r = esObra ? (await api('GET', `/api/obras?vista=todas&q=${encodeURIComponent(txt)}`)).obras : await api('GET', `/api/clientes?q=${encodeURIComponent(txt)}`);
+        lista.replaceChildren(...r.slice(0, 8).map((x) => el('button', { type: 'button', role: 'option', class: `ficha-op${ficha?.id === x.id ? ' sel' : ''}`, onclick: () => elegir(x.id) },
+          el('b', {}, x.nombre), el('small', {}, esObra ? ` · ${x.direccion}${x.proyectos ? ` · ${x.proyectos} proyecto${x.proyectos > 1 ? 's' : ''}` : ''}` : `${x.cif ? ` · ${x.cif}` : ''}${x.activos ? ` · ${x.activos} activo${x.activos > 1 ? 's' : ''}` : ''}`))),
+        el('button', { type: 'button', class: 'ficha-op nueva', onclick: () => {
+          alta.hidden = false; lista.hidden = true;
+          alta.replaceChildren(...[
+            el('input', { name: 'nombre', placeholder: esObra ? 'Nombre (p. ej. Villa Binibeca)' : 'Nombre o razón social', maxlength: esObra ? 120 : 200, value: esObra ? '' : txt, required: !esObra }),
+            esObra ? el('input', { name: 'direccion', placeholder: 'Dirección (obligatoria)', maxlength: 300, required: true, value: txt }) : null,
+            el('div', { class: 'ficha-alta-bot' }, el('button', { type: 'submit', class: 'primario mini' }, esObra ? 'Crear obra' : 'Crear cliente'),
+              el('button', { type: 'button', class: 'ghost mini', onclick: () => { alta.hidden = true; lista.hidden = false; } }, 'Volver')),
+            el('small', { class: 'ayuda' }, 'El resto de datos, en su ficha.')].filter(Boolean));
+          alta.querySelector('input').focus();
+        } }, el('b', {}, esObra ? '＋ Crear obra nueva' : `＋ Crear cliente${txt ? ` «${txt}»` : ''}`)),
+        el('button', { type: 'button', class: 'ficha-op quitar', onclick: () => elegir(null) },
+          el('b', {}, esObra ? '— Sin obra' : '— Sin cliente'), el('small', {}, esObra ? ' · trabajo solo de taller o venta (no sale fila de obra en el tablero)' : '')));
+      };
+      alta.onsubmit = async (ev) => {
+        ev.preventDefault();
+        const f = new FormData(alta);
+        try {
+          await api('POST', esObra ? '/api/obras' : '/api/clientes', { ...Object.fromEntries(f), proyecto_id: p.id });
+          toast(esObra ? 'Obra creada' : 'Cliente creado'); cerrar(); await recargarProyecto();
+        } catch (e) { toast(e.message, true); }
+      };
+      q.oninput = () => { clearTimeout(t); t = setTimeout(buscar, 200); };
+      pop.replaceChildren(q, lista, alta);
+      pop.hidden = false;
+      document.addEventListener('pointerdown', fuera, true);
+      await buscar(); q.focus();
+    }
+    const caja = el('div', { class: 'campo c4 ficha-campo' }, el('label', { for: id }, esObra ? 'Obra' : 'Cliente'), el('div', { class: 'ficha-fila' }, boton, enlace), pop);
+    return caja;
+  }
+  // Debajo: dónde es la obra, su contacto y si tiene más proyectos
+  function pintarObras(p) {
+    const o = p.obra_ficha;
+    $('#proyecto-obras').replaceChildren(...(o ? [
+      el('div', { class: 'obra-resumen' },
+        el('span', {}, `📍 ${o.direccion}`),
+        o.contacto || o.telefono ? el('span', {}, ` · contacto en obra ${[o.contacto, o.telefono].filter(Boolean).join(' ')}`) : null,
+        o.acceso ? el('span', {}, ` · ${o.acceso}`) : null,
+        o.otros ? el('a', { class: 'obra-otros', href: `/obras.html?id=${o.id}` }, ` · otros ${o.otros} proyecto${o.otros > 1 ? 's' : ''} en esta obra`) : null),
+    ] : [el('p', { class: 'ayuda' }, 'Sin obra: no tiene fila de obra en el tablero. Si hay trabajo en el sitio del cliente, elige o crea su obra arriba.')]));
   }
 
   // Condiciones previas: lo que hay que confirmar antes de ejecutar (pago, RAL, pilares…)

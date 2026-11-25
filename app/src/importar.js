@@ -873,6 +873,9 @@ async function importar(c, archivo, resoluciones, usuario, simular) {
     errores: [],
   };
   if (!simular) {
+    // el proyecto queda en su obra (por la dirección) y con su cliente (por el nombre); las filas de obra que se hayan
+    // creado se juntan con la de la obra
+    await require('./obras-clientes').adoptar(c, proy.id);
     informe.avisar = avisarDespues;
     const { rows } = await c.query(
       `INSERT INTO importaciones (proyecto_id, ref_externa, usuario_id, origen, resumen, archivo) VALUES ($1,$2,$3,$4,$5,$6) RETURNING id`,

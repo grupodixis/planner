@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <meta name="theme-color" content="#141414">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="apple-touch-icon" href="/apple-touch-icon-v2.png">
+  <title>Planéalo · Clientes</title>
+  <link rel="stylesheet" href="styles.css?v=202611250923">
+</head>
+<body class="fc-pant">
+  <header class="top">
+    <h1 class="marca"><img src="/logo.svg" alt="" class="marca-ico">Planéalo <span>· clientes</span></h1>
+    <nav class="menu" aria-label="Pantallas">
+      <a href="/">Tablero</a>
+      <a href="/proyectos.html">Proyectos</a>
+    </nav>
+    <div class="usuario"><span id="usuario-nombre"></span> <button id="salir" class="ghost">Salir</button></div>
+  </header>
+  <main class="fc-main fc-clientes">
+    <section class="panel fc-lista-caja" aria-label="Clientes">
+      <div class="fc-lista-cab"><h2>Clientes</h2><button type="button" class="primario" id="fc-nueva">＋ Nuevo cliente</button></div>
+      <input type="search" id="fc-buscar" placeholder="Nombre, CIF o contacto…" aria-label="Buscar">
+      <div class="fc-filtros" id="fc-filtros"></div>
+      <ul class="fc-lista" id="fc-lista"></ul>
+    </section>
+    <div id="fc-ficha" class="fc-ficha"><section class="panel"><p class="ayuda">Elige un cliente de la lista.</p></section></div>
+  </main>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <script src="pwa.js?v=202611250923"></script>
+  <script src="comun.js?v=202611250923"></script>
+  <script src="ayuda-textos.js?v=202611250923"></script>
+  <script src="ayuda.js?v=202611250923"></script>
+  <script src="fichas-comun.js?v=202611250923"></script>
+  <script src="clientes.js?v=202611250923"></script>
+</body>
+</html>

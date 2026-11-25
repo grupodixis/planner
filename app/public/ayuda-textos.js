@@ -141,7 +141,7 @@ window.S360_AYUDA = {
           pasos: [
             { sel: '#btn-importar', texto: '<b>Importar…</b>: se arrastra el archivo del compositor. Antes de cambiar nada sale una <b>vista previa</b>; reimportar actualiza sin duplicar.' },
             { sel: '#lista-proyectos li:not(.ayuda)', esperar: 'click', texto: 'Los proyectos activos. <b>Pulsa uno</b> para abrirlo.', saltar_si: () => !document.getElementById('proyecto-ficha')?.hidden },
-            { sel: '#proyecto-campos', texto: 'Sus datos: cliente, obra, notas. <b>Se guarda al salir de cada campo</b>.' },
+            { sel: '#proyecto-campos', texto: 'Sus datos. <b>Cliente</b> y <b>Obra</b> se eligen de sus fichas (buscador: elegir, crear o «Sin obra»); lo demás se guarda al salir de cada campo.' },
             { sel: '#proyecto-condiciones', texto: '<b>Condiciones previas</b> (anticipo, RAL confirmado…): mientras estén sin marcar, el tablero lo avisa.' },
             { sel: '.gp-mat', opcional: true, texto: 'Cada partida tiene su material: <b>📋 Escandallo</b> (lo que hace falta, lo envía el técnico a logística) y <b>🧩 Asignar</b> (qué tarea usa cada material y herramienta).' },
             { sel: '#lista-ots li:not(.grupo-partida):not(.ayuda)', esperar: 'click', texto: 'Las <b>OTs</b> de cada partida. <b>Pulsa una</b> para ver sus tareas.', saltar_si: () => !document.getElementById('ot-ficha')?.hidden },
@@ -276,6 +276,23 @@ window.S360_AYUDA = {
       ],
     },
 
+    '/obras.html': {
+      titulo: 'Obras',
+      para_que: 'Cada obra es una dirección que reúne proyectos (de uno o varios clientes): sus datos, sus proyectos, lo próximo que hay allí y sus incidencias.',
+      secciones: [
+        { titulo: 'Qué es una obra', texto: 'La dirección donde se trabaja: <b>Obra › Proyectos › Partidas › OT › Tareas</b>. Un proyecto está en una obra o en ninguna («Sin obra»: trabajos solo de taller o venta). Cada obra tiene <b>una fila en el tablero</b> (bajo «Obras») que comparten sus proyectos y que sale mientras alguno está activo.' },
+        { titulo: 'Sus datos', texto: 'Nombre y dirección son obligatorios; el resto, opcional: contacto en obra y teléfono, <b>acceso y horario</b> (lo ven las subcontratas en su enlace), promotor, dirección facultativa, constructora y notas. Se guarda al salir de cada campo; cambiar el nombre o la dirección cambia su fila del tablero y el texto de sus proyectos.' },
+        { titulo: 'Proyectos y lo próximo', texto: 'Debajo, sus proyectos (cliente, OTs, entrega, avance) y «＋ Nuevo proyecto aquí». A la derecha, el mapa, lo planificado de hoy en adelante (con las subcontratas 🏗 y talleres 🏭) y las incidencias abiertas.' },
+      ],
+    },
+    '/clientes.html': {
+      titulo: 'Clientes',
+      para_que: 'Los datos de cada cliente y sus personas de contacto, con sus proyectos y obras.',
+      secciones: [
+        { titulo: 'Datos', texto: 'Razón social, nombre comercial, CIF, dirección fiscal, tipo (empresa, particular, comunidad, administración), teléfono, correos general y de facturas, forma de pago, anticipo habitual y notas. Un cliente con proyectos no se borra: se da de baja.' },
+        { titulo: 'Personas de contacto', texto: 'Cada una con su papel (propiedad, arquitecto, administración…), teléfono y correo, <b>qué puede aprobar</b> (todo, planos, muestras, cambios con precio, actas, citas) y <b>cómo se le avisa</b> (correo, WhatsApp, resumen semanal o solo hitos). Serán las personas con enlace del proyecto.' },
+      ],
+    },
     '/incidencias.html': {
       titulo: 'Incidencias',
       para_que: 'Todas las incidencias de la empresa en un sitio (material, transporte, calidad, averías, seguridad, proveedores), con responsable, seguimiento y cierre.',
@@ -643,5 +660,6 @@ window.S360_AYUDA = {
     { id: 24, fecha: '2026-11-24', si: ['compras', 'logistica'], titulo: 'El transportista acepta la recogida', texto: 'Al enviar un envío al transportista, en su enlace ve las <b>condiciones de la recogida</b> (fecha, dónde, bultos y kg, precio) y la <b>acepta</b>, propone otra fecha o precio, o dice que no puede. En la ficha del envío se ve en qué punto está y se acepta o no su propuesta. Al aceptarla, el proveedor de cada pedido recibe la <b>recogida confirmada</b> con su enlace de seguimiento.', ir: '/compras.html?vista=transportes' },
     { id: 25, fecha: '2026-11-24', titulo: 'En el teléfono, solo la app móvil', texto: 'Desde el teléfono, Planéalo abre siempre la <b>app móvil</b>. Si no tienes ficha de operario, empiezas en <b>🏠 Inicio</b> con lo que se hace desde el móvil (recibir, aprobar, compras locales, parte de hoy, dónde está cada cosa, capturar). Planificar, pedir y lo demás, en el ordenador.' },
     { id: 26, fecha: '2026-11-24', si: ['planificar', 'proyectos', 'compras'], titulo: 'Subcontratas en obra', texto: 'Una tarea puede hacerla aquí una <b>subcontrata</b> (Área / taller › 🏗). Presupuesto con días y personas, pedido, y en su enlace <b>confirma los días</b> planificados y apunta el <b>parte</b> de cada día, que tú validas. En el tablero, 🏗⏳ hasta que confirma y 🏗✔ cuando lo ha hecho; el día antes se le recuerda.', ir: '/proyectos.html' },
+    { id: 27, fecha: '2026-11-25', si: ['proyectos', 'planificar'], titulo: 'Obras y Clientes', texto: 'Nuevas pantallas en <b>Proyectos › Obras</b> y <b>Proyectos › Clientes</b>. La obra es una dirección que reúne proyectos y tiene una sola fila en el tablero; en el proyecto, Cliente y Obra se eligen con un buscador (o «Sin obra»). Los proyectos que ya había se han pasado solos a su obra y su cliente.', ir: '/obras.html' },
   ],
 };

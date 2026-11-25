@@ -807,6 +807,45 @@ el transporte…). No hay etapas fijas: las etapas son **las tareas de la OT**, 
   costes: lo de los pedidos de subcontratación enviados suma en **Subcontratas** (las líneas sueltas, a la primera tarea).
 - **Siguientes pasos**: recepción desde el móvil; transportes dentro de la isla.
 
+## Obras y Clientes (Proyectos › Obras · Proyectos › Clientes)
+
+`src/obras-clientes.js`, `public/obras.html/js`, `public/clientes.html/js` (con `fichas-comun.js`).
+
+**Jerarquía:** **Obra › Proyectos › Partidas › OT › Tareas**. Un proyecto está en una obra o en ninguna («Sin obra»).
+
+**Obra** (`obras`)
+- Datos: nombre y dirección obligatorios. Son opcionales:
+  - localidad, contacto en obra y teléfono;
+  - acceso y horario (sale en el enlace de las subcontratas);
+  - promotor, dirección facultativa, constructora y notas.
+- Tiene **una fila en el tablero** (`lineas` tipo `obra` con `obra_id`), que comparten todos sus proyectos.
+  - La fila sale mientras alguno de sus proyectos está activo (`SQL_OBRA_ACTIVA`), y lleva los códigos de los proyectos activos.
+  - Al cambiar un proyecto de obra, lo suyo planificado en la fila anterior pasa a la nueva.
+- Las filas de obra ya no se gestionan en «Áreas de trabajo».
+
+**Cliente** (`clientes`)
+- Datos: razón social, nombre comercial, CIF, tipo, dirección fiscal, teléfono, correos general y de facturas, forma de pago, anticipo y notas.
+- Tiene **personas de contacto** (`cliente_contactos`), cada una con:
+  - papel, teléfono y correo;
+  - `aprueba` (todo, planos, muestras, cambios, actas, citas);
+  - avisos por correo y/o WhatsApp, y `resumen` (semanal, hitos o nada).
+- Son las personas que tendrán su enlace del proyecto.
+
+**En el proyecto**
+- `proyectos.obra_id` / `cliente_id`. El texto `proyectos.obra` (la dirección) y `cliente` (el nombre) se copian de la ficha para listados, correos e informes.
+- La ficha tiene dos **buscadores** (elegir, crear o quitar). Debajo se ven la dirección, el contacto, el acceso y los otros proyectos de esa obra.
+
+**Paso de lo que había** (`adoptar`, una vez al arrancar, `ajustes.obras_clientes`; y después de cada importación)
+- Cada proyecto pasa a la obra de su fila de obra o de su texto de dirección.
+- Las direcciones iguales (sin acentos ni signos) son la misma obra, y las filas repetidas se juntan.
+- El cliente se busca por nombre y, si no existe, se crea.
+
+**API**
+- Obras: `GET /api/obras?vista=activas|sin_activo|todas&q=`, `GET /api/obras/:id` (o `sin`: con proyectos, lo próximo e incidencias), `POST /api/obras`, `PUT·DELETE /api/obras/:id`.
+- Clientes: `GET·POST /api/clientes`, `GET·PUT·DELETE /api/clientes/:id`.
+- Contactos: `POST /api/clientes/:id/contactos`, `PUT·DELETE /api/cliente-contactos/:id`.
+- Proyecto: `PUT /api/proyectos/:id/obra {obra_id}` y `PUT /api/proyectos/:id/cliente {cliente_id}`.
+
 ## Subcontratas en obra (🏗)
 
 `src/subcontratas-obra.js`. Una tarea que hace **aquí** un proveedor (montadores, pintores, grúa…), en la obra o en nuestras áreas.

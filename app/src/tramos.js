@@ -4,6 +4,7 @@
 //    Así se registra que un operario estuvo 4h y otro 8h en el mismo tramo.
 //  · Los tramos pueden superar las horas estimadas de la tarea: la diferencia es el exceso.
 const { query, tx } = require('./db');
+const OC = require('./obras-clientes');
 const auth = require('./auth');
 const { jornada } = require('./config');
 const extras = require('./horas-extra');
@@ -190,20 +191,21 @@ module.exports = function montar(app, asyncH) {
                                 ORDER BY r.nombre)
                                 FROM recursos r WHERE r.linea_id = l.id AND r.fijo_area AND r.activo), '[]') AS maquinas,
                     l.departamento_id, d.nombre AS departamento, d.orden AS departamento_orden,
-                    p.codigo AS proyecto_codigo, p.nombre AS proyecto_nombre,
+                    CASE WHEN l.obra_id IS NOT NULL THEN COALESCE(${OC.SQL_OBRA_PROYECTOS('l')}, p.codigo) ELSE p.codigo END AS proyecto_codigo,
+                    CASE WHEN l.obra_id IS NOT NULL THEN ob.nombre ELSE p.nombre END AS proyecto_nombre, l.obra_id, ob.direccion AS obra_direccion,
                     (l.tipo = 'obra') AS es_obra,
-                    (l.tipo = 'obra' AND p.estado IS DISTINCT FROM 'activo') AS obra_cerrada,
+                    (l.tipo = 'obra' AND NOT ${OC.SQL_OBRA_ACTIVA('l', 'p')}) AS obra_cerrada,
                     (l.tipo = 'externo') AS es_externo, l.proveedor_id
-               FROM lineas l LEFT JOIN proyectos p ON p.id = l.proyecto_id
+               FROM lineas l LEFT JOIN proyectos p ON p.id = l.proyecto_id LEFT JOIN obras ob ON ob.id = l.obra_id
                     LEFT JOIN departamentos d ON d.id = l.departamento_id
               WHERE (l.activo AND l.tipo NOT IN ('obra', 'externo'))
-                 OR (l.activo AND l.tipo = 'obra' AND p.estado = 'activo')
+                 OR (l.activo AND l.tipo = 'obra' AND ${OC.SQL_OBRA_ACTIVA('l', 'p')})
                  -- talleres externos: solo mientras tienen tareas activas (como las obras)
                  OR (l.tipo = 'externo' AND EXISTS (SELECT 1 FROM tareas t JOIN ordenes o ON o.id = t.orden_id
                        WHERE t.proveedor_id = l.proveedor_id AND t.estado <> 'hecha' AND o.estado = 'abierta' AND NOT t.baja_presupuesto))
                  OR EXISTS (SELECT 1 FROM tramos x WHERE x.linea_id = l.id AND x.fecha BETWEEN $1 AND $2)
               ORDER BY CASE l.tipo WHEN 'externo' THEN 2 WHEN 'obra' THEN 1 ELSE 0 END,
-                       CASE WHEN l.tipo = 'obra' THEN p.codigo END, d.orden NULLS LAST, l.orden, l.nombre`, [desde, hasta]),
+                       CASE WHEN l.tipo = 'obra' THEN COALESCE(ob.nombre, p.codigo) END, d.orden NULLS LAST, l.orden, l.nombre`, [desde, hasta]),
       // Recursos activos + los dados de baja que aún tienen algo asignado en el rango
       query(`SELECT id, tipo, nombre, categoria, activo, vinculo, empresa, linea_id, departamento_id,
                     COALESCE((SELECT json_agg(rt.tipo_recurso_id) FROM recurso_tipos rt WHERE rt.recurso_id = r.id), '[]') AS tipos,

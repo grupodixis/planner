@@ -105,7 +105,7 @@ app.get('/api/areas', asyncH(async (req, res) => {
             (SELECT count(*)::int FROM tareas t WHERE t.linea_id = l.id)
           + (SELECT count(*)::int FROM tramos x WHERE x.linea_id = l.id) AS usos
        FROM lineas l LEFT JOIN departamentos d ON d.id = l.departamento_id
-      WHERE l.tipo <> 'obra' OR l.proyecto_id IS NULL
+      WHERE l.tipo <> 'obra' OR (l.proyecto_id IS NULL AND l.obra_id IS NULL)
       ORDER BY l.activo DESC, d.orden NULLS LAST, l.orden, l.nombre`);
   const { rows: departamentos } = await query('SELECT id, clave, nombre FROM departamentos ORDER BY orden, nombre');
   // máquinas que se pueden dejar fijas en un área
@@ -302,6 +302,7 @@ require('./transportes').montarGestion(app, asyncH);   // envíos península →
 require('./compras-locales').montar(app, asyncH);   // compras locales: pedir, autorizar, ticket, cuadrar
 require('./supervision').montar(app, asyncH);   // supervisar desde el móvil: recibir, parte, aprobar, dónde está
 require('./horas-extra').montar(app, asyncH);   // turnos, excedentes y horas extra (autoriza Dirección)
+require('./obras-clientes').montar(app, asyncH);   // Obras (dirección con sus proyectos) y Clientes (con sus contactos)
 require('./incidencias').montar(app, asyncH);   // incidencias: material, transporte, calidad… con reclamación y cierre
 require('./pedido-transporte').montar(app, asyncH);   // cómo llega cada pedido: proveedor, recogida o almacén del transportista
 require('./recursos')(app, asyncH);
@@ -342,6 +343,7 @@ const PORT = Number(process.env.PORT || 3000);
 (async () => {
   await esperarBD();
   await migrar();
+  await require('./obras-clientes').migrarUnaVez().catch((e) => console.error('Obras y clientes:', e.message));
   await require('./correo').cargar().catch((e) => console.error('Correo:', e.message));
   await auth.asegurarAdmin();
   await require('./capacidades').sembrar().catch((e) => console.error('Capacidades:', e.message));
