@@ -1385,6 +1385,7 @@ La IA es **un cliente más de la API**, nunca toca la base de datos. Solo puede 
   claude mcp add --transport http planealo https://administrador.hamenorca.com/mcp --header "Authorization: Bearer s360ia_…"
   ```
 
+- **Proveedor de IA** (`src/ia-proveedores.js`, solo permiso `usuarios`): clave de API de Anthropic, OpenAI o Google para el asistente de la app. Se guarda en `ajustes.ia_proveedores` **cifrada** (AES-256-GCM con la clave de servidor del correo, fuera de la BD); nunca vuelve al navegador (solo `…abcd`). «Probar» pide la lista de modelos al proveedor (no gasta tokens) y la ofrece para elegir el modelo; al guardar una clave se prueba sola. Uno es el **activo** (el que usará el asistente). Si el panel está vacío vale la del entorno (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GEMINI_API_KEY`). API: `GET /api/ia/proveedores`, `PUT /api/ia/proveedores/:id {clave | modelo | borrar_clave}`, `POST /api/ia/proveedores/:id/probar`, `PUT /api/ia/proveedor-activo {proveedor}`.
 - Permiso nuevo **`ia`** (el rol administrador lo recibe al migrar).
 - **Próximas fases**: asistente dentro de la app (necesita la clave de un proveedor de IA, que se configura en el servidor), herramientas que **preparan borradores** (presupuestos, pedidos, albaranes) que una persona confirma, y WhatsApp más adelante.
 

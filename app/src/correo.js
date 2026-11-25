@@ -151,4 +151,4 @@ async function enviarOFallar({ para, cc, asunto, texto, adjuntos }) {
 // Firma corta con la misma clave del servidor (enlaces sin sesión, p. ej. el de las ofertas)
 const firmar = (txt) => crypto.createHmac('sha256', claveCifrado()).update(String(txt)).digest('base64url').slice(0, 32);
 
-module.exports = { firmar, configurado, enviar, enviarOFallar, remitente, cargar, verAjustes, guardarAjustes, probar };
+module.exports = { firmar, configurado, enviar, enviarOFallar, remitente, cargar, verAjustes, guardarAjustes, probar, cifrar, descifrar };

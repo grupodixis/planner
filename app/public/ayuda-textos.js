@@ -433,10 +433,11 @@ window.S360_AYUDA = {
       para_que: 'La pasarela de la IA: qué herramientas puede usar (por ahora solo de lectura), quién la usa y cómo conectar Claude Code o Antigravity con tus permisos. Todo lo que hace queda en el registro.',
       recorridos: [
         {
-          id: 'ia-basico', version: 1, si: ['ia', 'usuarios'], ofrecer: true, duracion: '1 min',
+          id: 'ia-basico', version: 2, si: ['ia', 'usuarios'], ofrecer: true, duracion: '1 min',
           titulo: 'Cómo funciona la IA',
           pasos: [
             { sel: '#ia-estado', texto: '<b>Interruptor general</b>, canales (MCP = Claude Code/Antigravity; App = el asistente, próximamente) y <b>límite de consultas</b> por persona y día. Solo lo cambia quien gestiona usuarios.' },
+            { sel: '#ia-prov', opcional: true, texto: '<b>Proveedor de IA</b>: la clave de API (Anthropic, OpenAI o Google) con la que hablará el <b>asistente de la app</b>. Se guarda cifrada y solo se ven sus 4 últimos caracteres. «Probar» comprueba que funciona y trae los modelos para elegir.' },
             { sel: '#ia-herr', texto: 'Las <b>herramientas</b>: lo único que la IA puede hacer. Todas <b>leen</b>, usando la misma API que las pantallas y con los permisos de quien pregunta. Se pueden apagar una a una. «<b>Probar</b>» enseña exactamente lo que recibiría la IA.' },
             { sel: '#ia-mcp', texto: '<b>Conectar Claude Code / Antigravity</b>: crea una clave (se ve una sola vez), pégala en su configuración MCP y tus Skills podrán consultar la planificación, OTs, compras… Si se pierde, <b>Revocar</b>.' },
             { sel: '#ia-reg', texto: 'El <b>registro</b>: cada consulta con quién, por qué canal, qué datos pidió y el resultado. Quien gestiona usuarios ve el de todos; los demás, el suyo.' },
@@ -704,5 +705,6 @@ window.S360_AYUDA = {
     { id: 35, fecha: '2026-11-25', si: ['planificar'], titulo: 'Falta alguien que sepa…: asignar a otro igualmente', texto: 'En el cuadrante, en el aviso «Necesita alguien que sepa…» → <b>Solucionar</b> salen dos listas: quien <b>la tiene marcada</b> y el resto de operarios (<b>no la tienen marcada</b>), para poder asignar a otro aunque nadie la sepa.', ir: '/' },
     { id: 36, fecha: '2026-11-25', si: ['usuarios'], titulo: 'Roles y permisos más claros', texto: 'En <b>Usuarios › Roles y permisos</b>: lista de roles a la izquierda y, al elegir uno, sus permisos <b>agrupados por áreas</b> (planificación, proyectos, personas, compras, informes, administración) con lo que permite cada uno. «<b>Comparar todos</b>» los enseña en una tabla con los nombres legibles.', ir: '/usuarios.html' },
     { id: 37, fecha: '2026-11-25', si: ['ia', 'usuarios'], titulo: 'IA: pasarela, registro y herramientas de lectura', texto: 'Nueva pantalla <b>Recursos › IA</b>. La IA no toca la base de datos: solo usa <b>14 herramientas de lectura</b> (OTs en riesgo, cuadrante del día, agenda de una persona, quién está libre, pedidos, envíos, incidencias, clientes, materiales…) con <b>tus</b> permisos, y todo queda en el <b>registro</b>. Crea una <b>clave</b> para conectar <b>Claude Code o Antigravity</b> por MCP.', ir: '/ia.html' },
+    { id: 38, fecha: '2026-11-25', si: ['usuarios'], titulo: 'IA: clave del proveedor', texto: 'En <b>Recursos › IA › Proveedor de IA</b> se pega la <b>clave de API</b> de Anthropic (Claude), OpenAI o Google (Gemini) para el futuro asistente de la app. Se guarda <b>cifrada</b>, solo se ve «…abcd», «🔌 Probar» comprueba que funciona (sin gastar) y se elige el modelo.', ir: '/ia.html' },
   ],
 };

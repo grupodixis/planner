@@ -8,7 +8,7 @@
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="apple-touch-icon" href="/apple-touch-icon-v2.png">
   <title>Planéalo · IA</title>
-  <link rel="stylesheet" href="styles.css?v=202611252301">
+  <link rel="stylesheet" href="styles.css?v=202611252316">
 </head>
 <body class="ia-pant">
   <header class="top">
@@ -23,6 +23,11 @@
     <section class="panel" aria-labelledby="ia-tit-estado" data-ayuda="ia-estado">
       <div class="cab-panel"><h2 id="ia-tit-estado">✨ IA · pasarela</h2><div id="ia-estado" class="ia-estado"></div></div>
       <p class="ayuda">La IA no toca la base de datos: solo puede usar las <b>herramientas</b> de abajo, que llaman a la misma API que las pantallas, en nombre de un usuario y con <b>sus</b> permisos. Por ahora todas son de <b>solo lectura</b>. Todo queda en el registro.</p>
+    </section>
+    <section class="panel" aria-labelledby="ia-tit-prov" data-ayuda="ia-proveedor" id="ia-prov-sec" hidden>
+      <div class="cab-panel"><h2 id="ia-tit-prov">🔑 Proveedor de IA (clave de API)</h2><span class="ayuda" id="ia-prov-activo"></span></div>
+      <p class="ayuda">La clave con la que <b>el asistente de la app</b> hablará con la IA (lo paga la empresa según uso). Se guarda <b>cifrada</b> y no se vuelve a mostrar: solo sus 4 últimos caracteres. Claude Code / Antigravity usan su propia cuenta y no la necesitan.</p>
+      <div id="ia-prov" class="ia-prov"></div>
     </section>
     <section class="panel" aria-labelledby="ia-tit-herr" data-ayuda="ia-herramientas">
       <div class="cab-panel"><h2 id="ia-tit-herr">Herramientas</h2><span class="ayuda" id="ia-herr-n"></span></div>
@@ -39,10 +44,10 @@
   </main>
   <dialog id="ia-dlg" class="ia-dlg" aria-labelledby="ia-dlg-tit"></dialog>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
-  <script src="pwa.js?v=202611252301"></script>
-  <script src="comun.js?v=202611252301"></script>
-  <script src="ayuda-textos.js?v=202611252301"></script>
-  <script src="ayuda.js?v=202611252301"></script>
-  <script src="ia.js?v=202611252301"></script>
+  <script src="pwa.js?v=202611252316"></script>
+  <script src="comun.js?v=202611252316"></script>
+  <script src="ayuda-textos.js?v=202611252316"></script>
+  <script src="ayuda.js?v=202611252316"></script>
+  <script src="ia.js?v=202611252316"></script>
 </body>
 </html>

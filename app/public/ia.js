@@ -135,13 +135,53 @@
         : el('tr', {}, el('td', { colspan: 7, class: 'ayuda' }, 'Nada todavía.'))));
   }
 
+
+  // Proveedor de IA: clave de API (cifrada en el servidor; aquí solo «…abcd»), modelo y cuál usa el asistente
+  async function pintarProv() {
+    if (!est.d.puede_admin) return;
+    $('#ia-prov-sec').hidden = false;
+    let v;
+    try { v = await api('GET', '/api/ia/proveedores'); } catch (e) { $('#ia-prov').replaceChildren(el('p', {}, e.message)); return; }
+    const act = v.proveedores.find((p) => p.id === v.activo);
+    $('#ia-prov-activo').textContent = act ? `El asistente usará: ${act.nombre} · ${act.modelo || 'sin modelo'}` : 'Sin configurar';
+    const tras = async (prom, ok) => { try { await prom; if (ok) toast(ok); } catch (e) { toast(e.message, true); } pintarProv(); };
+    $('#ia-prov').replaceChildren(...v.proveedores.map((p) => {
+      const inp = el('input', { type: 'password', autocomplete: 'new-password', spellcheck: 'false', placeholder: p.configurada ? 'Pegar otra para cambiarla' : 'Pega aquí la clave de API', 'aria-label': `Clave de ${p.nombre}`, class: 'ia-prov-clave' });
+      const guardar = async (ev) => {
+        const clave = inp.value.trim(); if (!clave) { inp.focus(); return; }
+        ev.target.disabled = true; ev.target.textContent = 'Guardando y probando…';
+        inp.value = '';
+        await tras(api('PUT', `/api/ia/proveedores/${p.id}`, { clave }), 'Clave guardada');
+      };
+      inp.addEventListener('keydown', (ev) => { if (ev.key === 'Enter') guardar({ target: inp.nextSibling }); });
+      const pr = p.prueba;
+      return el('div', { class: `ia-prov-card${v.activo === p.id ? ' activo' : ''}` },
+        el('div', { class: 'ia-prov-cab' },
+          el('b', {}, p.nombre),
+          p.configurada ? el('span', { class: 'ia-chip lee' }, `🔒 ${p.final}${p.origen === 'servidor' ? ' · del servidor (.env)' : ''}`) : el('span', { class: 'ia-chip nun' }, 'sin clave'),
+          v.activo === p.id ? el('span', { class: 'ia-chip ok' }, '★ la usa el asistente')
+            : p.configurada ? el('button', { type: 'button', class: 'mini', onclick: () => tras(api('PUT', '/api/ia/proveedor-activo', { proveedor: p.id }), `El asistente usará ${p.nombre}`) }, 'Usar este') : null),
+        el('div', { class: 'ia-prov-fila' }, inp, el('button', { type: 'button', class: 'primario mini', onclick: guardar }, p.configurada ? 'Cambiar clave' : 'Guardar clave')),
+        el('div', { class: 'ia-prov-fila' },
+          el('label', { class: 'ia-chk' }, 'Modelo ',
+            el('input', { list: `ia-mod-${p.id}`, value: p.modelo || '', class: 'ia-prov-mod', placeholder: 'Pulsa «Probar»', onchange: (ev) => tras(api('PUT', `/api/ia/proveedores/${p.id}`, { modelo: ev.target.value }), 'Modelo guardado') }),
+            el('datalist', { id: `ia-mod-${p.id}` }, p.modelos.map((m) => el('option', { value: m })))),
+          p.configurada ? el('button', { type: 'button', class: 'mini', onclick: (ev) => { ev.target.disabled = true; ev.target.textContent = 'Probando…'; tras(api('POST', `/api/ia/proveedores/${p.id}/probar`)); } }, '🔌 Probar') : null,
+          p.origen === 'panel' ? el('button', { type: 'button', class: 'ghost borrar mini', onclick: () => { if (confirm(`¿Quitar la clave de ${p.nombre}? El asistente dejará de poder usarla.`)) tras(api('PUT', `/api/ia/proveedores/${p.id}`, { borrar_clave: true }), 'Clave quitada'); } }, 'Quitar clave') : null),
+        el('div', { class: 'ia-prov-pie' },
+          pr ? el('span', { class: pr.ok ? 'ia-ok' : 'ia-mal' }, `${pr.ok ? '✔' : '✕'} ${pr.msg} · ${cuando(pr.en)}`) : p.configurada ? el('span', { class: 'ayuda' }, 'Sin probar') : null,
+          p.guardada_por ? el('span', { class: 'ayuda' }, `Guardada por ${p.guardada_por} · ${cuando(p.guardada_en)}`) : null,
+          el('a', { href: p.consola, target: '_blank', rel: 'noopener', class: 'ayuda' }, 'Conseguir una clave ↗')));
+    }));
+  }
+
   async function iniciar() {
     let yo;
     try { yo = await api('GET', '/api/me'); } catch { location.href = '/login.html'; return; }
     window.s360.iniciar(yo);
     try { est.d = await api('GET', '/api/ia'); }
     catch (e) { document.querySelector('.ia-main').replaceChildren(el('section', { class: 'panel' }, el('p', {}, e.message))); return; }
-    pintarEstado(); pintarHerr(); pintarMcp(); cargarRegistro();
+    pintarEstado(); pintarProv(); pintarHerr(); pintarMcp(); cargarRegistro();
   }
   iniciar();
 })();
