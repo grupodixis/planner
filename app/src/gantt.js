@@ -44,7 +44,8 @@ async function datosOTs({ cerradas = false, proyectoId = null, desde, hasta, hoy
 
   const { rows: ots } = await query(
     `SELECT o.id, o.codigo, o.titulo, o.prioridad, o.estado, o.color, o.fecha_entrega::text AS entrega, o.proyecto_id,
-            p.codigo AS p_codigo, p.nombre AS p_nombre, p.cliente, p.cliente_id, p.obra_id, ob.nombre AS obra, p.estado AS p_estado
+            p.codigo AS p_codigo, p.nombre AS p_nombre, p.cliente, p.cliente_id, p.obra_id, ob.nombre AS obra, p.estado AS p_estado,
+            (SELECT count(*)::int FROM planificaciones pl WHERE pl.orden_id = o.id) AS planif_n
        FROM ordenes o JOIN proyectos p ON p.id = o.proyecto_id LEFT JOIN obras ob ON ob.id = p.obra_id
       WHERE NOT COALESCE(o.baja_presupuesto, false) AND ($1 OR (o.estado <> 'cerrada' AND p.estado = 'activo'))
         AND ($2::int IS NULL OR p.id = $2)
@@ -101,7 +102,7 @@ async function datosOTs({ cerradas = false, proyectoId = null, desde, hasta, hoy
     salida.push({
       id: o.id, codigo: o.codigo, titulo: o.titulo, prioridad: o.prioridad, color: o.color, entrega: o.entrega, estado: o.estado,
       proyecto: { id: o.proyecto_id, codigo: o.p_codigo, nombre: o.p_nombre, cliente: o.cliente, cliente_id: o.cliente_id, obra: o.obra, obra_id: o.obra_id, estado: o.p_estado },
-      inicio: ini, fin, falta_h, riesgo, riesgo_txt: txt, avance: av.ordenes?.[o.id] || null, tareas: ts,
+      inicio: ini, fin, falta_h, riesgo, riesgo_txt: txt, planif_n: o.planif_n, avance: av.ordenes?.[o.id] || null, tareas: ts,
     });
   }
 
@@ -170,7 +171,7 @@ function montar(app, asyncH) {
       .filter((r) => r.h.some((n) => n > 0))
       .sort((a, b) => b.h.reduce((s, n) => s + n, 0) - a.h.reduce((s, n) => s + n, 0));
     res.json({
-      desde, hasta, hoy, semanas: weeks, festivos: [...libres].filter((f) => f >= desde && f <= hasta),
+      desde, hasta, hoy, semanas: weeks, festivos: [...libres].filter((f) => f >= masDias(desde, -60) && f <= masDias(hasta, 400)),
       ots: salida,
       carga: { oficios: lista(oficios, 'h-persona'), areas: lista(areas, 'h'), talleres: lista(talleres, 'días'), subcontratas: lista(subcs, 'h-persona') },
     });

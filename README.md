@@ -817,6 +817,48 @@ La pantalla de planificación diaria (`/`, `public/app.js`) se llama **Cuadrante
   - Los enlaces se abren en la pantalla entera.
   - Asignar gente sigue siendo arrastrando en el cuadrante.
 
+## Planificar una OT de una vez, moverla y deshacer (Gantt)
+
+`src/planificar-ot.js`, tabla `planificaciones` (tipo `planificar` | `mover`, `detalle` con los tramos, `deshecha_en`).
+
+**Propuesta:** `POST /api/plan-vista/ordenes/:id/planificar {modo: inicio|fin, fecha, ajustes: {tareaId: fecha}, areas: {tareaId: lineaId}}`.
+- Las rutas `/api/plan-vista/…` no cambian nada y no avisan en vivo a las demás pantallas (`eventos.SIN_AVISO`).
+- Coloca las horas pendientes (estimado − planificado) de las tareas no hechas:
+  - en orden de dependencias (`tarea_dependencias` con `espera_h` en horas de calendario) y después `orden_en_of`;
+  - en el área de la tarea, por medias horas dentro de la jornada (`config.jornada`), saltando fines de semana y festivos;
+  - en las áreas exclusivas, solo en los huecos libres (lo ya planificado y lo propuesto); en las demás, sin límite.
+- Una previa de otra OT sin planificar no se espera, pero da aviso.
+- Una tarea sin área no se coloca: se elige en el diálogo (`areas`) y al confirmar se le guarda.
+- `ajustes` es «no antes de» (lo que deja el arrastre); si las dependencias no lo permiten, avisa.
+- Modo `fin`: búsqueda binaria del inicio laborable más tardío con el que todo acaba ese día o antes; si ni empezando hoy llega, lo dice.
+- Avisos:
+  - puesto ocupado (empieza más tarde de lo pedido);
+  - taller externo o subcontrata sin confirmar;
+  - previa sin planificar;
+  - gente: horas-persona del día (lo que ya hay más lo propuesto, por `operarios_req`) frente a operarios activos sin ausencia de día entero × jornada;
+  - margen o retraso respecto a la entrega.
+
+**Confirmar:** `POST /api/ordenes/:id/planificar` (mismo cuerpo) vuelve a calcular en la transacción (con `pg_advisory_xact_lock`) y crea los tramos sin gente, con `historial` `planificar_ot` y una `planificaciones` que guarda los tramos creados.
+
+**Mover:** `POST /api/plan-vista/ordenes/:id/mover {dias}` y `POST /api/ordenes/:id/mover`.
+- Desplaza N días laborables los tramos de hoy en adelante sin horas reales ni cierre de las tareas no hechas.
+- Quita del tramo a quien ese día falta o está ocupado en otro tramo, y lo guarda para deshacer.
+- Avisa de choques en puestos exclusivos, dependencias con otras OT y la entrega.
+
+**Deshacer:** `POST /api/plan-vista/planificaciones/:id/deshacer` y `POST /api/planificaciones/:id/deshacer {tocados: dejar|incluir}`.
+- `planificar`: borra los tramos creados. `mover`: los devuelve a su día y vuelve a asignar a la gente quitada.
+- Un tramo cambiado después (día, hora, horas o área) solo se toca con `incluir`.
+- Lo que tiene horas reales o cierre no se toca nunca.
+- Historial: `GET /api/ordenes/:id/planificaciones`.
+
+**Pantalla (Gantt):**
+- 🗓 en la OT abre el diálogo con el resultado en vivo; la propuesta se dibuja rayada.
+- Arrastrar una barra propuesta añade un ajuste, con pila para «↶ Deshacer último movimiento»; también Cambiar, Descartar y Confirmar.
+- Arrastrar la barra de una OT abre la vista previa de mover.
+- Tras confirmar o mover sale un aviso con ↶ Deshacer; 🕘 abre el historial.
+- En la ficha de la OT, «🗓 Planificar OT» y «🕘 Planificaciones» llevan a `/gantt.html?ot=ID&planificar=1|historial=1`.
+- El Gantt devuelve `planif_n` por OT y los festivos de ±400 días (para contar laborables al arrastrar).
+
 ## Gantt de un proyecto para enviar (PDF / imagen)
 
 `src/gantt-informe.js`: `GET /api/gantt/proyecto/:id/informe.pdf|svg` (permiso planificar o proyectos; `&descargar=1` para adjunto).

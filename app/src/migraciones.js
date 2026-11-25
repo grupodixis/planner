@@ -1383,6 +1383,19 @@ const MIGRACIONES = [
   `CREATE UNIQUE INDEX IF NOT EXISTS clientes_codigo_ext_idx ON clientes (codigo_ext) WHERE codigo_ext IS NOT NULL`,
   // 2026-11 · El tablero pasa a llamarse «Cuadrante»
   `UPDATE roles SET descripcion = replace(replace(descripcion, 'el tablero', 'el cuadrante'), 'Tablero', 'Cuadrante') WHERE descripcion ILIKE '%tablero%'`,
+  // 2026-11 · Planificar / mover una OT de una vez, con su deshacer
+  `CREATE TABLE IF NOT EXISTS planificaciones (
+     id SERIAL PRIMARY KEY,
+     tipo TEXT NOT NULL CHECK (tipo IN ('planificar', 'mover')),
+     orden_id INTEGER REFERENCES ordenes(id) ON DELETE CASCADE,
+     usuario_id INTEGER REFERENCES usuarios(id) ON DELETE SET NULL,
+     creado TIMESTAMPTZ NOT NULL DEFAULT now(),
+     resumen TEXT,
+     detalle JSONB NOT NULL DEFAULT '{}',
+     deshecha_en TIMESTAMPTZ,
+     deshecha_por INTEGER REFERENCES usuarios(id) ON DELETE SET NULL,
+     deshecha_detalle JSONB)`,
+  `CREATE INDEX IF NOT EXISTS planificaciones_orden ON planificaciones (orden_id, creado DESC)`,
 ];
 
 async function migrar() {

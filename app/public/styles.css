@@ -2732,3 +2732,52 @@ dialog.gt-exp-dlg[open] { display: flex; }
 .gt-exp-bot { display: flex; gap: 8px; flex-wrap: wrap; }
 .gt-exp-vista { background: #3a3a3a; border-radius: 8px; padding: 10px; overflow: auto; min-height: 300px; display: flex; align-items: flex-start; justify-content: center; }
 .gt-exp-img { width: 100%; height: auto; background: #fff; box-shadow: 0 4px 18px #0008; }
+
+/* Gantt: planificar OT (propuesta), mover y deshacer */
+.gt-acc { all: unset; cursor: pointer; font-size: 11px; padding: 1px 6px; border: 1px solid var(--linea); border-radius: 6px; margin-left: 4px; white-space: nowrap; }
+.gt-acc:hover, .gt-acc:focus-visible { border-color: var(--azul); }
+.gt-ch.prop { background: #e08a2a33; color: #f0b060; }
+.gt-bb.ot.arr { cursor: grab; touch-action: none; }
+.gt-bb.arrastrando { cursor: grabbing; z-index: 5; box-shadow: 0 0 0 2px #9cc3ff; opacity: .9; }
+.gt-drag-tip { position: fixed; z-index: 60; white-space: nowrap; background: #1e3a5f; color: #cfe3ff; font-size: 11px; padding: 2px 6px; border-radius: 5px; pointer-events: none; }
+.gt-bb.prop { background: repeating-linear-gradient(45deg, #e08a2acc 0 5px, #e08a2a55 5px 10px); outline: 1.5px dashed #f0a24a; z-index: 3; cursor: grab; touch-action: none; }
+.gt-bb.prop.aj { outline-color: #9cc3ff; }
+.gt-prop-ban { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; background: #2a1f10; border: 1px solid #8a5a1c; border-radius: 10px; padding: 8px 12px; margin: 0 0 8px; }
+.gt-prop-ban[hidden] { display: none; }
+.gt-prop-ic { font-size: 20px; }
+.gt-prop-t { flex: 1; min-width: 260px; }
+.gt-prop-t b { color: #f0b060; }
+.gt-prop-t small { display: block; color: var(--suave); }
+.gt-prop-t .ok { color: #6fcf7f; } .gt-prop-t .mal { color: #ff8a8a; }
+.gt-prop-av { display: inline; }
+.gt-prop-av summary { display: inline; cursor: pointer; color: #f0b060; }
+.gt-prop-av[open] ul { position: absolute; z-index: 20; background: #1e1e1e; border: 1px solid #444; border-radius: 8px; padding: 8px 12px 8px 26px; max-width: 560px; }
+.gt-prop-desc { color: #f5c27a; border-color: #8a5a1c !important; }
+dialog.gt-pl-dlg { width: min(900px, calc(100vw - 32px)); max-height: calc(100vh - 32px); padding: 0; overflow: auto; }
+dialog.gt-pl-dlg.chico { width: min(620px, calc(100vw - 32px)); }
+.gt-pl-cab { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 12px 16px; border-bottom: 1px solid var(--linea); }
+.gt-pl-cab h2 { margin: 0; font-size: 16px; }
+.gt-pl-cuerpo { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; padding: 14px 16px; }
+@media (max-width: 760px) { .gt-pl-cuerpo { grid-template-columns: 1fr; } }
+.gt-pl-izq, .gt-pl-res { display: flex; flex-direction: column; gap: 10px; }
+.gt-pl-res.cargando { opacity: .55; }
+.gt-pl-modo { display: flex; gap: 10px; align-items: flex-start; border: 1px solid var(--linea); border-radius: 8px; padding: 8px 10px; cursor: pointer; }
+.gt-pl-modo.on { border-color: #10776c; background: #10776c22; }
+.gt-pl-modo small { display: block; color: var(--suave); }
+.gt-pl-fecha { display: flex; gap: 10px; align-items: center; }
+.gt-pl-caja { border: 1px solid var(--linea); border-radius: 8px; padding: 8px 12px; }
+dialog.gt-pl-dlg > .gt-pl-caja { margin: 12px 16px 0; }
+.gt-pl-caja ul { margin: 6px 0 0; padding-left: 18px; }
+.gt-pl-caja li { margin: 3px 0; }
+.gt-pl-caja .ok { color: #6fcf7f; } .gt-pl-caja .mal { color: #ff8a8a; }
+.gt-pl-av li, .gt-pl-caja li.aviso, .gt-pl-hist .aviso { color: #f0b060; }
+.gt-pl-area { display: flex; flex-direction: column; gap: 4px; margin-top: 6px; font-size: 12px; }
+.gt-pl-opc { display: flex; gap: 14px; margin-top: 4px; color: var(--texto, #eee); }
+.gt-pl-pie { display: flex; justify-content: flex-end; gap: 8px; padding: 12px 16px; }
+.gt-pl-hist { padding: 8px 16px 14px; }
+.gt-pl-it { display: flex; gap: 10px; align-items: center; justify-content: space-between; border-top: 1px solid var(--linea); padding: 8px 0; }
+.gt-pl-it:first-child { border-top: 0; }
+.gt-pl-it small { display: block; color: var(--suave); }
+.gt-pl-it.hecha { opacity: .6; }
+.gt-undo { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); z-index: 50; display: flex; gap: 12px; align-items: center; background: #262626; border: 1px solid #444; border-radius: 10px; padding: 10px 14px; box-shadow: 0 10px 30px #000a; }
+body.gt-arrastre, body.gt-arrastre * { user-select: none !important; cursor: grabbing !important; }

@@ -305,6 +305,7 @@ require('./horas-extra').montar(app, asyncH);   // turnos, excedentes y horas ex
 require('./obras-clientes').montar(app, asyncH);   // Obras (dirección con sus proyectos) y Clientes (con sus contactos)
 require('./gantt').montar(app, asyncH);   // Gantt: plan por semanas, riesgo de cada OT y carga
 require('./gantt-informe').montar(app, asyncH);   // Gantt de un proyecto en PDF o imagen (para clientes, proveedores, pliegos)
+require('./planificar-ot').montar(app, asyncH);   // Planificar una OT de una vez, moverla entera y deshacer
 require('./incidencias').montar(app, asyncH);   // incidencias: material, transporte, calidad… con reclamación y cierre
 require('./pedido-transporte').montar(app, asyncH);   // cómo llega cada pedido: proveedor, recogida o almacén del transportista
 require('./recursos')(app, asyncH);

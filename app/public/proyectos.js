@@ -427,6 +427,12 @@
     let caja = $('#ot-situacion');
     if (!caja) { caja = el('div', { id: 'ot-situacion' }); $('#ot-resumen').parentElement.after(caja); }
     caja.replaceChildren(situacionOT(o.situacion) || '');
+    // planificar la OT de una vez y deshacer planificaciones: se hace en el Gantt
+    if (window.s360.tiene?.('planificar') && o.estado !== 'cerrada') {
+      caja.append(el('div', { class: 'sub-barra' },
+        el('a', { class: 'boton ghost mini', href: `/gantt.html?ot=${o.id}&planificar=1`, title: 'Colocar de una vez las tareas pendientes (propuesta en el Gantt)' }, '🗓 Planificar OT'),
+        el('a', { class: 'boton ghost mini', href: `/gantt.html?ot=${o.id}&historial=1`, title: 'Planificaciones y movimientos de esta OT, para deshacerlos' }, '🕘 Planificaciones')));
+    }
     // subcontratar: pedir presupuesto o hacer el pedido a un taller externo con tareas de esta OT
     if (o.lista_tareas.some((t) => t.proveedor_id) && puedeSeguir() && o.estado !== 'cerrada') {
       caja.append(el('div', { class: 'sub-barra' },

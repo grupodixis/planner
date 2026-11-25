@@ -1,6 +1,7 @@
 /* Gantt: Proyecto › OT › tareas por semanas (o meses), con entrega ⚑, avance, riesgo y la carga por oficios, áreas,
-   talleres externos y subcontratas. No se planifica aquí: al pulsar una tarea se abre su ventana (la misma del cuadrante),
-   con 📋 para verla en el cuadrante. */
+   talleres externos y subcontratas. Al pulsar una tarea se abre su ventana (la misma del cuadrante), con 📋 para verla en
+   el cuadrante. Planificar a grandes rasgos: «🗓 Planificar OT» (propuesta rayada que se ajusta arrastrando y se confirma),
+   arrastrar la barra de una OT para moverla entera, y «🕘» para deshacer lo planificado o movido. */
 (() => {
   'use strict';
   const $ = (s) => document.querySelector(s);
@@ -30,6 +31,7 @@
   const est = {
     escala: leer('escala', 'semanas'), agrupar: leer('agrupar', 'proyecto'), orden: leer('orden', 'entrega'),
     soloRiesgo: leer('soloRiesgo', false), cerradas: false, q: '', desde: q0.get('desde') || null,
+    prop: null,   // propuesta de «Planificar OT» en curso: { o, op: { modo, fecha, ajustes, areas }, pila, res, cargando }
     abiertas: new Set(leer('abiertas', [])), plegados: new Set(leer('plegados', [])), carga: leer('carga', 'oficios'), datos: null,
   };
   const SEM = () => (est.escala === 'meses' ? 26 : 6);
@@ -142,13 +144,22 @@
         // avance dentro de la barra de la OT
         const bOt = tl.querySelector('.gt-bb.ot');
         if (bOt && pct) bOt.prepend(el('i', { class: 'gt-pg', style: { width: `${pct}%` } }));
+        const enProp = est.prop?.o.id === o.id ? est.prop.res : null;
+        if (bOt && puedePlan() && o.riesgo !== 'hecha' && !est.prop) {
+          bOt.classList.add('arr'); bOt.title = `${bOt.title} · arrastra para mover la OT entera`;
+          arrastrable(bOt, dias, (dd) => `${dd > 0 ? '+' : ''}${dd} d → empieza ${dm(masDias(o.inicio, dd))}`, (dd) => moverOT(o, dd));
+        }
+        if (enProp?.inicio) tl.append(barra(enProp.inicio, enProp.fin, 'prop', null, `Propuesta: ${dm(enProp.inicio)} → ${dm(enProp.fin)}`));
         filas.push(el('div', { class: `gt-fila gt-ot${est.agrupar === 'ninguno' ? ' sola' : ''}` },
           el('div', { class: 'gt-lab' },
             el('button', { type: 'button', class: 'gt-pleg', 'aria-expanded': String(abierta), 'aria-label': abierta ? 'Plegar tareas' : 'Ver tareas', onclick: toggle }, abierta ? '▾' : '▸'),
             el('a', { href: `/proyectos.html?ot=${o.id}`, class: 'gt-ot-n' }, el('b', { class: 'cod' }, o.codigo), ` ${o.titulo}`),
             el('div', { class: 'gt-sub' }, [o.entrega ? `entrega ${dm(o.entrega)}` : 'sin entrega', est.agrupar !== 'proyecto' ? `${o.proyecto.codigo}${o.proyecto.cliente ? ` · ${o.proyecto.cliente}` : ''}` : null].filter(Boolean).join(' · ')),
             el('div', { class: 'gt-est' }, el('span', { class: 'gt-av' }, el('i', { style: { width: `${pct}%` } })), el('small', {}, `${pct} %`),
-              el('span', { class: `gt-ch ${rc}` }, `${o.riesgo === 'no_llega' ? '⚠ ' : ''}${o.riesgo_txt}`))),
+              enProp ? el('span', { class: 'gt-ch prop' }, 'propuesta') : el('span', { class: `gt-ch ${rc}` }, `${o.riesgo === 'no_llega' ? '⚠ ' : ''}${o.riesgo_txt}`),
+              puedePlan() && o.riesgo !== 'hecha' && !est.prop && (o.falta_h > 0 || o.tareas.some((t) => t.sin_plan && !t.hecha))
+                ? el('button', { type: 'button', class: 'gt-acc', title: 'Planificar OT: colocar sus tareas pendientes de una vez', 'aria-label': `Planificar ${o.codigo}`, onclick: () => abrirPlanificar(o) }, '🗓') : null,
+              o.planif_n ? el('button', { type: 'button', class: 'gt-acc', title: 'Planificaciones y movimientos de esta OT (deshacer)', 'aria-label': 'Historial de planificaciones', onclick: () => historial(o) }, '🕘') : null)),
           tl));
         if (!abierta) continue;
         for (const t of o.tareas) {
@@ -159,11 +170,13 @@
               el('button', { type: 'button', class: 'gt-t-n', title: 'Abrir la tarea', onclick: () => ir(cerca) }, el('b', { class: 'cod' }, t.codigo), ` ${t.nombre}`),
               el('div', { class: 'gt-sub' }, [t.proveedor ? `${{ ext: '🏭', trp: '🚚', sub: '🏗' }[t.clase] || ''} ${t.proveedor}` : t.area, t.hecha ? '✔ hecha' : t.sin_plan ? 'sin planificar' : t.falta_h ? `faltan ${t.falta_h} h` : null].filter(Boolean).join(' · '))),
             el('div', { class: 'gt-tl' }, fondo(),
-              t.segmentos.map(([a, b]) => barra(a, b, `${t.hecha ? 'hecha' : t.clase}`, t.clase === 'propia' ? '' : t.proveedor, `${t.codigo} ${t.nombre} · ${dm(a)}${a !== b ? ` → ${dm(b)}` : ''} · pulsa para abrir la tarea`, ir)))));
+              t.segmentos.map(([a, b]) => barra(a, b, `${t.hecha ? 'hecha' : t.clase}`, t.clase === 'propia' ? '' : t.proveedor, `${t.codigo} ${t.nombre} · ${dm(a)}${a !== b ? ` → ${dm(b)}` : ''} · pulsa para abrir la tarea`, ir)),
+              barrasPropuesta(enProp, t, barra, dias))));
         }
       }
     }
     $('#gt-g').replaceChildren(cab, ...(filas.length ? filas : [el('p', { class: 'ayuda gt-vacio' }, est.soloRiesgo ? 'Ninguna OT con riesgo en lo que se ve. 👍' : 'No hay OTs que mostrar.')]));
+    pintarBanner();
     pintarCarga(pos, dias);
     $('#gt-ley').replaceChildren(...Object.entries(CLASE).map(([k, t]) => el('span', {}, el('i', { class: `gt-bb ${k}` }), t)),
       el('span', {}, el('i', { class: 'gt-bb hecha' }), 'Hecho'), el('span', {}, el('i', { class: 'gt-bb falta' }), 'Falta planificar'),
@@ -248,6 +261,256 @@
     refrescar();
   }
 
+  /* ---------- planificar a grandes rasgos: propuesta, mover, deshacer ---------- */
+  const puedePlan = () => !!window.s360.tiene?.('planificar');
+  const fmt = (f) => (f ? new Date(`${f}T12:00:00Z`).toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'numeric' }) : '');
+  const laborable = (f) => { const w = new Date(`${f}T12:00:00Z`).getUTCDay(); return w !== 0 && w !== 6 && !(est.datos?.festivos || []).includes(f); };
+  const sigLab = (f) => { let x = f; while (!laborable(x)) x = masDias(x, 1); return x; };
+  // días de calendario arrastrados → días laborables (con signo) contando desde f
+  const labDelta = (f, dd) => {
+    let n = 0; const a = masDias(f, dd);
+    if (dd > 0) for (let x = masDias(f, 1); x <= a; x = masDias(x, 1)) { if (laborable(x)) n++; }
+    else for (let x = masDias(f, -1); x >= a; x = masDias(x, -1)) { if (laborable(x)) n--; }
+    return n;
+  };
+
+  // Arrastrar en horizontal una barra: muestra cuántos días, y al soltar llama a soltar(días de calendario)
+  function arrastrable(nodo, diasVista, texto, soltar) {
+    nodo.addEventListener('pointerdown', (ev) => {
+      if (ev.button !== 0) return;
+      ev.preventDefault();
+      const tl = nodo.closest('.gt-tl');
+      const w = tl.getBoundingClientRect().width / diasVista;
+      const x0 = ev.clientX; let dd = 0; let movido = false;
+      const tip = el('span', { class: 'gt-drag-tip' });
+      const r0 = nodo.getBoundingClientRect();
+      nodo.setPointerCapture(ev.pointerId);
+      nodo.classList.add('arrastrando'); document.body.classList.add('gt-arrastre');
+      const mover = (e) => {
+        const dx = e.clientX - x0;
+        if (Math.abs(dx) > 4 && !movido) { movido = true; document.body.append(tip); }
+        dd = Math.round(dx / w);
+        nodo.style.translate = `${dd * w}px 0`;
+        Object.assign(tip.style, { left: `${Math.max(4, r0.left + dd * w)}px`, top: `${r0.top - 26}px` });
+        tip.textContent = dd ? texto(dd) : 'suelta para dejarlo igual';
+      };
+      const fin = () => {
+        nodo.removeEventListener('pointermove', mover); nodo.removeEventListener('pointerup', fin); nodo.removeEventListener('pointercancel', fin);
+        nodo.classList.remove('arrastrando'); document.body.classList.remove('gt-arrastre'); tip.remove();
+        if (movido) {
+          // que el «click» de después no abra nada
+          nodo.addEventListener('click', (e) => { e.stopImmediatePropagation(); e.preventDefault(); }, { capture: true, once: true });
+          if (dd) { soltar(dd); return; }
+        }
+        nodo.style.translate = '';
+      };
+      nodo.addEventListener('pointermove', mover); nodo.addEventListener('pointerup', fin); nodo.addEventListener('pointercancel', fin);
+    });
+  }
+
+  function dialogo(titulo, clase = '') {
+    const d = el('dialog', { class: `gt-pl-dlg ${clase}`, 'aria-label': titulo });
+    d.addEventListener('close', () => d.remove());
+    document.body.append(d);
+    return d;
+  }
+  const listaAvisos = (avisos) => (avisos.length ? el('ul', { class: 'gt-pl-av' }, avisos.map((a) => el('li', { class: a.tipo }, `⚠ ${a.texto}`))) : el('p', { class: 'ayuda' }, 'Sin avisos.'));
+
+  // Aviso abajo con botón «↶ Deshacer» durante unos segundos
+  function avisoDeshacer(texto, plId) {
+    $('#gt-undo')?.remove();
+    const t = el('div', { id: 'gt-undo', class: 'gt-undo', role: 'status' }, el('span', {}, texto),
+      el('button', { type: 'button', onclick: () => { t.remove(); deshacer(plId); } }, '↶ Deshacer'),
+      el('button', { type: 'button', class: 'ghost', 'aria-label': 'Cerrar', onclick: () => t.remove() }, '✕'));
+    document.body.append(t);
+    setTimeout(() => t.remove(), 15000);
+  }
+
+  /* --- 1. diálogo «Planificar OT» --- */
+  async function abrirPlanificar(o, previo) {
+    const op = previo ? JSON.parse(JSON.stringify(previo)) : { modo: 'inicio', fecha: sigLab(masDias(est.datos.hoy, 1)), ajustes: {}, areas: {} };
+    const d = dialogo(`Planificar ${o.codigo}`);
+    const res = el('div', { class: 'gt-pl-res' }, el('p', { class: 'ayuda' }, 'Calculando…'));
+    const ir = el('button', { type: 'button', class: 'primario', disabled: true }, 'Ver propuesta en el Gantt →');
+    let ultima = null; let tv;
+    const calcular = () => {
+      clearTimeout(tv);
+      tv = setTimeout(async () => {
+        res.classList.add('cargando');
+        try {
+          const r = await api('POST', `/api/plan-vista/ordenes/${o.id}/planificar`, op);
+          ultima = r; pintarRes(r);
+        } catch (e) { ultima = null; ir.disabled = true; res.replaceChildren(el('p', { class: 'error' }, e.message)); }
+        res.classList.remove('cargando');
+      }, 200);
+    };
+    const pintarRes = (r) => {
+      ir.disabled = !r.n_tramos;
+      res.replaceChildren(...[
+        el('div', { class: 'gt-pl-caja' }, el('b', {}, 'Resultado previsto'),
+          r.n_tramos ? el('ul', {},
+            el('li', {}, `${r.tareas.length} tarea${r.tareas.length > 1 ? 's' : ''} · ${r.horas} h en `, el('b', {}, `${r.n_tramos} tramos`)),
+            el('li', {}, 'Del ', el('b', {}, fmt(r.inicio)), ' al ', el('b', {}, fmt(r.fin))),
+            r.entrega ? el('li', { class: r.entrega.ok ? 'ok' : 'mal' }, `${r.entrega.ok ? '✔' : '✕'} ${r.entrega.texto}`) : el('li', { class: 'ayuda' }, 'La OT no tiene fecha de entrega')) : el('p', { class: 'ayuda' }, 'Nada que colocar todavía.')),
+        r.sin_area.length ? el('div', { class: 'gt-pl-caja' }, el('b', {}, 'Tareas sin área'),
+          r.sin_area.map((t) => el('label', { class: 'gt-pl-area' }, el('span', {}, `${t.codigo} ${t.nombre} · ${t.horas} h`),
+            el('select', { onchange: (ev) => { if (ev.target.value) op.areas[t.id] = Number(ev.target.value); else delete op.areas[t.id]; calcular(); } },
+              el('option', { value: '' }, '— elegir área —'), r.areas.map((a) => el('option', { value: a.id, selected: op.areas[t.id] === a.id }, a.nombre))))),
+          el('p', { class: 'ayuda' }, 'Al confirmar, la tarea se queda con esa área.')) : null,
+        el('div', { class: 'gt-pl-caja' }, el('b', {}, 'Avisos'), listaAvisos(r.avisos.filter((a) => a.tipo !== 'sin_area')))].filter(Boolean));
+    };
+    const modo = (v, titulo, ayuda) => el('label', { class: `gt-pl-modo${op.modo === v ? ' on' : ''}` },
+      el('input', { type: 'radio', name: 'gt-pl-modo', checked: op.modo === v, onchange: () => {
+        op.modo = v; d.querySelectorAll('.gt-pl-modo').forEach((x) => x.classList.toggle('on', x.contains(d.querySelector('input[name=gt-pl-modo]:checked'))));
+        if (v === 'fin' && o.entrega && op.fecha !== o.entrega) { op.fecha = o.entrega; fecha.value = op.fecha; }
+        calcular();
+      } }), el('span', {}, el('b', {}, titulo), el('small', {}, ayuda)));
+    const fecha = el('input', { type: 'date', value: op.fecha, min: est.datos.hoy, onchange: (ev) => { if (ev.target.value) { op.fecha = ev.target.value; calcular(); } } });
+    d.append(
+      el('div', { class: 'gt-pl-cab' }, el('h2', {}, `🗓 Planificar OT ${o.codigo} · ${o.titulo}`), el('button', { type: 'button', class: 'ghost', 'aria-label': 'Cerrar', onclick: () => d.close() }, '✕')),
+      el('div', { class: 'gt-pl-cuerpo' },
+        el('div', { class: 'gt-pl-izq' },
+          modo('inicio', 'Empezar el…', 'Coloca las tareas hacia delante, lo antes posible.'),
+          modo('fin', 'Terminar como tarde el…', `Calcula hacia atrás cuándo hay que empezar${o.entrega ? ` (entrega ${dm(o.entrega)})` : ''}.`),
+          el('label', { class: 'gt-pl-fecha' }, el('span', {}, 'Fecha'), fecha),
+          el('div', { class: 'gt-pl-caja' }, el('b', {}, 'Respeta'), el('ul', {},
+            el('li', {}, '✔ Dependencias y esperas (p. ej. «+24 h de secado»)'),
+            el('li', {}, '✔ El área de cada tarea; en los puestos de uno en uno, no pisa lo ya planificado'),
+            el('li', {}, '✔ Jornada, fines de semana y festivos'),
+            el('li', {}, '• Sin asignar personas: se asignan después en el cuadrante')))),
+        res),
+      el('div', { class: 'gt-pl-pie' }, el('button', { type: 'button', onclick: () => d.close() }, 'Cancelar'), ir));
+    ir.onclick = () => { if (!ultima) return; d.close(); empezarPropuesta(o, op, ultima); };
+    d.showModal();
+    calcular();
+  }
+
+  /* --- 2. propuesta en el Gantt --- */
+  function empezarPropuesta(o, op, res) {
+    est.prop = { o, op, pila: [], res, cargando: false };
+    est.abiertas.add(o.id); guardar('abiertas', [...est.abiertas]);
+    if (res.inicio && (res.inicio < est.datos.desde || res.inicio > est.datos.hasta)) { est.desde = masDias(lunes(res.inicio), -7); cargar(); } else pintar();
+    $('#gt-prop').scrollIntoView({ block: 'nearest' });
+  }
+  async function recalcular() {
+    const p = est.prop; p.cargando = true; pintarBanner();
+    try { p.res = await api('POST', `/api/plan-vista/ordenes/${p.o.id}/planificar`, p.op); } catch (e) { window.s360.aviso?.(e.message); if (p.pila.length) p.op = p.pila.pop(); }
+    p.cargando = false; pintar();
+  }
+  function barrasPropuesta(res, t, barra, diasVista) {
+    const pt = res?.tareas.find((x) => x.id === t.id);
+    if (!pt) return null;
+    return pt.segmentos.map(([a, b], i) => {
+      const n = barra(a, b, `prop${pt.ajuste ? ' aj' : ''}`, null, `${pt.codigo} propuesta: ${dm(a)}${a !== b ? ` → ${dm(b)}` : ''} · ${pt.area} · arrastra para cambiar el día`);
+      if (n && i === 0) arrastrable(n, diasVista, (dd) => `${dd > 0 ? '+' : ''}${dd} d → ${dm(masDias(pt.inicio, dd))}`, (dd) => {
+        const p = est.prop;
+        p.pila.push(JSON.parse(JSON.stringify(p.op)));
+        p.op.ajustes[pt.id] = sigLab(masDias(pt.inicio, dd) < est.datos.hoy ? est.datos.hoy : masDias(pt.inicio, dd));
+        recalcular();
+      });
+      return n;
+    });
+  }
+  function pintarBanner() {
+    const b = $('#gt-prop');
+    const p = est.prop;
+    if (!p) { b.hidden = true; b.replaceChildren(); return; }
+    const r = p.res;
+    const nAv = r.avisos.length;
+    b.hidden = false;
+    b.replaceChildren(
+      el('span', { class: 'gt-prop-ic' }, '🗓'),
+      el('div', { class: 'gt-prop-t' },
+        el('div', {}, el('b', {}, `Propuesta para ${p.o.codigo}`), ` · ${r.n_tramos} tramos del ${dm(r.inicio)} al ${dm(r.fin)}`,
+          r.entrega ? el('span', { class: r.entrega.ok ? 'ok' : 'mal' }, ` · ${r.entrega.ok ? 'entrega ✔' : 'no llega ✕'}`) : null,
+          nAv ? el('details', { class: 'gt-prop-av' }, el('summary', {}, ` · ${nAv} aviso${nAv > 1 ? 's' : ''}`), listaAvisos(r.avisos)) : null,
+          p.cargando ? el('span', { class: 'ayuda' }, ' · calculando…') : null),
+        el('small', {}, 'Arrastra las barras rayadas para cambiar el día de una tarea (lo que depende de ella se corre detrás). Aún no está en el cuadrante: nadie más la ve.')),
+      el('button', { type: 'button', disabled: !p.pila.length || p.cargando, onclick: () => { p.op = p.pila.pop(); recalcular(); } }, '↶ Deshacer último movimiento'),
+      el('button', { type: 'button', onclick: () => { const o = p.o; const op = p.op; est.prop = null; pintar(); abrirPlanificar(o, op); } }, '✎ Cambiar'),
+      el('button', { type: 'button', class: 'gt-prop-desc', onclick: () => { est.prop = null; pintar(); } }, '✕ Descartar'),
+      el('button', { type: 'button', class: 'primario', disabled: p.cargando || !r.n_tramos, onclick: async (ev) => {
+        ev.target.disabled = true;
+        try {
+          const x = await api('POST', `/api/ordenes/${p.o.id}/planificar`, p.op);
+          est.prop = null;
+          await cargar();
+          avisoDeshacer(`✔ ${x.ot.codigo} planificada: ${x.tramos} tramos en el cuadrante`, x.planificacion_id);
+        } catch (e) { window.s360.aviso?.(e.message); ev.target.disabled = false; }
+      } }, '✔ Confirmar y pasar al cuadrante'));
+  }
+
+  /* --- mover una OT entera (arrastrando su barra) --- */
+  async function moverOT(o, dd) {
+    const desde = o.inicio < est.datos.hoy ? est.datos.hoy : o.inicio;
+    const n = labDelta(desde, dd);
+    if (!n) { window.s360.aviso?.('Sin cambio: en días laborables queda igual'); pintar(); return; }
+    let v;
+    try { v = await api('POST', `/api/plan-vista/ordenes/${o.id}/mover`, { dias: n }); } catch (e) { window.s360.aviso?.(e.message); pintar(); return; }
+    const d = dialogo(`Mover ${o.codigo}`, 'chico');
+    d.append(
+      el('div', { class: 'gt-pl-cab' }, el('h2', {}, `↔ Mover ${o.codigo} ${n > 0 ? '+' : ''}${n} día${Math.abs(n) === 1 ? '' : 's'} laborable${Math.abs(n) === 1 ? '' : 's'}`)),
+      el('div', { class: 'gt-pl-caja' }, el('ul', {},
+        el('li', {}, `Se mueven `, el('b', {}, `${v.n} tramos`), ` de hoy en adelante (lo que ya tiene horas reales o está cerrado se queda).`),
+        el('li', {}, `Empieza el ${fmt(v.a)} (antes ${fmt(v.desde)})`),
+        v.entrega ? el('li', { class: v.entrega.ok ? 'ok' : 'mal' }, `${v.entrega.ok ? '✔' : '✕'} ${v.entrega.texto}`) : null)),
+      el('div', { class: 'gt-pl-caja' }, el('b', {}, 'Avisos'), listaAvisos(v.avisos)),
+      el('div', { class: 'gt-pl-pie' },
+        el('button', { type: 'button', onclick: () => d.close() }, 'Cancelar'),
+        el('button', { type: 'button', class: 'primario', onclick: async (ev) => {
+          ev.target.disabled = true;
+          try { const x = await api('POST', `/api/ordenes/${o.id}/mover`, { dias: n }); d.close(); await cargar(); avisoDeshacer(`↔ ${x.ot.codigo} movida: ${x.n} tramos`, x.planificacion_id); }
+          catch (e) { window.s360.aviso?.(e.message); ev.target.disabled = false; }
+        } }, 'Mover')));
+    d.addEventListener('close', () => pintar());
+    d.showModal();
+  }
+
+  /* --- 3. deshacer y su historial --- */
+  async function deshacer(id) {
+    let v;
+    try { v = await api('POST', `/api/plan-vista/planificaciones/${id}/deshacer`); } catch (e) { window.s360.aviso?.(e.message); return; }
+    const mover = v.tipo === 'mover';
+    let tocados = 'dejar';
+    const d = dialogo('Deshacer', 'chico');
+    d.append(
+      el('div', { class: 'gt-pl-cab' }, el('h2', {}, `↶ Deshacer: ${v.resumen}`)),
+      el('div', { class: 'gt-pl-caja' }, el('ul', {},
+        v.intactos ? el('li', {}, mover ? `${v.intactos} tramos vuelven a su día, con la gente que se quitó al moverlos.` : `Se quitan los ${v.intactos} tramos que creó y sus horas vuelven a «Por planificar».`) : null,
+        v.tocados.length ? el('li', { class: 'aviso' }, `⚠ ${v.tocados.length} tramo${v.tocados.length > 1 ? 's se han' : ' se ha'} cambiado después: ${v.tocados.slice(0, 4).join(', ')}${v.tocados.length > 4 ? '…' : ''}`,
+          el('div', { class: 'gt-pl-opc' },
+            el('label', {}, el('input', { type: 'radio', name: 'gt-toc', onchange: () => { tocados = 'incluir'; } }), mover ? ' Devolverlos también' : ' Quitarlos también'),
+            el('label', {}, el('input', { type: 'radio', name: 'gt-toc', checked: true, onchange: () => { tocados = 'dejar'; } }), ' Dejarlos como están'))) : null,
+        v.fijos ? el('li', {}, `${v.fijos} tramo${v.fijos > 1 ? 's' : ''} ya ${v.fijos > 1 ? 'tienen' : 'tiene'} horas reales o cierre: no se ${v.fijos > 1 ? 'tocan' : 'toca'}.`) : null,
+        v.borrados ? el('li', { class: 'ayuda' }, `${v.borrados} ya no existe${v.borrados > 1 ? 'n' : ''}.`) : null,
+        v.ext.length ? el('li', {}, `Lo planificado con ${v.ext.join(', ')} no se anula solo: avísales.`) : null,
+        !v.intactos && !v.tocados.length ? el('li', { class: 'ayuda' }, 'No queda nada que deshacer: se marcará como deshecha.') : null)),
+      el('div', { class: 'gt-pl-pie' },
+        el('button', { type: 'button', onclick: () => d.close() }, 'Cancelar'),
+        el('button', { type: 'button', class: 'gt-prop-desc', onclick: async (ev) => {
+          ev.target.disabled = true;
+          try { const x = await api('POST', `/api/planificaciones/${id}/deshacer`, { tocados }); d.close(); $('#gt-undo')?.remove(); window.s360.aviso?.(`↶ Deshecho (${x.hechos} tramo${x.hechos === 1 ? '' : 's'})`); await cargar(); }
+          catch (e) { window.s360.aviso?.(e.message); ev.target.disabled = false; }
+        } }, '↶ Deshacer')));
+    d.showModal();
+  }
+  async function historial(o) {
+    const d = dialogo(`Planificaciones de ${o.codigo}`, 'chico');
+    const lista = el('div', { class: 'gt-pl-hist' }, el('p', { class: 'ayuda' }, 'Cargando…'));
+    d.append(el('div', { class: 'gt-pl-cab' }, el('h2', {}, `🕘 Planificaciones de ${o.codigo}`), el('button', { type: 'button', class: 'ghost', 'aria-label': 'Cerrar', onclick: () => d.close() }, '✕')), lista);
+    d.showModal();
+    try {
+      const r = await api('GET', `/api/ordenes/${o.id}/planificaciones`);
+      const cuando = (t) => new Date(t).toLocaleString('es-ES', { day: 'numeric', month: 'numeric', hour: '2-digit', minute: '2-digit' });
+      lista.replaceChildren(...(r.length ? r.map((p) => el('div', { class: `gt-pl-it${p.deshecha_en ? ' hecha' : ''}` },
+        el('div', {}, el('div', {}, `${cuando(p.creado)} · `, el('b', {}, p.resumen), ` · ${p.usuario || ''}`),
+          p.deshecha_en ? el('small', {}, `Deshecha el ${cuando(p.deshecha_en)} por ${p.deshecha_por || '—'}`)
+            : (p.tocados ? el('small', { class: 'aviso' }, `${p.tocados} tramo${p.tocados > 1 ? 's se han' : ' se ha'} cambiado después a mano`) : null)),
+        !p.deshecha_en && puedePlan() ? el('button', { type: 'button', onclick: () => { d.close(); deshacer(p.id); } }, '↶ Deshacer') : null))
+        : [el('p', { class: 'ayuda' }, 'Nada todavía.')]));
+    } catch (e) { lista.replaceChildren(el('p', { class: 'error' }, e.message)); }
+  }
+
   /* ---------- carga ---------- */
   function pintarCarga(pos, dias) {
     const d = est.datos;
@@ -278,6 +541,16 @@
     window.s360.iniciar(yo);
     window.s360.alCambiar?.(() => cargar().catch(() => {}));
     await cargar();
+    // ?ot=ID (desde la ficha de la OT): la despliega y, con &planificar=1 o &historial=1, abre ese diálogo
+    const otId = Number(q0.get('ot'));
+    const o = otId && est.datos.ots.find((x) => x.id === otId);
+    if (o) {
+      est.abiertas.add(o.id); pintar();
+      [...document.querySelectorAll('.gt-ot .gt-ot-n')].find((a) => a.getAttribute('href') === `/proyectos.html?ot=${o.id}`)?.scrollIntoView({ block: 'center' });
+      if (q0.get('planificar') && puedePlan()) abrirPlanificar(o);
+      else if (q0.get('historial')) historial(o);
+      history.replaceState(null, '', location.pathname);
+    }
   }
   iniciar().catch((e) => { $('#gt-g').replaceChildren(el('p', { class: 'error' }, e.message)); });
 })();
