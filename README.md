@@ -868,6 +868,7 @@ La pantalla de planificación diaria (`/`, `public/app.js`) se llama **Cuadrante
 - Arrastrar la barra de una OT abre la vista previa de mover.
 - Tras confirmar o mover sale un aviso con ↶ Deshacer; 🕘 abre el historial.
 - En la ficha de la OT, «🗓 Planificar OT» y «🕘 Planificaciones» llevan a `/gantt.html?ot=ID&planificar=1|historial=1`.
+- Con «Solo con riesgo», las OTs que se acaban de planificar o mover (y las de una propuesta en curso) siguen a la vista (`est.fijas`) hasta que se cambia el filtro. El botón dice cuántas oculta.
 - El Gantt devuelve `planif_n` por OT y los festivos de ±400 días (para contar laborables al arrastrar).
 
 ### Flechas de dependencias

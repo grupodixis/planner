@@ -30,7 +30,9 @@
   const q0 = new URLSearchParams(location.search);
   const est = {
     escala: leer('escala', 'semanas'), agrupar: leer('agrupar', 'proyecto'), orden: leer('orden', 'entrega'),
-    soloRiesgo: leer('soloRiesgo', false), cerradas: false, q: '', desde: q0.get('desde') || null,
+    soloRiesgo: leer('soloRiesgo', false),
+    cerradas: false, q: '', desde: q0.get('desde') || null,
+    fijas: new Set(),   // OTs que se acaban de planificar o mover: siguen a la vista aunque «Solo con riesgo» las quitaría
     flechas: leer('flechas', true),
     etiq: leer('etiq', 'personas'),   // qué se ve dentro de las barras de tarea: nada | personas | area | horas
     prop: null,   // propuesta de «Planificar» en curso: { alc (ot | partida | proyecto), op: { modo, fecha, ajustes, areas, sinEsperar }, pila, res, cargando }
@@ -61,7 +63,8 @@
       grupo('Agrupar:', 'agrupar', [['proyecto', 'Proyecto'], ['obra', 'Obra'], ['cliente', 'Cliente'], ['ninguno', 'Sin agrupar']]),
       grupo('Ordenar OTs:', 'orden', [['entrega', 'Entrega'], ['riesgo', 'Riesgo'], ['codigo', 'Código']]),
       el('b', {}, 'Ver:'),
-      b('Solo con riesgo', est.soloRiesgo, () => { est.soloRiesgo = !est.soloRiesgo; guardar('soloRiesgo', est.soloRiesgo); pintar(); }),
+      b(`Solo con riesgo${est.soloRiesgo && est.ocultas ? ` · ${est.ocultas} oculta${est.ocultas > 1 ? 's' : ''}` : ''}`, est.soloRiesgo, () => { est.soloRiesgo = !est.soloRiesgo; est.fijas.clear(); guardar('soloRiesgo', est.soloRiesgo); pintar(); },
+        est.soloRiesgo ? 'Se ocultan las OTs a tiempo, hechas o sin entrega (las que acabas de planificar se quedan a la vista). Pulsa para verlas todas.' : 'Ver solo las OTs que no llegan, van justas o tienen horas sin planificar'),
       b('Incluir cerradas', est.cerradas, () => { est.cerradas = !est.cerradas; cargar(); }),
       b('↳ Dependencias', est.flechas, () => { est.flechas = !est.flechas; guardar('flechas', est.flechas); pintar(); }, 'Flechas de «después de» entre tareas (y entre OTs plegadas)'),
       b('Desplegar todo', false, () => { est.abiertas = new Set(est.datos.ots.map((o) => o.id)); guardar('abiertas', [...est.abiertas]); pintar(); }),
@@ -75,7 +78,6 @@
 
   /* ---------- gantt ---------- */
   function pintar() {
-    controles();
     const d = est.datos;
     const dias = Math.round((Date.parse(`${d.hasta}T12:00:00Z`) - Date.parse(`${d.desde}T12:00:00Z`)) / 864e5) + 1;
     const pos = (f) => (Math.round((Date.parse(`${f}T12:00:00Z`) - Date.parse(`${d.desde}T12:00:00Z`)) / 864e5) / dias) * 100;
@@ -97,7 +99,11 @@
 
     // filtro y orden
     const q = est.q.trim().toLowerCase();
-    let ots = d.ots.filter((o) => (!est.soloRiesgo || ['no_llega', 'faltan', 'sin_planificar', 'justo'].includes(o.riesgo))
+    const enProp = new Set((est.prop?.res?.ots || []).map((x) => x.id));
+    const conRiesgo = (o) => ['no_llega', 'faltan', 'sin_planificar', 'justo'].includes(o.riesgo) || est.fijas.has(o.id) || enProp.has(o.id);
+    est.ocultas = est.soloRiesgo ? d.ots.filter((o) => !conRiesgo(o)).length : 0;
+    controles();
+    let ots = d.ots.filter((o) => (!est.soloRiesgo || conRiesgo(o))
       && (!q || [o.codigo, o.titulo, o.proyecto.codigo, o.proyecto.nombre, o.proyecto.cliente, o.proyecto.obra].join(' ').toLowerCase().includes(q)));
     const cmp = {
       entrega: (a, b) => (a.entrega || '9999').localeCompare(b.entrega || '9999') || a.codigo.localeCompare(b.codigo, 'es', { numeric: true }),
@@ -421,6 +427,7 @@
         const v = await api('POST', `/api/plan-vista/tareas/${a}/detras`, { depende_de_id: de });
         if (!confirm(`Mover ${ta.codigo} ${v.dias} día${v.dias === 1 ? '' : 's'} laborable${v.dias === 1 ? '' : 's'}: ${v.n} tramo${v.n === 1 ? '' : 's'}, empezaría el ${fmt(v.a)}.${v.avisos.length ? `\n\n⚠ ${v.avisos.map((x) => x.texto).join('\n⚠ ')}` : ''}\n\n¿Mover?`)) return;
         const x = await api('POST', `/api/tareas/${a}/detras`, { depende_de_id: de });
+        for (const o of est.datos.ots) if (o.tareas.some((t2) => t2.id === a)) est.fijas.add(o.id);
         await cargar(); avisoDeshacer(`↔ ${x.resumen}`, x.planificacion_id);
       } catch (e) { window.s360.aviso?.(e.message); }
     } : null;
@@ -727,6 +734,7 @@
         ev.target.disabled = true;
         try {
           const x = await api('POST', '/api/planificar', { ...p.op, alcance: { tipo: p.alc.tipo, id: p.alc.id } });
+          for (const o of p.res.ots) if (o.tareas) est.fijas.add(o.id);
           est.prop = null;
           await cargar();
           avisoDeshacer(`✔ ${x.alcance.tipo === 'ot' ? `${x.ot.codigo} planificada` : `${x.alcance.nombre} planificada (${x.n_ots} OT${x.n_ots > 1 ? 's' : ''})`}: ${x.tramos} tramos en el cuadrante`, x.planificacion_id);
@@ -753,7 +761,7 @@
         el('button', { type: 'button', onclick: () => d.close() }, 'Cancelar'),
         el('button', { type: 'button', class: 'primario', onclick: async (ev) => {
           ev.target.disabled = true;
-          try { const x = await api('POST', `/api/ordenes/${o.id}/mover`, { dias: n }); d.close(); await cargar(); avisoDeshacer(`↔ ${x.ot.codigo} movida: ${x.n} tramos`, x.planificacion_id); }
+          try { const x = await api('POST', `/api/ordenes/${o.id}/mover`, { dias: n }); est.fijas.add(o.id); d.close(); await cargar(); avisoDeshacer(`↔ ${x.ot.codigo} movida: ${x.n} tramos`, x.planificacion_id); }
           catch (e) { window.s360.aviso?.(e.message); ev.target.disabled = false; }
         } }, 'Mover')));
     d.addEventListener('close', () => pintar());
