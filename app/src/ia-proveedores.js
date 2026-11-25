@@ -111,8 +111,8 @@ async function probar(id, usuario) {
   try {
     const modelos = (await d.listar(k)).slice(0, 80);
     c.modelos = modelos;
-    // Modelo por defecto (o si el elegido solo no está en la lista): el primero, que es el estable más nuevo
-    if (modelos.length && (!c.modelo || c.modelo_auto || !modelos.includes(c.modelo))) {
+    // Modelo por defecto (o si el elegido solo no está en la lista; lo elegido a mano no se toca nunca): el primero, que es el estable más nuevo
+    if (modelos.length && (!c.modelo || (c.modelo_auto !== false && (c.modelo_auto || !modelos.includes(c.modelo))))) {
       const def = d.def && modelos.includes(d.def) ? d.def : modelos.find((m) => /flash|sonnet|gpt/.test(m) && !/lite|-mini|nano|preview|exp/.test(m)) || modelos[0];
       c.modelo = def; c.modelo_auto = true;
     }
