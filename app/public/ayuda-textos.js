@@ -422,7 +422,7 @@ window.S360_AYUDA = {
             { sel: '#lista-usuarios', texto: 'Los usuarios. Desactivar a alguien lo saca al momento.' },
             { sel: '#tit-pin', texto: '<b>Personas: entrada con PIN</b>: los operarios entran con 4 cifras. La columna <b>Rol</b> (uno o varios) decide qué pueden hacer.' },
             { sel: '#lista-disp', opcional: true, texto: 'El PIN <b>solo funciona en dispositivos autorizados</b>: la tablet del taller o el móvil de cada uno con su enlace.' },
-            { sel: '#tit-roles', texto: '<b>Roles y permisos</b>: qué deja cambiar cada rol. Se pueden crear roles nuevos.' },
+            { sel: '#tit-roles', texto: '<b>Roles y permisos</b>: a la izquierda los roles; al elegir uno, sus permisos agrupados por áreas, cada uno con lo que permite. «Comparar todos» los enseña en una tabla. Se pueden crear roles nuevos.' },
           ],
         },
       ],
@@ -685,5 +685,6 @@ window.S360_AYUDA = {
     { id: 33, fecha: '2026-11-25', si: ['planificar', 'proyectos'], titulo: 'Dependencias y datos en el Gantt', texto: 'En el <b>Gantt</b> ya puedes <b>unir tareas</b> arrastrando el punto azul del final de una barra, con su <b>espera en horas</b> y una observación; <b>pulsar una flecha</b> para cambiarla, quitarla o mover la tarea detrás. Y elegir qué ver <b>en las barras</b> (personas, área u horas), con una ficha al pasar el ratón.', ir: '/gantt.html' },
     { id: 34, fecha: '2026-11-25', si: ['planificar'], titulo: 'Reorganizar dependencias', texto: 'En el <b>Gantt</b>, si una tarea empieza antes de que acabe su previa, <b>⇉ Reorganizar</b> (en la OT, o al pulsar la flecha roja) la corre lo justo y, <b>en cadena, todo lo que va después</b>, respetando esperas, fines de semana y festivos. Nada se adelanta, se ve antes de hacerlo y se puede deshacer.', ir: '/gantt.html' },
     { id: 35, fecha: '2026-11-25', si: ['planificar'], titulo: 'Falta alguien que sepa…: asignar a cualquiera', texto: 'En el cuadrante, en el aviso «Necesita alguien que sepa…» → <b>Solucionar</b>: además de quien la sabe, puedes <b>asignar a cualquier operario</b>, o con <b>＋ Sabe y asignar</b> marcarle esa capacidad y asignarlo de un clic. A los que ya están en el tramo, <b>＋ Sabe</b> les marca la capacidad (hace falta permiso de Recursos).', ir: '/' },
+    { id: 36, fecha: '2026-11-25', si: ['usuarios'], titulo: 'Roles y permisos más claros', texto: 'En <b>Usuarios › Roles y permisos</b>: lista de roles a la izquierda y, al elegir uno, sus permisos <b>agrupados por áreas</b> (planificación, proyectos, personas, compras, informes, administración) con lo que permite cada uno. «<b>Comparar todos</b>» los enseña en una tabla con los nombres legibles.', ir: '/usuarios.html' },
   ],
 };

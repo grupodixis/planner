@@ -11,7 +11,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
   <meta name="apple-mobile-web-app-title" content="Planéalo">
   <title>Planéalo · Usuarios</title>
-  <link rel="stylesheet" href="styles.css?v=202611252019">
+  <link rel="stylesheet" href="styles.css?v=202611252027">
 </head>
 <body>
   <header class="top">
@@ -66,12 +66,7 @@
     <section class="panel" aria-labelledby="tit-roles">
       <div class="cab-panel"><h2 id="tit-roles">Roles y permisos</h2></div>
       <p class="ayuda">Todos pueden ver el cuadrante, los proyectos y los recursos. Los permisos dicen qué puede <em>cambiar</em> cada rol. El Administrador lo puede todo y no se modifica.</p>
-      <div class="tabla-scroll">
-        <table class="tabla-roles">
-          <thead id="cab-roles"></thead>
-          <tbody id="lista-roles"></tbody>
-        </table>
-      </div>
+      <div id="roles-ui" class="roles-ui"></div>
       <form id="form-rol" class="alta-rol">
         <input name="nombre" placeholder="Nombre del rol nuevo (p. ej. Jefe de taller)" required maxlength="40" aria-label="Nombre del rol nuevo">
         <button type="submit">Crear rol</button>
@@ -89,10 +84,10 @@
   </dialog>
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
-  <script src="pwa.js?v=202611252019"></script>
-  <script src="comun.js?v=202611252019"></script>
-  <script src="ayuda-textos.js?v=202611252019"></script>
-  <script src="ayuda.js?v=202611252019"></script>
-  <script src="usuarios.js?v=202611252019"></script>
+  <script src="pwa.js?v=202611252027"></script>
+  <script src="comun.js?v=202611252027"></script>
+  <script src="ayuda-textos.js?v=202611252027"></script>
+  <script src="ayuda.js?v=202611252027"></script>
+  <script src="usuarios.js?v=202611252027"></script>
 </body>
 </html>

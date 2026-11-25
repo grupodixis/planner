@@ -2842,3 +2842,49 @@ svg.gt-unir circle { fill: #9cc3ff; }
 .gt-fila .gt-bb.hecha:not(.ot), .gt-ley .gt-bb.hecha { background: color-mix(in srgb, var(--c, #8a63d2) 25%, #2c2c2c); color: #bbb; }
 .gt-t .gt-lab { box-shadow: inset 3px 0 0 color-mix(in srgb, var(--c, #8a63d2) 70%, #000); }
 .gt-ot .gt-lab { box-shadow: inset 3px 0 0 var(--c, #8a63d2); }
+
+/* Usuarios › Roles y permisos: lista de roles + ficha con permisos por áreas; o tabla para comparar */
+.roles-vista { display: inline-flex; gap: 4px; margin: 4px 0 10px; }
+.roles-vista button.on { border-color: var(--azul); color: #9cc3ff; }
+.roles-dos { display: grid; grid-template-columns: 260px 1fr; gap: 14px; align-items: start; }
+@media (max-width: 800px) { .roles-dos { grid-template-columns: 1fr; } }
+.roles-lista { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; max-height: 70vh; overflow: auto; }
+.rol-item { all: unset; box-sizing: border-box; display: flex; flex-direction: column; gap: 2px; width: 100%; padding: 8px 10px; border: 1px solid var(--borde); border-radius: 8px; cursor: pointer; }
+.rol-item:hover { border-color: #555; }
+.rol-item:focus-visible { outline: 2px solid var(--azul); }
+.rol-item.sel { border-color: var(--azul); background: #3b82f61a; }
+.rol-item small { color: var(--suave); font-size: 11.5px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.rol-item .rol-meta { font-size: 11px; color: #9cc3ff; }
+.rol-ficha { border: 1px solid var(--borde); border-radius: 10px; padding: 12px 14px; }
+.rol-cab { display: grid; grid-template-columns: 220px 1fr; gap: 10px; align-items: start; }
+.rol-cab .rol-acc { grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+@media (max-width: 800px) { .rol-cab { grid-template-columns: 1fr; } }
+.rol-campo { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--suave); }
+.rol-campo input, .rol-campo textarea { width: 100%; box-sizing: border-box; font: 14px/1.35 inherit; font-family: inherit; color: var(--texto); }
+.rol-grupos { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 10px; margin-top: 12px; }
+.rol-grupo { border: 1px solid var(--linea); border-radius: 8px; padding: 6px 10px 8px; margin: 0; }
+.rol-grupo legend { font-size: 12px; color: var(--suave); padding: 0 4px; }
+.rol-perm { display: flex; gap: 10px; align-items: flex-start; padding: 6px 4px; border-radius: 6px; cursor: pointer; }
+.rol-perm:hover { background: #ffffff08; }
+.rol-perm input { width: 18px; height: 18px; margin-top: 1px; flex: none; }
+.rol-perm b { display: block; font-weight: 600; font-size: 13px; }
+.rol-perm small { display: block; color: var(--suave); font-size: 11.5px; line-height: 1.3; }
+.rol-perm.on b { color: #9cc3ff; }
+.roles-tabla-caja { max-height: 75vh; }
+.roles-tabla { border-collapse: separate; border-spacing: 0; font-size: 12.5px; }
+.roles-tabla th, .roles-tabla td { border-bottom: 1px solid var(--linea); padding: 4px 6px; }
+.roles-tabla thead th { position: sticky; background: var(--panel, #1c1c1c); z-index: 2; }
+.roles-tabla thead tr:first-child th { top: 0; }
+.roles-tabla thead tr:nth-child(2) th { top: 27px; }
+.roles-tabla .rt-grupo { text-align: center; color: var(--suave); font-weight: 500; border-left: 1px solid var(--borde); white-space: nowrap; }
+.roles-tabla .rt-perm { height: 130px; vertical-align: bottom; padding: 4px 2px; width: 34px; border-left: 1px solid var(--linea); }
+.roles-tabla .rt-perm span { display: inline-block; writing-mode: vertical-rl; transform: rotate(180deg); white-space: nowrap; font-weight: 500; color: var(--texto); cursor: help; }
+.roles-tabla .rt-rol { position: sticky; left: 0; background: var(--panel, #1c1c1c); z-index: 1; text-align: left; min-width: 170px; }
+.roles-tabla thead .rt-rol { z-index: 3; vertical-align: bottom; }
+.roles-tabla .rt-rol small { display: block; color: var(--suave); font-weight: 400; font-size: 11px; }
+.roles-tabla .rt-nom { all: unset; cursor: pointer; font-weight: 600; }
+.roles-tabla .rt-nom:hover { color: #9cc3ff; text-decoration: underline; }
+.roles-tabla .rt-c { text-align: center; border-left: 1px solid var(--linea); }
+.roles-tabla .rt-c input { width: 17px; height: 17px; }
+.roles-tabla tbody tr:hover th, .roles-tabla tbody tr:hover td { background: #ffffff08; }
+.roles-tabla tr.sel .rt-rol { box-shadow: inset 3px 0 0 var(--azul); }

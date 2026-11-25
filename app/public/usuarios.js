@@ -153,34 +153,75 @@
   }
 
   /* ---------- roles ---------- */
+  // Nombre corto y grupo de cada permiso (la descripción larga viene del servidor)
+  const PERM = {
+    planificar: ['Planificar', 'Planificación y obra'], autorizar_horas_extra: ['Autorizar horas extra', 'Planificación y obra'], mi_dia: ['Mi día (solo su día)', 'Planificación y obra'],
+    proyectos: ['Proyectos', 'Proyectos'], escandallo: ['Escandallo', 'Proyectos'],
+    recursos: ['Recursos', 'Personas'], vacaciones_ops: ['Vacaciones: 1.er visto bueno', 'Personas'], vacaciones_rrhh: ['Vacaciones: aprobación final', 'Personas'],
+    logistica: ['Logística', 'Compras y almacén'], compras: ['Compras', 'Compras y almacén'], aprobar_compras: ['Aprobar compras', 'Compras y almacén'],
+    pedir_compras_locales: ['Pedir compras locales', 'Compras y almacén'], autorizar_compras_locales: ['Autorizar compras locales', 'Compras y almacén'],
+    informes: ['Ver informes', 'Informes y costes'], costes: ['Costes y márgenes', 'Informes y costes'],
+    usuarios: ['Usuarios y roles', 'Administración'],
+  };
+  const GRUPOS = ['Planificación y obra', 'Proyectos', 'Personas', 'Compras y almacén', 'Informes y costes', 'Administración', 'Otros'];
+  const corto = (k) => PERM[k]?.[0] || k.replace(/_/g, ' ');
+  const grupoDe = (k) => PERM[k]?.[1] || 'Otros';
+  let rolSel = null; let vistaRoles = 'ficha';
+
   function pintarRoles() {
     const { roles, permisos } = estado.datos;
     const claves = Object.keys(permisos);
-    const NOMBRES = { planificar: 'Planificar', proyectos: 'Proyectos', recursos: 'Recursos', usuarios: 'Usuarios', informes: 'Informes' };
-    $('#cab-roles').replaceChildren(el('tr', {},
-      el('th', {}, 'Rol'), el('th', {}, 'Descripción'),
-      ...claves.map((k) => el('th', { class: 'perm', title: permisos[k] }, NOMBRES[k] || k)),
-      el('th', { class: 'num' }, 'Usuarios'), el('th', {})));
-    $('#lista-roles').replaceChildren(...roles.map((r) => {
-      const fijo = r.sistema;
-      const patch = async (cuerpo, ok) => { if (await guardar('PATCH', `/api/roles/${r.clave}`, cuerpo, ok)) cargar(); };
-      return el('tr', {},
-        el('td', {}, el('input', { value: r.nombre, maxlength: 40, 'aria-label': 'Nombre del rol', onchange: (ev) => patch({ nombre: ev.target.value }, 'Guardado') })),
-        el('td', {}, el('input', { value: r.descripcion || '', maxlength: 200, 'aria-label': 'Descripción', onchange: (ev) => patch({ descripcion: ev.target.value }, 'Guardado') })),
-        ...claves.map((k) => el('td', { class: 'perm' }, el('input', {
-          type: 'checkbox', checked: r.permisos.includes(k), disabled: fijo,
-          'aria-label': `${r.nombre}: ${permisos[k]}`, title: permisos[k],
-          onchange: (ev) => {
-            const nuevos = ev.target.checked ? [...r.permisos, k] : r.permisos.filter((p) => p !== k);
-            patch({ permisos: nuevos }, 'Permisos guardados');
-          },
-        }))),
-        el('td', { class: 'num' }, String(r.usuarios)),
-        el('td', {}, fijo || r.usuarios ? null : el('button', {
-          type: 'button', class: 'ghost borrar', 'aria-label': `Borrar el rol ${r.nombre}`,
-          onclick: async () => { if (confirm(`¿Borrar el rol «${r.nombre}»?`) && await guardar('DELETE', `/api/roles/${r.clave}`, null, 'Rol borrado')) cargar(); },
-        }, '✕')));
+    if (!roles.some((r) => r.clave === rolSel)) rolSel = (roles.find((r) => !r.sistema) || roles[0])?.clave;
+    const caja = $('#roles-ui');
+    const cambiar = (v) => { vistaRoles = v; pintarRoles(); };
+    const conmutador = el('div', { class: 'roles-vista', role: 'group', 'aria-label': 'Vista' },
+      el('button', { type: 'button', class: vistaRoles === 'ficha' ? 'on' : '', onclick: () => cambiar('ficha') }, 'Por rol'),
+      el('button', { type: 'button', class: vistaRoles === 'tabla' ? 'on' : '', onclick: () => cambiar('tabla') }, 'Comparar todos'));
+    const patch = async (r, cuerpo, ok) => { if (await guardar('PATCH', `/api/roles/${r.clave}`, cuerpo, ok)) cargar(); };
+    const alternar = (r, k, si) => patch(r, { permisos: si ? [...r.permisos, k] : r.permisos.filter((p) => p !== k) }, `${r.nombre}: ${si ? '＋' : '−'} ${corto(k)}`);
+
+    if (vistaRoles === 'tabla') {
+      const grupos = GRUPOS.map((g) => [g, claves.filter((k) => grupoDe(k) === g)]).filter(([, ks]) => ks.length);
+      caja.replaceChildren(conmutador, el('div', { class: 'tabla-scroll roles-tabla-caja' },
+        el('table', { class: 'roles-tabla' },
+          el('thead', {},
+            el('tr', {}, el('th', { class: 'rt-rol', rowspan: 2 }, 'Rol'), grupos.map(([g, ks]) => el('th', { class: 'rt-grupo', colspan: ks.length }, g))),
+            el('tr', {}, grupos.flatMap(([, ks]) => ks.map((k) => el('th', { class: 'rt-perm', title: permisos[k] }, el('span', {}, corto(k))))))),
+          el('tbody', {}, roles.map((r) => el('tr', { class: r.clave === rolSel ? 'sel' : '' },
+            el('th', { class: 'rt-rol', scope: 'row' }, el('button', { type: 'button', class: 'rt-nom', onclick: () => { rolSel = r.clave; cambiar('ficha'); }, title: 'Abrir este rol' }, r.nombre),
+              el('small', {}, `${r.usuarios} usuario${r.usuarios === 1 ? '' : 's'}`)),
+            grupos.flatMap(([, ks]) => ks.map((k) => el('td', { class: 'rt-c' }, el('input', {
+              type: 'checkbox', checked: r.sistema || r.permisos.includes(k), disabled: r.sistema, title: `${r.nombre} · ${corto(k)}: ${permisos[k]}`,
+              'aria-label': `${r.nombre}: ${corto(k)}`, onchange: (ev) => alternar(r, k, ev.target.checked) }))))))))));
+      return;
+    }
+
+    const r = roles.find((x) => x.clave === rolSel);
+    const lista = el('ul', { class: 'roles-lista', role: 'listbox', 'aria-label': 'Roles' }, roles.map((x) => {
+      const n = x.sistema ? claves.length : x.permisos.filter((k) => claves.includes(k)).length;
+      return el('li', {}, el('button', { type: 'button', role: 'option', 'aria-selected': String(x.clave === rolSel), class: `rol-item${x.clave === rolSel ? ' sel' : ''}`, onclick: () => { rolSel = x.clave; pintarRoles(); } },
+        el('b', {}, x.nombre), el('small', {}, x.descripcion || (x.sistema ? 'Lo puede todo' : 'Sin descripción')),
+        el('span', { class: 'rol-meta' }, `${x.usuarios} usuario${x.usuarios === 1 ? '' : 's'} · ${x.sistema ? 'todo' : `${n} permiso${n === 1 ? '' : 's'}`}`)));
     }));
+    if (!r) { caja.replaceChildren(conmutador, lista); return; }
+    const fijo = r.sistema;
+    const grupos = GRUPOS.map((g) => [g, claves.filter((k) => grupoDe(k) === g)]).filter(([, ks]) => ks.length);
+    const ficha = el('div', { class: 'rol-ficha' },
+      el('div', { class: 'rol-cab' },
+        el('label', { class: 'rol-campo' }, el('span', {}, 'Nombre'), el('input', { value: r.nombre, maxlength: 40, disabled: fijo, onchange: (ev) => patch(r, { nombre: ev.target.value }, 'Guardado') })),
+        el('label', { class: 'rol-campo rol-desc' }, el('span', {}, 'Descripción (para qué es este rol)'),
+          el('textarea', { rows: 2, maxlength: 200, disabled: fijo, onchange: (ev) => patch(r, { descripcion: ev.target.value }, 'Guardado') }, r.descripcion || '')),
+        el('div', { class: 'rol-acc' },
+          el('span', { class: 'suave' }, `${r.usuarios} usuario${r.usuarios === 1 ? '' : 's'} con este rol`),
+          fijo || r.usuarios ? null : el('button', { type: 'button', class: 'ghost borrar', onclick: async () => {
+            if (confirm(`¿Borrar el rol «${r.nombre}»?`) && await guardar('DELETE', `/api/roles/${r.clave}`, null, 'Rol borrado')) { rolSel = null; cargar(); }
+          } }, 'Borrar rol'))),
+      fijo ? el('p', { class: 'ayuda' }, 'El Administrador lo puede todo y no se modifica.') : null,
+      el('div', { class: 'rol-grupos' }, grupos.map(([g, ks]) => el('fieldset', { class: 'rol-grupo' }, el('legend', {}, g),
+        ks.map((k) => el('label', { class: `rol-perm${fijo || r.permisos.includes(k) ? ' on' : ''}` },
+          el('input', { type: 'checkbox', checked: fijo || r.permisos.includes(k), disabled: fijo, onchange: (ev) => alternar(r, k, ev.target.checked) }),
+          el('span', {}, el('b', {}, corto(k)), el('small', {}, permisos[k]))))))));
+    caja.replaceChildren(conmutador, el('div', { class: 'roles-dos' }, lista, ficha));
   }
 
   /* ---------- carga y arranque ---------- */

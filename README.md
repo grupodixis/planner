@@ -930,6 +930,14 @@ En el cuadrante, «Solucionar» de un aviso `capacidad` (también con `sin_gente
 
 Marcar capacidades exige permiso de Recursos; sin él solo se ve «Asignar». `candidatos()` acepta `extra(r)` para un segundo botón por fila.
 
+## Usuarios › Roles y permisos
+
+Dos vistas en `public/usuarios.js` (`pintarRoles`):
+- **«Por rol»:** a la izquierda, la lista de roles (descripción, usuarios, nº de permisos). A la derecha, la ficha del rol elegido: nombre, descripción y permisos agrupados por áreas, cada uno con nombre corto y la descripción de `auth.PERMISOS`.
+- **«Comparar todos»:** tabla con cabeceras por grupo, nombres en vertical, columna del rol fija y el nombre que abre la ficha.
+
+Los nombres cortos y los grupos están en `PERM` (un permiso nuevo sin entrada cae en «Otros» con su clave). El Administrador sale todo marcado y sin poder cambiarse.
+
 ## Gantt (Planificación › Gantt)
 
 `src/gantt.js` (`GET /api/gantt?desde=&semanas=&cerradas=1`), `public/gantt.html/js`. Es el plan por semanas, solo para consultar: se planifica en el cuadrante.
