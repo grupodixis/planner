@@ -31,6 +31,7 @@
   const est = {
     escala: leer('escala', 'semanas'), agrupar: leer('agrupar', 'proyecto'), orden: leer('orden', 'entrega'),
     soloRiesgo: leer('soloRiesgo', false), cerradas: false, q: '', desde: q0.get('desde') || null,
+    flechas: leer('flechas', true),
     prop: null,   // propuesta de «Planificar» en curso: { alc (ot | partida | proyecto), op: { modo, fecha, ajustes, areas, sinEsperar }, pila, res, cargando }
     abiertas: new Set(leer('abiertas', [])), plegados: new Set(leer('plegados', [])), carga: leer('carga', 'oficios'), datos: null,
   };
@@ -61,6 +62,7 @@
       el('b', {}, 'Ver:'),
       b('Solo con riesgo', est.soloRiesgo, () => { est.soloRiesgo = !est.soloRiesgo; guardar('soloRiesgo', est.soloRiesgo); pintar(); }),
       b('Incluir cerradas', est.cerradas, () => { est.cerradas = !est.cerradas; cargar(); }),
+      b('↳ Dependencias', est.flechas, () => { est.flechas = !est.flechas; guardar('flechas', est.flechas); pintar(); }, 'Flechas de «después de» entre tareas (y entre OTs plegadas)'),
       b('Desplegar todo', false, () => { est.abiertas = new Set(est.datos.ots.map((o) => o.id)); guardar('abiertas', [...est.abiertas]); pintar(); }),
       b('Plegar todo', false, () => { est.abiertas.clear(); guardar('abiertas', []); pintar(); }),
       b('📄 Exportar', false, () => exportar(), 'Gantt de un proyecto en PDF o imagen, para enviar o presentar'),
@@ -153,7 +155,7 @@
           arrastrable(bOt, dias, (dd) => `${dd > 0 ? '+' : ''}${dd} d → empieza ${dm(masDias(o.inicio, dd))}`, (dd) => moverOT(o, dd));
         }
         if (propOT) tl.append(barra(propOT.inicio, propOT.fin, 'prop', null, `Propuesta: ${dm(propOT.inicio)} → ${dm(propOT.fin)}`));
-        filas.push(el('div', { class: `gt-fila gt-ot${est.agrupar === 'ninguno' ? ' sola' : ''}` },
+        filas.push(el('div', { class: `gt-fila gt-ot${est.agrupar === 'ninguno' ? ' sola' : ''}`, 'data-o': o.id },
           el('div', { class: 'gt-lab' },
             el('button', { type: 'button', class: 'gt-pleg', 'aria-expanded': String(abierta), 'aria-label': abierta ? 'Plegar tareas' : 'Ver tareas', onclick: toggle }, abierta ? '▾' : '▸'),
             el('a', { href: `/proyectos.html?ot=${o.id}`, class: 'gt-ot-n' }, el('b', { class: 'cod' }, o.codigo), ` ${o.titulo}`),
@@ -168,7 +170,7 @@
         for (const t of o.tareas) {
           const cerca = t.segmentos.find((s) => s[1] >= d.hoy)?.[0] || t.primera || t.segmentos[0]?.[0] || d.hoy;
           const ir = (f) => abrirTarea(t, f, o.color);
-          filas.push(el('div', { class: 'gt-fila gt-t' },
+          filas.push(el('div', { class: 'gt-fila gt-t', 'data-t': t.id },
             el('div', { class: 'gt-lab' }, el('a', { class: 'gt-cuad', href: `/?tarea=${t.id}&fecha=${cerca}&periodo=dia`, title: 'Ver en el cuadrante', 'aria-label': `Ver ${t.codigo} en el cuadrante` }, '📋'),
               el('button', { type: 'button', class: 'gt-t-n', title: 'Abrir la tarea', onclick: () => ir(cerca) }, el('b', { class: 'cod' }, t.codigo), ` ${t.nombre}`),
               el('div', { class: 'gt-sub' }, [t.proveedor ? `${{ ext: '🏭', trp: '🚚', sub: '🏗' }[t.clase] || ''} ${t.proveedor}` : t.area, t.hecha ? '✔ hecha' : t.sin_plan ? 'sin planificar' : t.falta_h ? `faltan ${t.falta_h} h` : null].filter(Boolean).join(' · '))),
@@ -180,9 +182,10 @@
     }
     $('#gt-g').replaceChildren(cab, ...(filas.length ? filas : [el('p', { class: 'ayuda gt-vacio' }, est.soloRiesgo ? 'Ninguna OT con riesgo en lo que se ve. 👍' : 'No hay OTs que mostrar.')]));
     pintarBanner();
+    requestAnimationFrame(flechas);
     pintarCarga(pos, dias);
     $('#gt-ley').replaceChildren(...Object.entries(CLASE).map(([k, t]) => el('span', {}, el('i', { class: `gt-bb ${k}` }), t)),
-      el('span', {}, el('i', { class: 'gt-bb hecha' }), 'Hecho'), el('span', {}, el('i', { class: 'gt-bb falta' }), 'Falta planificar'),
+      el('span', {}, el('i', { class: 'gt-bb hecha' }), 'Hecho'), el('span', {}, el('i', { class: 'gt-bb falta' }), 'Falta planificar'), el('span', {}, '↳ dependencia', el('small', { class: 'gt-ley-mal' }, ' (roja si la de detrás empieza antes)')),
       el('span', {}, el('b', { class: 'gt-hoy-ley' }), 'hoy'), el('span', {}, '⚑ entrega (roja si no llega)'));
   }
 
@@ -263,6 +266,50 @@
     d.showModal();
     refrescar();
   }
+
+  /* ---------- flechas de dependencias ---------- */
+  // De la última barra de la previa a la primera de la que va detrás. Si una OT está plegada, la flecha sale o llega a la
+  // barra de la OT (una sola por pareja). En rojo si la de detrás empieza antes de que acabe la previa. Con una propuesta
+  // en curso se usan sus barras rayadas.
+  function flechas() {
+    const g = $('#gt-g');
+    g.querySelector('svg.gt-flechas')?.remove();
+    if (!est.flechas || !est.datos?.deps?.length) return;
+    const otDe = new Map(); for (const o of est.datos.ots) for (const t of o.tareas) otDe.set(t.id, o.id);
+    const caja = g.getBoundingClientRect();
+    const fila = (tid) => g.querySelector(`.gt-t[data-t="${tid}"]`) || g.querySelector(`.gt-ot[data-o="${otDe.get(tid)}"]`);
+    const barras = (f) => {
+      if (!f) return [];
+      const prop = [...f.querySelectorAll('.gt-tl > .gt-bb.prop')];
+      return prop.length ? prop : [...f.querySelectorAll('.gt-tl > .gt-bb:not(.falta)')];
+    };
+    const vistas = new Set(); const camino = [];
+    for (const dep of est.datos.deps) {
+      const fa = fila(dep.de); const fb = fila(dep.a);
+      if (!fa || !fb || fa === fb) continue;
+      const clave = `${fa.dataset.t || `o${fa.dataset.o}`}>${fb.dataset.t || `o${fb.dataset.o}`}`;
+      if (vistas.has(clave)) continue; vistas.add(clave);
+      const ba = barras(fa); const bb = barras(fb);
+      if (!ba.length || !bb.length) continue;
+      const ra = ba.map((x) => x.getBoundingClientRect()).reduce((m, r) => (r.right > m.right ? r : m));
+      const rb = bb.map((x) => x.getBoundingClientRect()).reduce((m, r) => (r.left < m.left ? r : m));
+      const x1 = ra.right - caja.left; const y1 = ra.top + ra.height / 2 - caja.top;
+      const x2 = rb.left - caja.left; const y2 = rb.top + rb.height / 2 - caja.top;
+      const mal = x2 < x1 - 2;
+      let d;
+      if (x2 >= x1 + 12) d = `M${x1} ${y1} H${x1 + 6} V${y2} H${x2 - 1}`;
+      else { const ym = y2 > y1 ? rb.top - caja.top - 4 : rb.bottom - caja.top + 4; d = `M${x1} ${y1} H${x1 + 6} V${ym} H${x2 - 8} V${y2} H${x2 - 1}`; }
+      camino.push(`<path class="${mal ? 'mal' : ''}" d="${d}" marker-end="url(#gt-pt${mal ? 'm' : ''})"><title>${dep.espera_h ? `+${dep.espera_h} h de espera` : 'después de'}</title></path>`);
+    }
+    if (!camino.length) return;
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('class', 'gt-flechas');
+    svg.setAttribute('width', g.scrollWidth); svg.setAttribute('height', g.scrollHeight);
+    svg.innerHTML = `<defs><marker id="gt-pt" viewBox="0 0 6 6" refX="5" refY="3" markerWidth="6" markerHeight="6" orient="auto"><path d="M0 0 L6 3 L0 6 z" fill="#9aa6b2"/></marker>
+      <marker id="gt-ptm" viewBox="0 0 6 6" refX="5" refY="3" markerWidth="6" markerHeight="6" orient="auto"><path d="M0 0 L6 3 L0 6 z" fill="#ff7a7a"/></marker></defs>${camino.join('')}`;
+    g.append(svg);
+  }
+  try { new ResizeObserver(() => requestAnimationFrame(flechas)).observe($('#gt-g')); } catch { /* sin ResizeObserver */ }
 
   /* ---------- planificar a grandes rasgos: propuesta, mover, deshacer ---------- */
   const puedePlan = () => !!window.s360.tiene?.('planificar');

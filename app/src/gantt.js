@@ -107,7 +107,12 @@ async function datosOTs({ cerradas = false, proyectoId = null, desde, hasta, hoy
     });
   }
 
-  return { salida, libres };
+  // dependencias entre las tareas que salen (para las flechas)
+  const ids = salida.flatMap((o) => o.tareas.map((t) => t.id));
+  const { rows: deps } = ids.length ? await query(
+    `SELECT depende_de_id AS de, tarea_id AS a, COALESCE(espera_h, 0)::float AS espera_h FROM tarea_dependencias
+      WHERE tarea_id = ANY($1) AND depende_de_id = ANY($1)`, [ids]) : { rows: [] };
+  return { salida, libres, deps };
 }
 
 function montar(app, asyncH) {
@@ -118,7 +123,7 @@ function montar(app, asyncH) {
     const hasta = masDias(desde, semanas * 7 - 1);
     const cerradas = req.query.cerradas === '1';
 
-    const { salida, libres } = await datosOTs({ cerradas, desde, hasta, hoy });
+    const { salida, libres, deps } = await datosOTs({ cerradas, desde, hasta, hoy });
 
     /* ---- carga por semana ---- */
     const weeks = Array.from({ length: semanas }, (_, i) => masDias(desde, i * 7));
@@ -173,7 +178,7 @@ function montar(app, asyncH) {
       .sort((a, b) => b.h.reduce((s, n) => s + n, 0) - a.h.reduce((s, n) => s + n, 0));
     res.json({
       desde, hasta, hoy, semanas: weeks, festivos: [...libres].filter((f) => f >= masDias(desde, -60) && f <= masDias(hasta, 400)),
-      ots: salida,
+      ots: salida, deps,
       carga: { oficios: lista(oficios, 'h-persona'), areas: lista(areas, 'h'), talleres: lista(talleres, 'días'), subcontratas: lista(subcs, 'h-persona') },
     });
   }));

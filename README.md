@@ -870,6 +870,15 @@ La pantalla de planificación diaria (`/`, `public/app.js`) se llama **Cuadrante
 - En la ficha de la OT, «🗓 Planificar OT» y «🕘 Planificaciones» llevan a `/gantt.html?ot=ID&planificar=1|historial=1`.
 - El Gantt devuelve `planif_n` por OT y los festivos de ±400 días (para contar laborables al arrastrar).
 
+### Flechas de dependencias
+
+- El Gantt devuelve `deps` (`de`, `a`, `espera_h`) entre las tareas que salen.
+- La pantalla dibuja un SVG encima de `#gt-g`: de la última barra de la previa a la primera de la siguiente, midiendo el DOM (`data-t` y `data-o` en las filas).
+  - Con una OT plegada, la flecha usa la barra de la OT, una por pareja.
+  - Con una propuesta en curso, usa las barras rayadas.
+- En rojo discontinuo si la de detrás empieza antes de que acabe la previa.
+- Botón «↳ Dependencias» (recordado); se redibuja al pintar y al cambiar el tamaño.
+
 ## Gantt de un proyecto para enviar (PDF / imagen)
 
 `src/gantt-informe.js`: `GET /api/gantt/proyecto/:id/informe.pdf|svg` (permiso planificar o proyectos; `&descargar=1` para adjunto).
