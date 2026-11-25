@@ -921,22 +921,9 @@ Cada fila de OT y de tarea lleva `--c` con el color de la OT. La barra de la OT 
 - En el Gantt: botón **📄 Exportar** y 📄 en cada proyecto. Diálogo con vista previa, opciones recordadas y descarga PDF o PNG.
 - Al pulsar una tarea del Gantt se abre su ventana (el cuadrante en modo «solo detalle» en un diálogo); al cerrar, si cambió algo, el Gantt se recarga.
 
-## Avisos de capacidad: asignar a cualquiera y marcar la capacidad
+## Avisos de capacidad: asignar igualmente
 
-En el cuadrante, «Solucionar» de un aviso `capacidad` (también con `sin_gente`) ofrece tres cosas:
-- quien la sabe (como antes);
-- **«Ya están en el tramo y no la tienen»**: «＋ Sabe» marca la capacidad (`PUT /api/capacidades/:id/personas/:recursoId {sabe:true}`, queda validada);
-- **«Asignar a cualquier operario»** (desplegable, abierto si nadie la sabe): «Asignar» tal cual, o «＋ Sabe y asignar» (marca y asigna).
-
-Marcar capacidades exige permiso de Recursos; sin él solo se ve «Asignar». `candidatos()` acepta `extra(r)` para un segundo botón por fila.
-
-## Usuarios › Roles y permisos
-
-Dos vistas en `public/usuarios.js` (`pintarRoles`):
-- **«Por rol»:** a la izquierda, la lista de roles (descripción, usuarios, nº de permisos). A la derecha, la ficha del rol elegido: nombre, descripción y permisos agrupados por áreas, cada uno con nombre corto y la descripción de `auth.PERMISOS`.
-- **«Comparar todos»:** tabla con cabeceras por grupo, nombres en vertical, columna del rol fija y el nombre que abre la ficha.
-
-Los nombres cortos y los grupos están en `PERM` (un permiso nuevo sin entrada cae en «Otros» con su clave). El Administrador sale todo marcado y sin poder cambiarse.
+En el cuadrante, «Solucionar» de un aviso `capacidad` (también `sin_gente`) muestra dos listas de operarios: quien la tiene marcada y el resto («No la tienen marcada (asignar igualmente)»). Así se puede asignar a otro aunque nadie la sepa. Las capacidades se marcan solo en Capacidades. `candidatos()` acepta `extra(r)` y `vacio`.
 
 ## Gantt (Planificación › Gantt)
 

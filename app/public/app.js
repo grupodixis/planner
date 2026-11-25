@@ -1841,33 +1841,17 @@
           }));
       }
       case 'capacidad': {
+        // dos listas: quien la tiene marcada y el resto de operarios (para asignar igualmente si no hay nadie que la sepa)
         const nombre = (t.capacidades || []).find((q) => q.id === c.capacidad_id)?.nombre || 'esa capacidad';
         const sabe = (r) => (r.capacidades || []).includes(c.capacidad_id);
-        const puedeMarcar = window.s360.tiene?.('recursos');
-        const marcar = (r) => api('PUT', `/api/capacidades/${c.capacidad_id}/personas/${r.id}`, { sabe: true });
-        // los ya asignados que no la tienen: marcar que la saben, de un clic
-        const asignadosSin = tr.asignados.filter((r) => r.tipo === 'operario' && !sabe(recurso(r.id) || r));
-        const yaAsignados = asignadosSin.length && puedeMarcar ? el('div', { class: 'sol-sub' },
-          el('p', { class: 'ayuda' }, `Ya están en el tramo y no tienen marcada «${nombre}»:`),
-          el('ul', { class: 'cands' }, asignadosSin.map((r) => el('li', {},
-            el('span', { class: 'cand-nom' }, r.nombre), el('span', { class: 'cand-info' }, 'asignado'),
-            el('button', { type: 'button', class: 'primario mini', title: `Marcar en Capacidades que ${r.nombre} sabe «${nombre}»`,
-              onclick: () => accion(() => marcar(r), `${r.nombre} sabe «${nombre}»`) }, '＋ Sabe'))))) : null;
-        // cualquier otro operario: asignarlo tal cual, o marcar que sabe y asignarlo
-        const otros = activos('operario').filter((r) => !sabe(r) && !yaEn.has(r.id));
-        const cualquiera = el('details', { class: 'sol-sub', open: !!c.sin_gente },
-          el('summary', {}, `Asignar a cualquier operario${puedeMarcar ? ' (y marcar que sabe)' : ''}`),
-          candidatos(otros, tr, {
-            asignar, boton: 'Asignar', vacio: 'No hay más operarios.',
-            extra: puedeMarcar ? (r) => el('button', { type: 'button', class: 'mini', title: `Marcar en Capacidades que ${r.nombre} sabe «${nombre}» y asignarlo`,
-              onclick: () => accion(async () => { await marcar(r); await api('POST', `/api/tramos/${tr.id}/asignaciones`, { recurso_id: r.id }); }, `${r.nombre} sabe «${nombre}» y queda asignado`) }, '＋ Sabe y asignar') : null,
-          }));
-        if (c.sin_gente) {
-          return caja(el('p', { class: 'ayuda' }, `Nadie tiene marcada «${nombre}».`), yaAsignados, cualquiera,
-            el('a', { class: 'boton ghost mini', href: `/capacidades.html?capacidad=${c.capacidad_id}` }, 'Abrir Capacidades'));
-        }
-        return caja(el('p', { class: 'ayuda' }, `Saben «${nombre}»${c.falta > 1 ? ` · faltan ${c.falta}` : ''}:`),
-          candidatos(activos('operario').filter((r) => sabe(r) && !yaEn.has(r.id)), tr, { asignar }), yaAsignados, cualquiera);
+        const conCap = activos('operario').filter((r) => sabe(r) && !yaEn.has(r.id));
+        const sinCap = activos('operario').filter((r) => !sabe(r) && !yaEn.has(r.id));
+        return caja(
+          el('p', { class: 'ayuda' }, `Saben «${nombre}»${c.falta > 1 ? ` · faltan ${c.falta}` : ''}:`),
+          c.sin_gente ? el('p', { class: 'ayuda' }, 'Nadie la tiene marcada en Capacidades.') : candidatos(conCap, tr, { asignar, vacio: 'Nadie más la tiene marcada.' }),
+          el('div', { class: 'sol-sub' },
+            el('p', { class: 'ayuda' }, `No la tienen marcada (asignar igualmente):`),
+            candidatos(sinCap, tr, { asignar, vacio: 'No hay más operarios.' })));
       }
       case 'requisito_tipo': {
         const nombre = (t.requisitos_tipo || []).find((q) => q.id === c.tipo_recurso_id)?.nombre || 'ese tipo';
