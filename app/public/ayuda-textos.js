@@ -276,6 +276,16 @@ window.S360_AYUDA = {
       ],
     },
 
+    '/gantt.html': {
+      titulo: 'Gantt',
+      para_que: 'El plan por semanas de cada proyecto y sus OTs: si llegan a su entrega, qué va antes de qué y dónde se acumula el trabajo. Se planifica en el tablero; aquí se mira.',
+      secciones: [
+        { titulo: 'Cómo se lee', texto: 'Filas: proyecto › OT › tareas (▸ despliega las tareas). La barra de la OT va de su primer a su último día planificado; la parte clara es su avance; <b>⚑</b> es la entrega (roja si no llega). En rayado rojo, las horas que faltan por planificar. Colores de las tareas: gente propia, 🏭 taller externo, 🚚 transporte, 🏗 subcontrata en obra, gris si está hecha. La línea azul es hoy.' },
+        { titulo: 'Riesgo de cada OT', texto: '<b>Retrasada</b> (la entrega ya pasó) o <b>no llega</b> (lo planificado termina después), <b>faltan X h por planificar</b> con la entrega cerca, <b>justo</b> (2 días laborables de margen o menos), <b>sin planificar</b>, <b>a tiempo</b>. «Solo con riesgo» deja las que hay que mirar; «Ordenar: Riesgo» las pone arriba.' },
+        { titulo: 'Controles', texto: 'Semanas (6, día a día) o Meses (26 semanas). Agrupar por proyecto, obra o cliente (las mismas filas, ordenadas de otra forma). Al pulsar una barra de tarea se abre el tablero ese día; el nombre de la OT abre su ficha.' },
+        { titulo: 'Carga por semana', texto: '<b>Oficios</b>: horas-persona planificadas frente a lo que pueden hacer sus operarios (su turno, sin festivos ni ausencias). <b>Áreas</b>: horas en cada área frente a la jornada. <b>Talleres externos</b>: días con trabajo. <b>Subcontratas</b>: horas × personas. En naranja a partir del 85 %, en rojo si se pasa.' },
+      ],
+    },
     '/obras.html': {
       titulo: 'Obras',
       para_que: 'Cada obra es una dirección que reúne proyectos (de uno o varios clientes): sus datos, sus proyectos, lo próximo que hay allí y sus incidencias.',
@@ -661,5 +671,6 @@ window.S360_AYUDA = {
     { id: 25, fecha: '2026-11-24', titulo: 'En el teléfono, solo la app móvil', texto: 'Desde el teléfono, Planéalo abre siempre la <b>app móvil</b>. Si no tienes ficha de operario, empiezas en <b>🏠 Inicio</b> con lo que se hace desde el móvil (recibir, aprobar, compras locales, parte de hoy, dónde está cada cosa, capturar). Planificar, pedir y lo demás, en el ordenador.' },
     { id: 26, fecha: '2026-11-24', si: ['planificar', 'proyectos', 'compras'], titulo: 'Subcontratas en obra', texto: 'Una tarea puede hacerla aquí una <b>subcontrata</b> (Área / taller › 🏗). Presupuesto con días y personas, pedido, y en su enlace <b>confirma los días</b> planificados y apunta el <b>parte</b> de cada día, que tú validas. En el tablero, 🏗⏳ hasta que confirma y 🏗✔ cuando lo ha hecho; el día antes se le recuerda.', ir: '/proyectos.html' },
     { id: 27, fecha: '2026-11-25', si: ['proyectos', 'planificar'], titulo: 'Obras y Clientes', texto: 'Nuevas pantallas en <b>Proyectos › Obras</b> y <b>Proyectos › Clientes</b>. La obra es una dirección que reúne proyectos y tiene una sola fila en el tablero; en el proyecto, Cliente y Obra se eligen con un buscador (o «Sin obra»). Los proyectos que ya había se han pasado solos a su obra y su cliente.', ir: '/obras.html' },
+    { id: 28, fecha: '2026-11-25', si: ['planificar', 'proyectos'], titulo: 'Gantt', texto: 'Nueva pantalla <b>Planificación › Gantt</b>: el plan por semanas de cada proyecto y sus OTs, con la entrega ⚑, el avance y el <b>riesgo</b> (retrasada, no llega, faltan horas, justo…), y abajo la <b>carga por semana</b> de oficios, áreas, talleres externos y subcontratas.', ir: '/gantt.html' },
   ],
 };

@@ -302,7 +302,8 @@ require('./transportes').montarGestion(app, asyncH);   // envíos península →
 require('./compras-locales').montar(app, asyncH);   // compras locales: pedir, autorizar, ticket, cuadrar
 require('./supervision').montar(app, asyncH);   // supervisar desde el móvil: recibir, parte, aprobar, dónde está
 require('./horas-extra').montar(app, asyncH);   // turnos, excedentes y horas extra (autoriza Dirección)
-require('./obras-clientes').montar(app, asyncH);   // Obras (dirección con sus proyectos) y Clientes (con sus contactos)
+require('./obras-clientes').montar(app, asyncH);
+require('./gantt').montar(app, asyncH);   // Gantt: plan por semanas, riesgo de cada OT y carga   // Obras (dirección con sus proyectos) y Clientes (con sus contactos)
 require('./incidencias').montar(app, asyncH);   // incidencias: material, transporte, calidad… con reclamación y cierre
 require('./pedido-transporte').montar(app, asyncH);   // cómo llega cada pedido: proveedor, recogida o almacén del transportista
 require('./recursos')(app, asyncH);

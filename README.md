@@ -807,6 +807,37 @@ el transporte…). No hay etapas fijas: las etapas son **las tareas de la OT**, 
   costes: lo de los pedidos de subcontratación enviados suma en **Subcontratas** (las líneas sueltas, a la primera tarea).
 - **Siguientes pasos**: recepción desde el móvil; transportes dentro de la isla.
 
+## Gantt (Planificación › Gantt)
+
+`src/gantt.js` (`GET /api/gantt?desde=&semanas=&cerradas=1`), `public/gantt.html/js`. Es el plan por semanas, solo para consultar: se planifica en el tablero.
+
+**Filas:** Proyecto › OT › tareas. Se pueden agrupar por proyecto, obra, cliente o sin agrupar, y ordenar por entrega, riesgo o código. Hay filtros «Solo con riesgo», «Incluir cerradas» y buscador.
+
+**Tareas**
+- Sus tramos se juntan en segmentos de días seguidos (un fin de semana o festivo en medio no los corta).
+- Clase: propia, 🏭 taller externo, 🚚 transporte (proveedor transportista o área de transporte) o 🏗 subcontrata en obra.
+- Un taller externo sin tramos se muestra en su fecha prevista.
+- Al pulsar una tarea se abre el tablero ese día.
+
+**OT**
+- La barra va del primer al último día planificado y muestra el avance; ⚑ marca la entrega.
+- Lo que falta se calcula como horas estimadas menos planificadas de las tareas propias y subcontratas no hechas, y se dibuja en rayado.
+- Riesgo de la OT:
+  - hecha;
+  - **retrasada**: la entrega ya pasó;
+  - **no llega**: lo planificado termina después de la entrega;
+  - **faltan**: hay horas sin planificar y la entrega está a 15 laborables o menos;
+  - **justo**: 2 laborables de margen o menos;
+  - sin planificar;
+  - sin entrega;
+  - a tiempo.
+
+**Carga por semana**
+- Oficios: horas-persona de las asignaciones, por categoría del operario, frente a la capacidad (turno × laborables, sin festivos ni ausencias de día entero).
+- Áreas: horas de los tramos frente a jornada × laborables.
+- Talleres externos: días con trabajo.
+- Subcontratas: horas × personas.
+
 ## Obras y Clientes (Proyectos › Obras · Proyectos › Clientes)
 
 `src/obras-clientes.js`, `public/obras.html/js`, `public/clientes.html/js` (con `fichas-comun.js`).
