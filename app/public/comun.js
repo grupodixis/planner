@@ -215,6 +215,11 @@
       window.s360pwa.renovar();
     }
     if (salir && !salir.onclick) salir.onclick = async () => { await api('POST', '/api/logout'); location.href = '/login.html'; };
+    // Asistente ✨ (permiso «ia»): se carga aparte, solo en las pantallas de oficina con cabecera
+    if (salir && (tiene('ia') || tiene('usuarios')) && !document.querySelector('script[data-ia-chat]')) {
+      const v = (document.querySelector('script[src*="comun.js"]')?.src.match(/\?v=\d+/) || [''])[0];
+      document.body.append(el('script', { src: `/ia-chat.js${v}`, 'data-ia-chat': '' }));
+    }
     // ayuda («?», recorridos y novedades): en las pantallas que cargan ayuda.js
     window.s360ayuda?.iniciar().catch(() => {});
   }

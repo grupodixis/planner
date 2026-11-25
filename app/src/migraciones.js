@@ -1434,6 +1434,31 @@ const MIGRACIONES = [
        INSERT INTO ajustes (clave, valor) VALUES ('migr_permiso_ia', 'true');
      END IF;
    END $m$`,
+  // ===== Asistente de la app: conversaciones =====
+  `CREATE TABLE IF NOT EXISTS ia_conversaciones (
+     id SERIAL PRIMARY KEY,
+     usuario_id INTEGER NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+     titulo TEXT NOT NULL,
+     creado TIMESTAMPTZ NOT NULL DEFAULT now(),
+     actualizado TIMESTAMPTZ NOT NULL DEFAULT now(),
+     archivada BOOLEAN NOT NULL DEFAULT false)`,
+  `CREATE INDEX IF NOT EXISTS ia_conversaciones_usuario ON ia_conversaciones (usuario_id, actualizado DESC)`,
+  `CREATE TABLE IF NOT EXISTS ia_mensajes (
+     id BIGSERIAL PRIMARY KEY,
+     conversacion_id INTEGER NOT NULL REFERENCES ia_conversaciones(id) ON DELETE CASCADE,
+     rol TEXT NOT NULL,
+     texto TEXT NOT NULL DEFAULT '',
+     pagina TEXT,
+     herramientas JSONB,
+     error TEXT,
+     proveedor TEXT,
+     modelo TEXT,
+     tokens_entrada INTEGER,
+     tokens_salida INTEGER,
+     ms INTEGER,
+     creado TIMESTAMPTZ NOT NULL DEFAULT now())`,
+  `CREATE INDEX IF NOT EXISTS ia_mensajes_conv ON ia_mensajes (conversacion_id, id)`,
+  `ALTER TABLE ia_registro ADD COLUMN IF NOT EXISTS conversacion_id INTEGER REFERENCES ia_conversaciones(id) ON DELETE SET NULL`,
 ];
 
 async function migrar() {

@@ -293,10 +293,10 @@ async function ejecutar(usuario, canal, nombre, args, extra = {}) {
   } finally {
     const txt = resultado ? JSON.stringify(resultado) : '';
     await query(
-      `INSERT INTO ia_registro (usuario_id, canal, herramienta, riesgo, args, ok, error, ms, bytes, resumen, clave_id)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
+      `INSERT INTO ia_registro (usuario_id, canal, herramienta, riesgo, args, ok, error, ms, bytes, resumen, clave_id, conversacion_id)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
       [usuario.id, canal, nombre, h?.riesgo || null, JSON.stringify(args || {}).slice(0, 4000), ok, error, Date.now() - t0, txt.length,
-        resultado ? resumir(resultado) : null, extra.clave_id || null]).catch((e) => console.error('ia_registro:', e.message));
+        resultado ? resumir(resultado) : null, extra.clave_id || null, extra.conversacion_id || null]).catch((e) => console.error('ia_registro:', e.message));
   }
 }
 function resumir(r) {
@@ -435,4 +435,4 @@ function montar(app, asyncH, { puerto } = {}) {
   }));
 }
 
-module.exports = { montar, montarPublico, ejecutar, herramientas: H };
+module.exports = { montar, montarPublico, ejecutar, herramientas: H, ajustesIA: ajustes };

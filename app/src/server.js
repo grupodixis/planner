@@ -309,6 +309,7 @@ require('./gantt-informe').montar(app, asyncH);   // Gantt de un proyecto en PDF
 require('./planificar-ot').montar(app, asyncH);   // Planificar una OT de una vez, moverla entera y deshacer
 require('./ia').montar(app, asyncH, { puerto: Number(process.env.PORT || 3000) });   // Pasarela de IA: herramientas, registro, ajustes, claves
 require('./ia-proveedores').montar(app, asyncH, auth);   // Clave de API del proveedor de IA (cifrada)
+require('./ia-chat').montar(app, asyncH);   // Asistente ✨ de la app
 require('./incidencias').montar(app, asyncH);   // incidencias: material, transporte, calidad… con reclamación y cierre
 require('./pedido-transporte').montar(app, asyncH);   // cómo llega cada pedido: proveedor, recogida o almacén del transportista
 require('./recursos')(app, asyncH);
