@@ -262,4 +262,4 @@ function montar(app, asyncH) {
   }));
 }
 
-module.exports = { montar, preguntar };
+module.exports = { montar, preguntar, post, conReintento };

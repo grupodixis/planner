@@ -310,6 +310,8 @@ require('./planificar-ot').montar(app, asyncH);   // Planificar una OT de una ve
 require('./ia').montar(app, asyncH, { puerto: Number(process.env.PORT || 3000) });   // Pasarela de IA: herramientas, registro, ajustes, claves
 require('./ia-proveedores').montar(app, asyncH, auth);   // Clave de API del proveedor de IA (cifrada)
 require('./ia-chat').montar(app, asyncH);   // Asistente ✨ de la app
+require('./buzones').montar(app, asyncH, auth);   // Correo entrante: buzones IMAP (por eventos)
+require('./correo-ia').montar(app, asyncH, auth);   // Correo entrante: lo que lee la IA y la revisión
 require('./incidencias').montar(app, asyncH);   // incidencias: material, transporte, calidad… con reclamación y cierre
 require('./pedido-transporte').montar(app, asyncH);   // cómo llega cada pedido: proveedor, recogida o almacén del transportista
 require('./recursos')(app, asyncH);
@@ -356,5 +358,9 @@ const PORT = Number(process.env.PORT || 3000);
   await auth.asegurarAdmin();
   await require('./capacidades').sembrar().catch((e) => console.error('Capacidades:', e.message));
   await require('./catalogo').sembrar().catch((e) => console.error('Catálogo base:', e.message));
-  app.listen(PORT, () => console.log(`s360_planificacion escuchando en :${PORT}`));
+  app.listen(PORT, () => {
+    console.log(`s360_planificacion escuchando en :${PORT}`);
+    require('./correo-ia').reanudar().catch((e) => console.error('Correo IA:', e.message));
+    require('./buzones').arrancarTodos().catch((e) => console.error('Buzones:', e.message));
+  });
 })().catch((e) => { console.error(e); process.exit(1); });

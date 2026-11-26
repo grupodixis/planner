@@ -135,17 +135,24 @@ async function enviar({ para, asunto, texto }) {
 }
 
 // Para lo que no puede fallar en silencio (pedidos a proveedores): lanza con el motivo
-async function enviarOFallar({ para, cc, asunto, texto, adjuntos }) {
+// ref = { tipo: 'solicitud' | 'pedido', id, proveedor_id }: se guarda su Message-ID para reconocer la respuesta
+async function enviarOFallar({ para, cc, asunto, texto, adjuntos, ref }) {
   const t = crear();
   if (!t) throw Object.assign(new Error('El correo de salida no está configurado (Compras › Ajustes)'), { status: 400 });
+  let info;
   try {
-    return await t.sendMail({
+    info = await t.sendMail({
       from: remitente(), to: para, cc: cc || undefined, subject: asunto, text: texto,
       attachments: (adjuntos || []).map((a) => ({ filename: a.nombre, content: a.datos, contentType: a.tipo })),
     });
   } catch (e) {
     throw Object.assign(new Error(`No se pudo enviar el correo: ${e.message}`), { status: 502 });
   }
+  if (ref && info?.messageId) {
+    require('./db').query(`INSERT INTO correo_enviados (message_id, tipo, ref_id, proveedor_id) VALUES ($1,$2,$3,$4) ON CONFLICT DO NOTHING`,
+      [info.messageId, ref.tipo, ref.id, ref.proveedor_id || null]).catch((e) => console.error('correo_enviados:', e.message));
+  }
+  return info;
 }
 
 // Firma corta con la misma clave del servidor (enlaces sin sesión, p. ej. el de las ofertas)

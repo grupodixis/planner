@@ -451,4 +451,4 @@ function lineasPdf(p) {
   return ['Envío a vuestro cargo: indicadnos la agencia y el nº de seguimiento.'];
 }
 
-module.exports = { recogidaAceptada, montar, montarPublico, completar, urlDe, lineasPdf, urlTracking, recordatorios, MODOS, AGENCIAS, situacion };
+module.exports = { recogidaAceptada, montar, montarPublico, completar, urlDe, lineasPdf, urlTracking, recordatorios, MODOS, AGENCIAS, situacion, evento, fechaAlMaterial };

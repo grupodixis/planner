@@ -272,6 +272,7 @@ function montar(app, asyncH) {
       await correo.enviarOFallar({
         para, asunto: texto(b.asunto, 200) || `[${s.codigo}] Petición de oferta · ${aj.empresa.nombre}`,
         texto: cuerpo, adjuntos: [{ nombre: `${s.codigo}.pdf`, datos: pdf, tipo: 'application/pdf' }],
+        ref: { tipo: 'solicitud', id: sp, proveedor_id: prov.proveedor_id },
       });
     }
     if (recordar) await query('UPDATE solicitud_proveedores SET recordado_en = now() WHERE id = $1', [sp]);

@@ -116,6 +116,7 @@
       ['/clientes.html', 'Clientes', null, 'Datos del cliente y sus personas de contacto']]],
     ['Compras', [['/logistica.html', 'Material de las partidas', ['logistica', 'compras', 'escandallo'], 'Stock, por pedir, pedido y recepción'],
       ['/compras.html', 'Pedidos de compra', ['compras', 'aprobar_compras', 'logistica'], 'Preparar, aprobar y enviar pedidos a proveedores'],
+      ['/correo.html', 'Correo entrante', ['compras', 'usuarios'], 'Ofertas y confirmaciones que llegan por correo, leídas por la IA'],
       ['/compras.html?vista=locales', 'Compras locales', ['compras', 'autorizar_compras_locales'], 'Autorizar y cuadrar lo que piden los operarios (ferretería…)'],
       ['/compras.html?vista=proveedores', 'Proveedores', ['compras', 'logistica', 'escandallo', 'aprobar_compras'], 'Fichas, contactos y lo que sirve cada uno']]],
     ['Recursos', [['/recursos.html', 'Operarios, máquinas y subcontratas', null, 'Fichas, vacaciones y festivos, tipos'],
@@ -318,6 +319,7 @@
     poner('/bandeja.html', p.bandeja || 0, `${p.bandeja} captura(s) por clasificar`);
     poner('/incidencias.html', p.incidencias || 0, `${p.incidencias} incidencia(s) tuyas por gestionar o cerrar`);
     poner('/compras.html?vista=locales', p.cl_autorizar || 0, `${p.cl_autorizar} compra(s) local(es) por autorizar`);
+    poner('/correo.html', p.correo || 0, `${p.correo} correo(s) por revisar`);
     // los asuntos que me han asignado (aunque no planifique): en «＋ Capturar» › Mis asuntos
     poner('/capturar.html', p.mis_asuntos || 0, `${p.mis_asuntos} asunto(s) a tu cargo`);
     poner('/capacidades.html', p.cap_validar || 0, `${p.cap_validar} capacidad(es) que dicen saber los operarios, por validar`);

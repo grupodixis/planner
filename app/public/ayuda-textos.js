@@ -446,6 +446,23 @@ window.S360_AYUDA = {
       ],
     },
 
+    '/correo.html': {
+      titulo: 'Correo entrante',
+      para_que: 'Lo que llega a los buzones conectados (compras@…), leído por la IA en cuanto entra. Las ofertas y confirmaciones de pedido quedan preparadas para que las revises y confirmes; nada se aplica solo.',
+      recorridos: [
+        {
+          id: 'correo-basico', version: 1, si: ['compras', 'usuarios'], ofrecer: true, duracion: '1 min',
+          titulo: 'Cómo funciona el correo entrante',
+          pasos: [
+            { sel: '#co-tabs', texto: '<b>Por revisar</b>: ofertas y confirmaciones de pedido que la IA ya ha leído (o que no sabe de qué petición o pedido son). <b>Clasificados</b>: albaranes, facturas, publicidad… que solo se archivan. <b>Resueltos</b>: lo ya confirmado o descartado.' },
+            { sel: '#co-lista', texto: 'Cada correo con lo que es, su estado y la petición (SOL-…) o pedido (PC-…) al que corresponde. Lo nuevo aparece solo, sin recargar.' },
+            { sel: '#co-det', opcional: true, texto: 'A la izquierda lo que ha entendido la IA, <b>editable</b> (precios, portes, plazo, su referencia), con lo dudoso en naranja. A la derecha, su PDF. Al <b>Confirmar</b>, la oferta pasa al comparativo (con su PDF) o la confirmación se aplica al pedido (fecha de llegada al material).' },
+            { sel: '#co-estado-buz', opcional: true, texto: 'Si los buzones están conectados. Lo ya tratado se mueve en el buzón a <b>Planéalo/Ofertas</b>, <b>Confirmaciones de pedido</b>, <b>Albaranes</b>, <b>Facturas</b>…, y en el servidor queda una copia ordenada igual.' },
+          ],
+        },
+      ],
+    },
+
     '/mi-dia.html': {
       titulo: 'Mi día',
       para_que: 'Tu trabajo de hoy: dónde, con quién y qué necesitas. Al terminar, apunta cómo fue y envíalo al encargado. El móvil es para confirmar y avisar; lo demás se hace en la oficina.',
@@ -708,5 +725,6 @@ window.S360_AYUDA = {
     { id: 38, fecha: '2026-11-25', si: ['usuarios'], titulo: 'IA: clave del proveedor', texto: 'En <b>Recursos › IA › Proveedor de IA</b> se pega la <b>clave de API</b> de Anthropic (Claude), OpenAI o Google (Gemini) para el futuro asistente de la app. Se guarda <b>cifrada</b>, solo se ve «…abcd», «🔌 Probar» comprueba que funciona (sin gastar) y se elige el modelo.', ir: '/ia.html' },
     { id: 39, fecha: '2026-11-25', si: ['ia', 'usuarios'], titulo: '✨ Asistente', texto: 'Nuevo botón <b>✨</b> arriba (o <b>Alt+A</b>) en todas las pantallas: pregúntale en lenguaje normal «¿qué OTs no llegan?», «¿quién está libre mañana para soldar?», «¿qué pedidos faltan por llegar?»… Consulta el sistema <b>con tus permisos</b> y te dice qué ha mirado. <b>Solo consulta</b>, no cambia nada. Tus conversaciones se guardan en 🕘.', ir: '/gantt.html' },
     { id: 40, fecha: '2026-11-26', si: ['ia', 'usuarios'], titulo: '✨ Asistente en el móvil', texto: 'En la app del móvil: <b>Menú › ✨ Asistente</b> (o en Inicio). A pantalla completa y con <b>🎤 para dictar</b> la pregunta. Las conversaciones son las mismas que en el ordenador. Necesita conexión.', ir: '/mi-dia.html' },
+    { id: 41, fecha: '2026-11-26', si: ['compras', 'usuarios'], titulo: '📧 Correo entrante con IA', texto: 'Nueva pantalla <b>Compras › Correo entrante</b>. Planéalo se queda conectado a <b>compras@</b> y, en cuanto llega un correo, la IA lo lee (también el <b>PDF</b>): si es una <b>oferta</b> la prepara con sus precios para la petición SOL-… y si es una <b>confirmación de pedido</b>, con su fecha y nº. Tú lo revisas al lado del PDF y <b>confirmas</b>. Lo demás (albaranes, facturas, publicidad) se clasifica y se archiva en carpetas <b>Planéalo/…</b> del buzón.', ir: '/correo.html' },
   ],
 };

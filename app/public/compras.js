@@ -412,6 +412,7 @@
         el('div', { class: 'cmp-item-1' }, el('b', {}, p.proveedor), el('span', { class: `cmp-estado ${cls}` }, txt)),
         el('small', { class: 'ayuda' }, [p.enviado_en ? `enviada ${cuando(p.enviado_en)}${p.enviado_correo ? ` a ${p.enviado_a}` : ' (a mano)'}` : null, p.recordado_en ? `recordada ${cuando(p.recordado_en)}` : null,
           p.portal_respondido_en ? `🌐 respondió en la plataforma ${cuando(p.portal_respondido_en)}` : p.respondido_en ? `respondió ${cuando(p.respondido_en)}` : p.portal_visto_en ? `👁 abrió el enlace ${cuando(p.portal_visto_en)}` : null].filter(Boolean).join(' · ') || (p.email || 'sin email en su ficha')),
+        p.correo_id ? el('a', { href: `/correo.html?vista=todos&id=${p.correo_id}`, class: 'ayuda' }, '📧 Llegó por correo (leída por la IA) · ver el correo') : null,
         p.contacto ? el('small', { class: 'ayuda' }, `Contacto: ${p.contacto}`) : null,
         p.notas && p.portal_respondido_en ? el('small', { class: 'ayuda', style: 'white-space:pre-wrap' }, `«${p.notas}»`) : null,
         p.archivos.length ? el('div', {}, p.archivos.map((a) => el('a', { href: `/api/archivos/${a.id}`, target: '_blank', rel: 'noopener', class: 'ayuda' }, `📎 ${a.nombre || 'oferta'} `))) : null,

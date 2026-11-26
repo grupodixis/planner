@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <meta name="theme-color" content="#141414">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="apple-touch-icon" href="/apple-touch-icon-v2.png">
+  <title>Planéalo · Correo entrante</title>
+  <link rel="stylesheet" href="styles.css?v=202611260909">
+</head>
+<body class="co-pant">
+  <header class="top">
+    <h1 class="marca"><img src="/logo.svg" alt="" class="marca-ico">Planéalo <span>· Correo entrante</span></h1>
+    <nav class="menu" aria-label="Pantallas">
+      <a href="/">Cuadrante</a>
+      <a href="/compras.html">Compras</a>
+    </nav>
+    <div class="usuario"><span id="usuario-nombre"></span> <button id="salir" class="ghost">Salir</button></div>
+  </header>
+  <main class="co-main">
+    <div class="co-barra" data-ayuda="co-barra">
+      <div class="co-tabs" role="tablist" id="co-tabs"></div>
+      <select id="co-buzon" aria-label="Buzón"></select>
+      <select id="co-tipo" aria-label="Tipo"></select>
+      <input type="search" id="co-q" placeholder="Buscar remitente, asunto o proveedor" aria-label="Buscar">
+      <span id="co-estado-buz" class="co-estado-buz"></span>
+      <button type="button" id="co-buzones" class="ghost" hidden>⚙ Buzones</button>
+    </div>
+    <div class="co-cuerpo">
+      <div class="co-lista" id="co-lista" data-ayuda="co-lista" aria-label="Correos"></div>
+      <section class="co-det" id="co-det" data-ayuda="co-det" aria-live="polite"></section>
+    </div>
+  </main>
+  <dialog id="co-dlg" class="co-dlg" aria-labelledby="co-dlg-tit"></dialog>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <script src="pwa.js?v=202611260909"></script>
+  <script src="comun.js?v=202611260909"></script>
+  <script src="ayuda-textos.js?v=202611260909"></script>
+  <script src="ayuda.js?v=202611260909"></script>
+  <script src="correo-pantalla.js?v=202611260909"></script>
+</body>
+</html>

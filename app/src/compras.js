@@ -431,6 +431,7 @@ function montar(app, asyncH) {
       await correo.enviarOFallar({
         para, cc: texto(b.cc, 300), asunto: texto(b.asunto, 200) || `Pedido ${p.codigo} · ${aj.empresa.nombre}`,
         texto: cuerpo, adjuntos: [{ nombre: `${p.codigo}.pdf`, datos: pdf, tipo: 'application/pdf' }],
+        ref: { tipo: 'pedido', id, proveedor_id: p.proveedor_id },
       });
       if (seg) await query('UPDATE ext_seguimientos SET enviado_en = now() WHERE id = $1', [seg.id]);
     }
