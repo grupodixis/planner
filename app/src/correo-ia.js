@@ -165,6 +165,49 @@ async function llamarIA(cfg, sis, contenido, archivos) {
   try { return { datos: JSON.parse(t), aviso: aviso.texto, uso: r.uso }; } catch { throw fallo(502, 'La IA devolvió un JSON no válido'); }
 }
 
+// Después de la IA: si un PDF es NUESTRA petición devuelta con los precios escritos, se leen directamente (sin IA) y
+// completan o corrigen lo de la IA. Y si una respuesta a una petición trae adjuntos y la IA no la ve como oferta, se deja
+// igualmente como oferta POR REVISAR (con aviso), para que nunca quede escondida como «otro».
+async function completarConPeticion(c, asoc, archivos, d) {
+  d.alertas = Array.isArray(d.alertas) ? d.alertas : [];
+  const sols = [...new Map(asoc.sps.filter((x) => !asoc.proveedor_id || x.proveedor_id === asoc.proveedor_id).map((x) => [x.sol_id, x])).values()];
+  if (!sols.length) return d;
+  const pdfs = archivos.filter((a) => a.tipo === 'application/pdf');
+  for (const sol of sols) {
+    const lineas = await lineasSolicitud(sol.sol_id);
+    for (const a of pdfs) {
+      const r = await require('./pdf-leer').preciosEnPeticion(a.datos, sol.codigo, lineas);
+      if (!r || !Object.keys(r.precios).length) continue;
+      const antes = d.tipo;
+      if (d.tipo !== 'oferta') {
+        d.tipo = 'oferta'; d.confianza = Math.max(Number(d.confianza) || 0, 0.8);
+        d.resumen = `Ha devuelto nuestra petición ${sol.codigo} con sus precios escritos en ${Object.keys(r.precios).length} de ${lineas.length} línea(s).`;
+        d.alertas.push(`La IA lo había clasificado como «${antes}»: los precios se han leído directamente de nuestra petición rellenada («${a.nombre}»).`);
+      }
+      d.referencia = { ...(d.referencia || {}), solicitud: sol.codigo };
+      d.oferta = d.oferta || {};
+      const porLinea = new Map((Array.isArray(d.oferta.lineas) ? d.oferta.lineas : []).map((l) => [Number(l.linea_id), l]));
+      for (const [lid, precio] of Object.entries(r.precios)) {
+        const x = porLinea.get(Number(lid));
+        const desc = lineas.find((l) => l.linea_id === Number(lid))?.descripcion || lid;
+        if (!x) porLinea.set(Number(lid), { linea_id: Number(lid), precio_unitario: precio });
+        else if (x.precio_unitario == null) x.precio_unitario = precio;
+        else if (Math.abs(Number(x.precio_unitario) - precio) > 0.005) { d.alertas.push(`«${desc}»: la IA leyó ${x.precio_unitario} € y en el PDF pone ${precio} €; se toma ${precio} €.`); x.precio_unitario = precio; }
+      }
+      d.oferta.lineas = [...porLinea.values()];
+      return d;
+    }
+  }
+  // red de seguridad: respuesta a una petición, con adjuntos, que la IA no ve como oferta
+  if (d.tipo !== 'oferta' && ['respuesta', 'codigo', 'portal'].includes(asoc.por) && archivos.length) {
+    const antes = d.tipo;
+    d.tipo = 'oferta'; d.oferta = d.oferta || { lineas: [] };
+    d.referencia = { ...(d.referencia || {}), solicitud: d.referencia?.solicitud || (sols.length === 1 ? sols[0].codigo : null) };
+    d.alertas.push(`Responde a la petición con un adjunto pero la IA no ha encontrado precios (lo veía como «${antes}»). Revísalo con el original.`);
+  }
+  return d;
+}
+
 // Adjuntos para la IA: PDF y fotos (máx. 4 / 15 MB). Si un PDF tiene cosas escritas encima, además sus páginas dibujadas.
 async function adjuntosIA(correoId) {
   const { rows: adj } = await query('SELECT * FROM correo_adjuntos WHERE correo_id = $1 ORDER BY id', [correoId]);
@@ -216,7 +259,7 @@ async function analizar(id) {
       texto_del_correo: (c.texto || '').slice(0, 12000),
     });
     const r = await llamarIA(cfg, instrucciones(), contenido, archivos);
-    datos = r.datos; modelo = r.aviso ? r.aviso.match(/con (\S+):/)?.[1] || modelo : modelo;
+    datos = await completarConPeticion(c, asoc, archivos, r.datos); modelo = r.aviso ? r.aviso.match(/con (\S+):/)?.[1] || modelo : modelo;
     if (otros.length) datos.alertas = [...(datos.alertas || []), `Adjuntos que la IA no ha leído: ${otros.join(', ')}`];
     if (encima.length) datos.alertas = [...(datos.alertas || []), `El PDF tiene texto escrito encima (${encima.length} anotación/es o campo/s): compruébalo con el original.`];
     if (r.aviso) datos.alertas = [...(datos.alertas || []), r.aviso];
@@ -639,6 +682,7 @@ async function reLeer(c, asoc) {
         texto_escrito_encima_de_los_pdf: encima.length ? encima : undefined, texto_del_correo: (c.texto || '').slice(0, 12000) });
       const r = await llamarIA(cfg, instrucciones(), contenido, archivos);
       r.datos.tipo = c.tipo;
+      await completarConPeticion(c, asoc, archivos, r.datos);
       await aplicarLectura(c, asoc, r.datos, cfg.modelo);
     } catch (e) {
       await query(`UPDATE correos SET estado = 'error', error = $2 WHERE id = $1`, [c.id, e.message]);
