@@ -20,7 +20,8 @@
   const eur = (n) => (n == null ? '—' : `${Number(n).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`);
   const fmt = (n) => (n == null ? '' : String(n).replace('.', ','));
   const UNIDADES = ['h', 'día', 'km', 'ud'];
-  let d = null; let ocultas = false;
+  let d = null; let ocultas = false; let yo = null;
+  const puedeRecursos = () => (yo?.permisos || []).includes('recursos');
 
   async function cargar() { d = await api('GET', '/api/tarifa'); pintar(); }
   async function guardar(id, cuerpo, msg = 'Guardado') {
@@ -48,19 +49,31 @@
         el('td', { class: 'n' }, importe(t, 'precio_venta', { placeholder: '€/h', 'aria-label': `Precio de venta de ${t.nombre}` }), el('span', { class: 'ayuda' }, ' €/h')),
         // coste €/h: el de las fichas (media) o uno fijado a mano para la tarifa
         el('td', { class: 'n' }, importe(t, 'coste_manual', { placeholder: t.coste_calculado != null ? fmt(t.coste_calculado) : '€/h', title: 'Vacío = media del coste €/h de las fichas de sus operarios. Escríbelo para fijar otro en la tarifa.', 'aria-label': `Coste por hora de ${t.nombre}` }),
-          el('span', { class: 'ayuda' }, ' €/h'), el('small', { class: 'bloque' }, t.coste_manual != null ? 'a mano' : 'media de las fichas')),
+          el('span', { class: 'ayuda' }, ' €/h'), el('small', { class: 'ta-nota' }, t.coste_manual != null ? 'a mano' : 'media de las fichas')),
         el('td', { class: 'n' }, rendTxt(t)),
         el('td', { class: 'n' }, el('b', {}, eur(t.coste_efectivo)), el('small', {}, '/h')),
         el('td', { class: `n ta-margen ${margenCls(t.margen_pct)}` }, t.margen_pct == null ? '—' : `${t.margen_pct} %`),
         el('td', { class: 'ayuda' }, t.horas ? `${fmt(t.horas)} h en ${t.tareas} tarea${t.tareas === 1 ? '' : 's'}` : '—'),
         el('td', {}, el('button', { type: 'button', class: 'ghost mini', title: t.activo ? 'No sale en la tarifa ni en Presupuestos' : 'Volver a mostrar', onclick: () => guardar(t.id, { activo: !t.activo }, t.activo ? 'Oculta' : 'Visible') }, t.activo ? 'Ocultar' : 'Mostrar'))))
-        : el('tr', {}, el('td', { colspan: 8, class: 'ayuda' }, 'No hay categorías: se ponen en la ficha de cada operario (Recursos › Operarios › Categoría / puesto).'))));
+        : el('tr', {}, el('td', { colspan: 8, class: 'ayuda' }, 'No hay categorías: créalas con «＋ Categoría» y asígnalas a cada operario en la tabla de abajo.'))));
 
-    const ps = d.personas.filter((p) => ocultas || !p.categoria || d.mano_obra.find((t) => t.clave === p.categoria)?.activo !== false);
+    const ps = d.personas.filter((p) => ocultas || d.mano_obra.find((t) => t.clave === (p.categoria || ''))?.activo !== false);
+    // la categoría se pone aquí mismo (es la «Categoría / puesto» de su ficha en Recursos)
+    const catSel = (p) => {
+      if (!puedeRecursos()) return el('td', { class: p.categoria ? '' : 'ayuda' }, p.categoria || 'sin categoría');
+      const sel = el('select', { 'aria-label': `Categoría de ${p.nombre}`, class: p.categoria ? '' : 'ta-sin' },
+        el('option', { value: '' }, 'Sin categoría'), d.categorias.map((c) => el('option', { value: c, selected: c === p.categoria }, c)));
+      sel.addEventListener('change', async () => {
+        const resto = String(p.categoria_completa || '').split('·').slice(1).map((x) => x.trim()).filter(Boolean);
+        try { await api('PATCH', `/api/recursos/${p.id}`, { categoria: [sel.value, ...resto].filter(Boolean).join(' · ') || null }); aviso(`${p.nombre}: ${sel.value || 'sin categoría'}`); await cargar(); }
+        catch (e) { aviso(e.message); }
+      });
+      return el('td', {}, sel);
+    };
     $('#ta-per').replaceChildren(
       el('thead', {}, el('tr', {}, el('th', {}, 'Operario'), el('th', {}, 'Categoría'), el('th', { class: 'n' }, 'Coste ficha'), el('th', { class: 'n' }, 'Rendimiento'), el('th', { class: 'n' }, 'Coste efectivo'), el('th', {}, 'Base'))),
       el('tbody', {}, ps.sort((a, b) => (b.horas || 0) - (a.horas || 0) || a.nombre.localeCompare(b.nombre)).map((p) => el('tr', {},
-        el('td', {}, p.nombre), el('td', { class: p.categoria ? '' : 'ayuda' }, p.categoria || 'sin categoría'),
+        el('td', {}, p.nombre), catSel(p),
         el('td', { class: 'n' }, p.coste_ficha == null ? el('span', { class: 'ta-rend mal' }, 'sin coste') : eur(p.coste_ficha)),
         el('td', { class: 'n' }, rendTxt(p)), el('td', { class: 'n' }, eur(p.coste_efectivo)),
         el('td', { class: 'ayuda' }, p.horas ? `${fmt(p.horas)} h · ${p.tareas} tarea${p.tareas === 1 ? '' : 's'}` : '—')))));
@@ -75,7 +88,7 @@
           el('td', { class: 'n' }, importe(t, 'precio_venta', { placeholder: '€', 'aria-label': `Precio de venta de ${t.nombre}` })),
           el('td', {}, ud),
           el('td', { class: 'n' }, importe(t, 'coste_manual', { placeholder: t.coste_calculado != null ? fmt(t.coste_calculado) : '€', title: 'Vacío = media del coste €/h de sus equipos (ficha). Escríbelo si va por día o km.', 'aria-label': `Coste de ${t.nombre}` }),
-            el('small', { class: 'bloque' }, t.coste_manual != null ? 'a mano' : 'de las fichas')),
+            el('small', { class: 'ta-nota' }, t.coste_manual != null ? 'a mano' : 'de las fichas')),
           el('td', { class: `n ta-margen ${margenCls(t.margen_pct)}` }, t.margen_pct == null ? '—' : `${t.margen_pct} %`),
           el('td', { class: 'ayuda ta-eq' }, `${t.n} · ${t.equipos}`),
           el('td', {}, el('button', { type: 'button', class: 'ghost mini', onclick: () => guardar(t.id, { activo: !t.activo }, t.activo ? 'Oculta' : 'Visible') }, t.activo ? 'Ocultar' : 'Mostrar')));
@@ -83,10 +96,14 @@
   }
 
   async function iniciar() {
-    let yo;
     try { yo = await api('GET', '/api/me'); } catch { location.href = '/login.html'; return; }
     window.s360.iniciar(yo);
     $('#ta-ocultas').onchange = (ev) => { ocultas = ev.target.checked; pintar(); };
+    const nueva = async () => {
+      const i = $('#ta-nueva'); if (!i.value.trim()) { i.focus(); return; }
+      try { d = await api('POST', '/api/tarifa', { nombre: i.value }); aviso(`Categoría «${i.value.trim()}» creada: ponle precio y asígnasela a sus operarios abajo`); i.value = ''; pintar(); } catch (e) { aviso(e.message); }
+    };
+    $('#ta-nueva-btn').onclick = nueva; $('#ta-nueva').onkeydown = (ev) => { if (ev.key === 'Enter') nueva(); };
     try { await cargar(); } catch (e) { $('#ta-mo').replaceChildren(el('tbody', {}, el('tr', {}, el('td', {}, e.message)))); }
   }
   iniciar();

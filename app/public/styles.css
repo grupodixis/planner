@@ -3200,4 +3200,6 @@ body.gt-mano-on, body.gt-mano-on * { cursor: grabbing !important; user-select: n
 .ta-rend.bien, .ta-margen.bien { color: #6fcf7f; } .ta-rend.mal, .ta-margen.mal { color: #ff8a8a; } .ta-margen.medio { color: #f0b060; }
 .ta-rend.poca { opacity: .6; text-decoration: underline dotted; }
 .ta-eq { max-width: 320px; }
-.ta-tabla td.n small.bloque { display: block; margin: 2px 0 0; }
+.ta-tabla td.n small.ta-nota { display: block; margin: 2px 0 0; }
+.ta-acc { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; } .ta-acc > input { width: 260px; }
+.ta-tabla select.ta-sin { color: var(--suave); }

@@ -13,7 +13,7 @@ const auth = require('./auth');
 const fallo = (s, m) => Object.assign(new Error(m), { status: s });
 const num = (v) => (v === '' || v == null ? null : Number(String(v).replace(',', '.')));
 const MESES = 6; const BASE_MIN_H = 20;
-const principal = (cat) => String(cat || '').split('·')[0].trim() || null;
+const principal = (cat) => String(cat || '').split('·')[0].trim();   // '' = sin categoría
 
 // Rendimiento real por operario: { recurso_id: { prev, real, tareas } } (horas previstas equivalentes y reales)
 async function rendimientos() {
@@ -47,6 +47,8 @@ async function datos() {
      WHERE t.clase = 'maquina' GROUP BY t.id ORDER BY t.familia NULLS LAST, t.nombre`);
   // las filas que faltan se crean solas (sin precio de venta)
   const cats = [...new Set(ops.map((o) => principal(o.categoria)).filter(Boolean))];
+  // quien no tiene categoría va a «Sin categoría», para que también tenga precio (y se le pueda poner una desde aquí)
+  if (ops.some((o) => !principal(o.categoria))) await query(`INSERT INTO tarifa (clase, clave, nombre, orden) VALUES ('mano_obra', '', 'Sin categoría', 999) ON CONFLICT DO NOTHING`);
   // las de oficina nacen ocultas (no se presupuestan por horas); se pueden mostrar
   for (const c of cats) await query(`INSERT INTO tarifa (clase, clave, nombre, activo) VALUES ('mano_obra', $1, $1, $2) ON CONFLICT DO NOTHING`, [c, !/administr|director|rrhh|recursos humanos|comercial|log[ií]stica|contab/i.test(c)]);
   for (const m of maqs) await query(`INSERT INTO tarifa (clase, clave, nombre) VALUES ('maquinaria', $1, $2) ON CONFLICT DO NOTHING`, [m.clave, m.nombre]);
@@ -55,7 +57,7 @@ async function datos() {
 
   const personas = ops.map((o) => {
     const r = rend[o.id] || { prev: 0, real: 0, tareas: 0 };
-    return { id: o.id, nombre: o.nombre, categoria: principal(o.categoria), coste_ficha: o.coste, horas: r2(r.real), tareas: r.tareas, ...calcular(o.coste, r.prev, r.real) };
+    return { id: o.id, nombre: o.nombre, categoria: principal(o.categoria), categoria_completa: o.categoria || '', coste_ficha: o.coste, horas: r2(r.real), tareas: r.tareas, ...calcular(o.coste, r.prev, r.real) };
   });
   const margen = (venta, coste) => (venta && coste != null ? Math.round(((venta - coste) / venta) * 100) : null);
   const manoObra = tar.filter((t) => t.clase === 'mano_obra').map((t) => {
@@ -72,12 +74,20 @@ async function datos() {
     const coste = t.coste_manual ?? (m?.coste != null ? r2(m.coste) : null);
     return { ...t, equipos: m?.equipos || '', n: m?.n || 0, familia: m?.familia || null, coste_calculado: m?.coste != null ? r2(m.coste) : null, coste_efectivo: coste, margen_pct: margen(t.precio_venta, coste) };
   });
-  return { mano_obra: manoObra, maquinaria, personas, meses: MESES, base_min_h: BASE_MIN_H };
+  return { mano_obra: manoObra, maquinaria, personas, categorias: manoObra.map((t) => t.clave).filter(Boolean).sort((a, b) => a.localeCompare(b, 'es')), meses: MESES, base_min_h: BASE_MIN_H };
 }
 
 function montar(app, asyncH) {
   const ver = auth.permiso('costes');
   app.get('/api/tarifa', ver, asyncH(async (req, res) => res.json(await datos())));
+  // Nueva categoría de mano de obra (para ponerle precio y luego asignarla a los operarios): { nombre }
+  app.post('/api/tarifa', ver, asyncH(async (req, res) => {
+    const n = String(req.body?.nombre || '').replace(/·/g, ' ').trim().slice(0, 60);
+    if (!n) throw fallo(400, 'Escribe el nombre de la categoría (p. ej. Oficial 1ª)');
+    await query(`INSERT INTO tarifa (clase, clave, nombre) VALUES ('mano_obra', $1, $1) ON CONFLICT (clase, clave) DO UPDATE SET activo = TRUE`, [n]);
+    res.status(201).json(await datos());
+  }));
+
   // { precio_venta, unidad, coste_manual, notas, activo, nombre }
   app.put('/api/tarifa/:id', ver, asyncH(async (req, res) => {
     const b = req.body || {}; const sets = []; const vals = [Number(req.params.id)];
