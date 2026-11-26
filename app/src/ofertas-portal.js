@@ -11,6 +11,7 @@ const express = require('express');
 const { query, tx } = require('./db');
 const correo = require('./correo');
 const notif = require('./notificaciones');
+const REF = require('./referencias');
 
 const fallo = (status, msg) => Object.assign(new Error(msg), { status });
 const texto = (v, max = 200) => (v == null ? null : String(v).trim().slice(0, max) || null);
@@ -57,22 +58,29 @@ async function vista(r) {
   const { ajustes } = require('./compras');
   const aj = await ajustes();
   const [{ rows: lineas }, { rows: precios }, { rows: arch }] = [
-    await query(`SELECT sl.id, sl.descripcion, sl.cantidad::float AS cantidad, sl.unidad, COALESCE(sl.catalogo_id, e.catalogo_id) AS catalogo_id
-                   FROM solicitud_lineas sl LEFT JOIN partida_escandallo e ON e.id = sl.escandallo_id WHERE sl.solicitud_id = $1 ORDER BY sl.orden, sl.id`, [r.sol_id]),
+    await query(`SELECT l.id, l.descripcion, l.cantidad::float AS cantidad, l.unidad, COALESCE(l.catalogo_id, e.catalogo_id) AS catalogo_id,
+                          pr.codigo AS proyecto_codigo, pa.codigo AS partida_codigo, pa.nombre AS partida_nombre, ${REF.SQL_OTS} AS ots, ${REF.SQL_PROY_TAREA} AS proyecto_tarea
+                   FROM solicitud_lineas l LEFT JOIN partida_escandallo e ON e.id = l.escandallo_id
+                   LEFT JOIN partidas pa ON pa.id = e.partida_id LEFT JOIN proyectos pr ON pr.id = pa.proyecto_id
+                  WHERE l.solicitud_id = $1 ORDER BY l.orden, l.id`, [r.sol_id]),
     await query(`SELECT linea_id, precio::float AS precio, precio_cotizado::float AS precio_cotizado, unidad_cotizada FROM solicitud_precios WHERE sp_id = $1`, [r.id]),
     await query(`SELECT id, tipo, nombre, bytes FROM archivos WHERE ref_tipo = 'oferta' AND ref_id = $1 AND creado_por IS NULL ORDER BY id`, [r.id]),
   ];
   const pr = Object.fromEntries(precios.map((x) => [x.linea_id, x.precio]));
   const cot = Object.fromEntries(precios.map((x) => [x.linea_id, x]));
   const U = require('./unidades');
-  for (const l of lineas) { const o = await U.opcionesLinea(l.catalogo_id, l.unidad); l.unidades = o.opciones; delete l.catalogo_id; }
+  const proyectos = REF.proyectos(lineas);
+  for (const l of lineas) {
+    const o = await U.opcionesLinea(l.catalogo_id, l.unidad); l.unidades = o.opciones; l.ref = REF.deLinea(l) || null;
+    for (const k of ['catalogo_id', 'proyecto_codigo', 'partida_codigo', 'partida_nombre', 'ots', 'proyecto_tarea']) delete l[k];
+  }
   // trabajo en obra (subcontrata): además, días de trabajo, personas y cuándo puede empezar
   const { rows: ob } = await query(`SELECT 1 FROM solicitud_lineas l JOIN tareas t ON t.id = l.tarea_id WHERE l.solicitud_id = $1 AND t.ext_en_obra LIMIT 1`, [r.sol_id]);
   const info = r.lineas_info || {};
   return {
     empresa: { nombre: aj.empresa.nombre, cif: aj.empresa.cif, direccion: aj.empresa.direccion, telefono: aj.empresa.telefono, email: aj.empresa.email },
     entregar_en: aj.entregar_en,
-    codigo: r.codigo, proveedor: r.proveedor,
+    codigo: r.codigo, proveedor: r.proveedor, proyectos,
     abierta: r.sol_estado === 'abierta',
     responder_antes: r.responder_antes, necesario_el: r.necesario_el, notas_peticion: r.sol_notas,
     lineas: lineas.map((l) => ({ ...l, precio: pr[l.id] ?? null, precio_cotizado: cot[l.id]?.precio_cotizado ?? null, unidad_cotizada: cot[l.id]?.unidad_cotizada || null, no_tiene: !!info[l.id]?.no, alternativa: info[l.id]?.alt || '' })),

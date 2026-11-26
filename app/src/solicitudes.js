@@ -4,6 +4,7 @@
 //  · Sus ofertas (precio por línea, entrega, portes, PDF) se apuntan aquí; se comparan y se elige
 //    proveedor por línea. «Crear pedidos» hace un pedido por proveedor con esos precios.
 const PDFDocument = require('pdfkit');
+const REF = require('./referencias');
 const { query, tx } = require('./db');
 const auth = require('./auth');
 const correo = require('./correo');
@@ -30,6 +31,7 @@ async function solicitud(id, c = { query }) {
   const [{ rows: lineas }, { rows: provs }, { rows: precios }] = await sec([
     () => c.query(`SELECT l.id, l.escandallo_id, l.tarea_id, COALESCE(l.catalogo_id, e.catalogo_id) AS catalogo_id, l.descripcion, l.cantidad::float AS cantidad, l.unidad, l.orden, l.elegido,
                     pr.codigo AS proyecto_codigo, pa.codigo AS partida_codigo, pa.nombre AS partida_nombre,
+                    ${REF.SQL_OTS} AS ots, ${REF.SQL_PROY_TAREA} AS proyecto_tarea,
                     (SELECT min(x.fecha) FROM tarea_material m JOIN tramos x ON x.tarea_id = m.tarea_id WHERE m.escandallo_id = l.escandallo_id) AS necesaria
                FROM solicitud_lineas l LEFT JOIN partida_escandallo e ON e.id = l.escandallo_id
                LEFT JOIN partidas pa ON pa.id = e.partida_id LEFT JOIN proyectos pr ON pr.id = pa.proyecto_id
@@ -76,14 +78,16 @@ function pdfSolicitud(s, aj, prov, url) {
     doc.font('Helvetica-Bold').fontSize(15).fillColor('#111').text('PETICIÓN DE OFERTA', 48, 48, { width: W, align: 'right' });
     doc.font('Helvetica').fontSize(10).text(s.codigo, 48, 68, { width: W, align: 'right' }).text(new Date().toLocaleDateString('es-ES'), 48, 82, { width: W, align: 'right' });
     let y = 112;
-    doc.roundedRect(48, y, W, 56, 4).fill('#f2f2f2');
+    const proys = REF.proyectos(s.lineas);
+    doc.roundedRect(48, y, W, proys ? 72 : 56, 4).fill('#f2f2f2');
     doc.fillColor('#111').fontSize(10);
     doc.font('Helvetica-Bold').text('Para:', 60, y + 10, { continued: true }).font('Helvetica').text(` ${prov?.proveedor || ''}`);
     doc.font('Helvetica-Bold').text('Responder antes del:', 60, y + 26, { continued: true }).font('Helvetica').text(` ${fechaTxt(s.responder_antes) || 'lo antes posible'}`);
     doc.font('Helvetica-Bold').text('Lo necesitamos el:', 60 + W * 0.5, y + 26, { continued: true }).font('Helvetica').text(` ${fechaTxt(s.necesario_el) || 'a convenir'}`);
-    y += 76;
+    if (proys) doc.font('Helvetica-Bold').text(proys.includes(',') ? 'Proyectos:' : 'Proyecto:', 60, y + 42, { continued: true }).font('Helvetica').text(` ${proys}`, { width: W - 24 });
+    y += proys ? 92 : 76;
     doc.font('Helvetica').fontSize(10).fillColor('#111')
-      .text('Les agradeceríamos su mejor precio y plazo de entrega para el siguiente material, indicando la referencia de esta petición en su oferta.', 48, y, { width: W });
+      .text(`Les agradeceríamos su mejor precio y plazo de entrega para el siguiente material, indicando en su oferta la referencia de esta petición (${s.codigo})${proys ? ' y la del proyecto' : ''}.`, 48, y, { width: W });
     y = doc.y + 14;
     doc.font('Helvetica-Bold').fontSize(9).fillColor(gris).text('Descripción', 48, y).text('Cantidad', 48 + W * 0.7, y, { width: W * 0.3, align: 'right' });
     y += 14;
@@ -91,15 +95,18 @@ function pdfSolicitud(s, aj, prov, url) {
     y += 6;
     doc.font('Helvetica').fontSize(10).fillColor('#111');
     for (const l of s.lineas) {
-      const h = Math.max(doc.heightOfString(l.descripcion, { width: W * 0.68 }), 12);
-      if (y + h > doc.page.height - 120) { doc.addPage(); y = 48; }
-      doc.text(l.descripcion, 48, y, { width: W * 0.68 });
+      const ref = REF.paraPdf(REF.enDocumento(l, s.lineas)); const desc = REF.paraPdf(l.descripcion);
+      const h = Math.max(doc.heightOfString(desc, { width: W * 0.68 }), 12);
+      const hr = ref ? doc.fontSize(8).heightOfString(`Ref.: ${ref}`, { width: W * 0.68 }) + 2 : 0; doc.fontSize(10);
+      if (y + h + hr > doc.page.height - 120) { doc.addPage(); y = 48; }
+      doc.fillColor('#111').text(desc, 48, y, { width: W * 0.68 });
       doc.text(`${cantTxt(l.cantidad)} ${l.unidad || ''}`, 48 + W * 0.7, y, { width: W * 0.3, align: 'right' });
-      y += h + 6;
+      if (ref) { doc.fontSize(8).fillColor(gris).text(`Ref.: ${ref}`, 48, y + h + 1, { width: W * 0.68 }); doc.fontSize(10).fillColor('#111'); }
+      y += h + hr + 6;
       doc.moveTo(48, y - 3).lineTo(48 + W, y - 3).strokeColor('#e2e2e2').stroke();
     }
     y += 12;
-    doc.font('Helvetica').fontSize(9).fillColor(gris).text(`Entrega en: ${aj.entregar_en}. Indiquen si los portes están incluidos.${s.notas ? `\n${s.notas}` : ''}`, 48, y, { width: W });
+    doc.font('Helvetica').fontSize(9).fillColor(gris).text(`Entrega en: ${aj.entregar_en}. Indiquen si los portes están incluidos.${s.notas ? `\n${REF.paraPdf(s.notas)}` : ''}`, 48, y, { width: W });
     if (url) {
       y = doc.y + 14;
       if (y > doc.page.height - 110) { doc.addPage(); y = 48; }

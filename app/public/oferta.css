@@ -103,3 +103,4 @@ button:disabled { opacity: .6; cursor: default; }
 td[data-t] .precio-u { flex: 1; min-width: 0; }
 .precio-u > div { min-width: 0; }
 .precio-u .precio { min-width: 0; }
+.desc .ref { display: block; color: var(--suave); font-size: 12px; margin-top: 2px; }

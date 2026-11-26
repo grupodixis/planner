@@ -4,6 +4,7 @@
 //  · Al enviarlo: PDF del pedido por correo al proveedor (o «lo envío yo» si no hay correo configurado),
 //    y sus líneas de material pasan a «Pedido» con proveedor, fecha, nº de pedido y precio.
 const PDFDocument = require('pdfkit');
+const REF = require('./referencias');
 const { query, tx } = require('./db');
 const auth = require('./auth');
 const notif = require('./notificaciones');
@@ -53,7 +54,7 @@ async function pedido(id, c = { query }) {
   const { rows: lineas } = await c.query(
     `SELECT l.id, l.escandallo_id, l.tarea_id, l.descripcion, l.cantidad::float AS cantidad, l.unidad, l.precio::float AS precio, l.orden,
             pr.codigo AS proyecto_codigo, pa.codigo AS partida_codigo, pa.nombre AS partida_nombre, e.compra, e.precio_pedido::float AS precio_pedido,
-            pr.id AS proyecto_id, pa.id AS partida_id,
+            pr.id AS proyecto_id, pa.id AS partida_id, ${REF.SQL_OTS} AS ots, ${REF.SQL_PROY_TAREA} AS proyecto_tarea,
             -- a qué tareas está asignado ese material (o la tarea de la línea, si es de subcontratación): para enlazarlas
             COALESCE((SELECT json_agg(json_build_object('id', t.id, 'codigo', t.codigo, 'nombre', t.nombre, 'ot_id', o.id, 'ot_codigo', o.codigo,
                                                         'proyecto_id', o.proyecto_id) ORDER BY t.codigo)
@@ -150,7 +151,9 @@ function pdfPedido(p, aj) {
     const fila = (et, v, yy) => { doc.font('Helvetica-Bold').text(et, 60, yy, { continued: true }).font('Helvetica').text(` ${v || '—'}`); };
     fila('Proveedor:', `${p.proveedor || '—'}${p.proveedor_cif ? ` · CIF ${p.proveedor_cif}` : ''}`, y + 10);
     fila('Entrega:', `${p.fecha_entrega ? new Date(`${String(p.fecha_entrega).slice(0, 10)}T12:00:00`).toLocaleDateString('es-ES') : 'a convenir'}${p.entregar_en ? ` · ${p.entregar_en}` : ''}`, y + 26);
-    fila('Referencia:', p.referencia, y + 42);
+    // la referencia que escribe compras, y siempre los proyectos de las líneas (trazabilidad)
+    const faltan = REF.proyectos(p.lineas).split(', ').filter((c) => c && !String(p.referencia || '').includes(c));
+    fila('Referencia:', [p.referencia, faltan.length ? `Proyecto ${faltan.join(', ')}` : null].filter(Boolean).join(' · '), y + 42);
     if (p.forma_pago) doc.font('Helvetica-Bold').text('Pago:', 60 + W * 0.55, y + 42, { continued: true }).font('Helvetica').text(` ${p.forma_pago}`);
     y += 90;
     // líneas
@@ -163,13 +166,16 @@ function pdfPedido(p, aj) {
     y += 6;
     doc.font('Helvetica').fontSize(10).fillColor('#111');
     for (const l of p.lineas) {
-      const h = Math.max(doc.heightOfString(l.descripcion, { width: W * 0.54 }), 12);
-      if (y + h > doc.page.height - 140) { doc.addPage(); y = 48; }
-      doc.text(l.descripcion, col[0], y, { width: W * 0.54 });
+      const ref = REF.paraPdf(REF.enDocumento(l, p.lineas, { largo: 45 })); const desc = REF.paraPdf(l.descripcion);
+      const h = Math.max(doc.heightOfString(desc, { width: W * 0.54 }), 12);
+      const hr = ref ? doc.fontSize(8).heightOfString(`Ref.: ${ref}`, { width: W * 0.54 }) + 2 : 0; doc.fontSize(10);
+      if (y + h + hr > doc.page.height - 140) { doc.addPage(); y = 48; }
+      if (ref) { doc.fontSize(8).fillColor(gris).text(`Ref.: ${ref}`, col[0], y + h + 1, { width: W * 0.54 }); doc.fontSize(10).fillColor('#111'); }
+      doc.text(desc, col[0], y, { width: W * 0.54 });
       doc.text(`${cantTxt(l.cantidad)} ${l.unidad || ''}`, col[1], y, { width: W * 0.15, align: 'right' });
       doc.text(l.precio == null ? '—' : eur(l.precio), col[2], y, { width: W * 0.13, align: 'right' });
       doc.text(l.precio == null ? '—' : eur(l.cantidad * l.precio), col[3], y, { width: W * 0.14, align: 'right' });
-      y += h + 6;
+      y += h + hr + 6;
       doc.moveTo(48, y - 3).lineTo(48 + W, y - 3).strokeColor('#e2e2e2').stroke();
     }
     y += 6;

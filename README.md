@@ -1427,6 +1427,15 @@ Endpoints: `GET /api/ia`, `PUT /api/ia/ajustes`, `POST /api/ia/probar/:nombre`, 
 - **Aprendizaje por proveedor**: al confirmar una oferta leída por la IA, lo corregido (precios, portes, entrega, referencia) va a `ia_correcciones`; de ahí `proveedores.notas_ia_auto` (≥ 2 veces: precios con IVA, unidad N veces mayor/menor). Notas escritas por Compras en `proveedores.notas_ia`. La IA devuelve también cómo llama el proveedor a cada línea (`su_texto` → `proveedor_alias`). Todo esto («memoria_de_este_proveedor»: notas, últimas 8 correcciones y equivalencias) se le pasa a la IA cada vez que lee a ese proveedor, con prioridad sobre su interpretación. En la ficha del proveedor: «🤖 Lo que la IA sabe». `GET·PUT /api/proveedores/:id/ia`.
 - **Para Presupuestos**: `GET /api/precios/estimado?catalogo_id=` (precio sugerido y aviso si está viejo o no hay); `solicitudes_precio.motivo` (`compra` | `presupuesto`) y `solicitud_lineas.catalogo_id` para pedir precio de materiales del catálogo sin escandallo.
 
+## Trazabilidad en los documentos al proveedor
+
+Peticiones de oferta y pedidos de compra llevan el proyecto en todo lo que sale hacia el proveedor (`src/referencias.js`):
+
+- **PDF**: los proyectos en la cabecera (en el pedido, añadidos a su «Referencia» si no estaban). Bajo cada línea, «Ref.: P-2026-0060 · 01.01 partida · OT 60.01». Las líneas sueltas (portes, transporte) llevan el proyecto si el documento es de uno solo.
+- **Correo**: el proyecto va en el asunto, después del código SOL/PC (que sigue el primero para asociar las respuestas), y en el texto se pide indicarlo en el albarán y la factura.
+- **Portal del proveedor**: el proyecto y la referencia de cada línea.
+- La referencia de la línea va en una fila aparte, en letra pequeña, así que la lectura de precios escritos en nuestro PDF no se ve afectada.
+
 ## Unidades y equivalencias (todo el sistema)
 
 El proveedor cotiza en su unidad (hierro en €/kg o €/t, tubo en €/barra) y nosotros pedimos en la nuestra (barras, ml). El sistema convierte con las equivalencias de cada material del catálogo (la lista de materiales de los escandallos).

@@ -83,7 +83,7 @@
       }
       const no = el('input', { type: 'checkbox', checked: e.no, disabled: !abierta });
       const tr = el('tr', { class: e.no ? 'sin' : null },
-        el('td', { class: 'desc', 'data-t': null }, el('b', {}, l.descripcion),
+        el('td', { class: 'desc', 'data-t': null }, el('b', {}, l.descripcion), l.ref ? el('small', { class: 'ref' }, `Ref.: ${l.ref}`) : null,
           el('div', {}, abierta && alt.hidden ? el('button', { type: 'button', class: 'alt-btn', onclick: (ev) => { alt.hidden = false; ev.currentTarget.hidden = true; altIn.focus(); } }, 'Ofrecer una alternativa') : null, alt)),
         el('td', { class: 'num', 'data-t': 'Cantidad' }, `${cant(l.cantidad)} ${l.unidad || ''}`),
         el('td', { class: 'num', 'data-t': `Precio / ${l.unidad || 'ud'}` }, celdaPrecio),
@@ -177,6 +177,7 @@
         el('div', {}, el('span', {}, 'Para'), d.proveedor),
         el('div', {}, el('span', {}, 'Responder antes del'), fecha(d.responder_antes) || 'Lo antes posible'),
         el('div', {}, el('span', {}, 'Lo necesitamos el'), fecha(d.necesario_el) || 'A convenir'),
+        d.proyectos ? el('div', {}, el('span', {}, d.proyectos.includes(',') ? 'Proyectos' : 'Proyecto'), d.proyectos) : null,
         el('div', {}, el('span', {}, 'Entrega en'), d.entregar_en || '—')),
       mensaje ? el('div', { class: 'banda ok', role: 'status' }, '✔ ', mensaje)
         : r.enviada_en ? el('div', { class: 'banda ok' }, `✔ Oferta recibida el ${cuando(r.enviada_en)}.`, abierta ? ' Puede corregirla y volver a guardar.' : '')

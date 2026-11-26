@@ -302,13 +302,16 @@
     document.body.append(d); d.showModal(); motivo.focus();
   }
 
+  // proyectos de las líneas de un documento (trazabilidad: van en el asunto y en el texto)
+  const proyectosDe = (ls) => [...new Set((ls || []).map((l) => l.proyecto_codigo || l.proyecto_tarea).filter(Boolean))];
   function dialogoEnviar(p, prov) {
     const aj = estado.ajustes || {};
+    const faltan = proyectosDe(p.lineas).filter((c) => !String(p.referencia || '').includes(c));
     const para = el('input', { type: 'email', value: prov?.email || '', 'aria-label': 'Para' });
     const cc = el('input', { type: 'text', value: '', placeholder: 'opcional', 'aria-label': 'Copia' });
-    const asunto = el('input', { value: `Pedido ${p.codigo} · ${aj.empresa?.nombre || 'HAM Menorca'}${p.referencia ? ` · ${p.referencia}` : ''}`, 'aria-label': 'Asunto' });
+    const asunto = el('input', { value: `Pedido ${p.codigo} · ${aj.empresa?.nombre || 'HAM Menorca'}${p.referencia ? ` · ${p.referencia}` : ''}${faltan.length ? ` · ${faltan.join(', ')}` : ''}`, 'aria-label': 'Asunto' });
     const texto = el('textarea', { rows: 6, 'aria-label': 'Texto del correo' });
-    texto.value = `Buenos días:\n\nLes adjuntamos el pedido ${p.codigo}${p.fecha_entrega ? ` con entrega el ${new Date(`${p.fecha_entrega}T12:00:00`).toLocaleDateString('es-ES')}` : ''}.\nPor favor, confirmen la recepción y la fecha de entrega, e indiquen el nº de pedido en el albarán y la factura.\n\nUn saludo,\n${aj.empresa?.nombre || 'HAM Menorca'}`;
+    texto.value = `Buenos días:\n\nLes adjuntamos el pedido ${p.codigo}${p.fecha_entrega ? ` con entrega el ${new Date(`${p.fecha_entrega}T12:00:00`).toLocaleDateString('es-ES')}` : ''}.\n${proyectosDe(p.lineas).length ? `Proyecto: ${proyectosDe(p.lineas).join(', ')}.\n` : ''}Por favor, confirmen la recepción y la fecha de entrega, e indiquen el nº de pedido${proyectosDe(p.lineas).length ? ' y el del proyecto' : ''} en el albarán y la factura.\n\nUn saludo,\n${aj.empresa?.nombre || 'HAM Menorca'}`;
     const enviar = async (porCorreo) => {
       try {
         await api('POST', `/api/compras/pedidos/${p.id}/enviar`, porCorreo ? { correo: true, para: para.value, cc: cc.value, asunto: asunto.value, texto: texto.value } : { correo: false });
@@ -584,11 +587,12 @@
     const lineaEnlace = url ? `\n\nPuede responder directamente en nuestra plataforma, sin registrarse, poniendo sus precios línea a línea:\n${url}\n` : '';
     const recordar = !!p.enviado_en;
     const para = el('input', { type: 'email', value: p.email || '', 'aria-label': 'Para' });
-    const asunto = el('input', { value: `${recordar ? 'Recordatorio: ' : ''}[${s.codigo}] Petición de oferta · ${aj.empresa?.nombre || 'HAM Menorca'}`, 'aria-label': 'Asunto' });
+    const proys = proyectosDe(s.lineas);
+    const asunto = el('input', { value: `${recordar ? 'Recordatorio: ' : ''}[${s.codigo}] Petición de oferta · ${aj.empresa?.nombre || 'HAM Menorca'}${proys.length ? ` · ${proys.join(', ')}` : ''}`, 'aria-label': 'Asunto' });
     const texto = el('textarea', { rows: 10, 'aria-label': 'Texto del correo' });
     texto.value = recordar
       ? `Buenos días:\n\nLes recordamos nuestra petición de oferta ${s.codigo}${s.responder_antes ? `, que necesitaríamos antes del ${new Date(`${s.responder_antes}T12:00:00`).toLocaleDateString('es-ES')}` : ''}. Se la adjuntamos de nuevo.${lineaEnlace}\n\nUn saludo,\n${aj.empresa?.nombre || 'HAM Menorca'}`
-      : `Buenos días:\n\nLes adjuntamos petición de oferta ${s.codigo}. Les agradeceríamos precio y plazo de entrega${s.responder_antes ? ` antes del ${new Date(`${s.responder_antes}T12:00:00`).toLocaleDateString('es-ES')}` : ''}, indicando si los portes están incluidos.\nSi responden por correo, mantengan la referencia ${s.codigo} en el asunto.${lineaEnlace}\n\nUn saludo,\n${aj.empresa?.nombre || 'HAM Menorca'}`;
+      : `Buenos días:\n\nLes adjuntamos petición de oferta ${s.codigo}${proys.length ? ` (proyecto ${proys.join(', ')})` : ''}. Les agradeceríamos precio y plazo de entrega${s.responder_antes ? ` antes del ${new Date(`${s.responder_antes}T12:00:00`).toLocaleDateString('es-ES')}` : ''}, indicando si los portes están incluidos.\nSi responden por correo, mantengan la referencia ${s.codigo} en el asunto.${lineaEnlace}\n\nUn saludo,\n${aj.empresa?.nombre || 'HAM Menorca'}`;
     const enviar = async (porCorreo) => {
       try { await api('POST', `/api/compras/solicitudes/${s.id}/proveedores/${p.id}/enviar`, porCorreo ? { correo: true, para: para.value, asunto: asunto.value, texto: texto.value, enlace: !!url && texto.value.includes(url) } : { correo: false }); d.close(); toast(porCorreo ? `Enviado a ${para.value}` : 'Apuntado como enviado'); pintar(); }
       catch (e) { toast(e.message, true); }
