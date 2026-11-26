@@ -1495,9 +1495,11 @@ Endpoints: `GET /api/ia`, `PUT /api/ia/ajustes`, `POST /api/ia/probar/:nombre`, 
   - lo estimado por la IA queda «estimado».
 - Guarda `ia_resumen`, `ia_dudas`, `ia_avisos`, `ia_borrador` (el JSON, para aprender de las correcciones), `ia_modelo` e `ia_ms`, y registra la llamada en `ia_registro` (`crear_presupuesto`).
 - `POST /api/presupuestos/:id/ia {prompt, adjunto_ids, skill_ids}` lo rehace (borra capítulos y partidas). Al arrancar, lo que estaba «creando» pasa a error.
-- **Skills** (`presupuesto_skills`, con versiones en `presupuesto_skill_versiones`): Markdown; «Reglas generales» (`siempre`) se siembra al arrancar.
-  - Rutas: `GET·POST /api/presupuesto-skills`, `PUT /api/presupuesto-skills/:id {contenido, activo, nombre}`, `GET …/:id/versiones`, `GET …/:id/md`.
-  - En pantalla, botón «🧠 Skills»: editor, descargar o cargar .md, activar.
+- **Skills** (`presupuesto_skills`, con versiones en `presupuesto_skill_versiones`): Markdown; «Reglas generales» (`siempre`) se siembra al arrancar (si no se había tocado desde la v1, pasa sola a la v2, que explica cómo aplicar aquí las Skills de Antigravity).
+  - **Importar** (`POST /api/presupuesto-skills/importar?nombre=archivo.zip`, cuerpo = el archivo; botón «⬆ Importar .zip / .md»): un .zip con .md y, opcionalmente, `indice.json` (`[{archivo, nombre, siempre, activo, claves, comodin}]`); sin índice, cada .md (menos README y 00_…) con el nombre de su primer «# ». Una Skill con el mismo nombre se actualiza (versión anterior al historial). **El contenido de las Skills no va en el repositorio** (es público y llevan costes, descuentos de proveedores y clientes): se importa en cada instalación. La base de Antigravity adaptada (23 Skills: siempre Presupuestación general, Criterios aprendidos, Tratamientos, Complejidad y Revisión; de producto con palabras clave; Productos compuestos como `comodin`; Oferta y demanda, Instalaciones, proveedores e histórico desactivadas) se entregó como `skills-planealo.zip`.
+  - **Qué Skills usa** (`elegirSkills`): las marcadas al crear (más las de siempre); si no se marca ninguna, las de siempre + las activas cuyas `claves` (separadas por comas, sin acentos, desde inicio de palabra) aparecen en la petición, el título, los nombres de los adjuntos o el texto de los Excel. Se guardan en `presupuestos.ia_skills` y se ven en el recuadro de la IA.
+  - Rutas: `GET·POST /api/presupuesto-skills`, `PUT /api/presupuesto-skills/:id {contenido, activo, nombre, siempre, claves}`, `GET …/:id/versiones`, `GET …/:id/md`.
+  - En pantalla, botón «🧠 Skills»: editor, descargar o cargar .md, activar, «Usar en todos los presupuestos» y palabras clave.
 - **Permiso `presupuestos`** y rol **Comercial** (solo ese permiso). Administrador y Dirección también lo tienen. Presupuestos admite `presupuestos` o `costes`.
 
 **Peticiones por correo** (`src/presupuestos-correo.js`)

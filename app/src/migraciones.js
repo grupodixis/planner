@@ -1727,6 +1727,9 @@ const MIGRACIONES = [
      correo_id      INT,
      creado         TIMESTAMPTZ NOT NULL DEFAULT now()
    )`,
+  `ALTER TABLE presupuesto_skills ADD COLUMN IF NOT EXISTS claves TEXT`,
+  `ALTER TABLE presupuesto_skills ADD COLUMN IF NOT EXISTS comodin BOOLEAN NOT NULL DEFAULT FALSE`,
+  `ALTER TABLE presupuestos ADD COLUMN IF NOT EXISTS ia_skills TEXT[]`,
 ];
 
 async function migrar() {

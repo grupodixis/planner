@@ -219,7 +219,8 @@
       p.ia_resumen ? el('p', {}, p.ia_resumen) : null,
       dudas.length ? el('div', {}, el('b', {}, 'Dudas (lo que ha supuesto o falta saber):'), el('ul', {}, dudas.map((d) => el('li', {}, d.partida ? el('span', { class: 'pz-cod' }, `${d.partida}: `) : null, d.texto)))) : null,
       avisos.length ? el('div', {}, el('b', {}, 'Avisos:'), el('ul', {}, avisos.map((a) => el('li', {}, a)))) : null,
-      p.prompt ? el('div', {}, el('b', {}, 'Lo que se pidió:'), el('blockquote', { class: 'pz-prompt-ver' }, p.prompt)) : null].filter(Boolean));
+      p.prompt ? el('div', {}, el('b', {}, 'Lo que se pidió:'), el('blockquote', { class: 'pz-prompt-ver' }, p.prompt)) : null,
+      (p.ia_skills || []).length ? el('p', { class: 'ayuda' }, `🧠 Skills usadas: ${p.ia_skills.join(' · ')}`) : null].filter(Boolean));
     const ev = p.eventos || [];
     if (ev.length) caja.append(el('div', { class: 'pz-eventos' }, el('b', {}, 'Correo con el cliente:'),
       el('ul', {}, ev.map((e) => el('li', { class: `pz-ev-${e.clase}` }, el('span', { class: 'pz-ev-f' }, new Date(e.creado).toLocaleString('es-ES', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })), ' ', e.texto,
@@ -426,12 +427,14 @@
     const t = el('input', { placeholder: 'Si lo dejas vacío, lo pone la IA', maxlength: 200, 'aria-label': 'De qué es' });
     const [cli, dlc] = (() => { const id = 'dl-nuevo-cli'; return [el('input', { list: id, placeholder: 'Escribe para buscar…', 'aria-label': 'Cliente' }), el('datalist', { id }, (est.clientes || []).map((x) => el('option', { value: x.nombre })))]; })();
     const [obr, dlo] = (() => { const id = 'dl-nuevo-obr'; return [el('input', { list: id, placeholder: 'Escribe para buscar…', 'aria-label': 'Obra' }), el('datalist', { id }, (est.obras || []).map((x) => el('option', { value: x.nombre })))]; })();
-    const prompt = el('textarea', { rows: 7, class: 'pz-prompt', placeholder: 'Qué hay que presupuestar: «Escalera exterior de emergencia de 2 tramos, zancas UPN 200, peldaños de chapa lagrimada, barandilla de tubo 40x40 a 1,10 m, galvanizado y lacado RAL 7016, montaje con grúa…». Cuanto más detalle, mejor.' });
+    const prompt = el('textarea', { rows: 7, class: 'pz-prompt', placeholder: 'Qué hay que presupuestar: «Escalera exterior de emergencia de 2 tramos, zancas UPN 200, peldaños de chapa lagrimada, barandilla de tubo 40x40 a 1,10 m, galvanizado y pintado RAL 7016, montaje con grúa…». Cuanto más detalle, mejor.' });
     const z = zonaAdjuntos();
     const sk = new Set();
-    const caja = el('div', { class: 'pz-skills-elegir' }, skills.filter((x) => x.activo).map((x) => x.siempre
-      ? el('span', { class: 'pz-adj', title: 'Se usa siempre' }, `🧠 ${x.nombre} · siempre`)
-      : el('label', { class: 'co-chk' }, el('input', { type: 'checkbox', onchange: (ev) => { ev.target.checked ? sk.add(x.id) : sk.delete(x.id); } }), ` 🧠 ${x.nombre}`)));
+    const act = skills.filter((x) => x.activo);
+    const caja = el('div', { class: 'pz-skills-elegir' },
+      el('p', { class: 'ayuda' }, `Siempre: ${act.filter((x) => x.siempre).map((x) => x.nombre).join(' · ')}`),
+      act.filter((x) => !x.siempre).map((x) => el('label', { class: 'co-chk', title: x.claves ? `Se activa sola con: ${x.claves}` : '' },
+        el('input', { type: 'checkbox', onchange: (ev) => { ev.target.checked ? sk.add(x.id) : sk.delete(x.id); } }), ` 🧠 ${x.nombre}`)));
     const idCli = () => est.clientes.find((x) => x.nombre === cli.value)?.id || null;
     const idObr = () => est.obras.find((x) => x.nombre === obr.value)?.id || null;
     const conIA = el('button', { type: 'button', class: 'primario' }, '🤖 Crear borrador con IA');
@@ -439,7 +442,7 @@
       el('p', { class: 'ayuda' }, 'Cuéntale a la IA qué hay que presupuestar y adjunta lo que tengas: prepara un borrador con capítulos, partidas (descripción comercial + descomposición), precios de la lista y la tarifa, y sus dudas. Después lo cambias todo.'),
       el('div', { class: 'pz-campos' }, el('label', { class: 'ancho' }, el('span', {}, 'De qué es'), t), el('label', {}, el('span', {}, 'Cliente'), cli, dlc), el('label', {}, el('span', {}, 'Obra'), obr, dlo)),
       el('label', { class: 'pz-cond' }, el('span', {}, 'Qué hay que presupuestar'), prompt), z.caja,
-      el('div', { class: 'pz-tag' }, 'Skills a usar ', el('small', {}, '(si no marcas ninguna, usa todas)')), caja,
+      el('div', { class: 'pz-tag' }, 'Skills a usar ', el('small', {}, '(si no marcas ninguna, se eligen solas por las palabras de la petición y los adjuntos)')), caja,
       el('div', { class: 'acciones' }, el('button', { type: 'button', class: 'ghost', onclick: () => d.close() }, 'Cancelar'),
         el('button', { type: 'button', class: 'ghost', onclick: async () => {
           if (!t.value.trim()) { t.focus(); aviso('Pon de qué es (o usa la IA)'); return; }
@@ -475,12 +478,26 @@
           el('button', { type: 'button', class: 'primario', onclick: async () => { try { await api('PUT', `/api/presupuesto-skills/${s.id}`, { contenido: ta.value }); lista = await api('GET', '/api/presupuesto-skills'); pintarSk(); aviso('Guardada: la IA la usará desde el próximo presupuesto'); } catch (e) { aviso(e.message); } } }, 'Guardar'),
           el('a', { class: 'boton ghost', href: `/api/presupuesto-skills/${s.id}/md` }, '⬇ Descargar .md'),
           el('label', { class: 'boton ghost' }, '⬆ Cargar .md', el('input', { type: 'file', accept: '.md,text/markdown,text/plain', hidden: true, onchange: async (ev) => { const f = ev.target.files[0]; if (f) ta.value = await f.text(); } })),
-          s.siempre ? el('span', { class: 'ayuda' }, 'Se usa siempre') : el('button', { type: 'button', class: 'ghost', onclick: async () => { await api('PUT', `/api/presupuesto-skills/${s.id}`, { activo: !s.activo }); lista = await api('GET', '/api/presupuesto-skills'); pintarSk(); } }, s.activo ? 'Desactivar' : 'Activar')));
+          s.nombre === 'Reglas generales' ? el('span', { class: 'ayuda' }, 'Se usa siempre') : el('button', { type: 'button', class: 'ghost', onclick: async () => { await api('PUT', `/api/presupuesto-skills/${s.id}`, { activo: !s.activo }); lista = await api('GET', '/api/presupuesto-skills'); pintarSk(); } }, s.activo ? 'Desactivar' : 'Activar')),
+        s.nombre === 'Reglas generales' ? null : el('div', { class: 'pz-sk-uso' },
+          el('label', { class: 'co-chk' }, el('input', { type: 'checkbox', checked: s.siempre, onchange: async (ev) => { await api('PUT', `/api/presupuesto-skills/${s.id}`, { siempre: ev.target.checked }); lista = await api('GET', '/api/presupuesto-skills'); pintarSk(); } }), ' Usar en todos los presupuestos'),
+          s.siempre ? null : el('label', { class: 'pz-sk-claves' }, 'Se usa cuando la petición o los adjuntos dicen: ',
+            el('input', { value: s.claves || '', placeholder: 'barandilla, pasamanos…', 'aria-label': 'Palabras clave', onchange: async (ev) => { await api('PUT', `/api/presupuesto-skills/${s.id}`, { claves: ev.target.value }); lista = await api('GET', '/api/presupuesto-skills'); aviso('Palabras guardadas'); } }))));
     };
+    const importar = el('label', { class: 'boton ghost', title: 'Un .zip con varias Skills (.md, con su indice.json si lo trae) o un .md suelto. Las que ya existen con el mismo nombre se actualizan y queda la versión anterior.' }, '⬆ Importar .zip / .md',
+      el('input', { type: 'file', accept: '.zip,.md,application/zip,text/markdown', hidden: true, onchange: async (ev) => {
+        const f = ev.target.files[0]; ev.target.value = ''; if (!f) return;
+        try {
+          const r = await fetch(`/api/presupuesto-skills/importar?nombre=${encodeURIComponent(f.name)}`, { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/octet-stream' }, body: f });
+          const x = await r.json().catch(() => ({})); if (!r.ok) throw new Error(x.error || `Error ${r.status}`);
+          lista = await api('GET', '/api/presupuesto-skills'); pintarSk();
+          aviso(`Importadas: ${x.nuevas.length} nuevas, ${x.actualizadas.length} actualizadas${x.iguales.length ? `, ${x.iguales.length} sin cambios` : ''}`);
+        } catch (e) { aviso(e.message); }
+      } }));
     const d = el('dialog', { class: 'dlg-cos pz-dlg pz-dlg-skills' }, el('h2', {}, '🧠 Skills de presupuestación'),
-      el('p', { class: 'ayuda' }, 'Documentos en Markdown con vuestra forma de presupuestar: descomposiciones tipo, rendimientos (h/ml…), reglas y cómo redactar la descripción comercial. La IA los lee cada vez que prepara un presupuesto. «Reglas generales» se usa siempre. Puedes cargar las que tengas en .md (p. ej. de Antigravity).'),
+      el('p', { class: 'ayuda' }, 'Documentos en Markdown con vuestra forma de presupuestar: descomposiciones tipo, rendimientos (h/ml…), reglas y cómo redactar la descripción comercial. La IA lee las que se usan siempre y las de producto cuyas palabras aparecen en la petición o en los adjuntos (o las que marques al crear). Con «⬆ Importar» subes un .zip con varias de golpe.'),
       el('div', { class: 'pz-sk' }, izq, der),
-      el('div', { class: 'acciones' }, el('button', { type: 'button', class: 'ghost', onclick: () => d.close() }, 'Cerrar')));
+      el('div', { class: 'acciones' }, importar, el('button', { type: 'button', class: 'ghost', onclick: () => d.close() }, 'Cerrar')));
     d.addEventListener('close', () => d.remove()); document.body.append(d); pintarSk(); d.showModal();
   }
 

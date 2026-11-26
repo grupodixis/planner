@@ -30,7 +30,8 @@ const LIMITE_MS = 5 * 60 * 1000;
 const TIPOS = ['material', 'mano_obra', 'maquinaria', 'auxiliar', 'subcontrata'];
 
 /* ---------- Skills ---------- */
-const REGLAS_BASE = `# Reglas generales de presupuestación · HAM Menorca
+// Texto de la primera versión: si nadie la ha tocado, se pasa a la nueva al arrancar
+const REGLAS_V1 = `# Reglas generales de presupuestación · HAM Menorca
 
 ## Quiénes somos
 Carpintería metálica, cerrajería y aluminio en Menorca: estructuras, escaleras, barandillas, cerramientos, puertas, pérgolas, montaje en obra.
@@ -52,8 +53,112 @@ Clara, para el cliente: qué es, dimensiones principales, material, acabado y qu
 - No aplicar margen: el margen se pone después (gastos generales + beneficio).
 - Si falta un dato (medida, acabado, altura, si se monta o no), suponer lo habitual y apuntarlo en «dudas».
 `;
+const REGLAS_BASE = `# Reglas generales de presupuestación · HAM Menorca
+
+## Quiénes somos
+Carpintería metálica, cerrajería y herrería en Menorca: estructuras, escaleras, barandillas, rejas, puertas y cancelas, pérgolas y marquesinas, montaje en obra. La carpintería de aluminio (ventanas, cerramientos) se presupuesta aparte.
+
+## Cómo se usan las Skills aquí
+Las demás Skills vienen del presupuestador anterior. En Planéalo:
+- La salida es SOLO la estructura (capítulos, partidas y líneas). El presupuesto interno y el del cliente (PDF resumido y detallado) los hace el sistema: no generes documentos, HTML ni «dos versiones».
+- **Complejidad**: no multipliques precios. Traslada la dificultad a las horas de mano de obra (por_ud) y explica el criterio en «dudas».
+- **Margen, oferta/demanda y urgencia**: no los apliques. Los decide la persona (gastos generales + beneficio).
+- **Nada de líneas de riesgo, imprevistos, margen o reserva**: su coste va dentro de la línea que lo causa.
+- Los precios que aparecen en las Skills son referencia: úsalos solo como «precio_estimado» si el material no está en la lista, y dilo en «dudas».
+
+## Cómo descomponer
+- Cada partida se mide en la unidad en que se cobra al cliente (ml de barandilla, m² de reja, ud de puerta, kg de estructura…).
+- Las líneas van POR UNIDAD de partida (por 1 ml, por 1 m², por 1 ud). El sistema multiplica por la medición.
+- Materiales con su nombre normalizado y dimensiones: «Tubo cuadrado 40x40x2», «Pletina 40x5», «UPN 200», «Chapa lagrimada 6 mm», «Varilla redonda Ø12». Perfiles y tubos en ml, chapa en m² o kg, tornillería y anclajes en ud.
+- Mano de obra separada en diseño/toma de medidas (oficina técnica), fabricación (taller) y montaje (obra), con las categorías de la tarifa.
+- Galvanizado en caliente: subcontrata en kg (cálculo kg_perfiles).
+- Pintura: la hacemos nosotros, **nunca al horno**: imprimación epoxi + acabado poliuretano, línea auxiliar en m² (cálculo m2_perfiles) más las horas de pintura.
+- Auxiliares (plataforma, andamio, grúa, consumibles) como líneas propias, no como porcentaje.
+- Transporte a obra si la obra no está en Menorca o hay grúa.
+
+## Menorca
+Todo exterior es ambiente salino: C4 como mínimo y C5-M en costa, terrazas, balcones y piscinas. En acero exterior no basta pintura simple: galvanizado, sistema C4/C5 o inox 316 con tornillería A4 (salvo que el cliente pida otra cosa: dilo en «dudas»).
+
+## Descripción comercial
+Clara, para el cliente: qué es, dimensiones principales, material, acabado y qué incluye («Incluye transporte y montaje»). Sin códigos internos ni precios.
+
+## Condiciones por defecto
+Validez 30 días; pago 100 % a la aceptación. Si el cliente pide otra cosa, ponlo en «dudas».
+
+## Lo que NO se hace
+- No inventar precios de materiales: el sistema los toma de la lista. Solo «precio_estimado» si no hay forma de saberlo, y se marca como duda.
+- No aplicar margen.
+- Si falta un dato (medida, acabado, altura, si se monta o no), suponer lo habitual y apuntarlo en «dudas». Mejor una duda que un dato inventado.
+`;
+const normal = (t) => String(t || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 async function sembrarSkills() {
   await query(`INSERT INTO presupuesto_skills (nombre, contenido, siempre) VALUES ('Reglas generales', $1, TRUE) ON CONFLICT (nombre) DO NOTHING`, [REGLAS_BASE]);
+  // Reglas generales sin tocar desde la v1 → v2 (guardando la anterior en el historial)
+  const { rows: [r] } = await query(`SELECT * FROM presupuesto_skills WHERE nombre = 'Reglas generales'`);
+  if (r && r.contenido === REGLAS_V1) {
+    await query('INSERT INTO presupuesto_skill_versiones (skill_id, version, contenido, cambiado_por, cambiado_en) VALUES ($1,$2,$3,$4,$5)', [r.id, r.version, r.contenido, r.cambiado_por, r.cambiado_en]);
+    await query('UPDATE presupuesto_skills SET contenido = $2, version = version + 1, cambiado_por = NULL, cambiado_en = now() WHERE id = $1', [r.id, REGLAS_BASE]);
+  }
+}
+
+// Importar Skills de un .zip (p. ej. el de Antigravity) o de un .md suelto. Con «indice.json» en el zip:
+// [{ archivo, nombre, siempre, activo, claves, comodin }]; sin él, cada .md (menos README) con el nombre de su primer «# ».
+// Si ya existe una Skill con ese nombre, se actualiza su contenido (queda la versión anterior) y sus ajustes.
+async function importarSkills(datos, nombreArchivo, usuarioId) {
+  const lista = [];
+  if (/\.zip$/i.test(nombreArchivo) || datos.slice(0, 2).toString() === 'PK') {
+    const zip = await require('jszip').loadAsync(datos);
+    const archivos = Object.values(zip.files).filter((f) => !f.dir && !/(^|\/)(__MACOSX|\.)/.test(f.name));
+    const porNombre = (n) => archivos.find((f) => f.name === n || f.name.endsWith(`/${n}`));
+    const ind = porNombre('indice.json');
+    if (ind) {
+      let indice; try { indice = JSON.parse(await ind.async('string')); } catch { throw fallo(400, 'indice.json no es un JSON válido'); }
+      for (const e of Array.isArray(indice) ? indice : []) {
+        const f = porNombre(e.archivo); if (!f) continue;
+        lista.push({ ...e, desdeIndice: true, contenido: await f.async('string') });
+      }
+    } else {
+      for (const f of archivos.filter((x) => /\.md$/i.test(x.name) && !/(^|\/)(readme|00_)[^/]*$/i.test(x.name))) lista.push({ archivo: f.name, contenido: await f.async('string') });
+    }
+  } else if (/\.(md|txt)$/i.test(nombreArchivo)) lista.push({ archivo: nombreArchivo, contenido: datos.toString('utf8') });
+  else throw fallo(400, 'Sube un .zip con las Skills o un .md');
+  if (!lista.length) throw fallo(400, 'No hay ninguna Skill (.md) en el archivo');
+  const res = { nuevas: [], actualizadas: [], iguales: [] };
+  for (const e of lista.slice(0, 100)) {
+    const contenido = String(e.contenido).slice(0, 60000);
+    const titulo = contenido.match(/^#\s+(?:Skill:\s*)?(.+)$/m)?.[1];
+    const nombre = texto(e.nombre || titulo || path.basename(e.archivo).replace(/\.md$/i, '').replace(/^skill_/, '').replace(/_/g, ' '), 80);
+    if (!nombre) continue;
+    const { rows: [a] } = await query('SELECT * FROM presupuesto_skills WHERE nombre = $1', [nombre]);
+    if (!a) {
+      await query(`INSERT INTO presupuesto_skills (nombre, contenido, siempre, activo, claves, comodin, cambiado_por) VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+        [nombre, contenido, !!e.siempre, e.activo !== false, texto(e.claves, 1000), !!e.comodin, usuarioId]);
+      res.nuevas.push(nombre); continue;
+    }
+    if (a.contenido !== contenido) {
+      await query('INSERT INTO presupuesto_skill_versiones (skill_id, version, contenido, cambiado_por, cambiado_en) VALUES ($1,$2,$3,$4,$5)', [a.id, a.version, a.contenido, a.cambiado_por, a.cambiado_en]);
+      await query('UPDATE presupuesto_skills SET contenido = $2, version = version + 1, cambiado_por = $3, cambiado_en = now() WHERE id = $1', [a.id, contenido, usuarioId]);
+      res.actualizadas.push(nombre);
+    } else res.iguales.push(nombre);
+    if (e.desdeIndice) {
+      await query('UPDATE presupuesto_skills SET siempre = CASE WHEN nombre = $6 THEN TRUE ELSE $2 END, activo = $3, claves = COALESCE($4, claves), comodin = $5 WHERE id = $1',
+        [a.id, !!e.siempre, e.activo !== false, texto(e.claves, 1000), !!e.comodin, 'Reglas generales']);
+    }
+  }
+  return res;
+}
+
+// Qué Skills usa un presupuesto: las elegidas a mano; si no hay, las «siempre» + las que encajan por palabras clave
+// (en la petición, el título y los nombres de los adjuntos) + la comodín si no encaja ninguna de producto.
+function elegirSkills(todas, elegidas, texto) {
+  const act = todas.filter((s) => s.activo);
+  if (elegidas.length) return act.filter((s) => s.siempre || elegidas.includes(s.id));
+  const t = ` ${normal(texto).replace(/[^a-z0-9ñ]+/g, ' ')} `;
+  const encaja = (s) => String(s.claves || '').split(',').map((c) => normal(c).replace(/[^a-z0-9ñ]+/g, ' ').trim()).filter(Boolean)
+    .some((c) => t.includes(` ${c}`));
+  const prod = act.filter((s) => !s.siempre && encaja(s));
+  const conProducto = prod.some((s) => !s.comodin && !/montaje/i.test(s.nombre));
+  return act.filter((s) => s.siempre || prod.includes(s) || (!conProducto && s.comodin));
 }
 
 /* ---------- adjuntos ---------- */
@@ -149,7 +254,8 @@ Esquema:
 Reglas:
 - Las cantidades de cada línea son por 1 unidad de partida. Mide con lo que veas en planos y mediciones; si no hay medida, supón lo razonable y ponlo en dudas.
 - Mano de obra y maquinaria: usa SOLO los nombres de la tarifa que te paso (campo "tarifa"); si ninguno encaja, el más parecido y una duda.
-- Galvanizado y lacado como subcontrata con "calculo" (kg_perfiles / m2_perfiles) y "por_ud" 1.
+- Galvanizado en caliente como subcontrata con "calculo" kg_perfiles. La pintura la hacemos nosotros (nunca al horno): línea auxiliar de pintura con "calculo" m2_perfiles y precio_estimado del material por m², más sus horas de mano de obra. En ambas, "por_ud" 1.
+- Nada de líneas de riesgo, imprevistos, margen o reserva: ese coste va dentro de la línea que lo causa.
 - No pongas precios a los materiales (el sistema usa su lista de precios). No apliques margen.
 - Español, sin inventar datos del cliente: null si no aparecen.`;
 }
@@ -180,8 +286,10 @@ async function generar(id, { tituloAuto = false } = {}) {
     for (const a of archivos.filter((x) => x.tipo === 'application/pdf').slice(0, 3)) {
       try { const r = await require('./pdf-leer').prepararPDF(a.datos); for (const [i, png] of r.imagenes.slice(0, 3).entries()) archivos.push({ tipo: 'image/png', nombre: `${a.nombre} · pág. ${i + 1}`, datos: png }); } catch { /* sin más */ }
     }
-    const { rows: skills } = await query(`SELECT nombre, contenido FROM presupuesto_skills WHERE activo AND (siempre OR id = ANY($1) OR $2) ORDER BY siempre DESC, nombre`,
-      [p.skills || [], !(p.skills || []).length]);
+    const { rows: todasSk } = await query('SELECT id, nombre, contenido, siempre, activo, claves, comodin FROM presupuesto_skills ORDER BY siempre DESC, id');
+    const { rows: nomAdj } = await query('SELECT nombre FROM presupuesto_adjuntos WHERE presupuesto_id = $1', [id]);
+    const skills = elegirSkills(todasSk, p.skills || [], [p.prompt, p.titulo, ...nomAdj.map((a) => a.nombre), ...textos.map((x) => String(x.texto || x).slice(0, 4000))].join(' '));
+    await query('UPDATE presupuestos SET ia_skills = $2 WHERE id = $1', [id, skills.map((x) => x.nombre)]);
     const td = await require('./tarifa').datos();
     const tarifaTxt = [...td.mano_obra.filter((t) => t.activo).map((t) => `mano_obra · «${t.nombre}» · €/${t.unidad}`), ...td.maquinaria.filter((t) => t.activo).map((t) => `maquinaria · «${t.nombre}» · €/${t.unidad}`)];
     const { rows: [cli] } = p.cliente_id ? await query('SELECT nombre FROM clientes WHERE id = $1', [p.cliente_id]) : { rows: [null] };
@@ -323,7 +431,7 @@ function montar(app, asyncH) {
 
   // Skills de presupuestación
   app.get('/api/presupuesto-skills', ver, asyncH(async (req, res) => {
-    const { rows } = await query(`SELECT s.*, u.nombre AS cambiado_por_nombre FROM presupuesto_skills s LEFT JOIN usuarios u ON u.id = s.cambiado_por ORDER BY s.siempre DESC, s.nombre`);
+    const { rows } = await query(`SELECT s.*, u.nombre AS cambiado_por_nombre FROM presupuesto_skills s LEFT JOIN usuarios u ON u.id = s.cambiado_por ORDER BY s.nombre <> 'Reglas generales', s.siempre DESC, s.activo DESC, s.nombre`);
     res.json(rows);
   }));
   app.post('/api/presupuesto-skills', ver, asyncH(async (req, res) => {
@@ -343,9 +451,15 @@ function montar(app, asyncH) {
       await query('UPDATE presupuesto_skills SET contenido = $2, version = version + 1, cambiado_por = $3, cambiado_en = now() WHERE id = $1', [s.id, String(b.contenido).slice(0, 60000), req.usuario.id]);
     }
     if ('activo' in b) await query('UPDATE presupuesto_skills SET activo = $2 WHERE id = $1', [s.id, !!b.activo]);
+    if ('siempre' in b && s.nombre !== 'Reglas generales') await query('UPDATE presupuesto_skills SET siempre = $2 WHERE id = $1', [s.id, !!b.siempre]);
+    if ('claves' in b) await query('UPDATE presupuesto_skills SET claves = $2 WHERE id = $1', [s.id, texto(b.claves, 1000)]);
     if ('nombre' in b && texto(b.nombre, 80)) await query('UPDATE presupuesto_skills SET nombre = $2 WHERE id = $1', [s.id, texto(b.nombre, 80).replace(/\.md$/i, '')]);
     const { rows: [n] } = await query('SELECT * FROM presupuesto_skills WHERE id = $1', [s.id]);
     res.json(n);
+  }));
+  app.post('/api/presupuesto-skills/importar', ver, express.raw({ type: () => true, limit: '20mb' }), asyncH(async (req, res) => {
+    if (!Buffer.isBuffer(req.body) || !req.body.length) throw fallo(400, 'Archivo vacío');
+    res.json(await importarSkills(req.body, String(req.query.nombre || ''), req.usuario.id));
   }));
   app.get('/api/presupuesto-skills/:id/versiones', ver, asyncH(async (req, res) => {
     const { rows } = await query(`SELECT v.id, v.version, v.cambiado_en, u.nombre AS cambiado_por, length(v.contenido) AS largo FROM presupuesto_skill_versiones v LEFT JOIN usuarios u ON u.id = v.cambiado_por
@@ -377,4 +491,4 @@ async function crear({ titulo, cliente_id, obra_id, prompt, adjuntos = [], skill
   return id;
 }
 
-module.exports = { montar, crear, generar, guardarAdjunto, reanudar, sembrarSkills, leerAdjuntos };
+module.exports = { montar, crear, generar, guardarAdjunto, reanudar, sembrarSkills, leerAdjuntos, elegirSkills };
