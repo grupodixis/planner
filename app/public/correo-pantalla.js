@@ -48,6 +48,7 @@
         el('div', { class: 'co-item-1' }, el('b', {}, c.de_nombre || c.de_email || '—'), el('small', {}, fcorta(c.fecha))),
         el('div', { class: 'co-item-2' }, c.asunto),
         el('div', { class: 'co-item-3' },
+          c.origen === 'portal' ? el('span', { class: 'co-chip azul', title: 'PDF subido por el proveedor a su enlace' }, '🌐 Portal') : null,
           c.tipo ? el('span', { class: 'co-chip' }, `${TIPO_ICO[c.tipo] || ''} ${est.tipos[c.tipo] || c.tipo}`) : null,
           el('span', { class: `co-chip ${col}` }, et),
           c.sol_codigo || c.pedido_codigo ? el('span', { class: 'co-chip ref' }, c.sol_codigo || c.pedido_codigo) : null,
@@ -78,6 +79,7 @@
         el('div', { class: 'co-de' }, el('b', {}, c.de_nombre || ''), ` <${c.de_email || '—'}>`, el('span', {}, ` · ${fcorta(c.fecha)} · ${c.buzon}`)),
         el('div', { class: 'co-chips' },
           el('span', { class: `co-chip ${col}` }, et),
+          c.origen === 'portal' ? el('span', { class: 'co-chip azul', title: 'El proveedor subió este PDF a su enlace de la petición sin rellenar el formulario' }, '🌐 Subido al portal') : null,
           c.tipo ? el('span', { class: 'co-chip' }, `${TIPO_ICO[c.tipo]} ${est.tipos[c.tipo] || c.tipo}`) : null,
           c.confianza != null ? el('span', { class: 'co-chip', title: 'Seguridad de la IA' }, `${Math.round(c.confianza * 100)} %`) : null,
           c.carpeta ? el('span', { class: 'co-chip gris', title: 'Carpeta en el buzón' }, `📁 ${c.carpeta}`) : c.archivo_error ? el('span', { class: 'co-chip rojo', title: c.archivo_error }, '📁 sin mover') : null)),
@@ -93,8 +95,8 @@
       el('div', { class: 'co-acciones' },
         abierto && c.estado !== 'analizando' ? el('button', { type: 'button', class: 'ghost', onclick: () => accion('reanalizar', {}, 'La IA lo vuelve a leer') }, '↻ Volver a leer') : null,
         abierto ? el('button', { type: 'button', class: 'ghost', onclick: descartar }, '✕ Descartar') : null,
-        !c.archivado_en ? el('button', { type: 'button', class: 'ghost', onclick: () => accion('archivar', {}, 'Archivado en el buzón') }, '📁 Archivar en el buzón') : null,
-        el('a', { class: 'ghost boton', href: `/api/correo/${c.id}/eml` }, '⬇ Correo original')),
+        !c.archivado_en && c.origen !== 'portal' ? el('button', { type: 'button', class: 'ghost', onclick: () => accion('archivar', {}, 'Archivado en el buzón') }, '📁 Archivar en el buzón') : null,
+        c.origen !== 'portal' ? el('a', { class: 'ghost boton', href: `/api/correo/${c.id}/eml` }, '⬇ Correo original') : null),
       el('details', { class: 'co-texto', open: !c.adjuntos.length }, el('summary', {}, 'Texto del correo'), el('pre', {}, c.texto || '(sin texto)')));
     // documento
     const adj = c.adjuntos.find((a) => a.id === est.adj);
@@ -170,7 +172,7 @@
         const g = (k) => form.querySelector(`[data-l="${l.linea_id}"][data-k="${k}"]`);
         lineas[l.linea_id] = { precio: g('no').checked ? null : g('precio').value === '' ? null : Number(g('precio').value), no: g('no').checked, alt: g('alt').value };
       }
-      await accion('confirmar-oferta', { sp_id: c.sp.id, lineas, portes: portes.value === '' ? null : Number(portes.value), fecha_entrega: form.fecha.value || null, ref_oferta: form.ref.value, notas: form.notas.value, adjuntar: form.adjuntar.checked });
+      await accion('confirmar-oferta', { sp_id: c.sp.id, lineas, portes: portes.value === '' ? null : Number(portes.value), fecha_entrega: form.fecha.value || null, ref_oferta: form.ref.value, notas: form.notas.value, adjuntar: !!form.adjuntar.checked });
     } },
     el('h3', {}, `Oferta para ${c.sp.codigo}`, el('small', {}, ` · ${c.sp.proveedor}${c.sp.estado === 'respondida' ? ' · ⚠ ya tenía una oferta: se sustituye' : ''}`)),
     el('div', { class: 'tabla-scroll' }, el('table', { class: 'co-tabla' },
@@ -182,7 +184,7 @@
       el('label', {}, 'Entrega', el('input', { type: 'date', name: 'fecha', value: o.fecha_entrega || '' }), o.plazo_texto ? el('small', {}, `«${o.plazo_texto}»`) : null),
       el('label', {}, 'Su referencia', el('input', { type: 'text', name: 'ref', value: o.ref_oferta || '', maxlength: 80 })),
       el('label', { class: 'ancho' }, 'Notas', el('textarea', { name: 'notas', rows: 3 }, notasIni)),
-      el('label', { class: 'co-chk' }, el('input', { type: 'checkbox', name: 'adjuntar', checked: true }), ' Guardar su PDF con la oferta')),
+      c.origen === 'portal' ? el('input', { type: 'hidden', name: 'adjuntar' }) : el('label', { class: 'co-chk' }, el('input', { type: 'checkbox', name: 'adjuntar', checked: true }), ' Guardar su PDF con la oferta')),
     el('div', { class: 'co-pie' },
       o.iva_incluido ? el('span', { class: 'naranja' }, '⚠ La IA ha quitado el IVA de los precios') : null,
       el('button', { type: 'submit', class: 'primario' }, '✔ Confirmar oferta · pasa al comparativo')));

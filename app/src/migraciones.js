@@ -1530,6 +1530,10 @@ const MIGRACIONES = [
      ADD COLUMN IF NOT EXISTS remitente TEXT,
      ADD COLUMN IF NOT EXISTS principal BOOLEAN NOT NULL DEFAULT FALSE`,
   `CREATE UNIQUE INDEX IF NOT EXISTS buzones_principal ON buzones (principal) WHERE principal`,
+  // Ofertas en PDF subidas al portal del proveedor sin rellenar el formulario: las lee la IA (correos.origen = 'portal')
+  `ALTER TABLE correos ALTER COLUMN buzon_id DROP NOT NULL`,
+  `ALTER TABLE correos ADD COLUMN IF NOT EXISTS origen TEXT NOT NULL DEFAULT 'correo'`,
+  `ALTER TABLE solicitud_proveedores ADD COLUMN IF NOT EXISTS portal_pdf_en TIMESTAMPTZ`,
 ];
 
 async function migrar() {

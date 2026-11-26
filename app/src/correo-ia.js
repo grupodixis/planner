@@ -46,6 +46,8 @@ async function asociar(c) {
                     FROM solicitud_proveedores sp JOIN solicitudes_precio s ON s.id = sp.solicitud_id JOIN proveedores p ON p.id = sp.proveedor_id`;
   const SQL_PED = `SELECT pc.id AS pedido_id, pc.codigo, pc.estado, pc.proveedor_id, p.nombre AS proveedor, pc.fecha_entrega::text AS fecha_entrega
                      FROM pedidos_compra pc LEFT JOIN proveedores p ON p.id = pc.proveedor_id`;
+  // 0) subido al portal: ya se sabe de qué petición es
+  if (c.origen === 'portal' && c.sp_id) (await query(`${SQL_SP} WHERE sp.id = $1`, [c.sp_id])).rows.forEach((r) => addSp(r, 'portal'));
   // a) respuesta a algo que enviamos
   const ids = [c.en_respuesta_a, ...(c.referencias || [])].filter(Boolean);
   if (ids.length) {
@@ -162,7 +164,7 @@ async function llamarIA(cfg, sis, contenido, archivos) {
 }
 
 async function analizar(id) {
-  const { rows: [c] } = await query('SELECT c.*, b.direccion AS buzon FROM correos c JOIN buzones b ON b.id = c.buzon_id WHERE c.id = $1', [id]);
+  const { rows: [c] } = await query('SELECT c.*, b.direccion AS buzon FROM correos c LEFT JOIN buzones b ON b.id = c.buzon_id WHERE c.id = $1', [id]);
   if (!c) return;
   const t0 = Date.now();
   const aj = await ia.ajustesIA();
@@ -213,7 +215,7 @@ async function analizar(id) {
 
 /* ---------- 3. validar y preparar el borrador ---------- */
 async function aplicarLectura(c, asoc, d, modelo) {
-  const tipo = TIPOS.includes(d.tipo) ? d.tipo : 'otro';
+  const tipo = c.origen === 'portal' ? 'oferta' : TIPOS.includes(d.tipo) ? d.tipo : 'otro';
   const alertas = (Array.isArray(d.alertas) ? d.alertas : []).map((x) => String(x).slice(0, 300)).slice(0, 12);
   let sp = null; let ped = null;
   if (tipo === 'oferta') {
@@ -236,7 +238,7 @@ async function aplicarLectura(c, asoc, d, modelo) {
   const extr = await normalizar(tipo, d, sp, ped, alertas);
   // remitente distinto del proveedor de lo asociado
   const provAsoc = sp?.proveedor_id || ped?.proveedor_id;
-  if (provAsoc && c.de_email) {
+  if (provAsoc && c.de_email && c.origen !== 'portal') {
     const { rows: [p] } = await query('SELECT email, email_admin FROM proveedores WHERE id = $1', [provAsoc]);
     const dom = (e) => String(e || '').toLowerCase().split('@')[1];
     if (p && ![dom(p.email), dom(p.email_admin)].includes(dom(c.de_email))) alertas.push(`El remitente (${c.de_email}) no es el correo que tenemos del proveedor${p.email ? ` (${p.email})` : ''}.`);
@@ -251,9 +253,9 @@ async function aplicarLectura(c, asoc, d, modelo) {
   await buz.moverEnDisco(c.id, tipo);
   await buz.archivar(c.id);
   if (accionable) {
-    const que = tipo === 'oferta' ? `Oferta${sp ? ` para ${sp.codigo}` : ''}` : `Confirmación${ped ? ` del pedido ${ped.codigo}` : ' de pedido'}`;
+    const que = c.origen === 'portal' ? `🌐 PDF en el portal${sp ? ` para ${sp.codigo}` : ''}` : tipo === 'oferta' ? `Oferta${sp ? ` para ${sp.codigo}` : ''}` : `Confirmación${ped ? ` del pedido ${ped.codigo}` : ' de pedido'}`;
     notif.avisarLuego(notif.conPermiso('compras'), 'correo_revisar', {
-      titulo: `📧 ${que} · ${c.de_nombre || c.de_email}`,
+      titulo: `${c.origen === 'portal' ? '' : '📧 '}${que} · ${c.de_nombre || c.de_email}`,
       cuerpo: estado === 'revisar' ? 'La IA la ha leído: revísala y confírmala.' : 'No se sabe de qué petición o pedido es: asígnala.',
       url: `/correo.html?id=${c.id}`, tag: `correo-${c.id}`,
     });
@@ -290,6 +292,54 @@ async function normalizar(tipo, d, sp, ped, alertas) {
   }
   return {};
 }
+
+/* ---------- ofertas en PDF subidas al portal sin rellenar el formulario ---------- */
+// Crea un «correo» de origen portal con los PDF del proveedor y lo manda a la IA. Si ya había uno sin revisar, lo sustituye.
+async function desdePortal(spId, { auto = false } = {}) {
+  const { rows: [sp] } = await query(`SELECT sp.*, s.codigo, s.estado AS sol_estado, p.nombre AS proveedor, p.email FROM solicitud_proveedores sp
+    JOIN solicitudes_precio s ON s.id = sp.solicitud_id JOIN proveedores p ON p.id = sp.proveedor_id WHERE sp.id = $1`, [spId]);
+  if (!sp || sp.sol_estado !== 'abierta') return null;
+  const { rows: arch } = await query(`SELECT id, tipo, nombre, datos FROM archivos WHERE ref_tipo = 'oferta' AND ref_id = $1 AND creado_por IS NULL ORDER BY id`, [spId]);
+  if (!arch.length) return null;
+  const { rows: viejos } = await query(`SELECT id, ruta FROM correos WHERE origen = 'portal' AND sp_id = $1 AND estado NOT IN ('hecho','descartado')`, [spId]);
+  for (const v of viejos) {
+    if (v.ruta) try { fs.rmSync(buz.absoluta(v.ruta), { recursive: true, force: true }); } catch { /* nada */ }
+    await query('DELETE FROM correos WHERE id = $1', [v.id]);
+  }
+  const { rows: [c] } = await query(
+    `INSERT INTO correos (buzon_id, origen, message_id, de_email, de_nombre, asunto, fecha, texto, sp_id, proveedor_id, estado)
+     VALUES (NULL, 'portal', $1, $2, $3, $4, now(), $5, $6, $7, 'nuevo') RETURNING *`,
+    [`<portal-sp${spId}-${Date.now()}@planealo>`, sp.email || null, sp.proveedor, `Oferta en PDF subida al portal · ${sp.codigo}`,
+      [auto ? 'El proveedor subió su oferta en PDF al portal y no rellenó el formulario (se procesa sola pasados 30 min).' : 'El proveedor ha enviado su oferta en PDF por el portal, sin rellenar el formulario.',
+        sp.notas ? `Sus observaciones: ${sp.notas}` : null, sp.contacto ? `Contacto: ${sp.contacto}` : null].filter(Boolean).join('\n'), spId, sp.proveedor_id]);
+  const rel = buz.rutaCorreo(null, c);
+  fs.mkdirSync(buz.absoluta(rel), { recursive: true });
+  const usados = new Set();
+  for (const a of arch) {
+    let nombre = String(a.nombre || `oferta-${a.id}.${a.tipo.split('/')[1]}`).normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^\w.-]+/g, '-').slice(0, 90);
+    while (usados.has(nombre)) nombre = `1-${nombre}`;
+    usados.add(nombre);
+    fs.writeFileSync(require('path').join(buz.absoluta(rel), nombre), a.datos);
+    await query('INSERT INTO correo_adjuntos (correo_id, nombre, tipo, bytes, ruta) VALUES ($1,$2,$3,$4,$5)', [c.id, a.nombre || nombre, a.tipo, a.datos.length, `${rel}/${nombre}`]);
+  }
+  await query('UPDATE correos SET ruta = $2 WHERE id = $1', [c.id, rel]);
+  await query('UPDATE solicitud_proveedores SET portal_pdf_en = now() WHERE id = $1', [spId]);
+  encolar(c.id);
+  return c.id;
+}
+// Si el proveedor rellena el formulario después, el borrador de la IA sobra
+async function portalCompletado(spId) {
+  await query(`UPDATE correos SET estado = 'descartado', resultado = 'El proveedor completó el formulario del portal' WHERE origen = 'portal' AND sp_id = $1 AND estado NOT IN ('hecho','descartado')`, [spId]);
+}
+// Cada 10 min: PDF subidos al portal hace más de 30 min sin enviar nada → se leen igual
+async function revisarPortal() {
+  const { rows } = await query(`SELECT DISTINCT sp.id FROM solicitud_proveedores sp JOIN solicitudes_precio s ON s.id = sp.solicitud_id
+     JOIN archivos a ON a.ref_tipo = 'oferta' AND a.ref_id = sp.id AND a.creado_por IS NULL
+    WHERE s.estado = 'abierta' AND sp.portal_respondido_en IS NULL AND sp.portal_pdf_en IS NULL AND sp.estado NOT IN ('respondida','no_oferta')
+    GROUP BY sp.id HAVING max(a.creado) < now() - interval '30 minutes'`);
+  for (const r of rows) await desdePortal(r.id, { auto: true }).catch((e) => console.error('Portal → IA', r.id, e.message));
+}
+setInterval(() => revisarPortal().catch((e) => console.error('Portal → IA:', e.message)), 10 * 60 * 1000).unref?.();
 
 /* ---------- cola (de uno en uno) ---------- */
 let cadena = Promise.resolve();
@@ -338,7 +388,7 @@ async function confirmarOferta(c, b, usuario) {
                           respondido_en = now(), correo_id = $8 WHERE id = $1`,
       [sp.id, fechaOk(b.fecha_entrega), portes, texto(b.ref_oferta, 80), texto(b.notas, 2000), JSON.stringify(info), noOferta ? 'no_oferta' : 'respondida', c.id]);
     // su PDF (o fotos) quedan con la oferta, como si lo hubiera subido a la plataforma
-    if (b.adjuntar !== false) {
+    if (b.adjuntar !== false && c.origen !== 'portal') {   // (lo del portal ya está con la oferta)
       for (const a of await adjuntosLegibles(c.id)) {
         let datos; try { datos = fs.readFileSync(buz.absoluta(a.ruta)); } catch { continue; }
         if (datos.length > 8 * 1024 * 1024) continue;
@@ -388,11 +438,11 @@ async function confirmarPedido(c, b, usuario) {
 }
 
 /* ---------- API de la pantalla ---------- */
-const SQL_LISTA = `SELECT c.id, c.buzon_id, b.nombre AS buzon, c.de_email, c.de_nombre, c.asunto, c.fecha, c.estado, c.tipo, c.confianza::float AS confianza,
+const SQL_LISTA = `SELECT c.id, c.buzon_id, COALESCE(b.nombre, 'Portal del proveedor') AS buzon, c.origen, c.de_email, c.de_nombre, c.asunto, c.fecha, c.estado, c.tipo, c.confianza::float AS confianza,
     c.resumen, c.error, c.carpeta, c.archivado_en, c.archivo_error, c.resultado, c.proveedor_id, pr.nombre AS proveedor,
     s.codigo AS sol_codigo, pc.codigo AS pedido_codigo, (SELECT count(*)::int FROM correo_adjuntos a WHERE a.correo_id = c.id) AS n_adjuntos,
     jsonb_array_length(COALESCE(c.alertas, '[]'::jsonb)) AS n_alertas
-  FROM correos c JOIN buzones b ON b.id = c.buzon_id LEFT JOIN proveedores pr ON pr.id = c.proveedor_id
+  FROM correos c LEFT JOIN buzones b ON b.id = c.buzon_id LEFT JOIN proveedores pr ON pr.id = c.proveedor_id
   LEFT JOIN solicitud_proveedores sp ON sp.id = c.sp_id LEFT JOIN solicitudes_precio s ON s.id = sp.solicitud_id
   LEFT JOIN pedidos_compra pc ON pc.id = c.pedido_id`;
 
@@ -540,4 +590,4 @@ async function reLeer(c, asoc) {
   return cadena;
 }
 
-module.exports = { montar, encolar, reanudar, asociar, NOMBRE_TIPO };
+module.exports = { montar, encolar, reanudar, asociar, desdePortal, portalCompletado, NOMBRE_TIPO };

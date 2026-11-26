@@ -133,10 +133,22 @@
         scrollTo({ top: 0, behavior: 'smooth' });
       } catch (e) { err.textContent = e.message; botones.forEach((b) => { b.disabled = false; }); }
     };
+    // Sin rellenar los precios: enviamos su PDF y lo revisamos nosotros
+    const soloPdf = async () => {
+      err.textContent = '';
+      if (!archivos.length) { err.textContent = 'Primero adjunte su oferta (PDF o foto) con el botón «＋ Adjuntar su oferta».'; return; }
+      botones.forEach((b) => { b.disabled = true; });
+      try {
+        const nd = await api('POST', `${API}/solo-pdf`, { notas: notas.value, contacto: contacto.value });
+        pintar(nd, 'Gracias, hemos recibido su oferta en PDF. La revisaremos nosotros; no hace falta que rellene los precios.');
+        scrollTo({ top: 0, behavior: 'smooth' });
+      } catch (e) { err.textContent = e.message; botones.forEach((b) => { b.disabled = false; }); }
+    };
     const botones = abierta ? [
       el('button', { type: 'button', class: 'prim', onclick: () => enviar(false) }, r.enviada_en ? 'Guardar los cambios' : 'Enviar oferta'),
+      !r.enviada_en ? el('button', { type: 'button', class: 'sec', title: 'Adjunte su presupuesto y envíelo sin rellenar los precios: lo pasamos nosotros', onclick: soloPdf }, '📎 Enviar solo con mi PDF') : null,
       el('button', { type: 'button', class: 'sec', onclick: () => enviar(true) }, 'No podemos ofertar'),
-    ] : [];
+    ].filter(Boolean) : [];
 
     const e = d.empresa;
     app.replaceChildren(el('div', { class: 'hoja' },
@@ -149,9 +161,11 @@
         el('div', {}, el('span', {}, 'Lo necesitamos el'), fecha(d.necesario_el) || 'A convenir'),
         el('div', {}, el('span', {}, 'Entrega en'), d.entregar_en || '—')),
       mensaje ? el('div', { class: 'banda ok', role: 'status' }, '✔ ', mensaje)
-        : r.enviada_en ? el('div', { class: 'banda ok' }, `✔ Oferta recibida el ${cuando(r.enviada_en)}.`, abierta ? ' Puede corregirla y volver a guardar.' : '') : null,
+        : r.enviada_en ? el('div', { class: 'banda ok' }, `✔ Oferta recibida el ${cuando(r.enviada_en)}.`, abierta ? ' Puede corregirla y volver a guardar.' : '')
+          : r.pdf_en ? el('div', { class: 'banda ok' }, `✔ Hemos recibido su oferta en PDF el ${cuando(r.pdf_en)}. La revisaremos nosotros.`, abierta ? ' Si lo prefiere, también puede rellenar los precios aquí.' : '') : null,
       !abierta ? el('div', { class: 'banda aviso' }, 'Esta petición ya está cerrada: se muestra solo para consulta. Si necesita cambiar algo, contacte con nosotros.') : null,
-      abierta && !r.enviada_en ? el('p', { class: 'intro' }, 'Indique su precio por unidad, sin IVA, para el material que pueda servir. Si no tiene algo, márquelo como «No lo tengo»; si puede ofrecer algo equivalente, use «Ofrecer una alternativa».') : null,
+      abierta && !r.enviada_en ? el('p', { class: 'intro' }, 'Indique su precio por unidad, sin IVA, para el material que pueda servir. Si no tiene algo, márquelo como «No lo tengo»; si puede ofrecer algo equivalente, use «Ofrecer una alternativa».',
+        el('br'), el('b', {}, '¿Prefiere enviarnos su presupuesto tal cual?'), ' Adjúntelo abajo (PDF o foto) y pulse «📎 Enviar solo con mi PDF»: lo pasamos nosotros.') : null,
       d.notas_peticion ? el('p', { class: 'nota-pet' }, d.notas_peticion) : null,
 
       el('h2', {}, 'Material'),

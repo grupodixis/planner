@@ -32,7 +32,7 @@ const slug = (t, n = 40) => String(t || '').normalize('NFD').replace(/[̀-ͯ]/g,
 function rutaCorreo(b, c, tipo) {
   const f = new Date(c.fecha || c.creado || Date.now());
   const dia = f.toISOString().slice(0, 10);
-  const base = `${b.id}-${slug(b.direccion, 50)}`;
+  const base = b?.id ? `${b.id}-${slug(b.direccion, 50)}` : 'portal';
   return tipo
     ? path.posix.join('correo', base, slug(CARPETAS[tipo] || 'Otros'), dia.slice(0, 4), `${dia}_${c.id}_${slug(c.asunto, 50)}`)
     : path.posix.join('correo', base, '_entrada', String(c.id));
@@ -44,9 +44,9 @@ const absoluta = (rel) => {
 };
 // Cuando ya se sabe qué es, el correo pasa a su carpeta de tipo (y sus adjuntos con él)
 async function moverEnDisco(correoId, tipo) {
-  const { rows: [c] } = await query('SELECT c.*, b.direccion FROM correos c JOIN buzones b ON b.id = c.buzon_id WHERE c.id = $1', [correoId]);
+  const { rows: [c] } = await query('SELECT c.*, b.direccion FROM correos c LEFT JOIN buzones b ON b.id = c.buzon_id WHERE c.id = $1', [correoId]);
   if (!c?.ruta) return;
-  const nueva = rutaCorreo({ id: c.buzon_id, direccion: c.direccion }, c, tipo);
+  const nueva = rutaCorreo(c.buzon_id ? { id: c.buzon_id, direccion: c.direccion } : null, c, tipo);
   if (nueva === c.ruta) return;
   try {
     fs.mkdirSync(path.dirname(absoluta(nueva)), { recursive: true });
@@ -427,4 +427,4 @@ function montar(app, asyncH, auth) {
   }));
 }
 
-module.exports = { montar, arrancarTodos, migrarSalida, archivar, moverEnDisco, absoluta, CARPETAS, conexiones };
+module.exports = { rutaCorreo, montar, arrancarTodos, migrarSalida, archivar, moverEnDisco, absoluta, CARPETAS, conexiones };

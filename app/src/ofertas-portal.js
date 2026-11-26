@@ -75,7 +75,7 @@ async function vista(r) {
     respuesta: {
       fecha_entrega: r.fecha_entrega, portes: r.portes, ref_oferta: r.ref_oferta, notas: r.notas, contacto: r.contacto,
       dias_trabajo: r.dias_trabajo != null ? Number(r.dias_trabajo) : null, personas: r.personas, inicio_posible: r.inicio_posible ? new Date(r.inicio_posible).toLocaleDateString('sv-SE') : null,
-      no_oferta: r.estado === 'no_oferta', enviada_en: r.portal_respondido_en,
+      no_oferta: r.estado === 'no_oferta', enviada_en: r.portal_respondido_en, pdf_en: r.portal_pdf_en,
     },
     archivos: arch, en_obra: ob.length > 0,
   };
@@ -123,11 +123,25 @@ function montar(app, asyncH) {
         num(b.dias_trabajo) != null && num(b.dias_trabajo) > 0 ? Math.min(999, num(b.dias_trabajo)) : null,
         num(b.personas) != null && num(b.personas) >= 0 ? Math.min(99, Math.round(num(b.personas))) : null, fechaOk(b.inicio_posible)]);
     });
+    await require('./correo-ia').portalCompletado(r.id).catch(() => {});
     notif.avisarLuego(notif.conPermiso('compras'), 'oferta_recibida', {
       titulo: `${r.proveedor} ha respondido ${r.codigo}`,
       cuerpo: b.no_oferta ? 'No puede ofertar.' : 'Ha puesto sus precios en la plataforma. Ya está en el comparativo.',
       url: `/compras.html?vista=precios&sol=${r.sol_id}`, tag: `oferta-${r.id}`,
     });
+    res.json(await vista(await porToken(req.params.t)));
+  }));
+
+  // «Enviar solo con mi PDF»: no rellena el formulario; la IA lee su PDF y Compras lo revisa
+  app.post('/api/oferta/:t/solo-pdf', express.json({ limit: '20kb' }), asyncH(async (req, res) => {
+    const r = await porToken(req.params.t);
+    if (r.sol_estado !== 'abierta') throw fallo(409, 'Esta petición ya está cerrada; si quiere cambiar algo, contacte con nosotros.');
+    const { rows: n } = await query(`SELECT count(*)::int AS n FROM archivos WHERE ref_tipo = 'oferta' AND ref_id = $1 AND creado_por IS NULL`, [r.id]);
+    if (!n[0].n) throw fallo(400, 'Primero adjunte su oferta (PDF o foto).');
+    const b = req.body || {};
+    await query('UPDATE solicitud_proveedores SET notas = COALESCE($2, notas), contacto = COALESCE($3, contacto), portal_visto_en = COALESCE(portal_visto_en, now()) WHERE id = $1',
+      [r.id, texto(b.notas, 2000), texto(b.contacto, 200)]);
+    await require('./correo-ia').desdePortal(r.id);
     res.json(await vista(await porToken(req.params.t)));
   }));
 
