@@ -143,7 +143,12 @@ async function copiarAdjuntos(c, presupuestoId) {
   const pia = require('./presupuestos-ia'); const buz = require('./buzones');
   const { rows } = await query('SELECT * FROM correo_adjuntos WHERE correo_id = $1 ORDER BY id', [c.id]);
   const ids = [];
+  const { rows: ya } = await query('SELECT nombre, bytes FROM presupuesto_adjuntos WHERE presupuesto_id = $1', [presupuestoId]);
+  const vistos = new Set(ya.map((a) => `${a.nombre}|${a.bytes}`));
   for (const a of rows) {
+    if (vistos.has(`${a.nombre}|${a.bytes}`)) continue;                                    // el mismo archivo dos veces
+    if (/^image\d{3}\.(png|jpe?g|gif)$/i.test(a.nombre) && Number(a.bytes) < 60000) continue; // logo de la firma (Outlook)
+    vistos.add(`${a.nombre}|${a.bytes}`);
     try { ids.push(await pia.guardarAdjunto({ datos: fs.readFileSync(buz.absoluta(a.ruta)), nombre: a.nombre, tipo: a.tipo, presupuestoId, origen: 'correo' })); }
     catch (e) { console.warn('adjunto presupuesto', a.nombre, e.message); }
   }

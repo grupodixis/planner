@@ -242,7 +242,7 @@ Esquema:
         "concepto": "material con nombre normalizado y dimensiones, o la tarea",
         "unidad": "ml" | "m2" | "ud" | "kg" | "h" | "dia" | …,
         "por_ud": número (cantidad POR UNIDAD de partida),
-        "tarifa": "nombre EXACTO de la tarifa (solo mano_obra y maquinaria)" | null,
+        "tarifa": "nombre EXACTO de una categoría de la tarifa, sin la unidad (p. ej. «Oficial 1ª»), solo en mano_obra y maquinaria" | null,
         "calculo": "kg_perfiles" | "m2_perfiles" | null,
         "precio_estimado": € coste sin IVA por unidad de la línea, SOLO si no es material del catálogo ni de la tarifa (auxiliares, subcontratas) | null,
         "nota": "de dónde sale la cantidad (p. ej. «pasamanos + 2 montantes por ml»)" | null
@@ -261,6 +261,14 @@ Reglas:
 }
 
 /* ---------- generar ---------- */
+// La IA a veces devuelve la tarifa tal como se la pasamos («mano_obra · «Oficial» · €/h») o un nombre parecido («Oficial» por «Oficial 1ª»)
+function buscarTarifa(lista, pedido) {
+  let n = String(pedido || '');
+  n = n.match(/«([^«»]+)»/)?.[1] || n.replace(/^\s*(mano_obra|maquinaria)\s*·\s*/i, '').replace(/·\s*€.*$/, '');
+  const q = tok(n).join(' '); if (!q) return null;
+  const nom = (x) => tok(x.nombre).join(' ');
+  return lista.find((x) => nom(x) === q) || lista.find((x) => nom(x).startsWith(q)) || lista.find((x) => nom(x).includes(q)) || lista.find((x) => q.includes(nom(x)) && nom(x).length > 2) || null;
+}
 const tok = (s) => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[×*]/g, 'x').replace(/[^a-z0-9.,x ]+/g, ' ').split(/\s+/).filter(Boolean);
 // ¿el material encontrado en el catálogo es el que pedía la IA? (las medidas tienen que coincidir)
 function encaja(pedido, encontrado) {
@@ -280,7 +288,7 @@ async function generar(id, { tituloAuto = false } = {}) {
     const cfg = await require('./ia-proveedores').activo();
     if (!cfg?.clave) throw fallo(400, 'No hay proveedor de IA configurado (Recursos › IA)');
     await fase('leyendo los adjuntos');
-    const { rows: adj } = await query('SELECT id FROM presupuesto_adjuntos WHERE presupuesto_id = $1', [id]);
+    const { rows: adj } = await query('SELECT DISTINCT ON (nombre, bytes) id FROM presupuesto_adjuntos WHERE presupuesto_id = $1 ORDER BY nombre, bytes, id', [id]);
     const { archivos, textos, otros } = await leerAdjuntos(adj.map((a) => a.id));
     // PDF de planos: si llevan lo escrito encima (cotas a mano…), también las páginas como imagen
     for (const a of archivos.filter((x) => x.tipo === 'application/pdf').slice(0, 3)) {
@@ -291,7 +299,7 @@ async function generar(id, { tituloAuto = false } = {}) {
     const skills = elegirSkills(todasSk, p.skills || [], [p.prompt, p.titulo, ...nomAdj.map((a) => a.nombre), ...textos.map((x) => String(x.texto || x).slice(0, 4000))].join(' '));
     await query('UPDATE presupuestos SET ia_skills = $2 WHERE id = $1', [id, skills.map((x) => x.nombre)]);
     const td = await require('./tarifa').datos();
-    const tarifaTxt = [...td.mano_obra.filter((t) => t.activo).map((t) => `mano_obra · «${t.nombre}» · €/${t.unidad}`), ...td.maquinaria.filter((t) => t.activo).map((t) => `maquinaria · «${t.nombre}» · €/${t.unidad}`)];
+    const tarifaTxt = { mano_obra: td.mano_obra.filter((t) => t.activo).map((t) => `${t.nombre} (${t.unidad})`), maquinaria: td.maquinaria.filter((t) => t.activo).map((t) => `${t.nombre} (${t.unidad})`) };
     const { rows: [cli] } = p.cliente_id ? await query('SELECT nombre FROM clientes WHERE id = $1', [p.cliente_id]) : { rows: [null] };
     const contenido = JSON.stringify({
       lo_que_pide_el_cliente: p.prompt || '(sin texto: mira los adjuntos)',
@@ -340,7 +348,7 @@ async function generar(id, { tituloAuto = false } = {}) {
               if (!m) base.precio_info = { ...(base.precio_info || {}), aviso: 'No está en el catálogo: precio a mano o pedir precio' };
             } else if ((tipo === 'mano_obra' || tipo === 'maquinaria') && l.tarifa) {
               const lista = tipo === 'mano_obra' ? td.mano_obra : td.maquinaria;
-              const t = lista.find((x) => x.nombre.toLowerCase() === String(l.tarifa).toLowerCase()) || lista.find((x) => tok(x.nombre).join(' ').includes(tok(l.tarifa).join(' ')));
+              const t = buscarTarifa(lista.filter((x) => x.activo !== false), l.tarifa) || buscarTarifa(lista, l.tarifa);
               if (t) {
                 const pt = await precios.precioTarifa(t.id, td); const { t: _x, ...rest } = pt;
                 Object.assign(base, rest, { tarifa_id: t.id, unidad: t.unidad || 'h', concepto: t.nombre });
