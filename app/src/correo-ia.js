@@ -404,7 +404,7 @@ async function normalizar(tipo, d, sp, ped, alertas) {
       const ls = await lineasSolicitud(sp.sol_id);
       for (const l of lineas) {
         const h = hab[l.linea_id];
-        if (l.precio == null || !h?.precio) continue;
+        if (l.precio == null || !h?.precio || h.origen === 'estimado') continue;   // contra un estimado no se avisa
         const dif = (l.precio - h.precio) / h.precio;
         if (Math.abs(dif) > 0.4) {
           const d = ls.find((x) => x.linea_id === l.linea_id)?.descripcion || '';

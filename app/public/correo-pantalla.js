@@ -152,7 +152,7 @@
       queueMicrotask(recalc);
       const h = c.habituales?.[l.linea_id];
       return el('tr', {}, el('td', {}, l.descripcion, x.nota ? el('small', { class: 'co-nota' }, `IA: ${x.nota}`) : null,
-        h ? el('small', { class: `co-hab${h.viejo ? ' viejo' : ''}`, title: 'Último precio confirmado en el sistema' }, `💶 habitual ${Number(h.precio).toLocaleString('es-ES', { maximumFractionDigits: 4 })} € · ${h.proveedor || '—'} · ${new Date(h.fecha).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: '2-digit' })}`) : null), el('td', { class: 'n' }, `${l.cantidad} ${l.unidad || ''}`), el('td', {}, precio), imp, el('td', { class: 'c' }, no), el('td', {}, alt));
+        h ? el('small', { class: `co-hab${h.viejo ? ' viejo' : ''}`, title: 'Último precio confirmado en el sistema' }, `💶 ${h.origen === 'estimado' ? 'estimado' : 'habitual'} ${Number(h.precio).toLocaleString('es-ES', { maximumFractionDigits: 4 })} € · ${h.origen === 'estimado' ? '≈ estimado' : h.proveedor || '—'} · ${new Date(h.fecha).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: '2-digit' })}`) : null), el('td', { class: 'n' }, `${l.cantidad} ${l.unidad || ''}`), el('td', {}, precio), imp, el('td', { class: 'c' }, no), el('td', {}, alt));
     });
     const portes = el('input', { type: 'number', step: '0.01', min: 0, value: o.portes ?? '', class: 'co-num', id: 'co-portes', oninput: () => total() });
     const totalEl = el('b', { id: 'co-total' });

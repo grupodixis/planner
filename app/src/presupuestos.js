@@ -39,6 +39,7 @@ async function precioMaterial(catalogoId, unidad, descripcion) {
   const info = { proveedor: h.proveedor, fecha: h.fecha, dias: h.dias, origen: h.origen, base: { precio: h.precio, unidad: h.unidad },
     cotizo: h.precio_orig != null && h.unidad_orig && h.unidad_orig !== h.unidad ? { precio: h.precio_orig, unidad: h.unidad_orig } : null };
   if (p == null) return { precio: null, estado_precio: 'estimado', fuente: null, precio_info: { ...info, aviso: `Hay precio en €/${h.unidad} pero falta la equivalencia a ${unidad}` } };
+  if (h.origen === 'estimado') return { precio: +Number(p).toFixed(4), estado_precio: 'estimado', fuente: 'lista', precio_info: { ...info, estimado: true, aviso: `Precio estimado (${h.nota || 'sin precio real todavía'}): conviene pedir precio` } };
   return { precio: +Number(p).toFixed(4), estado_precio: h.dias > DIAS_VIEJO ? 'estimado' : 'real', fuente: 'lista', precio_info: { ...info, viejo: h.dias > DIAS_VIEJO } };
 }
 // Mano de obra y maquinaria: coste de la tarifa

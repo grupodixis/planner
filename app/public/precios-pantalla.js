@@ -18,9 +18,9 @@
   const api = (...a) => window.s360.api(...a);
   const eur = (n) => (n == null ? '—' : `${Number(n).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 4 })} €`);
   const fecha = (f) => (f ? new Date(f).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: '2-digit' }) : '');
-  const ORIGEN = { oferta: 'Oferta', pedido: 'Pedido', albaran: 'Albarán', factura: 'Factura', manual: 'A mano' };
+  const ORIGEN = { oferta: 'Oferta', pedido: 'Pedido', albaran: 'Albarán', factura: 'Factura', manual: 'A mano', estimado: '≈ estimado' };
   const VIA = { portal: '🌐 formulario', correo: '📧 correo (IA)', pdf_portal: '🌐 PDF (IA)', manual: '✎ apuntada', pedido: '🛒 pedido' };
-  const est = { q: '', prov: '', viejos: false, datos: null, sel: null };
+  const est = { q: '', prov: '', viejos: false, tipo: '', datos: null, sel: null };
   // «cotizó 1,15 €/kg» cuando el proveedor dio el precio en otra unidad que la base del material
   const cotizo = (pr, u, ub) => (pr != null && u && u !== ub ? el('small', { class: 'pr-cot' }, `cotizó ${eur(pr)}/${u}`) : null);
   const num = (v) => (v == null ? '' : String(v).replace('.', ','));
@@ -31,7 +31,10 @@
     if ($('#pr-prov').options.length <= 1) $('#pr-prov').replaceChildren(el('option', { value: '' }, 'Todos los proveedores'), ...est.datos.proveedores.map((p) => el('option', { value: p.id, selected: String(p.id) === est.prov }, p.nombre)));
     pintar();
   }
-  function lista() { return est.datos.precios.filter((p) => !est.viejos || p.dias > est.datos.dias_viejo); }
+  const esEst = (p) => p.ultimo_origen === 'estimado';
+  function lista() {
+    return est.datos.precios.filter((p) => (!est.viejos || (p.dias > est.datos.dias_viejo && !esEst(p))) && (!est.tipo || (est.tipo === 'estimados') === esEst(p)));
+  }
   function pintar() {
     const ps = lista();
     $('#pr-n').textContent = `${ps.length} material(es)`;
@@ -39,8 +42,10 @@
       el('thead', {}, el('tr', {}, el('th', {}, 'Material'), el('th', { class: 'n' }, 'Último (sistema)'), el('th', {}, 'Proveedor · fecha'), el('th', { class: 'n' }, 'Mejor 6 meses'), el('th', { class: 'n' }, 'Medio 12 meses'), el('th', { class: 'n' }, 'Precios'))),
       el('tbody', {}, ps.length ? ps.map((p) => el('tr', { class: `pr-fila${est.sel === p.clave ? ' sel' : ''}`, tabindex: 0, onclick: () => historial(p), onkeydown: (ev) => { if (ev.key === 'Enter') historial(p); } },
         el('td', {}, el('b', {}, p.material), el('small', {}, [p.familia, p.catalogo_id ? null : 'sin material del catálogo'].filter(Boolean).join(' · '))),
-        el('td', { class: `n pr-ult${p.dias > est.datos.dias_viejo ? ' viejo' : ''}`, title: p.dias > est.datos.dias_viejo ? `Tiene ${p.dias} días: conviene pedir precio` : '' }, `${eur(p.ultimo)}`, el('small', {}, `/${p.unidad || 'ud'}`), cotizo(p.ultimo_orig, p.ultimo_unidad_orig, p.unidad)),
-        el('td', {}, p.ultimo_proveedor || '—', el('small', {}, `${fecha(p.ultimo_fecha)} · ${ORIGEN[p.ultimo_origen] || p.ultimo_origen}`)),
+        esEst(p) ? el('td', { class: 'n pr-ult pr-est', title: p.estimado_nota || 'Estimado' }, `≈ ${eur(p.ultimo)}`, el('small', {}, `/${p.unidad || 'ud'}`))
+          : el('td', { class: `n pr-ult${p.dias > est.datos.dias_viejo ? ' viejo' : ''}`, title: p.dias > est.datos.dias_viejo ? `Tiene ${p.dias} días: conviene pedir precio` : '' }, `${eur(p.ultimo)}`, el('small', {}, `/${p.unidad || 'ud'}`), cotizo(p.ultimo_orig, p.ultimo_unidad_orig, p.unidad)),
+        esEst(p) ? el('td', { class: 'pr-est' }, 'Estimado', el('small', {}, p.estimado_nota || ''))
+          : el('td', {}, p.ultimo_proveedor || '—', el('small', {}, `${fecha(p.ultimo_fecha)} · ${ORIGEN[p.ultimo_origen] || p.ultimo_origen}${p.estimado != null ? ` · estimado era ${eur(p.estimado)}` : ''}`)),
         el('td', { class: 'n' }, eur(p.mejor_6m), p.mejor_proveedor && p.mejor_6m !== p.ultimo ? el('small', {}, p.mejor_proveedor) : null),
         el('td', { class: 'n' }, eur(p.medio_12m)),
         el('td', { class: 'n' }, `${p.n}`, p.n_prov > 1 ? el('small', {}, `${p.n_prov} prov.`) : null)))
@@ -134,6 +139,14 @@
     $('#pr-prov').onchange = (ev) => { est.prov = ev.target.value; cargar(); };
     $('#pr-viejos').onchange = (ev) => { est.viejos = ev.target.checked; pintar(); };
     $('#pr-csv').onclick = csv;
+    $('#pr-tipo').onchange = (ev) => { est.tipo = ev.target.value; pintar(); };
+    $('#pr-estimar').onclick = async (ev) => {
+      if (!confirm('¿Recalcular todos los precios estimados? Los precios reales no se tocan.')) return;
+      ev.target.disabled = true;
+      try { const r = await api('POST', '/api/precios/estimar'); window.s360.aviso(`${r.estimados} precios estimados · ${r.sin_estimar.length} sin estimar (a medida o sin regla)`); await cargar(); }
+      catch (e) { window.s360.aviso(e.message); }
+      ev.target.disabled = false;
+    };
     try { await cargar(); } catch (e) { $('#pr-tabla').replaceChildren(el('tbody', {}, el('tr', {}, el('td', {}, e.message)))); }
     window.s360.alCambiar?.(() => cargar());
   }

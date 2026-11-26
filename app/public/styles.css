@@ -3138,6 +3138,7 @@ body.pr-pant { height: 100vh; display: flex; flex-direction: column; overflow: h
 .pr-tabla .n { text-align: right; white-space: nowrap; }
 .pr-fila { cursor: pointer; } .pr-fila:hover { background: #222; } .pr-fila.sel { background: #1e2a3a; }
 .pr-ult { font-weight: 600; color: #8fd0a8; } .pr-ult.viejo { color: #f0b060; }
+.pr-ult.pr-est, td.pr-est { color: #9aa4b2; font-style: italic; } td.pr-est small { font-style: normal; }
 .pr-det { overflow: auto; border: 1px solid var(--linea, #2a2a2a); border-radius: 10px; padding: 10px 12px; display: flex; flex-direction: column; gap: 10px; }
 .pr-det:empty { display: none; }
 .pr-det-cab { display: flex; justify-content: space-between; align-items: flex-start; } .pr-det-cab h2 { margin: 0; font-size: 16px; }

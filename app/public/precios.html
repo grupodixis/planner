@@ -8,7 +8,7 @@
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="apple-touch-icon" href="/apple-touch-icon-v2.png">
   <title>Planéalo · Lista de precios</title>
-  <link rel="stylesheet" href="styles.css?v=202611262101">
+  <link rel="stylesheet" href="styles.css?v=202611262113">
 </head>
 <body class="pr-pant">
   <header class="top">
@@ -23,21 +23,23 @@
     <div class="pr-barra" data-ayuda="pr-barra">
       <input type="search" id="pr-q" placeholder="Buscar material…" aria-label="Buscar material">
       <select id="pr-prov" aria-label="Proveedor"></select>
+      <select id="pr-tipo" aria-label="Qué precios"><option value="">Todos</option><option value="reales">Con precio real</option><option value="estimados">Solo estimados</option></select>
       <label class="co-chk"><input type="checkbox" id="pr-viejos"> Solo con precio de más de 3 meses</label>
       <span class="ayuda" id="pr-n"></span>
       <button type="button" class="ghost" id="pr-csv">⬇ Excel (CSV)</button>
+      <button type="button" class="ghost" id="pr-estimar" title="Vuelve a calcular los precios estimados con las reglas actuales. Nunca toca los precios reales.">🧮 Recalcular estimados</button>
     </div>
-    <p class="ayuda">Cada precio confirmado (ofertas por formulario, correo o PDF ya revisadas, y pedidos enviados), siempre <b>sin IVA</b>. El precio del sistema es el <b>último</b>; en naranja si tiene más de 3 meses. Es el que usará Presupuestos.</p>
+    <p class="ayuda">Cada precio confirmado (ofertas por formulario, correo o PDF ya revisadas, y pedidos enviados), siempre <b>sin IVA</b>. El precio del sistema es el <b>último</b>; en naranja si tiene más de 3 meses. Es el que usará Presupuestos. Los materiales sin precio real llevan un precio <b>≈ estimado</b> (por €/kg y peso, o por tipo de artículo) hasta que llegue uno de verdad.</p>
     <div class="pr-cuerpo">
       <div class="tabla-scroll pr-lista"><table class="pr-tabla" id="pr-tabla"></table></div>
       <section class="pr-det" id="pr-det" aria-live="polite"></section>
     </div>
   </main>
     <div id="toast" class="toast" role="status" aria-live="polite"></div>
-  <script src="pwa.js?v=202611262101"></script>
-  <script src="comun.js?v=202611262101"></script>
-  <script src="ayuda-textos.js?v=202611262101"></script>
-  <script src="ayuda.js?v=202611262101"></script>
-  <script src="precios-pantalla.js?v=202611262101"></script>
+  <script src="pwa.js?v=202611262113"></script>
+  <script src="comun.js?v=202611262113"></script>
+  <script src="ayuda-textos.js?v=202611262113"></script>
+  <script src="ayuda.js?v=202611262113"></script>
+  <script src="precios-pantalla.js?v=202611262113"></script>
 </body>
 </html>

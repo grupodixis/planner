@@ -502,7 +502,7 @@
   function habitual(h, unidad) {
     if (!h) return null;
     return el('div', { class: `cmp-hab${h.viejo ? ' viejo' : ''}`, title: `Último precio confirmado en el sistema (${h.origen})${h.viejo ? ` · tiene ${h.dias} días` : ''}` },
-      `💶 habitual ${Number(h.precio).toLocaleString('es-ES', { maximumFractionDigits: 4 })} €/${h.unidad || unidad || 'ud'} · ${h.proveedor || '—'} · ${new Date(h.fecha).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: '2-digit' })}`);
+      `💶 ${h.origen === 'estimado' ? 'estimado' : 'habitual'} ${Number(h.precio).toLocaleString('es-ES', { maximumFractionDigits: 4 })} €/${h.unidad || unidad || 'ud'} · ${h.origen === 'estimado' ? '≈ estimado' : h.proveedor || '—'} · ${new Date(h.fecha).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: '2-digit' })}`);
   }
 
   // correoId: la oferta que ha leído la IA (de un correo o de su PDF en el portal): el cuadro sale relleno y con el original al lado

@@ -364,6 +364,7 @@ const PORT = Number(process.env.PORT || 3000);
   await require('./presupuestos-ia').reanudar().catch(() => {});
   await require('./compras').migrarPedidosSueltos().catch((e) => console.error('Pedidos sueltos:', e.message));
   await require('./precios').cargaInicial().catch((e) => console.error('Lista de precios:', e.message));
+  require('./precios-estimar').alArrancar().catch((e) => console.error('Precios estimados:', e.message));
   await require('./correo').cargar().catch((e) => console.error('Correo:', e.message));
   await auth.asegurarAdmin();
   await require('./capacidades').sembrar().catch((e) => console.error('Capacidades:', e.message));

@@ -33,7 +33,7 @@ const LAM = {
   HEB: { 100: 20.4, 120: 26.7, 140: 33.7, 160: 42.6, 180: 51.2, 200: 61.3, 220: 71.5, 240: 83.2, 260: 93.0, 280: 103, 300: 117, 320: 127, 340: 134, 360: 142, 400: 155, 450: 171, 500: 187, 600: 212 },
   HEM: { 100: 41.8, 120: 52.1, 140: 63.2, 160: 76.2, 180: 88.9, 200: 103, 220: 117, 240: 157, 260: 172, 280: 189, 300: 238, 320: 245, 340: 248, 360: 250, 400: 256, 450: 263, 500: 270, 600: 285 },
   IPN: { 80: 5.94, 100: 8.34, 120: 11.1, 140: 14.3, 160: 17.9, 180: 21.9, 200: 26.2, 220: 31.1, 240: 36.2, 260: 41.9, 280: 47.9, 300: 54.2, 320: 61.0, 340: 68.0, 360: 76.1, 400: 92.4, 450: 115, 500: 141 },
-  UPN: { 80: 8.64, 100: 10.6, 120: 13.4, 140: 16.0, 160: 18.8, 180: 22.0, 200: 25.3, 220: 29.4, 240: 33.2, 260: 37.9, 280: 41.8, 300: 46.2, 320: 59.5, 350: 60.6, 380: 63.1, 400: 71.8 },
+  UPN: { 50: 5.59, 65: 7.09, 80: 8.64, 100: 10.6, 120: 13.4, 140: 16.0, 160: 18.8, 180: 22.0, 200: 25.3, 220: 29.4, 240: 33.2, 260: 37.9, 280: 41.8, 300: 46.2, 320: 59.5, 350: 60.6, 380: 63.1, 400: 71.8 },
 };
 // Superficie de pintura aproximada (m²/m) de laminados: ~ perímetro desarrollado
 const ALAS = { IPE: 0.5, HEA: 1.0, HEB: 1.0, HEM: 1.0, IPN: 0.45, UPN: 0.4 };   // ancho de ala ≈ factor × canto (aprox.)
@@ -57,6 +57,8 @@ function geometria(nombre, unidadCat, detalle) {
     base: 'ml', forma, kg_ml: +(area_mm2 * d / 1000).toFixed(3), pint_m2_ml: perim_mm ? +(perim_mm / 1000).toFixed(3) : null, ml_barra,
     calculo: `${txt} · ${mat} ${d} kg/dm³`,
   });
+  // accesorios que nombran un perfil pero se compran por unidad o por m² (tapón para tubo Ø42, rejilla de pletina 30×2…)
+  if (/\b(tap[oó]n|embellecedor|pinza|rejilla electrosoldada|tramex)\b/i.test(nm)) return { base: unidad(unidadCat) || 'ud' };
   let m;
   if ((m = nm.match(new RegExp(`tubo\\s+(?:cuadrado|rectangular)(?:\\s+aluminio)?\\s+${NUM}${X}${NUM}${X}${NUM}`, 'i')))) {
     const [a, b, e] = [n(m[1]), n(m[2]), n(m[3])];
@@ -69,7 +71,7 @@ function geometria(nombre, unidadCat, detalle) {
     const [D, e] = [n(m[1]), n(m[2])];
     return perfil('tubo redondo', Math.PI * (D - e) * e, Math.PI * D, `tubo Ø${D}×${e}: área ${(Math.PI * (D - e) * e).toFixed(0)} mm²`);
   }
-  if ((m = nm.match(new RegExp(`pletina\\s+${NUM}${X}${NUM}`, 'i')))) {
+  if ((m = nm.match(new RegExp(`pletina(?:\\s+aluminio)?\\s+${NUM}${X}${NUM}`, 'i')))) {
     const [a, e] = [n(m[1]), n(m[2])];
     return perfil('pletina', a * e, 2 * (a + e), `pletina ${a}×${e}`);
   }
@@ -85,6 +87,10 @@ function geometria(nombre, unidadCat, detalle) {
     const [a, b, e] = [n(m[1]), n(m[2]), n(m[3])];
     return perfil('angular', e * (a + b - e), 2 * (a + b), `angular ${a}×${b}×${e}`);
   }
+  if ((m = nm.match(new RegExp(`perfil\\s+T\\s+${NUM}${X}${NUM}${X}${NUM}`, 'i')))) {
+    const [a, b, e] = [n(m[1]), n(m[2]), n(m[3])];
+    return perfil('T', e * (a + b - e), 2 * (a + b), `T ${a}×${b}×${e}`);
+  }
   if ((m = nm.match(new RegExp(`perfil\\s+U\\s+plegado\\s+${NUM}${X}${NUM}${X}${NUM}`, 'i')))) {
     const [a, b, e] = [n(m[1]), n(m[2]), n(m[3])];
     return perfil('U plegado', e * (a + 2 * b - 2 * e), 2 * (a + 2 * b), `U ${a}×${b}×${e}`);
@@ -93,8 +99,13 @@ function geometria(nombre, unidadCat, detalle) {
     const t = m[1].toUpperCase(); const h = Number(m[2]); const kg = LAM[t]?.[h];
     if (kg) return { base: 'ml', forma: t, kg_ml: kg, pint_m2_ml: +((2 * h + 4 * h * ALAS[t]) / 1000).toFixed(3), ml_barra, calculo: `${t} ${h}: ${kg} kg/m (tabla) · pintura aprox.` };
   }
-  if ((m = nm.match(new RegExp(`chapa[^\\d]*?${NUM}\\s*mm\\s+${NUM}${X}${NUM}`, 'i')))) {
-    const [e, w, l] = [n(m[1]), n(m[2]), n(m[3])];
+  // correas de chapa conformada C / Z (h×e): desarrollo ≈ alma + 2 alas (0,25h + 20) + 2 labios
+  if ((m = nm.match(new RegExp(`correa\\s+[CZ]\\s+${NUM}${X}${NUM}`, 'i')))) {
+    const [h, e] = [n(m[1]), n(m[2])]; const des = h + 2 * (0.25 * h + 20) + 2 * (h <= 150 ? 15 : 20);
+    return perfil('correa', des * e, 2 * des, `correa ${h}×${e}: desarrollo ≈ ${des.toFixed(0)} mm`);
+  }
+  if ((m = nm.match(new RegExp(`chapa.*?\\s(?:${NUM}\\/)?${NUM}\\s*mm\\s+${NUM}${X}${NUM}`, 'i')))) {
+    const [e, w, l] = [n(m[1] || m[2]), n(m[3]), n(m[4])];
     const m2 = +(w * l / 1e6).toFixed(3); const kgm2 = +(e * d).toFixed(2);
     return { base: 'm2', forma: 'chapa', m2_ud: m2, kg_m2: kgm2, calculo: `chapa ${e} mm ${w}×${l}: ${m2} m²/chapa · ${kgm2} kg/m² · ${mat} ${d} kg/dm³` };
   }

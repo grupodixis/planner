@@ -95,10 +95,10 @@ async function cargaInicial() {
 async function habitual({ catalogo_id, descripcion }) {
   const { rows: [r] } = await query(
     `SELECT COALESCE(p.precio_base, p.precio)::float AS precio, COALESCE(p.unidad_base, p.unidad) AS unidad, p.fecha, p.origen, pr.nombre AS proveedor, (CURRENT_DATE - p.fecha) AS dias,
-            p.precio_orig::float AS precio_orig, p.unidad_orig
+            p.precio_orig::float AS precio_orig, p.unidad_orig, p.nota
        FROM precios p LEFT JOIN proveedores pr ON pr.id = p.proveedor_id
       WHERE ${catalogo_id ? 'p.catalogo_id = $1' : 'p.desc_norm = $1'}
-      ORDER BY p.fecha DESC, (p.origen = 'pedido') DESC, p.id DESC LIMIT 1`, [catalogo_id || norm(descripcion)]);
+      ORDER BY (p.origen = 'estimado'), p.fecha DESC, (p.origen = 'pedido') DESC, p.id DESC LIMIT 1`, [catalogo_id || norm(descripcion)]);
   return r ? { ...r, viejo: r.dias > DIAS_VIEJO } : null;
 }
 // Para las líneas de una petición: { linea_id: habitual } (sin contar los precios de esta misma petición)
@@ -112,7 +112,7 @@ async function habitualesDeSolicitud(solId) {
       `SELECT COALESCE(p.precio_base, p.precio)::float AS precio, COALESCE(p.unidad_base, p.unidad) AS unidad, p.fecha, p.origen, pr.nombre AS proveedor, (CURRENT_DATE - p.fecha) AS dias
          FROM precios p LEFT JOIN proveedores pr ON pr.id = p.proveedor_id
         WHERE ${l.catalogo_id ? 'p.catalogo_id = $1' : 'p.desc_norm = $1'} AND (p.sp_id IS NULL OR p.sp_id NOT IN (SELECT id FROM solicitud_proveedores WHERE solicitud_id = $2))
-        ORDER BY p.fecha DESC, (p.origen = 'pedido') DESC, p.id DESC LIMIT 1`, [l.catalogo_id || norm(l.descripcion), solId]);
+        ORDER BY (p.origen = 'estimado'), p.fecha DESC, (p.origen = 'pedido') DESC, p.id DESC LIMIT 1`, [l.catalogo_id || norm(l.descripcion), solId]);
     if (!r) continue;
     // en la unidad de la línea (si el habitual está en €/ml y pedimos barras, se convierte)
     const enLinea = U.unidad(r.unidad) === U.unidad(l.unidad) ? r.precio : await U.precioEn(l.catalogo_id, r.precio, r.unidad, l.unidad);
@@ -198,19 +198,25 @@ function montar(app, asyncH, auth) {
            FROM precios p LEFT JOIN proveedores pr ON pr.id = p.proveedor_id
           WHERE ($1 = '' OR p.desc_norm LIKE '%' || $1 || '%' OR EXISTS (SELECT 1 FROM catalogo c WHERE c.id = p.catalogo_id AND translate(lower(c.nombre), 'áéíóúüñàèòç', 'aeiouunaeoc') LIKE '%' || $1 || '%'))
             AND ($2::int IS NULL OR p.proveedor_id = $2)),
-       u AS (SELECT DISTINCT ON (clave) clave, pb, ub, precio_orig, unidad_orig, proveedor, fecha, origen FROM b ORDER BY clave, fecha DESC, (origen = 'pedido') DESC, id DESC)
+       u AS (SELECT DISTINCT ON (clave) clave, pb, ub, precio_orig, unidad_orig, proveedor, fecha, origen FROM b ORDER BY clave, (origen = 'estimado'), fecha DESC, (origen = 'pedido') DESC, id DESC)
        SELECT b.clave, max(b.catalogo_id) AS catalogo_id, COALESCE(max(c.nombre), max(b.descripcion)) AS material, max(c.familia) AS familia,
               u.pb::float AS ultimo, u.proveedor AS ultimo_proveedor, u.fecha AS ultimo_fecha, u.ub AS unidad, u.origen AS ultimo_origen, (CURRENT_DATE - u.fecha) AS dias,
               u.precio_orig::float AS ultimo_orig, u.unidad_orig AS ultimo_unidad_orig,
-              min(b.pb) FILTER (WHERE b.fecha > CURRENT_DATE - 183 AND b.ub = u.ub)::float AS mejor_6m,
-              (array_agg(b.proveedor ORDER BY b.pb) FILTER (WHERE b.fecha > CURRENT_DATE - 183 AND b.ub = u.ub))[1] AS mejor_proveedor,
-              round(avg(b.pb) FILTER (WHERE b.fecha > CURRENT_DATE - 365 AND b.ub = u.ub), 4)::float AS medio_12m, max(c.unidad) AS unidad_catalogo,
-              count(*)::int AS n, count(DISTINCT b.proveedor_id)::int AS n_prov
+              min(b.pb) FILTER (WHERE b.fecha > CURRENT_DATE - 183 AND b.ub = u.ub AND b.origen <> 'estimado')::float AS mejor_6m,
+              (array_agg(b.proveedor ORDER BY b.pb) FILTER (WHERE b.fecha > CURRENT_DATE - 183 AND b.ub = u.ub AND b.origen <> 'estimado'))[1] AS mejor_proveedor,
+              round(avg(b.pb) FILTER (WHERE b.fecha > CURRENT_DATE - 365 AND b.ub = u.ub AND b.origen <> 'estimado'), 4)::float AS medio_12m, max(c.unidad) AS unidad_catalogo,
+              count(*) FILTER (WHERE b.origen <> 'estimado')::int AS n, count(DISTINCT b.proveedor_id)::int AS n_prov,
+              max(b.pb) FILTER (WHERE b.origen = 'estimado')::float AS estimado, max(b.nota) FILTER (WHERE b.origen = 'estimado') AS estimado_nota
          FROM b JOIN u ON u.clave = b.clave LEFT JOIN catalogo c ON c.id = b.catalogo_id
         GROUP BY b.clave, u.pb, u.ub, u.precio_orig, u.unidad_orig, u.proveedor, u.fecha, u.origen
-        ORDER BY u.fecha DESC, material LIMIT 500`, [q, prov]);
+        ORDER BY (u.origen = 'estimado'), u.fecha DESC, material LIMIT 5000`, [q, prov]);
     const { rows: provs } = await query(`SELECT DISTINCT pr.id, pr.nombre FROM precios p JOIN proveedores pr ON pr.id = p.proveedor_id ORDER BY pr.nombre`);
     res.json({ precios: rows, proveedores: provs, dias_viejo: DIAS_VIEJO });
+  }));
+  // Rehacer los precios estimados (nunca toca los reales)
+  app.post('/api/precios/estimar', auth.permiso('compras', 'usuarios'), asyncH(async (req, res) => {
+    const r = await require('./precios-estimar').estimarTodo();
+    res.json({ estimados: r.estimados, sin_estimar: r.sin_estimar });
   }));
   // Historial de un material (c<catalogo_id> o d<descripción normalizada>)
   app.get('/api/precios/historial', ver, asyncH(async (req, res) => {
@@ -218,7 +224,7 @@ function montar(app, asyncH, auth) {
     const porCat = clave.startsWith('c');
     const { rows } = await query(
       `SELECT p.id, COALESCE(p.precio_base, p.precio)::float AS precio, COALESCE(p.unidad_base, p.unidad) AS unidad, p.precio_orig::float AS precio_orig, p.unidad_orig,
-              p.precio::float AS precio_linea, p.unidad AS unidad_linea, p.cantidad::float AS cantidad, p.fecha, p.origen, p.via, p.descripcion,
+              p.precio::float AS precio_linea, p.unidad AS unidad_linea, p.cantidad::float AS cantidad, p.fecha, p.origen, p.via, p.descripcion, p.nota,
               pr.nombre AS proveedor, s.codigo AS sol_codigo, s.id AS sol_id, pc.codigo AS pedido_codigo, pc.id AS pedido_id, p.correo_id
          FROM precios p LEFT JOIN proveedores pr ON pr.id = p.proveedor_id
          LEFT JOIN solicitud_proveedores sp ON sp.id = p.sp_id LEFT JOIN solicitudes_precio s ON s.id = sp.solicitud_id

@@ -1730,6 +1730,9 @@ const MIGRACIONES = [
   `ALTER TABLE presupuesto_skills ADD COLUMN IF NOT EXISTS claves TEXT`,
   `ALTER TABLE presupuesto_skills ADD COLUMN IF NOT EXISTS comodin BOOLEAN NOT NULL DEFAULT FALSE`,
   `ALTER TABLE presupuestos ADD COLUMN IF NOT EXISTS ia_skills TEXT[]`,
+  `ALTER TABLE precios ADD COLUMN IF NOT EXISTS nota TEXT`,
+  `ALTER TABLE precios DROP CONSTRAINT IF EXISTS precios_origen_check`,
+  `ALTER TABLE precios ADD CONSTRAINT precios_origen_check CHECK (origen IN ('oferta','pedido','albaran','factura','manual','estimado'))`,
 ];
 
 async function migrar() {
