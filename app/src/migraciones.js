@@ -1539,6 +1539,50 @@ const MIGRACIONES = [
      ADD COLUMN IF NOT EXISTS texto TEXT, ADD COLUMN IF NOT EXISTS adjuntos JSONB`,
   `CREATE INDEX IF NOT EXISTS correo_enviados_ref ON correo_enviados (tipo, ref_id)`,
   `CREATE INDEX IF NOT EXISTS correos_sp ON correos (sp_id)`,
+  // ===== Lista de precios del sistema y lo que aprende la IA de cada proveedor =====
+  `CREATE TABLE IF NOT EXISTS precios (
+     id SERIAL PRIMARY KEY,
+     catalogo_id INT REFERENCES catalogo(id) ON DELETE SET NULL,
+     descripcion TEXT NOT NULL,
+     desc_norm TEXT NOT NULL,
+     proveedor_id INT REFERENCES proveedores(id) ON DELETE SET NULL,
+     precio NUMERIC(12,4) NOT NULL,          -- sin IVA
+     unidad TEXT, cantidad NUMERIC(12,3),
+     fecha DATE NOT NULL,
+     origen TEXT NOT NULL CHECK (origen IN ('oferta','pedido','albaran','factura','manual')),
+     via TEXT,                               -- portal | correo | pdf_portal | manual | pedido
+     sp_id INT REFERENCES solicitud_proveedores(id) ON DELETE CASCADE,
+     sol_linea_id INT REFERENCES solicitud_lineas(id) ON DELETE CASCADE,
+     pedido_id INT REFERENCES pedidos_compra(id) ON DELETE CASCADE,
+     pedido_linea_id INT REFERENCES pedido_compra_lineas(id) ON DELETE CASCADE,
+     correo_id INT REFERENCES correos(id) ON DELETE SET NULL,
+     validez DATE,
+     usuario_id INT REFERENCES usuarios(id) ON DELETE SET NULL,
+     creado TIMESTAMPTZ NOT NULL DEFAULT now())`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS precios_oferta ON precios (sp_id, sol_linea_id) WHERE sp_id IS NOT NULL`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS precios_pedido ON precios (pedido_linea_id) WHERE pedido_linea_id IS NOT NULL`,
+  `CREATE INDEX IF NOT EXISTS precios_cat ON precios (catalogo_id, fecha DESC)`,
+  `CREATE INDEX IF NOT EXISTS precios_norm ON precios (desc_norm, fecha DESC)`,
+  `CREATE TABLE IF NOT EXISTS ia_correcciones (
+     id SERIAL PRIMARY KEY,
+     correo_id INT REFERENCES correos(id) ON DELETE SET NULL,
+     proveedor_id INT REFERENCES proveedores(id) ON DELETE CASCADE,
+     campo TEXT NOT NULL, linea_id INT, catalogo_id INT, descripcion TEXT,
+     valor_ia TEXT, valor_final TEXT,
+     usuario_id INT REFERENCES usuarios(id) ON DELETE SET NULL,
+     creado TIMESTAMPTZ NOT NULL DEFAULT now())`,
+  `CREATE INDEX IF NOT EXISTS ia_correcciones_prov ON ia_correcciones (proveedor_id, id DESC)`,
+  `CREATE TABLE IF NOT EXISTS proveedor_alias (
+     id SERIAL PRIMARY KEY,
+     proveedor_id INT NOT NULL REFERENCES proveedores(id) ON DELETE CASCADE,
+     su_texto TEXT NOT NULL, su_norm TEXT NOT NULL,
+     catalogo_id INT REFERENCES catalogo(id) ON DELETE CASCADE, descripcion TEXT,
+     veces INT NOT NULL DEFAULT 1, ultimo TIMESTAMPTZ NOT NULL DEFAULT now(),
+     UNIQUE (proveedor_id, su_norm))`,
+  `ALTER TABLE proveedores ADD COLUMN IF NOT EXISTS notas_ia TEXT, ADD COLUMN IF NOT EXISTS notas_ia_auto TEXT`,
+  // Peticiones de precio «para presupuestar» (Presupuestos): líneas del catálogo sin escandallo y sin pedido al final
+  `ALTER TABLE solicitud_lineas ADD COLUMN IF NOT EXISTS catalogo_id INT REFERENCES catalogo(id) ON DELETE SET NULL`,
+  `ALTER TABLE solicitudes_precio ADD COLUMN IF NOT EXISTS motivo TEXT NOT NULL DEFAULT 'compra'`,
 ];
 
 async function migrar() {

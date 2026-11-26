@@ -122,6 +122,7 @@ function montar(app, asyncH) {
         JSON.stringify(info), noOferta ? 'no_oferta' : 'respondida',
         num(b.dias_trabajo) != null && num(b.dias_trabajo) > 0 ? Math.min(999, num(b.dias_trabajo)) : null,
         num(b.personas) != null && num(b.personas) >= 0 ? Math.min(99, Math.round(num(b.personas))) : null, fechaOk(b.inicio_posible)]);
+      await require('./precios').registrarOferta(c, r.id, { via: 'portal' });   // lista de precios
     });
     await require('./correo-ia').portalCompletado(r.id).catch(() => {});
     notif.avisarLuego(notif.conPermiso('compras'), 'oferta_recibida', {

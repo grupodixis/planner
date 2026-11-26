@@ -1416,6 +1416,17 @@ Endpoints: `GET /api/ia`, `PUT /api/ia/ajustes`, `POST /api/ia/probar/:nombre`, 
 - **💬 Conversación** (tarjeta del proveedor en la petición; `GET /api/compras/solicitudes/:id/proveedores/:sp/conversacion`, y `…&conv=<sp>` en la URL la abre): en orden, lo enviado (desde ahora `correo_enviados` guarda para, asunto, texto y adjuntos), lo recibido por correo o subido al portal (con lo que entendió la IA, estado, texto y adjuntos, y enlace a Correo entrante) y los pasos en el portal (abrir el enlace, formulario, PDF). En naranja lo pendiente de revisar; contador en el botón. «✉ Escribirle desde mi correo» abre un correo con el asunto de la petición.
 - **Siguiente fase**: albaranes (cotejar con el pedido en la recepción), facturas (cuadre y costes), Excel adjuntos, clientes, buzones personales.
 
+## Lista de precios y aprendizaje de la IA (Compras › Lista de precios)
+
+`src/precios.js`, `public/precios.html` + `precios-pantalla.js`.
+
+- **Tabla `precios`**: material (`catalogo_id` del catálogo, por la línea de escandallo o `solicitud_lineas.catalogo_id`; si no hay, por `desc_norm`), proveedor, precio **sin IVA**, unidad, cantidad, fecha, `origen` (oferta / pedido / albarán / factura / manual), `via` (portal, correo, pdf_portal, manual, pedido) y referencias (`sp_id`+`sol_linea_id` o `pedido_linea_id`, únicas: reconfirmar sustituye). Solo material: no entran líneas de subcontratación (tareas) ni portes.
+- **Se registra solo** al guardar una oferta en el formulario del portal, al apuntarla a mano, al confirmar una leída por la IA (correo o PDF) y al enviar un pedido (precio pactado). Carga inicial una vez (`migr_precios`) con lo que ya había.
+- **Precio del sistema** = el último confirmado (a igual fecha, el de pedido); «viejo» si tiene más de 90 días. Pantalla: último, proveedor y fecha, mejor 6 meses, medio 12 meses, nº de precios y proveedores; historial con gráfico y enlace a su petición, pedido o correo; filtro por proveedor y «solo viejos»; CSV. `GET /api/precios?q&proveedor`, `GET /api/precios/historial?clave=c<catalogo>|d<desc>`.
+- **Precio habitual** en la revisión de ofertas (petición y Correo entrante): `habitualesDeSolicitud` (sin contar los precios de esa misma petición). La lectura de la IA avisa si un precio se aleja más de un 40 % del habitual.
+- **Aprendizaje por proveedor**: al confirmar una oferta leída por la IA, lo corregido (precios, portes, entrega, referencia) va a `ia_correcciones`; de ahí `proveedores.notas_ia_auto` (≥ 2 veces: precios con IVA, unidad N veces mayor/menor). Notas escritas por Compras en `proveedores.notas_ia`. La IA devuelve también cómo llama el proveedor a cada línea (`su_texto` → `proveedor_alias`). Todo esto («memoria_de_este_proveedor»: notas, últimas 8 correcciones y equivalencias) se le pasa a la IA cada vez que lee a ese proveedor, con prioridad sobre su interpretación. En la ficha del proveedor: «🤖 Lo que la IA sabe». `GET·PUT /api/proveedores/:id/ia`.
+- **Para Presupuestos**: `GET /api/precios/estimado?catalogo_id=` (precio sugerido y aviso si está viejo o no hay); `solicitudes_precio.motivo` (`compra` | `presupuesto`) y `solicitud_lineas.catalogo_id` para pedir precio de materiales del catálogo sin escandallo.
+
 ## API
 
 | Método | Ruta | Uso |

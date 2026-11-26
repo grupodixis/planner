@@ -52,6 +52,7 @@ async function solicitud(id, c = { query }) {
   }
   s.lineas = lineas;
   s.proveedores = provs;
+  s.habituales = await require('./precios').habitualesDeSolicitud(id).catch(() => ({}));   // precio habitual de cada línea
   return s;
 }
 
@@ -233,6 +234,7 @@ function montar(app, asyncH) {
       ['fecha_entrega' in b ? fechaOk(b.fecha_entrega) : prov.fecha_entrega, 'portes' in b ? (Number.isFinite(portes) ? portes : null) : prov.portes,
         'ref_oferta' in b ? texto(b.ref_oferta, 80) : prov.ref_oferta, 'notas' in b ? texto(b.notas, 1000) : prov.notas, nuevoEstado].reduce((a, v) => [...a, v], [sp]));
       if (Array.isArray(b.archivos) && b.archivos.length) await archivos.enlazar(c, b.archivos, 'oferta', sp, req.usuario.id);
+      await require('./precios').registrarOferta(c, sp, { via: 'manual', usuario_id: req.usuario.id });   // lista de precios
     });
     res.json(await solicitud(id));
   }));

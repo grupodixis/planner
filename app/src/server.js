@@ -312,6 +312,7 @@ require('./ia-proveedores').montar(app, asyncH, auth);   // Clave de API del pro
 require('./ia-chat').montar(app, asyncH);   // Asistente ✨ de la app
 require('./buzones').montar(app, asyncH, auth);   // Correo entrante: buzones IMAP (por eventos)
 require('./correo-ia').montar(app, asyncH, auth);   // Correo entrante: lo que lee la IA y la revisión
+require('./precios').montar(app, asyncH, auth);   // Lista de precios y lo que aprende la IA de cada proveedor
 require('./incidencias').montar(app, asyncH);   // incidencias: material, transporte, calidad… con reclamación y cierre
 require('./pedido-transporte').montar(app, asyncH);   // cómo llega cada pedido: proveedor, recogida o almacén del transportista
 require('./recursos')(app, asyncH);
@@ -355,6 +356,7 @@ const PORT = Number(process.env.PORT || 3000);
   await require('./obras-clientes').migrarUnaVez().catch((e) => console.error('Obras y clientes:', e.message));
   await require('./obras-clientes').importarClientes().catch((e) => console.error('Clientes de facturación:', e.message));
   await require('./buzones').migrarSalida().catch((e) => console.error('Cuentas de correo:', e.message));
+  await require('./precios').cargaInicial().catch((e) => console.error('Lista de precios:', e.message));
   await require('./correo').cargar().catch((e) => console.error('Correo:', e.message));
   await auth.asegurarAdmin();
   await require('./capacidades').sembrar().catch((e) => console.error('Capacidades:', e.message));

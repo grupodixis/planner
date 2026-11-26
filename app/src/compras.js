@@ -438,6 +438,7 @@ function montar(app, asyncH) {
     await tx(async (c) => {
       await c.query(`UPDATE pedidos_compra SET estado = 'enviado', enviado_por = $2, enviado_en = now(), enviado_a = $3, enviado_correo = $4 WHERE id = $1`,
         [id, req.usuario.id, para, !!b.correo]);
+      await require('./precios').registrarPedido(c, id, req.usuario.id);   // lista de precios (precio pactado)
       // subcontratación: sus tareas las hace este taller (si se cambió de proveedor, pasan a su área)
       for (const l of p.lineas.filter((x) => x.tarea_id)) {
         const { rows: t } = await c.query('SELECT proveedor_id FROM tareas WHERE id = $1', [l.tarea_id]);

@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <meta name="theme-color" content="#141414">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="apple-touch-icon" href="/apple-touch-icon-v2.png">
+  <title>Planéalo · Lista de precios</title>
+  <link rel="stylesheet" href="styles.css?v=202611261317">
+</head>
+<body class="pr-pant">
+  <header class="top">
+    <h1 class="marca"><img src="/logo.svg" alt="" class="marca-ico">Planéalo <span>· Lista de precios</span></h1>
+    <nav class="menu" aria-label="Pantallas">
+      <a href="/">Cuadrante</a>
+      <a href="/compras.html">Compras</a>
+    </nav>
+    <div class="usuario"><span id="usuario-nombre"></span> <button id="salir" class="ghost">Salir</button></div>
+  </header>
+  <main class="pr-main">
+    <div class="pr-barra" data-ayuda="pr-barra">
+      <input type="search" id="pr-q" placeholder="Buscar material…" aria-label="Buscar material">
+      <select id="pr-prov" aria-label="Proveedor"></select>
+      <label class="co-chk"><input type="checkbox" id="pr-viejos"> Solo con precio de más de 3 meses</label>
+      <span class="ayuda" id="pr-n"></span>
+      <button type="button" class="ghost" id="pr-csv">⬇ Excel (CSV)</button>
+    </div>
+    <p class="ayuda">Cada precio confirmado (ofertas por formulario, correo o PDF ya revisadas, y pedidos enviados), siempre <b>sin IVA</b>. El precio del sistema es el <b>último</b>; en naranja si tiene más de 3 meses. Es el que usará Presupuestos.</p>
+    <div class="pr-cuerpo">
+      <div class="tabla-scroll pr-lista"><table class="pr-tabla" id="pr-tabla"></table></div>
+      <section class="pr-det" id="pr-det" aria-live="polite"></section>
+    </div>
+  </main>
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <script src="pwa.js?v=202611261317"></script>
+  <script src="comun.js?v=202611261317"></script>
+  <script src="ayuda-textos.js?v=202611261317"></script>
+  <script src="ayuda.js?v=202611261317"></script>
+  <script src="precios-pantalla.js?v=202611261317"></script>
+</body>
+</html>

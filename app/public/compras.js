@@ -462,6 +462,13 @@
     actualizarPies(); pintarSel();
   }
 
+  // «habitual 0,22 € · Proveedor · 12/10» (lista de precios; en naranja si tiene más de 3 meses)
+  function habitual(h, unidad) {
+    if (!h) return null;
+    return el('div', { class: `cmp-hab${h.viejo ? ' viejo' : ''}`, title: `Último precio confirmado en el sistema (${h.origen})${h.viejo ? ` · tiene ${h.dias} días` : ''}` },
+      `💶 habitual ${Number(h.precio).toLocaleString('es-ES', { maximumFractionDigits: 4 })} €/${h.unidad || unidad || 'ud'} · ${h.proveedor || '—'} · ${new Date(h.fecha).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: '2-digit' })}`);
+  }
+
   // correoId: la oferta que ha leído la IA (de un correo o de su PDF en el portal): el cuadro sale relleno y con el original al lado
   async function dialogoOferta(s, p, correoId) {
     let co = null;
@@ -507,6 +514,7 @@
         const i = el('input', { type: 'number', min: '0', step: '0.0001', value: (o ? x?.precio : p.precios[l.id]) ?? '', 'aria-label': `Precio de ${l.descripcion}`, class: `cmp-in-num${o && x?.precio == null && !x?.no ? ' cmp-falta' : ''}` });
         ins.set(l.id, i);
         return el('tr', {}, el('td', {}, l.descripcion, el('div', { class: 'sub' }, `${String(l.cantidad).replace('.', ',')} ${l.unidad || ''}`),
+          habitual(s.habituales?.[l.id], l.unidad),
           x?.no ? el('div', { class: 'cmp-ia-nota' }, '🤖 dice que no lo tiene') : null, x?.alt ? el('div', { class: 'cmp-ia-nota' }, `🤖 alternativa: ${x.alt}`) : null, x?.nota ? el('div', { class: 'cmp-ia-nota' }, `🤖 ${x.nota}`) : null),
           el('td', { class: 'num' }, i, ` €/${l.unidad || 'ud'}`));
       }))),
@@ -637,7 +645,31 @@
         x.transportista ? almacenesDe(x, editar) : null,
         el('label', { class: 'chk' }, el('input', { type: 'checkbox', checked: x.cuenta_credito, disabled: !editar, onchange: (ev) => guardarCampo('cuenta_credito', ev.target.checked) }), ' Tiene cuenta de crédito (sale para las compras locales del móvil)'),
         editar ? el('label', { class: 'chk' }, el('input', { type: 'checkbox', checked: x.activo, onchange: (ev) => guardarCampo('activo', ev.target.checked) }), ' Activo (sale para elegir en los pedidos)') : null,
+        memoriaIA(x, editar),
+        el('a', { class: 'ayuda', href: `/precios.html?proveedor=${x.id}` }, '💶 Ver sus precios en la Lista de precios →'),
       ] : el('p', { class: 'ayuda' }, 'Sin proveedores todavía.'))));
+  }
+
+  // Lo que la IA sabe de este proveedor: notas (editables), lo que ha deducido sola, correcciones y cómo llama a nuestros materiales
+  function memoriaIA(x, editar) {
+    const caja = el('details', { class: 'cmp-ia-mem' }, el('summary', {}, '🤖 Lo que la IA sabe de este proveedor'), el('p', { class: 'ayuda' }, 'Cargando…'));
+    caja.addEventListener('toggle', async () => {
+      if (!caja.open || caja.dataset.ok) return;
+      caja.dataset.ok = '1';
+      let m; try { m = await api('GET', `/api/proveedores/${x.id}/ia`); } catch (e) { caja.lastChild.textContent = e.message; return; }
+      const notas = el('textarea', { rows: 3, maxlength: 2000, disabled: !editar, placeholder: 'Ej.: «Sus precios llevan IVA» · «Cotiza por barra de 6 m» · «Escribe los precios encima de nuestra petición» · «El descuento va al pie»' });
+      notas.value = m.notas_ia || '';
+      notas.addEventListener('change', async () => { try { await api('PUT', `/api/proveedores/${x.id}/ia`, { notas_ia: notas.value }); toast('Guardado: la IA lo tendrá en cuenta la próxima vez'); } catch (e) { toast(e.message, true); } });
+      caja.replaceChildren(...[caja.firstChild,
+        el('p', { class: 'ayuda' }, 'Se le pasa a la IA cada vez que lee una oferta o un correo de este proveedor.'),
+        el('label', { class: 'cmp-campo ancho' }, el('span', {}, 'Notas para la IA'), notas),
+        m.notas_ia_auto ? el('div', { class: 'cmp-ia-auto' }, el('b', {}, 'Deducido de las correcciones: '), m.notas_ia_auto) : null,
+        m.correcciones.length ? el('details', {}, el('summary', {}, `Correcciones (${m.correcciones.length})`), el('table', { class: 'tabla-inf' }, el('tbody', {},
+          m.correcciones.map((k) => el('tr', {}, el('td', { class: 'ayuda' }, cuando(k.creado)), el('td', {}, `${k.campo}${k.descripcion ? ` · ${k.descripcion}` : ''}`),
+            el('td', { class: 'num' }, `IA: ${k.valor_ia ?? '—'} → ${k.valor_final ?? '—'}`), el('td', { class: 'ayuda' }, k.usuario || '')))))) : el('p', { class: 'ayuda' }, 'Sin correcciones todavía.'),
+        m.alias.length ? el('details', {}, el('summary', {}, `Cómo llama a nuestros materiales (${m.alias.length})`), el('ul', {}, m.alias.map((a) => el('li', {}, `«${a.su_texto}» = ${a.descripcion}`)))) : null].filter(Boolean));
+    });
+    return caja;
   }
 
   /* ================= Ajustes ================= */

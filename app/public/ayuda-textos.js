@@ -463,6 +463,22 @@ window.S360_AYUDA = {
       ],
     },
 
+    '/precios.html': {
+      titulo: 'Lista de precios',
+      para_que: 'El precio de cada material según lo que hemos confirmado (ofertas y pedidos), siempre sin IVA. El precio del sistema es el último; en naranja si tiene más de 3 meses. Es el que usará Presupuestos.',
+      recorridos: [
+        {
+          id: 'precios-basico', version: 1, si: ['compras', 'aprobar_compras', 'costes'], ofrecer: true, duracion: '1 min',
+          titulo: 'Cómo leer la lista de precios',
+          pasos: [
+            { sel: '#pr-q', texto: 'Busca un material. Puedes filtrar por <b>proveedor</b> o ver solo los que tienen el precio <b>viejo</b> (más de 3 meses), para pedir precio de nuevo.' },
+            { sel: '#pr-tabla', texto: '<b>Último</b> = precio del sistema (el último confirmado). Al lado, quién y cuándo, el <b>mejor de 6 meses</b> y el <b>medio de 12</b>. Se alimenta solo: cada oferta confirmada (formulario, correo o PDF revisados, o apuntada a mano) y cada pedido enviado.' },
+            { sel: '#pr-csv', texto: 'Descárgala para Excel cuando la necesites.' },
+          ],
+        },
+      ],
+    },
+
     '/mi-dia.html': {
       titulo: 'Mi día',
       para_que: 'Tu trabajo de hoy: dónde, con quién y qué necesitas. Al terminar, apunta cómo fue y envíalo al encargado. El móvil es para confirmar y avisar; lo demás se hace en la oficina.',
@@ -731,5 +747,6 @@ window.S360_AYUDA = {
     { id: 44, fecha: '2026-11-26', si: ['compras', 'aprobar_compras'], titulo: '💬 Conversación con cada proveedor', texto: 'En cada petición de precio, la tarjeta del proveedor tiene <b>💬 Conversación</b>: todo en orden, lo que le enviamos (petición y recordatorios, con su texto), lo que ha contestado por correo (preguntas, ofertas en el cuerpo o en PDF, con lo que ha entendido la IA) y lo que ha hecho en su enlace (abrirlo, poner precios, subir su PDF). En naranja lo que falta revisar. Se procesan todas las formas de responder: formulario, solo PDF en el portal, correo con el precio en el texto o correo con PDF.', ir: '/compras.html?vista=precios' },
     { id: 45, fecha: '2026-11-26', si: ['compras'], titulo: '🤖 Revisar la oferta desde la petición', texto: 'Cuando un proveedor responde por correo (o sube su PDF al portal) y la IA ya ha leído su oferta, en su tarjeta de la petición sale <b>🤖 Revisar oferta recibida</b>: el cuadro de la oferta ya relleno, con su correo o su PDF al lado. Corriges si hace falta y <b>✔ Confirmar oferta</b>: entra en el comparativo y el correo queda resuelto. También desde la 💬 Conversación. En los correos se oculta el texto citado.', ir: '/compras.html?vista=precios' },
     { id: 46, fecha: '2026-11-26', si: ['compras'], titulo: '📄 PDF rellenados por el proveedor', texto: 'Si el proveedor devuelve nuestra petición en PDF con sus precios escritos encima (con un editor de PDF), la IA ahora lee también lo añadido. Y si alguna respuesta no la ha entendido como oferta, en la 💬 Conversación tienes <b>✎ Apuntar oferta con esto al lado</b>. Para un correo ya leído, «↻ Volver a leer» en Correo entrante.', ir: '/compras.html?vista=precios' },
+    { id: 47, fecha: '2026-11-26', si: ['compras', 'aprobar_compras', 'costes'], titulo: '💶 Lista de precios y una IA que aprende', texto: 'Nueva pantalla <b>Compras › Lista de precios</b>: cada precio confirmado (ofertas y pedidos, sin IVA) queda guardado por material y proveedor, con su historial. Al revisar una oferta ves el <b>precio habitual</b> de cada línea y la IA avisa si un precio se sale mucho. Y <b>aprende</b>: lo que corriges al confirmar queda en la ficha del proveedor (<b>🤖 Lo que la IA sabe</b>, con notas que puedes escribir tú) y se le recuerda la próxima vez que lea a ese proveedor.', ir: '/precios.html' },
   ],
 };

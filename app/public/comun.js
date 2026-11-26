@@ -117,6 +117,7 @@
     ['Compras', [['/logistica.html', 'Material de las partidas', ['logistica', 'compras', 'escandallo'], 'Stock, por pedir, pedido y recepción'],
       ['/compras.html', 'Pedidos de compra', ['compras', 'aprobar_compras', 'logistica'], 'Preparar, aprobar y enviar pedidos a proveedores'],
       ['/correo.html', 'Correo entrante', ['compras', 'usuarios'], 'Ofertas y confirmaciones que llegan por correo, leídas por la IA'],
+      ['/precios.html', 'Lista de precios', ['compras', 'aprobar_compras', 'costes'], 'El último precio de cada material (sin IVA), su historial y sus proveedores'],
       ['/compras.html?vista=locales', 'Compras locales', ['compras', 'autorizar_compras_locales'], 'Autorizar y cuadrar lo que piden los operarios (ferretería…)'],
       ['/compras.html?vista=proveedores', 'Proveedores', ['compras', 'logistica', 'escandallo', 'aprobar_compras'], 'Fichas, contactos y lo que sirve cada uno']]],
     ['Recursos', [['/recursos.html', 'Operarios, máquinas y subcontratas', null, 'Fichas, vacaciones y festivos, tipos'],

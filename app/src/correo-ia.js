@@ -104,7 +104,7 @@ Esquema (todas las claves, null si no aplica o no aparece; NO inventes nada):
   "resumen": "1 o 2 frases en español: quién, qué y lo importante",
   "referencia": { "solicitud": "SOL-AAAA-NNNN" | null, "pedido": "PC-AAAA-NNNN" | null, "su_referencia": "nº de su oferta/confirmación" | null },
   "oferta": null | {
-    "lineas": [ { "linea_id": número de NUESTRA línea, "precio_unitario": € sin IVA por la unidad de nuestra línea | null, "no_disponible": bool, "alternativa": texto | null, "nota": texto | null } ],
+    "lineas": [ { "linea_id": número de NUESTRA línea, "precio_unitario": € sin IVA por la unidad de nuestra línea | null, "no_disponible": bool, "alternativa": texto | null, "nota": texto | null, "su_texto": "cómo lo llama el proveedor (su descripción o referencia)" | null } ],
     "portes": € | null, "portes_incluidos": bool | null, "fecha_entrega": "AAAA-MM-DD" | null, "plazo_texto": texto | null,
     "validez": "AAAA-MM-DD" | null, "forma_pago": texto | null, "iva_incluido_en_precios": bool | null, "total_sin_iva": € | null, "notas": texto | null },
   "confirmacion": null | {
@@ -123,6 +123,7 @@ Reglas:
 - Fechas en AAAA-MM-DD. «Plazo 10 días» o «semana 50»: calcula la fecha desde la fecha del correo y pon el texto original en "plazo_texto".
 - MUY HABITUAL: el proveedor responde con NUESTRA PROPIA petición en PDF (SOL-…) con sus precios escritos encima (a mano, con un editor de PDF, en campos del formulario). Eso ES una oferta: lee los números añadidos. Te paso también lo escrito encima («texto_escrito_encima_de_los_pdf») y las páginas dibujadas con lo añadido. No lo clasifiques como «otro» ni como reenvío.
 - Una respuesta a nuestra petición de precio con un adjunto es casi siempre una oferta. Solo es «otro» si de verdad no aporta precios, plazos ni condiciones (y entonces dilo en el resumen).
+- Si te paso «memoria_de_este_proveedor», APLÍCALA: son notas y correcciones de personas sobre cómo escribe este proveedor (IVA, unidades, dónde pone los precios, cómo llama a nuestros materiales). Tiene prioridad sobre tu interpretación.
 - Si hay dudas (no cuadra el total, unidades distintas, faltan líneas, remitente raro), dilo en "alertas".`;
 }
 
@@ -254,6 +255,7 @@ async function analizar(id) {
       hoy: new Date().toISOString().slice(0, 10),
       correo: { de: `${c.de_nombre || ''} <${c.de_email || ''}>`, para: c.para, asunto: c.asunto, fecha: c.fecha, adjuntos_no_leidos: otros },
       proveedor_identificado: asoc.proveedor_id ? (await query('SELECT nombre FROM proveedores WHERE id = $1', [asoc.proveedor_id])).rows[0]?.nombre : null,
+      memoria_de_este_proveedor: (await require('./precios').memoriaProveedor(asoc.proveedor_id)) || undefined,
       nuestras_peticiones_de_precio: peticiones, nuestros_pedidos: pedidos,
       texto_escrito_encima_de_los_pdf: encima.length ? encima : undefined,
       texto_del_correo: (c.texto || '').slice(0, 12000),
@@ -344,9 +346,23 @@ async function normalizar(tipo, d, sp, ped, alertas) {
     const o = d.oferta || {};
     const validas = sp ? new Set((await lineasSolicitud(sp.sol_id)).map((l) => l.linea_id)) : null;
     const lineas = (Array.isArray(o.lineas) ? o.lineas : []).map((l) => ({
-      linea_id: Number(l.linea_id), precio: num(l.precio_unitario), no: !!l.no_disponible, alt: texto(l.alternativa, 300), nota: texto(l.nota, 300),
+      linea_id: Number(l.linea_id), precio: num(l.precio_unitario), no: !!l.no_disponible, alt: texto(l.alternativa, 300), nota: texto(l.nota, 300), su_texto: texto(l.su_texto, 200),
     })).filter((l) => Number.isInteger(l.linea_id) && (!validas || validas.has(l.linea_id)) && (l.precio == null || (l.precio >= 0 && l.precio < 1e7)));
     if (sp && validas && lineas.length < validas.size) alertas.push(`Faltan precios en ${validas.size - lineas.filter((l) => l.precio != null || l.no).length} línea(s).`);
+    // ¿precio muy distinto de lo habitual? (lista de precios del sistema)
+    if (sp) {
+      const hab = await require('./precios').habitualesDeSolicitud(sp.sol_id).catch(() => ({}));
+      const ls = await lineasSolicitud(sp.sol_id);
+      for (const l of lineas) {
+        const h = hab[l.linea_id];
+        if (l.precio == null || !h?.precio) continue;
+        const dif = (l.precio - h.precio) / h.precio;
+        if (Math.abs(dif) > 0.4) {
+          const d = ls.find((x) => x.linea_id === l.linea_id)?.descripcion || '';
+          alertas.push(`«${d}»: ${l.precio} € es un ${Math.round(Math.abs(dif) * 100)} % ${dif > 0 ? 'más caro' : 'más barato'} que lo habitual (${h.precio} € · ${h.proveedor || '—'}, ${new Date(h.fecha).toLocaleDateString('es-ES')}). ¿Unidad, IVA o descuento?`);
+        }
+      }
+    }
     // ¿cuadra el total?
     if (sp && num(o.total_sin_iva)) {
       const ls = await lineasSolicitud(sp.sol_id);
@@ -472,9 +488,12 @@ async function confirmarOferta(c, b, usuario) {
     }
     await q.query(`UPDATE correos SET estado = 'hecho', tipo = 'oferta', sp_id = $2, resultado = $3, revisado_por = $4, revisado_en = now() WHERE id = $1`,
       [c.id, sp.id, `${noOferta ? 'No oferta' : 'Oferta añadida'} a ${sp.codigo} (${sp.proveedor})`, usuario.id]);
+    await require('./precios').registrarOferta(q, sp.id, { via: c.origen === 'portal' ? 'pdf_portal' : 'correo', correo_id: c.id, usuario_id: usuario.id });
   });
+  // aprender de lo corregido (lo que leyó la IA frente a lo que se ha confirmado)
+  const cambios = await require('./precios').aprender({ ...c, proveedor_id: c.proveedor_id || sol.proveedor_id }, { sp_id: sol.id, ...b }, usuario.id).catch((e) => { console.error('Aprender:', e.message); return []; });
   await buz.archivar(c.id, { revisado: true });
-  return { url: `/compras.html?vista=precios&sol=${sol.sol_id}`, texto: `Oferta añadida al comparativo de ${sol.codigo}` };
+  return { url: `/compras.html?vista=precios&sol=${sol.sol_id}`, texto: `Oferta añadida al comparativo de ${sol.codigo}${cambios.length ? ` · la IA aprende de ${cambios.length} corrección(es)` : ''}` };
 }
 
 async function confirmarPedido(c, b, usuario) {
@@ -529,7 +548,7 @@ async function detalle(id) {
   if (c.sp_id) {
     const { rows: [sp] } = await query(`SELECT sp.id, sp.estado, sp.correo_id, s.id AS sol_id, s.codigo, s.estado AS sol_estado, p.nombre AS proveedor FROM solicitud_proveedores sp
       JOIN solicitudes_precio s ON s.id = sp.solicitud_id JOIN proveedores p ON p.id = sp.proveedor_id WHERE sp.id = $1`, [c.sp_id]);
-    out.sp = sp; out.lineas = await lineasSolicitud(sp.sol_id);
+    out.sp = sp; out.lineas = await lineasSolicitud(sp.sol_id); out.habituales = await require('./precios').habitualesDeSolicitud(sp.sol_id).catch(() => ({}));
   }
   if (c.pedido_id) {
     const { rows: [p] } = await query(`SELECT pc.id, pc.codigo, pc.estado, pc.fecha_entrega::text AS fecha_entrega, pc.prov_confirmado_en, pr.nombre AS proveedor
@@ -679,6 +698,7 @@ async function reLeer(c, asoc) {
       const { archivos, encima } = await adjuntosIA(c.id);
       const contenido = JSON.stringify({ hoy: new Date().toISOString().slice(0, 10), correo: { de: `${c.de_nombre || ''} <${c.de_email || ''}>`, asunto: c.asunto, fecha: c.fecha },
         aviso: 'Una persona ha indicado de qué petición o pedido es este correo.', nuestras_peticiones_de_precio: peticiones, nuestros_pedidos: pedidos,
+        memoria_de_este_proveedor: (await require('./precios').memoriaProveedor(asoc.proveedor_id)) || undefined,
         texto_escrito_encima_de_los_pdf: encima.length ? encima : undefined, texto_del_correo: (c.texto || '').slice(0, 12000) });
       const r = await llamarIA(cfg, instrucciones(), contenido, archivos);
       r.datos.tipo = c.tipo;
