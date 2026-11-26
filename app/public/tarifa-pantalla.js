@@ -46,7 +46,9 @@
       el('tbody', {}, mo.length ? mo.map((t) => el('tr', { class: t.activo ? '' : 'oculta' },
         el('td', {}, el('b', {}, t.nombre), el('small', {}, `${t.operarios} operario${t.operarios === 1 ? '' : 's'}${t.sin_coste ? ` · ${t.sin_coste} sin coste en su ficha` : ''}`)),
         el('td', { class: 'n' }, importe(t, 'precio_venta', { placeholder: '€/h', 'aria-label': `Precio de venta de ${t.nombre}` }), el('span', { class: 'ayuda' }, ' €/h')),
-        el('td', { class: 'n' }, eur(t.coste_ficha), el('small', {}, '/h')),
+        // coste €/h: el de las fichas (media) o uno fijado a mano para la tarifa
+        el('td', { class: 'n' }, importe(t, 'coste_manual', { placeholder: t.coste_calculado != null ? fmt(t.coste_calculado) : '€/h', title: 'Vacío = media del coste €/h de las fichas de sus operarios. Escríbelo para fijar otro en la tarifa.', 'aria-label': `Coste por hora de ${t.nombre}` }),
+          el('span', { class: 'ayuda' }, ' €/h'), el('small', { class: 'bloque' }, t.coste_manual != null ? 'a mano' : 'media de las fichas')),
         el('td', { class: 'n' }, rendTxt(t)),
         el('td', { class: 'n' }, el('b', {}, eur(t.coste_efectivo)), el('small', {}, '/h')),
         el('td', { class: `n ta-margen ${margenCls(t.margen_pct)}` }, t.margen_pct == null ? '—' : `${t.margen_pct} %`),
@@ -73,7 +75,7 @@
           el('td', { class: 'n' }, importe(t, 'precio_venta', { placeholder: '€', 'aria-label': `Precio de venta de ${t.nombre}` })),
           el('td', {}, ud),
           el('td', { class: 'n' }, importe(t, 'coste_manual', { placeholder: t.coste_calculado != null ? fmt(t.coste_calculado) : '€', title: 'Vacío = media del coste €/h de sus equipos (ficha). Escríbelo si va por día o km.', 'aria-label': `Coste de ${t.nombre}` }),
-            el('small', {}, t.coste_manual != null ? 'a mano' : 'de las fichas')),
+            el('small', { class: 'bloque' }, t.coste_manual != null ? 'a mano' : 'de las fichas')),
           el('td', { class: `n ta-margen ${margenCls(t.margen_pct)}` }, t.margen_pct == null ? '—' : `${t.margen_pct} %`),
           el('td', { class: 'ayuda ta-eq' }, `${t.n} · ${t.equipos}`),
           el('td', {}, el('button', { type: 'button', class: 'ghost mini', onclick: () => guardar(t.id, { activo: !t.activo }, t.activo ? 'Oculta' : 'Visible') }, t.activo ? 'Ocultar' : 'Mostrar')));

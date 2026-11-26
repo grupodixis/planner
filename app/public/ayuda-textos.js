@@ -486,7 +486,7 @@ window.S360_AYUDA = {
       para_que: 'El precio de VENTA de cada categoría de operario y de cada tipo de máquina, y lo que de verdad nos CUESTA: el coste de la ficha corregido por el rendimiento real de los partes. Es la base de Presupuestos.',
       secciones: [
         { titulo: 'Cómo se calcula', texto: '<b>Coste ficha</b>: media del coste empresa €/h de los operarios activos de esa categoría (o de las máquinas de ese tipo). <b>Rendimiento real</b>: horas previstas ÷ horas reales en las tareas terminadas de los últimos 6 meses; a cada operario le cuentan las tareas en las que trabajó, según sus horas. Más de 100 % = rinde más de lo previsto. <b>Coste efectivo</b> = coste ficha ÷ rendimiento (con menos de 20 h de base no se corrige: sale subrayado). <b>Margen</b> = (venta − coste efectivo) ÷ venta: verde 25 % o más, naranja 15–25 %, rojo menos.' },
-        { titulo: 'Qué se edita', texto: 'El <b>precio de venta</b> (al salir del campo se guarda). En maquinaria, también la <b>unidad</b> (h, día, km) y, si no va por horas, el <b>coste a mano</b> (vacío = el de las fichas). <b>Ocultar</b> quita una categoría o un tipo de la tarifa (las de oficina nacen ocultas). El coste de cada persona se cambia en su ficha (Recursos).' },
+        { titulo: 'Qué se edita', texto: 'El <b>precio de venta</b> (al salir del campo se guarda). También el <b>coste €/h</b> (vacío = media de las fichas; escrito, manda en la tarifa) y, en maquinaria, la <b>unidad</b> (h, día, km). <b>Ocultar</b> quita una categoría o un tipo de la tarifa (las de oficina nacen ocultas). El coste de cada persona se cambia en su ficha (Recursos).' },
       ],
     },
 

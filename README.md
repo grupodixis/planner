@@ -1433,7 +1433,7 @@ Endpoints: `GET /api/ia`, `PUT /api/ia/ajustes`, `POST /api/ia/probar/:nombre`, 
 `src/tarifa.js`, `public/tarifa.html` + `tarifa-pantalla.js`, tabla `tarifa` (`clase` mano_obra | maquinaria, `clave` = categoría principal del operario o id del tipo de máquina, `unidad`, `precio_venta`, `coste_manual`, `activo`). Permiso `costes`. Es la base de precios de Presupuestos.
 
 - Las filas se crean solas, una por categoría de operario y una por tipo de máquina con equipos activos. Las categorías de oficina (administración, dirección, RRHH, comercial, logística) nacen ocultas.
-- **Coste ficha**: media de `recursos.coste_hora` de los activos de esa categoría o tipo. En maquinaria se puede fijar a mano (`coste_manual`, p. ej. €/km).
+- **Coste ficha**: media de `recursos.coste_hora` de los activos de esa categoría o tipo, o el fijado a mano en la tarifa (`coste_manual`; en maquinaria, p. ej. €/km).
 - **Rendimiento real** (`rendimientos()`):
   - cuentan las tareas propias terminadas en los últimos 6 meses;
   - el rendimiento de cada tarea es horas previstas (estimación inicial × operarios) ÷ horas reales de los partes (`registros` productivos de operarios);
