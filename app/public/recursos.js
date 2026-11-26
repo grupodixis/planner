@@ -339,6 +339,11 @@
           prop.length ? el('span', { class: 'cap-n prop' }, ` +${prop.length} por validar`) : null));
     })()] : []));
 
+    // subcontratas y alquileres: sin uso ni «no disponible» (no se planifican como una máquina propia)
+    const sub = r.tipo === 'subcontrata';
+    document.querySelector('.ficha-der').hidden = sub;
+    document.querySelector('.ficha-dos').classList.toggle('una', sub);
+    if (sub) return;
     $('#uso').replaceChildren(
       el('dt', {}, 'Próximas 2 semanas'), el('dd', {}, r.horas_14d ? `${durTxt(r.horas_14d)} asignadas` : 'nada asignado'),
       el('dt', {}, 'Próxima asignación'), el('dd', {}, r.proximo ? el('a', { href: `/?fecha=${r.proximo}` }, fechaCorta(r.proximo)) : '—'),
