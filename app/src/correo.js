@@ -1,5 +1,7 @@
 // Correo de salida (pedidos a proveedores, peticiones de precio, enlaces de alta…).
-//  · Se configura en Compras › Ajustes › Correo de salida (permiso «usuarios»). Se guarda en «ajustes»
+//  · Sale de la CUENTA DE CORREO PRINCIPAL (Compras › Correo entrante › ⚙ Cuentas de correo: tabla «buzones», con su
+//    parte de salida SMTP). Antes se configuraba en Compras › Ajustes › Correo de salida (ajustes 'correo'), que se
+//    trasladó a una cuenta al arrancar (buzones.migrarSalida); se mantiene solo como respaldo. Se guardaba en «ajustes»
 //    con la contraseña CIFRADA (AES-256-GCM); la clave de cifrado vive fuera de la base de datos
 //    (CORREO_CLAVE en el entorno o un archivo en el volumen de archivos), así una copia de la base de
 //    datos sola no revela la contraseña. La contraseña nunca se devuelve al navegador.
@@ -8,7 +10,8 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 
-let cfgPanel = null;   // { host, port, secure, user, from, pass }
+let cfgPanel = null;   // { host, port, secure, user, from, pass }  (lo antiguo del panel de Compras)
+let cfgCuenta = null;  // lo mismo, sacado de la cuenta principal
 let transporte = null;
 
 function claveCifrado() {
@@ -35,6 +38,7 @@ function descifrar(s) {
 }
 
 function efectiva() {
+  if (cfgCuenta?.host) return cfgCuenta;
   if (cfgPanel?.host) return cfgPanel;
   if (!process.env.SMTP_HOST) return null;
   const port = Number(process.env.SMTP_PORT || 587);
@@ -49,7 +53,7 @@ const remitente = () => { const c = efectiva(); return c ? c.from || c.user || n
 function transportePara(c) {
   const nodemailer = require('nodemailer');
   return nodemailer.createTransport({
-    host: c.host, port: c.port, secure: !!c.secure,
+    host: c.host, port: c.port, secure: !!c.secure, ignoreTLS: !!c.ignoreTLS, tls: { rejectUnauthorized: !process.env.SMTP_INSEGURO },
     auth: c.user ? { user: c.user, pass: c.pass || '' } : undefined,
     connectionTimeout: 15000, greetingTimeout: 15000,
   });
@@ -64,6 +68,17 @@ function crear() {
 // Lee la configuración del panel (al arrancar y al guardarla)
 async function cargar() {
   const { query } = require('./db');
+  // la cuenta principal manda
+  cfgCuenta = null;
+  try {
+    const { rows: [b] } = await query(`SELECT * FROM buzones WHERE principal AND activo AND smtp_host IS NOT NULL LIMIT 1`);
+    if (b) {
+      let pass = '';
+      try { pass = descifrar(b.clave_smtp || b.clave); } catch { console.error('Correo: no se pudo descifrar la contraseña de la cuenta principal'); }
+      cfgCuenta = { host: b.smtp_host, port: Number(b.smtp_puerto) || 587, secure: b.smtp_seguridad === 'ssl', ignoreTLS: b.smtp_seguridad === 'ninguna',
+        user: b.smtp_usuario || b.usuario, from: b.remitente || b.direccion, pass, origen: 'cuenta', cuenta: b.nombre };
+    }
+  } catch { /* la tabla aún no existe */ }
   const { rows } = await query(`SELECT valor FROM ajustes WHERE clave = 'correo'`);
   const v = rows[0]?.valor;
   transporte = null;
@@ -83,7 +98,7 @@ async function verAjustes() {
   if (!v.host && e?.origen === 'servidor') v = { host: e.host, port: e.port, secure: e.secure, user: e.user, from: e.from, pass_cifrada: e.pass ? 'servidor' : null };
   return {
     host: v.host || '', port: v.port || 587, secure: !!v.secure, user: v.user || '', from: v.from || '',
-    tiene_clave: !!v.pass_cifrada, origen: e ? (e.origen || 'panel') : null, configurado: !!e,
+    tiene_clave: !!v.pass_cifrada, origen: e ? (e.origen || 'panel') : null, configurado: !!e, cuenta: e?.cuenta || null, desde: e ? `${e.from || e.user}` : null,
   };
 }
 
@@ -158,4 +173,4 @@ async function enviarOFallar({ para, cc, asunto, texto, adjuntos, ref }) {
 // Firma corta con la misma clave del servidor (enlaces sin sesión, p. ej. el de las ofertas)
 const firmar = (txt) => crypto.createHmac('sha256', claveCifrado()).update(String(txt)).digest('base64url').slice(0, 32);
 
-module.exports = { firmar, configurado, enviar, enviarOFallar, remitente, cargar, verAjustes, guardarAjustes, probar, cifrar, descifrar };
+module.exports = { firmar, configurado, enviar, enviarOFallar, remitente, cargar, verAjustes, guardarAjustes, probar, cifrar, descifrar, transportePara, efectiva };

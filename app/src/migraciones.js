@@ -1520,6 +1520,16 @@ const MIGRACIONES = [
   `ALTER TABLE solicitud_proveedores ADD COLUMN IF NOT EXISTS correo_id INT REFERENCES correos(id) ON DELETE SET NULL`,
   `ALTER TABLE pedidos_compra ADD COLUMN IF NOT EXISTS correo_conf_id INT REFERENCES correos(id) ON DELETE SET NULL,
      ADD COLUMN IF NOT EXISTS prov_num_confirmacion TEXT`,
+  // Cuentas de correo: la misma cuenta sirve para ENTRADA (IMAP, la lee la IA) y SALIDA (SMTP, pedidos y avisos)
+  `ALTER TABLE buzones ADD COLUMN IF NOT EXISTS entrada BOOLEAN NOT NULL DEFAULT TRUE,
+     ADD COLUMN IF NOT EXISTS smtp_host TEXT,
+     ADD COLUMN IF NOT EXISTS smtp_puerto INT NOT NULL DEFAULT 587,
+     ADD COLUMN IF NOT EXISTS smtp_seguridad TEXT NOT NULL DEFAULT 'starttls',
+     ADD COLUMN IF NOT EXISTS smtp_usuario TEXT,
+     ADD COLUMN IF NOT EXISTS clave_smtp TEXT,
+     ADD COLUMN IF NOT EXISTS remitente TEXT,
+     ADD COLUMN IF NOT EXISTS principal BOOLEAN NOT NULL DEFAULT FALSE`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS buzones_principal ON buzones (principal) WHERE principal`,
 ];
 
 async function migrar() {

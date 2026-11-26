@@ -236,75 +236,113 @@
     }
   }
 
-  /* ---------- buzones ---------- */
+  /* ---------- cuentas de correo (entrada IMAP + salida SMTP) ---------- */
   async function cargarBuzones() {
     try { est.buzones = await api('GET', '/api/buzones'); } catch { est.buzones = []; }
-    $('#co-buzon').replaceChildren(el('option', { value: '' }, 'Todos los buzones'), ...est.buzones.map((b) => el('option', { value: b.id, selected: String(b.id) === est.buzon }, b.nombre)));
-    $('#co-buzon').hidden = est.buzones.length < 2;
-    const mal = est.buzones.filter((b) => b.activo && b.estado !== 'escuchando');
-    $('#co-estado-buz').replaceChildren(...(est.buzones.length ? [mal.length
+    const lee = est.buzones.filter((b) => b.activo && b.entrada);
+    $('#co-buzon').replaceChildren(el('option', { value: '' }, 'Todos los buzones'), ...lee.map((b) => el('option', { value: b.id, selected: String(b.id) === est.buzon }, b.nombre)));
+    $('#co-buzon').hidden = lee.length < 2;
+    const mal = lee.filter((b) => b.estado !== 'escuchando');
+    $('#co-estado-buz').replaceChildren(...(lee.length ? [mal.length
       ? el('span', { class: 'rojo', title: mal.map((b) => `${b.nombre}: ${b.ultimo_error || b.estado}`).join('\n') }, `○ ${mal.map((b) => b.nombre).join(', ')} sin conexión`)
-      : el('span', { class: 'verde', title: 'Conectado: el correo nuevo se lee en cuanto llega' }, `● Escuchando ${est.buzones.filter((b) => b.activo).map((b) => b.direccion).join(', ')}`)] : []));
+      : el('span', { class: 'verde', title: 'Conectado: el correo nuevo se lee en cuanto llega' }, `● Escuchando ${lee.map((b) => b.direccion).join(', ')}`)]
+      : est.buzones.length ? [el('span', { class: 'gris' }, 'Ninguna cuenta con la entrada activada')] : []));
   }
   function abrirBuzones() {
     const d = $('#co-dlg');
     const pintar = () => d.replaceChildren(
-      el('div', { class: 'co-dlg-cab' }, el('h2', { id: 'co-dlg-tit' }, '⚙ Buzones conectados'), el('button', { type: 'button', class: 'ghost', 'aria-label': 'Cerrar', onclick: () => d.close() }, '✕')),
-      el('p', { class: 'ayuda' }, 'Planéalo se queda conectado y lee cada correo en cuanto llega. La contraseña se guarda cifrada. Lo ya tratado se mueve a la carpeta «Planéalo/…» del buzón (Ofertas, Confirmaciones de pedido, Albaranes, Facturas…), y en el servidor queda una copia ordenada igual.'),
+      el('div', { class: 'co-dlg-cab' }, el('h2', { id: 'co-dlg-tit' }, '⚙ Cuentas de correo'), el('button', { type: 'button', class: 'ghost', 'aria-label': 'Cerrar', onclick: () => d.close() }, '✕')),
+      el('p', { class: 'ayuda' }, 'Cada cuenta puede RECIBIR (Planéalo se queda conectado y la IA lee cada correo en cuanto llega) y ENVIAR (pedidos, peticiones de precio y avisos salen de la cuenta ★ principal). La contraseña se guarda cifrada y no se vuelve a mostrar. Lo ya tratado se mueve a «Planéalo/…» del buzón (Ofertas, Confirmaciones de pedido, Albaranes, Facturas…) y en el servidor queda una copia ordenada igual.'),
       ...est.buzones.map((b) => formBuzon(b, pintar)),
-      el('details', { open: !est.buzones.length }, el('summary', { class: 'co-nuevo' }, '＋ Conectar otro buzón'), formBuzon(null, pintar)));
+      el('details', { open: !est.buzones.length }, el('summary', { class: 'co-nuevo' }, '＋ Añadir otra cuenta'), formBuzon(null, pintar)));
     pintar();
     d.showModal();
   }
   function formBuzon(b, repintar) {
     const nuevo = !b;
-    const v = b || { nombre: '', direccion: '', host: 'imap.ionos.es', puerto: 993, tls: true, usuario: '', carpeta_entrada: 'INBOX', carpeta_raiz: 'Planéalo', archivar: 'auto', activo: true };
-    const resultado = el('span', { class: 'co-prueba' });
-    const f = el('form', { class: 'co-buz', autocomplete: 'off', onsubmit: async (ev) => {
+    const v = b || { nombre: '', direccion: '', host: 'imap.ionos.es', puerto: 993, tls: true, usuario: '', carpeta_entrada: 'INBOX', carpeta_raiz: 'Planéalo', archivar: 'auto', activo: true,
+      entrada: true, salida: true, smtp_host: 'smtp.ionos.es', smtp_puerto: 587, smtp_seguridad: 'starttls', smtp_usuario: '', remitente: '' };
+    const resIn = el('span', { class: 'co-prueba' }); const resOut = el('span', { class: 'co-prueba' });
+    const f = el('form', { class: `co-buz${b?.principal ? ' principal' : ''}`, autocomplete: 'off', onsubmit: async (ev) => {
       ev.preventDefault();
-      const datos = leer();
       try {
-        await api(nuevo ? 'POST' : 'PUT', nuevo ? '/api/buzones' : `/api/buzones/${b.id}`, datos);
-        toast(nuevo ? 'Buzón conectado' : 'Guardado'); f.clave.value = '';
+        await api(nuevo ? 'POST' : 'PUT', nuevo ? '/api/buzones' : `/api/buzones/${b.id}`, leer());
+        toast(nuevo ? 'Cuenta añadida' : 'Guardado'); f.clave.value = '';
         await cargarBuzones(); repintar();
       } catch (e) { toast(e.message, true); }
     } });
-    const leer = () => ({ nombre: f.nombre.value, direccion: f.direccion.value, host: f.host.value, puerto: Number(f.puerto.value), tls: f.tls.checked, usuario: f.usuario.value || f.direccion.value,
-      ...(f.clave.value ? { clave: f.clave.value } : {}), carpeta_entrada: f.carpeta_entrada.value, carpeta_raiz: f.carpeta_raiz.value, archivar: f.archivar.value, activo: f.activo.checked });
-    const estado = b ? (b.estado === 'escuchando' ? el('span', { class: 'verde' }, `● Escuchando${b.ultimo_correo ? ` · último correo ${fcorta(b.ultimo_correo)}` : ''}`)
-      : el('span', { class: 'rojo' }, `○ ${b.estado === 'sin_clave' ? 'Falta la contraseña' : b.estado === 'parado' ? 'Parado' : b.ultimo_error || 'Conectando…'}`)) : null;
+    const leer = () => ({
+      nombre: f.nombre.value, direccion: f.direccion.value, ...(f.clave.value ? { clave: f.clave.value } : {}), activo: f.activo.checked,
+      entrada: f.entrada.checked, host: f.host.value, puerto: Number(f.puerto.value), tls: f.tls.checked, usuario: f.usuario.value || f.direccion.value,
+      carpeta_entrada: f.carpeta_entrada.value, carpeta_raiz: f.carpeta_raiz.value, archivar: f.archivar.value,
+      smtp_host: f.salida.checked ? f.smtp_host.value : null, smtp_puerto: Number(f.smtp_puerto.value), smtp_seguridad: f.smtp_seguridad.value,
+      smtp_usuario: f.smtp_usuario.value || null, remitente: f.remitente.value || null,
+      ...(f.otra_clave.checked && f.clave_smtp.value ? { clave_smtp: f.clave_smtp.value } : {}), ...(!f.otra_clave.checked ? { misma_clave_smtp: true } : {}),
+      principal: f.principal.checked,
+    });
+    const probar = async (ev, ruta, res, extra = {}) => {
+      ev.target.disabled = true; res.textContent = 'Probando…'; res.className = 'co-prueba';
+      try { const r = await api('POST', ruta, { ...leer(), id: b?.id, ...extra }); res.textContent = `${r.ok ? '✔' : '✕'} ${r.msg}`; res.className = `co-prueba ${r.ok ? 'verde' : 'rojo'}`; }
+      catch (e) { res.textContent = `✕ ${e.message}`; res.className = 'co-prueba rojo'; }
+      ev.target.disabled = false;
+    };
+    const estadoIn = b ? (!b.entrada ? el('span', { class: 'gris' }, '○ Entrada desactivada') : b.estado === 'escuchando' ? el('span', { class: 'verde' }, `● Escuchando${b.ultimo_correo ? ` · último correo ${fcorta(b.ultimo_correo)}` : ''}`)
+      : el('span', { class: 'rojo' }, `○ ${b.estado === 'sin_clave' ? 'Falta la contraseña' : b.estado === 'parado' ? 'Parada' : b.ultimo_error || 'Conectando…'}`)) : null;
+    const seccion = (nombre, check, titulo, sub, ...hijos) => {
+      const cuerpo = el('div', { class: 'co-campos', hidden: !check.checked }, ...hijos);
+      check.addEventListener('change', () => { cuerpo.hidden = !check.checked; });
+      return el('fieldset', { class: 'co-sec' }, el('legend', {}, el('label', { class: 'co-chk' }, check, ` ${titulo}`), el('small', {}, sub)), cuerpo);
+    };
+    const chkIn = el('input', { name: 'entrada', type: 'checkbox', checked: v.entrada });
+    const chkOut = el('input', { name: 'salida', type: 'checkbox', checked: v.salida });
+    const otraClave = el('input', { name: 'otra_clave', type: 'checkbox', checked: !!b?.clave_smtp_propia });
+    const claveSmtp = el('label', { hidden: !b?.clave_smtp_propia }, 'Contraseña de salida', el('input', { name: 'clave_smtp', type: 'password', autocomplete: 'new-password', placeholder: b?.clave_smtp_propia ? '🔒 guardada' : '' }));
+    otraClave.addEventListener('change', () => { claveSmtp.hidden = !otraClave.checked; });
+    const seg = el('select', { name: 'smtp_seguridad' }, [['starttls', 'STARTTLS (587)'], ['ssl', 'SSL/TLS (465)'], ['ninguna', 'Sin cifrar']].map(([k, t]) => el('option', { value: k, selected: v.smtp_seguridad === k }, t)));
+    const puertoOut = el('input', { name: 'smtp_puerto', type: 'number', value: v.smtp_puerto, class: 'co-num' });
+    seg.addEventListener('change', () => { puertoOut.value = seg.value === 'ssl' ? 465 : 587; });
+    const destino = el('input', { type: 'email', placeholder: 'enviar prueba a…', 'aria-label': 'Enviar correo de prueba a', class: 'co-dest' });
     f.append(
-      b ? el('div', { class: 'co-buz-cab' }, el('b', {}, b.nombre), el('span', {}, b.direccion), estado, el('small', {}, `${b.n} correos`)) : null,
+      b ? el('div', { class: 'co-buz-cab' }, el('b', {}, b.nombre), el('span', {}, b.direccion), b.principal ? el('span', { class: 'co-chip verde', title: 'Los pedidos, peticiones de precio y avisos salen de esta cuenta' }, '★ principal para enviar') : null,
+        el('small', {}, b.entrada ? `${b.n} correos leídos` : '')) : null,
       el('div', { class: 'co-campos' },
         el('label', {}, 'Nombre', el('input', { name: 'nombre', value: v.nombre, required: true, placeholder: 'Compras' })),
         el('label', {}, 'Dirección', el('input', { name: 'direccion', type: 'email', value: v.direccion, required: true, placeholder: 'compras@…' })),
+        el('label', {}, 'Contraseña', el('input', { name: 'clave', type: 'password', autocomplete: 'new-password', placeholder: b?.clave_guardada ? '🔒 guardada' : '', required: nuevo })),
+        el('label', { class: 'co-chk' }, el('input', { name: 'activo', type: 'checkbox', checked: v.activo }), ' Activa')),
+      seccion('entrada', chkIn, '📥 Recibir (la IA lee el correo)', estadoIn,
         el('label', {}, 'Servidor IMAP', el('input', { name: 'host', value: v.host, required: true })),
         el('label', {}, 'Puerto', el('input', { name: 'puerto', type: 'number', value: v.puerto, class: 'co-num' })),
         el('label', { class: 'co-chk' }, el('input', { name: 'tls', type: 'checkbox', checked: v.tls }), ' SSL/TLS'),
         el('label', {}, 'Usuario', el('input', { name: 'usuario', value: v.usuario, placeholder: 'normalmente, la dirección' })),
-        el('label', {}, 'Contraseña', el('input', { name: 'clave', type: 'password', autocomplete: 'new-password', placeholder: b?.clave_guardada ? '🔒 guardada' : '', required: nuevo })),
         el('label', {}, 'Carpeta de entrada', el('input', { name: 'carpeta_entrada', value: v.carpeta_entrada })),
         el('label', {}, 'Archivar en', el('input', { name: 'carpeta_raiz', value: v.carpeta_raiz }), el('small', {}, '…/Ofertas, …/Facturas…')),
-        el('label', {}, 'Cuándo archivar', el('select', { name: 'archivar' },
+        el('label', { class: 'ancho2' }, 'Cuándo archivar', el('select', { name: 'archivar' },
           [['auto', 'Lo que hay que revisar, al revisarlo; lo demás, al leerlo'], ['al_revisar', 'Todo, al revisarlo aquí'], ['nunca', 'Nunca (no mover nada)']].map(([k, t]) => el('option', { value: k, selected: v.archivar === k }, t)))),
-        el('label', { class: 'co-chk' }, el('input', { name: 'activo', type: 'checkbox', checked: v.activo }), ' Activo')),
+        el('div', { class: 'co-pie ancho' }, resIn,
+          el('button', { type: 'button', class: 'ghost', onclick: (ev) => probar(ev, '/api/buzones/probar', resIn) }, '🔌 Probar recepción'),
+          b?.entrada ? el('button', { type: 'button', class: 'ghost', title: 'Leer también los correos de los últimos días (gasta IA por cada uno)', onclick: async () => {
+            const dias = prompt('¿Cuántos días hacia atrás quieres que lea? (máx. 30)', '7'); if (!dias) return;
+            try { const r = await api('POST', `/api/buzones/${b.id}/recuperar`, { dias: Number(dias) }); toast(`${r.nuevos} correo(s) nuevos para leer`); cargarLista(); } catch (e) { toast(e.message, true); }
+          } }, '⟲ Leer días anteriores') : null)),
+      seccion('salida', chkOut, '📤 Enviar (pedidos, peticiones de precio, avisos)', b?.salida ? (b.principal ? '★ es la principal' : '') : '',
+        el('label', {}, 'Servidor SMTP', el('input', { name: 'smtp_host', value: v.smtp_host || '' })),
+        el('label', {}, 'Seguridad', seg),
+        el('label', {}, 'Puerto', puertoOut),
+        el('label', {}, 'Usuario', el('input', { name: 'smtp_usuario', value: v.smtp_usuario || '', placeholder: 'el mismo de arriba' })),
+        el('label', { class: 'ancho2' }, 'Remitente (cómo lo ve el proveedor)', el('input', { name: 'remitente', value: v.remitente || '', placeholder: 'HAM Menorca <compras@…>' })),
+        el('label', { class: 'co-chk' }, otraClave, ' Otra contraseña para enviar'), claveSmtp,
+        el('label', { class: 'co-chk ancho2' }, el('input', { name: 'principal', type: 'checkbox', checked: !!b?.principal }), ' ★ Principal: de aquí salen los pedidos, peticiones de precio y avisos'),
+        el('div', { class: 'co-pie ancho' }, resOut,
+          el('button', { type: 'button', class: 'ghost', onclick: (ev) => probar(ev, '/api/buzones/probar-salida', resOut) }, '🔌 Probar envío'),
+          destino,
+          el('button', { type: 'button', class: 'ghost', onclick: (ev) => { if (!destino.value) { destino.focus(); toast('Escribe a qué correo mandar la prueba', true); return; } probar(ev, '/api/buzones/probar-salida', resOut, { para: destino.value }); } }, '✉ Enviar prueba'))),
       el('div', { class: 'co-pie' },
-        resultado,
-        el('button', { type: 'button', class: 'ghost', onclick: async (ev) => {
-          ev.target.disabled = true; resultado.textContent = 'Probando…'; resultado.className = 'co-prueba';
-          try { const r = await api('POST', '/api/buzones/probar', { ...leer(), id: b?.id }); resultado.textContent = `${r.ok ? '✔' : '✕'} ${r.msg}`; resultado.className = `co-prueba ${r.ok ? 'verde' : 'rojo'}`; }
-          catch (e) { resultado.textContent = `✕ ${e.message}`; resultado.className = 'co-prueba rojo'; }
-          ev.target.disabled = false;
-        } }, '🔌 Probar'),
-        b ? el('button', { type: 'button', class: 'ghost', title: 'Leer también los correos de los últimos días (gasta IA por cada uno)', onclick: async () => {
-          const dias = prompt('¿Cuántos días hacia atrás quieres que lea? (máx. 30)', '7'); if (!dias) return;
-          try { const r = await api('POST', `/api/buzones/${b.id}/recuperar`, { dias: Number(dias) }); toast(`${r.nuevos} correo(s) nuevos para leer`); cargarLista(); } catch (e) { toast(e.message, true); }
-        } }, '⟲ Leer días anteriores') : null,
         b ? el('button', { type: 'button', class: 'ghost borrar', onclick: async () => {
-          if (!confirm(`¿Desconectar «${b.nombre}»? ${b.n ? 'Sus correos ya leídos se conservan.' : ''}`)) return;
+          if (!confirm(`¿Quitar la cuenta «${b.nombre}»?${b.principal ? ' Es la principal: hasta que marques otra, los correos saldrán con la configuración del servidor (si la hay).' : ''}${b.n ? ' Sus correos ya leídos se conservan.' : ''}`)) return;
           try { await api('DELETE', `/api/buzones/${b.id}`); await cargarBuzones(); repintar(); } catch (e) { toast(e.message, true); }
-        } }, 'Desconectar') : null,
-        el('button', { type: 'submit', class: 'primario' }, nuevo ? 'Conectar' : 'Guardar')));
+        } }, 'Quitar cuenta') : null,
+        el('button', { type: 'submit', class: 'primario' }, nuevo ? 'Añadir cuenta' : 'Guardar')));
     return f;
   }
 
@@ -323,6 +361,7 @@
     est.vista = q.get('vista') || 'revisar';
     $('#co-buzones').hidden = !window.s360.tiene('usuarios');
     $('#co-buzones').onclick = abrirBuzones;
+    if (q.get('cuentas') && window.s360.tiene('usuarios')) setTimeout(abrirBuzones, 300);
     $('#co-buzon').onchange = (ev) => { est.buzon = ev.target.value; cargarLista(); };
     $('#co-tipo').onchange = (ev) => { est.tipo = ev.target.value; cargarLista(); };
     let t; $('#co-q').oninput = (ev) => { clearTimeout(t); t = setTimeout(() => { est.q = ev.target.value.trim(); cargarLista(); }, 300); };

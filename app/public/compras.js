@@ -609,7 +609,7 @@
     const emp = (k) => (v) => guardar({ empresa: { [k]: v } });
     $('#panel-compras').replaceChildren(el('section', { class: 'panel', style: 'max-width: 900px' },
       el('h2', {}, 'Ajustes de compras'),
-      el('p', { class: aj.correo ? 'ayuda' : 'aviso-coste' }, aj.correo ? `Correo de salida: ${aj.remitente}` : 'Correo de salida sin configurar' + (tiene('usuarios') ? ': rellénalo abajo, en «Correo de salida».' : ': pídeselo a un administrador.')),
+      el('p', { class: aj.correo ? 'ayuda' : 'aviso-coste' }, aj.correo ? `Correo de salida: ${aj.remitente}` : 'Correo de salida sin configurar' + (tiene('usuarios') ? ': configúralo en «Cuentas de correo» (abajo).' : ': pídeselo a un administrador.')),
       el('div', { class: 'cmp-campos' },
         campo('Aprobación de Dirección a partir de (€, sin IVA)', aj.limite_aprobacion, (v) => guardar({ limite_aprobacion: v }), { type: 'number', min: '0', step: '50' }),
         campo('Entregar en (por defecto)', aj.entregar_en, (v) => guardar({ entregar_en: v }), { maxlength: 300 }),
@@ -620,56 +620,16 @@
       tiene('usuarios') ? await panelCorreo() : null));
   }
 
-  // Correo de salida: servidor SMTP de la cuenta compras@. La contraseña solo se escribe; nunca se muestra.
+  // El correo de salida ya no se configura aquí: sale de la cuenta principal de «Cuentas de correo» (Correo entrante › ⚙)
   async function panelCorreo() {
-    const c = await api('GET', '/api/ajustes/correo');
-    const v = { host: c.host || 'smtp.ionos.es', port: c.port || 587, secure: !!c.secure, user: c.user || 'compras@hamenorca.com', from: c.from || (c.host ? '' : 'HAM Menorca <compras@hamenorca.com>') };
-    const inp = (k, attrs = {}) => { const i = el('input', { ...attrs, value: v[k] ?? '' }); i.addEventListener('input', () => { v[k] = attrs.type === 'number' ? Number(i.value) : i.value; }); return i; };
-    const lbl = (txt, i, ancho) => el('label', { class: `cmp-campo${ancho ? ' ancho' : ''}` }, el('span', {}, txt), i);
-    const seg = el('select', { 'aria-label': 'Seguridad' },
-      el('option', { value: 'starttls', selected: !v.secure }, 'STARTTLS (puerto 587)'),
-      el('option', { value: 'ssl', selected: v.secure }, 'SSL/TLS (puerto 465)'));
-    const puerto = inp('port', { type: 'number', min: '1', max: '65535' });
-    seg.addEventListener('change', () => { v.secure = seg.value === 'ssl'; v.port = v.secure ? 465 : 587; puerto.value = v.port; });
-    const clave = el('input', { type: 'password', autocomplete: 'new-password', placeholder: c.tiene_clave ? '•••••••• (guardada; escribe solo para cambiarla)' : 'Contraseña de la cuenta' });
-    const estadoTxt = el('p', { class: c.configurado ? 'ayuda' : 'aviso-coste' },
-      c.configurado ? (c.origen === 'servidor' ? 'Ahora se usa la configuración puesta en el servidor. Si guardas aquí, manda esta.' : `Configurado: se envía como ${c.from || c.user}.`) : 'Sin configurar: los pedidos se descargan en PDF y se envían a mano.');
-    const resultado = el('p', { class: 'ayuda', 'aria-live': 'polite' });
-    const ocupado = (b, si) => { b.disabled = si; };
-    const guardar = async (ev) => {
-      const b = ev.currentTarget; ocupado(b, true);
-      try {
-        const r = await api('PUT', '/api/ajustes/correo', { ...v, pass: clave.value || undefined });
-        clave.value = ''; clave.placeholder = r.tiene_clave ? '•••••••• (guardada; escribe solo para cambiarla)' : 'Contraseña de la cuenta';
-        toast('Correo guardado'); resultado.textContent = 'Guardado. Pulsa «Probar conexión» para comprobarlo.';
-        estado.ajustes = { ...estado.ajustes, correo: r.configurado };
-      } catch (e) { toast(e.message, true); } finally { ocupado(b, false); }
-    };
-    const probar = async (ev, para) => {
-      const b = ev.currentTarget; ocupado(b, true);
-      resultado.className = 'ayuda'; resultado.textContent = 'Probando…';
-      try {
-        await api('POST', '/api/ajustes/correo/probar', para ? { para } : {});
-        resultado.className = 'ok-correo'; resultado.textContent = para ? `✔ Conecta y se ha enviado un correo de prueba a ${para}.` : '✔ Conecta con el servidor y la contraseña es correcta.';
-      } catch (e) { resultado.className = 'aviso-coste'; resultado.textContent = `✗ ${e.message}`; } finally { ocupado(b, false); }
-    };
-    const destino = el('input', { type: 'email', placeholder: 'tu@correo.com', 'aria-label': 'Enviar prueba a' });
+    const c = await api('GET', '/api/ajustes/correo').catch(() => ({}));
     return el('section', { class: 'cmp-correo-ajustes', 'data-ayuda': 'correo-salida' },
       el('h3', {}, 'Correo de salida'),
-      el('p', { class: 'ayuda' }, 'La cuenta desde la que salen los pedidos y las peticiones de precio (IONOS: smtp.ionos.es, 587, STARTTLS). La contraseña se guarda cifrada y no se vuelve a mostrar.'),
-      estadoTxt,
-      el('div', { class: 'cmp-campos' },
-        lbl('Servidor SMTP', inp('host', { maxlength: 200, placeholder: 'smtp.ionos.es' })),
-        lbl('Seguridad', seg), lbl('Puerto', puerto),
-        lbl('Usuario (la cuenta)', inp('user', { maxlength: 200, autocomplete: 'off' })),
-        lbl('Contraseña', clave),
-        lbl('Remitente (cómo lo ve el proveedor)', inp('from', { maxlength: 300, placeholder: 'HAM Menorca <compras@hamenorca.com>' }), true)),
-      el('div', { class: 'cmp-acciones' },
-        el('button', { type: 'button', class: 'primario', onclick: guardar }, 'Guardar'),
-        el('button', { type: 'button', class: 'ghost', onclick: (ev) => probar(ev) }, 'Probar conexión'),
-        destino,
-        el('button', { type: 'button', class: 'ghost', onclick: (ev) => { if (!destino.value) { destino.focus(); return toast('Escribe a qué correo mandar la prueba', true); } probar(ev, destino.value); } }, 'Enviar correo de prueba')),
-      resultado);
+      el('p', { class: c.configurado ? 'ayuda' : 'aviso-coste' }, c.configurado
+        ? `Los pedidos y las peticiones de precio salen de ${c.desde}${c.cuenta ? ` (cuenta «${c.cuenta}»)` : c.origen === 'servidor' ? ' (configuración del servidor)' : ''}.`
+        : 'Sin configurar: los pedidos se descargan en PDF y se envían a mano.'),
+      el('p', { class: 'ayuda' }, 'Las cuentas de correo (enviar y recibir, con su contraseña cifrada) se gestionan en un solo sitio:'),
+      el('a', { class: 'boton primario', href: '/correo.html?cuentas=1' }, '⚙ Cuentas de correo'));
   }
 
   /* ================= Transportes península → Menorca ================= */

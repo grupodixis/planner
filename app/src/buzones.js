@@ -16,7 +16,8 @@ const crypto = require('crypto');
 const { ImapFlow } = require('imapflow');
 const { simpleParser } = require('mailparser');
 const { query } = require('./db');
-const { cifrar, descifrar } = require('./correo');
+const correo = require('./correo');
+const { cifrar, descifrar } = correo;
 
 const DIR = process.env.ARCHIVOS_DIR || path.join(__dirname, '..', 'datos-archivos');
 const MAX_CORREO = 30 * 1024 * 1024;
@@ -215,7 +216,7 @@ async function arrancarBuzon(id) {
   conexiones.get(id)?.parar();
   conexiones.delete(id);
   const { rows: [b] } = await query('SELECT * FROM buzones WHERE id = $1', [id]);
-  if (!b || !b.activo || !b.clave) { if (b) await query(`UPDATE buzones SET estado = $2, ultimo_error = NULL WHERE id = $1`, [id, b.activo ? 'sin_clave' : 'parado']); return; }
+  if (!b || !b.activo || !b.entrada || !b.clave) { if (b) await query(`UPDATE buzones SET estado = $2, ultimo_error = NULL WHERE id = $1`, [id, !b.activo || !b.entrada ? 'parado' : 'sin_clave']); return; }
   const cx = new Conexion(b);
   conexiones.set(id, cx);
   cx.arrancar();
@@ -223,7 +224,7 @@ async function arrancarBuzon(id) {
 
 async function arrancarTodos() {
   if (process.env.CORREO_ENTRANTE === 'no') return;
-  const { rows } = await query('SELECT id FROM buzones WHERE activo');
+  const { rows } = await query('SELECT id FROM buzones WHERE activo AND entrada');
   for (const r of rows) await arrancarBuzon(r.id).catch((e) => console.error('Buzón', r.id, e.message));
 }
 
@@ -245,6 +246,48 @@ async function archivar(correoId, { forzar = false, revisado = false } = {}) {
   }
 }
 
+async function hacerPrincipal(id) {
+  await query('UPDATE buzones SET principal = false WHERE principal AND id <> $1', [id]);
+  await query('UPDATE buzones SET principal = true WHERE id = $1', [id]);
+}
+
+// Una vez: el «Correo de salida» de Compras › Ajustes (o el del servidor, .env) pasa a ser una cuenta de correo (la principal).
+// Si ya hay una cuenta con esa dirección, se le añade la salida. La contraseña se copia cifrada; nadie tiene que volver a escribirla.
+async function migrarSalida() {
+  const { rows: [m] } = await query(`SELECT 1 FROM ajustes WHERE clave = 'migr_correo_salida'`);
+  if (m) return;
+  const { rows: [a] } = await query(`SELECT valor FROM ajustes WHERE clave = 'correo'`);
+  let v = a?.valor?.host ? a.valor : null;
+  if (!v && process.env.SMTP_HOST) {
+    v = { host: process.env.SMTP_HOST, port: Number(process.env.SMTP_PORT || 587), secure: process.env.SMTP_SECURE ? process.env.SMTP_SECURE === 'true' : Number(process.env.SMTP_PORT) === 465,
+      user: process.env.SMTP_USER || '', from: process.env.SMTP_FROM || '', pass_cifrada: process.env.SMTP_PASS ? cifrar(process.env.SMTP_PASS) : null };
+  }
+  if (v?.host) {
+    const dir = (String(v.from || '').match(/<([^>]+)>/)?.[1] || v.from || v.user || '').trim().toLowerCase();
+    const seg = v.secure ? 'ssl' : 'starttls';
+    const { rows: [b] } = await query('SELECT * FROM buzones WHERE lower(direccion) = $1 OR lower(usuario) = $2 ORDER BY id LIMIT 1', [dir, String(v.user || '').toLowerCase()]);
+    let id;
+    if (b) {
+      let misma = false;
+      try { misma = !!(b.clave && v.pass_cifrada && descifrar(b.clave) === descifrar(v.pass_cifrada)); } catch { /* no */ }
+      await query(`UPDATE buzones SET smtp_host = $2, smtp_puerto = $3, smtp_seguridad = $4, smtp_usuario = $5, remitente = $6, clave_smtp = $7,
+                          clave = COALESCE(clave, $8) WHERE id = $1`,
+        [b.id, v.host, v.port || 587, seg, v.user || null, v.from || null, misma || !v.pass_cifrada ? null : v.pass_cifrada, v.pass_cifrada]);
+      id = b.id;
+    } else if (dir) {
+      const imap = String(v.host).replace(/^smtp\./i, 'imap.');
+      const nombre = dir.split('@')[0].replace(/^./, (x) => x.toUpperCase());
+      const { rows: [n] } = await query(
+        `INSERT INTO buzones (nombre, direccion, host, puerto, tls, usuario, clave, entrada, smtp_host, smtp_puerto, smtp_seguridad, smtp_usuario, remitente)
+         VALUES ($1,$2,$3,993,true,$4,$5,false,$6,$7,$8,$4,$9) RETURNING id`,
+        [nombre, dir, imap, v.user || dir, v.pass_cifrada, v.host, v.port || 587, seg, v.from || null]);
+      id = n.id;
+    }
+    if (id) await hacerPrincipal(id);
+  }
+  await query(`INSERT INTO ajustes (clave, valor) VALUES ('migr_correo_salida', $1) ON CONFLICT (clave) DO NOTHING`, [JSON.stringify({ en: new Date().toISOString() })]);
+}
+
 /* ---------- API ---------- */
 function vistaBuzon(b) {
   const cx = conexiones.get(b.id);
@@ -252,6 +295,8 @@ function vistaBuzon(b) {
     id: b.id, nombre: b.nombre, direccion: b.direccion, host: b.host, puerto: b.puerto, tls: b.tls, usuario: b.usuario,
     clave_guardada: !!b.clave, carpeta_entrada: b.carpeta_entrada, carpeta_raiz: b.carpeta_raiz, archivar: b.archivar, tipo: b.tipo,
     activo: b.activo, estado: cx?.b.estado || b.estado, ultimo_error: b.ultimo_error, conectado_en: b.conectado_en, ultimo_correo: b.ultimo_correo,
+    entrada: b.entrada, salida: !!b.smtp_host, smtp_host: b.smtp_host, smtp_puerto: b.smtp_puerto, smtp_seguridad: b.smtp_seguridad,
+    smtp_usuario: b.smtp_usuario, clave_smtp_propia: !!b.clave_smtp, remitente: b.remitente, principal: b.principal,
   };
 }
 const texto = (v, n) => (v == null ? null : String(v).trim().slice(0, n) || null);
@@ -285,7 +330,14 @@ function montar(app, asyncH, auth) {
       carpeta_entrada: texto(b.carpeta_entrada, 200) ?? actual?.carpeta_entrada ?? 'INBOX', carpeta_raiz: texto(b.carpeta_raiz, 60) ?? actual?.carpeta_raiz ?? 'Planéalo',
       archivar: ['auto', 'al_revisar', 'nunca'].includes(b.archivar) ? b.archivar : actual?.archivar ?? 'auto',
       activo: b.activo != null ? !!b.activo : actual?.activo ?? true,
+      entrada: b.entrada != null ? !!b.entrada : actual?.entrada ?? true,
+      smtp_host: 'smtp_host' in b ? texto(b.smtp_host, 200) : actual?.smtp_host ?? null,
+      smtp_puerto: b.smtp_puerto != null ? Number(b.smtp_puerto) : actual?.smtp_puerto ?? 587,
+      smtp_seguridad: ['starttls', 'ssl', 'ninguna'].includes(b.smtp_seguridad) ? b.smtp_seguridad : actual?.smtp_seguridad ?? 'starttls',
+      smtp_usuario: 'smtp_usuario' in b ? texto(b.smtp_usuario, 200) : actual?.smtp_usuario ?? null,
+      remitente: 'remitente' in b ? texto(b.remitente, 300) : actual?.remitente ?? null,
     };
+    if (d.smtp_host && (!Number.isInteger(d.smtp_puerto) || d.smtp_puerto < 1 || d.smtp_puerto > 65535)) throw fallo(400, 'Puerto de salida no válido');
     if (!d.nombre || !d.direccion || !d.host || !d.usuario) throw fallo(400, 'Faltan datos: nombre, dirección, servidor y usuario');
     if (!/@/.test(d.direccion)) throw fallo(400, 'La dirección no es un correo');
     if (!Number.isInteger(d.puerto) || d.puerto < 1 || d.puerto > 65535) throw fallo(400, 'Puerto no válido');
@@ -296,9 +348,14 @@ function montar(app, asyncH, auth) {
     const d = await datosDe(req.body || {});
     const clave = req.body?.clave ? cifrar(String(req.body.clave)) : null;
     const { rows: [b] } = await query(
-      `INSERT INTO buzones (nombre, direccion, host, puerto, tls, usuario, clave, carpeta_entrada, carpeta_raiz, archivar, activo, creado_por)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING *`,
-      [d.nombre, d.direccion, d.host, d.puerto, d.tls, d.usuario, clave, d.carpeta_entrada, d.carpeta_raiz, d.archivar, d.activo, req.usuario.id]);
+      `INSERT INTO buzones (nombre, direccion, host, puerto, tls, usuario, clave, carpeta_entrada, carpeta_raiz, archivar, activo, creado_por,
+                            entrada, smtp_host, smtp_puerto, smtp_seguridad, smtp_usuario, clave_smtp, remitente)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19) RETURNING *`,
+      [d.nombre, d.direccion, d.host, d.puerto, d.tls, d.usuario, clave, d.carpeta_entrada, d.carpeta_raiz, d.archivar, d.activo, req.usuario.id,
+        d.entrada, d.smtp_host, d.smtp_puerto, d.smtp_seguridad, d.smtp_usuario, req.body?.clave_smtp ? cifrar(String(req.body.clave_smtp)) : null, d.remitente]);
+    if (req.body?.principal && d.smtp_host) await hacerPrincipal(b.id);
+    else if (d.smtp_host) await query(`UPDATE buzones SET principal = true WHERE id = $1 AND NOT EXISTS (SELECT 1 FROM buzones WHERE principal)`, [b.id]);
+    await correo.cargar();
     await arrancarBuzon(b.id);
     res.status(201).json(vistaBuzon(b));
   }));
@@ -309,9 +366,15 @@ function montar(app, asyncH, auth) {
     const clave = req.body?.clave ? cifrar(String(req.body.clave)) : a.clave;
     const cambiaCarpeta = d.carpeta_entrada !== a.carpeta_entrada || d.host !== a.host || d.usuario !== a.usuario;
     const { rows: [b] } = await query(
-      `UPDATE buzones SET nombre=$2, direccion=$3, host=$4, puerto=$5, tls=$6, usuario=$7, clave=$8, carpeta_entrada=$9, carpeta_raiz=$10, archivar=$11, activo=$12
+      `UPDATE buzones SET nombre=$2, direccion=$3, host=$4, puerto=$5, tls=$6, usuario=$7, clave=$8, carpeta_entrada=$9, carpeta_raiz=$10, archivar=$11, activo=$12,
+              entrada=$13, smtp_host=$14, smtp_puerto=$15, smtp_seguridad=$16, smtp_usuario=$17, clave_smtp=$18, remitente=$19
               ${cambiaCarpeta ? ', ultimo_uid = NULL, uid_validez = NULL' : ''} WHERE id = $1 RETURNING *`,
-      [a.id, d.nombre, d.direccion, d.host, d.puerto, d.tls, d.usuario, clave, d.carpeta_entrada, d.carpeta_raiz, d.archivar, d.activo]);
+      [a.id, d.nombre, d.direccion, d.host, d.puerto, d.tls, d.usuario, clave, d.carpeta_entrada, d.carpeta_raiz, d.archivar, d.activo,
+        d.entrada, d.smtp_host, d.smtp_puerto, d.smtp_seguridad, d.smtp_usuario,
+        req.body?.misma_clave_smtp ? null : req.body?.clave_smtp ? cifrar(String(req.body.clave_smtp)) : a.clave_smtp, d.remitente]);
+    if (req.body?.principal && d.smtp_host) await hacerPrincipal(b.id);
+    if (!d.smtp_host && a.principal) await query('UPDATE buzones SET principal = false WHERE id = $1', [a.id]);
+    await correo.cargar();
     await arrancarBuzon(b.id);
     res.json(vistaBuzon(b));
   }));
@@ -319,8 +382,9 @@ function montar(app, asyncH, auth) {
     const id = Number(req.params.id);
     const { rows: [n] } = await query('SELECT count(*)::int AS n FROM correos WHERE buzon_id = $1', [id]);
     conexiones.get(id)?.parar(); conexiones.delete(id);
-    if (n.n) await query(`UPDATE buzones SET activo = false, clave = NULL, estado = 'parado' WHERE id = $1`, [id]);   // conserva sus correos
+    if (n.n) await query(`UPDATE buzones SET activo = false, clave = NULL, clave_smtp = NULL, principal = false, estado = 'parado' WHERE id = $1`, [id]);   // conserva sus correos
     else await query('DELETE FROM buzones WHERE id = $1', [id]);
+    await correo.cargar();
     res.json({ ok: true, conservado: !!n.n });
   }));
   // Probar con lo escrito en el formulario (la contraseña, la escrita o la guardada)
@@ -331,6 +395,30 @@ function montar(app, asyncH, auth) {
     if (!clave) throw fallo(400, 'Falta la contraseña');
     res.json(await probar({ host: texto(b.host, 200), puerto: Number(b.puerto) || 993, tls: b.tls !== false, usuario: texto(b.usuario, 200), clave, carpeta_entrada: texto(b.carpeta_entrada, 200) }));
   }));
+  // Probar la SALIDA (SMTP) con lo escrito; con «para», manda un correo de prueba
+  app.post('/api/buzones/probar-salida', admin, asyncH(async (req, res) => {
+    const b = req.body || {};
+    let clave = b.clave_smtp || b.clave;
+    if (!clave && b.id) { const { rows: [a] } = await query('SELECT clave, clave_smtp FROM buzones WHERE id = $1', [b.id]); const c = a?.clave_smtp || a?.clave; clave = c ? descifrar(c) : null; }
+    if (!clave) throw fallo(400, 'Falta la contraseña');
+    const host = texto(b.smtp_host, 200); if (!host) throw fallo(400, 'Falta el servidor de salida');
+    const t = correo.transportePara({ host, port: Number(b.smtp_puerto) || 587, secure: b.smtp_seguridad === 'ssl', ignoreTLS: b.smtp_seguridad === 'ninguna', user: texto(b.smtp_usuario, 200) || texto(b.usuario, 200) || texto(b.direccion, 200), pass: clave });
+    const de = texto(b.remitente, 300) || texto(b.direccion, 200);
+    try {
+      await t.verify();
+      const para = texto(b.para, 200);
+      if (para) await t.sendMail({ from: de, to: para, subject: 'Prueba de correo · Planéalo', text: `Correo de prueba enviado desde Planéalo con la cuenta ${de}. Si lo recibes, la salida funciona.` });
+      res.json({ ok: true, msg: para ? `Conecta · correo de prueba enviado a ${para}` : 'Conecta: puede enviar' });
+    } catch (e) {
+      res.json({ ok: false, msg: /auth|535|credential/i.test(e.message) ? 'Usuario o contraseña incorrectos' : `No conecta: ${e.message}` });
+    }
+  }));
+  app.post('/api/buzones/:id/principal', admin, asyncH(async (req, res) => {
+    const { rows: [b] } = await query('SELECT * FROM buzones WHERE id = $1', [req.params.id]);
+    if (!b?.smtp_host) throw fallo(400, 'Esa cuenta no tiene configurada la salida');
+    await hacerPrincipal(b.id); await correo.cargar();
+    res.json({ ok: true });
+  }));
   app.post('/api/buzones/:id/recuperar', admin, asyncH(async (req, res) => {
     const cx = conexiones.get(Number(req.params.id));
     if (!cx) throw fallo(409, 'El buzón no está conectado');
@@ -339,4 +427,4 @@ function montar(app, asyncH, auth) {
   }));
 }
 
-module.exports = { montar, arrancarTodos, archivar, moverEnDisco, absoluta, CARPETAS, conexiones };
+module.exports = { montar, arrancarTodos, migrarSalida, archivar, moverEnDisco, absoluta, CARPETAS, conexiones };
