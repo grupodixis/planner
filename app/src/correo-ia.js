@@ -259,7 +259,7 @@ async function analizar(id) {
   await query(`UPDATE correos SET estado = 'analizando', error = NULL WHERE id = $1`, [id]);
   // presupuestos@: peticiones de clientes → presupuesto con IA, acuse de recibo y aviso a Comercial
   if (c.buzon_uso === 'presupuestos' && c.origen !== 'portal') {
-    try { await require('./presupuestos-correo').analizar(c, cfg); await buz.archivar(c.id); }
+    try { if (await require('./presupuestos-correo').analizar(c, cfg)) await buz.archivar(c.id); }   // solo se archiva lo que es de presupuestos
     catch (e) { console.error('presupuestos@', id, e.message); await query(`UPDATE correos SET estado = 'error', error = $2, analizado_en = now(), modelo = $3 WHERE id = $1`, [id, e.message, cfg.modelo]); }
     return;
   }

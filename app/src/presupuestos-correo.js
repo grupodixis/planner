@@ -190,13 +190,17 @@ async function analizar(c, cfg) {
     if (limpio && p?.estado === 'preparacion') await query(`UPDATE presupuestos SET prompt = COALESCE(prompt, '') || $2, cambiado = now() WHERE id = $1`, [hilo, `\n\n--- Respuesta del cliente (${new Date().toLocaleDateString('es-ES')}) ---\n${limpio.slice(0, 4000)}`]);
     notif.avisarLuego(comerciales(), 'presupuesto_correo', { titulo: `Respuesta del cliente · ${p?.codigo || ''}`, cuerpo: txt.slice(0, 180), url: `/presupuestos.html?id=${hilo}`, tag: `pre-resp-${hilo}` });
     await cerrar('hecho', 'respuesta_presupuesto', hilo, txt);
-    return;
+    return true;
   }
   // b) otra cosa: queda en Correo entrante para que alguien decida
-  if (tipo !== 'peticion' || (Number(d.confianza) || 0) < 0.5) {
-    await cerrar('clasificado', tipo === 'peticion' ? 'consulta' : 'otro', null, d.resumen || 'No parece una petición de presupuesto', tipo === 'peticion' ? ['Podría ser una petición de presupuesto, pero la IA no está segura: créalo a mano si lo es.'] : []);
-    return;
+  //    (en una cuenta general como info@ llega de todo: no se mueve de la bandeja de entrada)
+  const conf = Number(d.confianza) || 0;
+  if (tipo !== 'peticion' || conf < 0.5) {
+    await cerrar('clasificado', 'otro', null, d.resumen || 'No parece una petición de presupuesto');
+    return false;
   }
+  // entre 0,5 y 0,75: se prepara el presupuesto, pero SIN contestar al remitente hasta que Comercial lo mire
+  const dudosa = conf < 0.75;
   // c) petición nueva: cliente, presupuesto con IA, acuse de recibo y aviso
   const { cliente: cl, nuevo } = await clienteDe(c, d);
   const prompt = [`Correo de ${c.de_nombre || ''} <${c.de_email || ''}>${c.asunto ? ` · «${c.asunto}»` : ''}`, texto(d.lo_que_pide, 8000) || limpio,
@@ -209,17 +213,19 @@ async function analizar(c, cfg) {
   await evento(pid, 'peticion', `📧 Petición de ${c.de_nombre || c.de_email} recibida en presupuestos@${nuevo ? ` · cliente nuevo: ${cl.nombre}` : ` · cliente: ${cl.nombre}`}.`, c.id);
   const falta = faltan(cl); const obraFalta = !d.obra?.direccion;
   let ac = null; const alertas = [];
-  try { ac = await acuse(c, p, cl, falta, obraFalta); } catch (e) { alertas.push(`No se pudo enviar el acuse de recibo: ${e.message}`); }
+  if (dudosa) alertas.push('La IA no está segura de que sea una petición de presupuesto: no se ha contestado al remitente. Revísalo y, si no lo es, bórralo.');
+  else try { ac = await acuse(c, p, cl, falta, obraFalta); } catch (e) { alertas.push(`No se pudo enviar el acuse de recibo: ${e.message}`); }
   if (ac) await evento(pid, 'acuse', `✉ Acuse de recibo enviado a ${c.de_email}${ac.pidos.length ? `, pidiendo: ${ac.pidos.join(', ')}` : ''}.`, c.id);
-  else if (!alertas.length) alertas.push('No se envió acuse de recibo (remitente automático o propio).');
+  else if (!dudosa && !alertas.length) alertas.push('No se envió acuse de recibo (remitente automático o propio).');
   await query('UPDATE presupuestos SET datos_pedidos = $2 WHERE id = $1', [pid, JSON.stringify(ac?.pidos || [])]);
   for (const a of alertas) await evento(pid, 'aviso', a, c.id);
   notif.avisarLuego(comerciales(), 'presupuesto_correo', {
-    titulo: `Nueva petición de presupuesto · ${p.codigo}`, cuerpo: `${cl.nombre}${nuevo ? ' (cliente nuevo)' : ''} · ${texto(d.resumen, 140) || c.asunto || ''}`,
+    titulo: `${dudosa ? '¿Petición de presupuesto? ' : 'Nueva petición de presupuesto · '}${p.codigo}`, cuerpo: `${cl.nombre}${nuevo ? ' (cliente nuevo)' : ''} · ${texto(d.resumen, 140) || c.asunto || ''}`,
     url: `/presupuestos.html?id=${pid}`, tag: `pre-nuevo-${pid}` });
   await cerrar('hecho', 'peticion_presupuesto', pid, `${d.resumen || 'Petición de presupuesto'} → ${p.codigo}${ac ? ' · acuse enviado' : ''}`, alertas);
   query(`INSERT INTO ia_registro (usuario_id, canal, herramienta, riesgo, args, ok, ms, resumen) VALUES (NULL, 'correo', 'peticion_presupuesto', 'borrador', $1, TRUE, $2, $3)`,
     [JSON.stringify({ correo_id: c.id, de: c.de_email }), Date.now() - t0, `${p.codigo} · ${cl.nombre}`]).catch(() => {});
+  return true;
 }
 
 module.exports = { analizar, sinCitar, faltan };
