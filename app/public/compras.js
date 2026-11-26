@@ -417,6 +417,8 @@
         p.contacto ? el('small', { class: 'ayuda' }, `Contacto: ${p.contacto}`) : null,
         p.notas && p.portal_respondido_en ? el('small', { class: 'ayuda', style: 'white-space:pre-wrap' }, `«${p.notas}»`) : null,
         p.archivos.length ? el('div', {}, p.archivos.map((a) => el('a', { href: `/api/archivos/${a.id}`, target: '_blank', rel: 'noopener', class: 'ayuda' }, `📎 ${a.nombre || 'oferta'} `))) : null,
+        p.enviado_en || p.n_correos || p.portal_visto_en ? el('button', { type: 'button', class: `ghost mini cmp-conv${p.n_revisar ? ' pend' : ''}`, title: 'Todo lo hablado con el proveedor: lo enviado, sus respuestas por correo y lo que hizo en el portal',
+          onclick: () => conversacion(s, p) }, `💬 Conversación${p.n_correos ? ` (${p.n_correos})` : ''}${p.n_revisar ? ' · por revisar' : ''}`) : null,
         abierta ? el('div', { class: 'cmp-prov-acc' },
           el('button', { type: 'button', class: 'ghost mini', onclick: () => dialogoEnviarSol(s, p) }, p.enviado_en ? '🔔 Recordar' : '📤 Enviar'),
           el('button', { type: 'button', class: p.estado === 'enviada' ? 'primario mini' : 'ghost mini', onclick: () => dialogoOferta(s, p) }, '✎ Apuntar oferta'),
@@ -430,6 +432,9 @@
     const nElegidas = s.lineas.filter((l) => l.elegido).length;
     const inFecha = (k, txt) => { const i = el('input', { type: 'date', value: s[k] || '', disabled: !abierta }); i.addEventListener('change', () => hacer(() => api('PUT', `/api/compras/solicitudes/${s.id}`, { [k]: i.value }), 'Guardado')); return el('label', { class: 'cmp-campo' }, el('span', {}, txt), i); };
 
+    // enlace de un aviso: …&conv=<sp> abre la conversación con ese proveedor
+    const convQ = Number(new URLSearchParams(location.search).get('conv'));
+    if (convQ && !window.__convAbierta) { const pc = s.proveedores.find((x) => x.id === convQ); if (pc) { window.__convAbierta = true; setTimeout(() => conversacion(s, pc), 200); } }
     caja.replaceChildren(...[
       el('div', { class: 'cab-panel' },
         el('div', {}, el('h2', {}, `Petición ${s.codigo}`), el('p', { class: 'ayuda', style: 'margin:2px 0 0' }, `Creada por ${s.creado_por_nombre || '—'} el ${cuando(s.creado)}${s.cerrado_en ? ` · ${s.estado} el ${cuando(s.cerrado_en)}` : ''}`)),
@@ -619,6 +624,41 @@
         campo('Dirección', aj.empresa.direccion, emp('direccion'), { ancho: 'ancho' }), campo('Teléfono', aj.empresa.telefono, emp('telefono')), campo('Email', aj.empresa.email, emp('email')),
         campo('Condiciones (al pie del pedido)', aj.condiciones, (v) => guardar({ condiciones: v }), { tag: 'textarea', rows: 5, ancho: 'ancho' })),
       tiene('usuarios') ? await panelCorreo() : null));
+  }
+
+  // Conversación con el proveedor de una petición (lo enviado, sus correos y el portal), para supervisar
+  async function conversacion(s, p) {
+    let d;
+    try { d = await api('GET', `/api/compras/solicitudes/${s.id}/proveedores/${p.id}/conversacion`); } catch (e) { toast(e.message, true); return; }
+    const fecha = (t) => new Date(t).toLocaleString('es-ES', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+    const ESTADO = { revisar: '⏳ por revisar', sin_asignar: '⏳ sin asignar', hecho: '✔ revisada', descartado: '✕ descartada', clasificado: '✔ leído', error: '⚠ error de lectura', nuevo: '⏳ sin leer', analizando: '🤖 leyendo…' };
+    const TIPO = { oferta: 'Oferta', confirmacion_pedido: 'Confirmación', consulta: 'Pregunta', albaran: 'Albarán', factura: 'Factura', publicidad: 'Publicidad', otro: 'Otro', pedido_cliente: 'Pedido' };
+    const textoLargo = (t) => { if (!t) return null; const pre = el('pre', { class: 'conv-txt' }, t.length > 1500 ? `${t.slice(0, 1500)}…` : t); return t.length > 400 ? el('details', {}, el('summary', {}, 'Ver el texto'), pre) : pre; };
+    const burbuja = (e) => {
+      if (e.clase === 'portal') return el('div', { class: 'conv-sis' }, `${fecha(e.fecha)} · ${e.texto}`, e.archivo_id ? el('a', { href: `/api/archivos/${e.archivo_id}`, target: '_blank', rel: 'noopener' }, ' ver') : null);
+      if (e.clase === 'enviado') return el('div', { class: 'conv-m nos' },
+        el('div', { class: 'conv-cab' }, el('b', {}, 'Nosotros'), ` → ${e.para || p.proveedor} · ${fecha(e.fecha)}`),
+        el('div', { class: 'conv-asunto' }, e.asunto || ''),
+        e.antiguo ? el('small', { class: 'ayuda' }, '(enviado antes de guardar el texto de los correos)') : textoLargo(e.texto),
+        (e.adjuntos || []).length ? el('div', { class: 'conv-adj' }, e.adjuntos.map((a) => el('span', {}, `📎 ${a}`))) : null);
+      return el('div', { class: `conv-m ellos${['revisar', 'sin_asignar', 'error'].includes(e.estado) ? ' pend' : ''}` },
+        el('div', { class: 'conv-cab' }, el('b', {}, e.clase === 'portal_pdf' ? `🌐 ${p.proveedor} (portal)` : `${e.de_nombre || p.proveedor}`), ` ${e.de_email ? `<${e.de_email}>` : ''} · ${fecha(e.fecha)}`),
+        el('div', { class: 'conv-asunto' }, e.asunto || ''),
+        e.resumen ? el('div', { class: 'conv-ia' }, `🤖 ${TIPO[e.tipo] || ''}: ${e.resumen}`, el('span', { class: 'conv-est' }, ` · ${ESTADO[e.estado] || e.estado}`)) : el('div', { class: 'conv-ia' }, ESTADO[e.estado] || e.estado),
+        e.resultado ? el('small', { class: 'ayuda' }, e.resultado) : null,
+        e.clase === 'portal_pdf' ? null : textoLargo(e.texto),
+        (e.adjuntos || []).length ? el('div', { class: 'conv-adj' }, e.adjuntos.map((a) => el('a', { href: `/api/correo/adjuntos/${a.id}`, target: '_blank', rel: 'noopener' }, `📎 ${a.nombre}`))) : null,
+        el('a', { href: `/correo.html?vista=todos&id=${e.id}`, class: 'conv-abrir' }, ['revisar', 'sin_asignar', 'error'].includes(e.estado) ? '→ Revisar en Correo entrante' : '→ Abrir en Correo entrante'));
+    };
+    const dlg = el('dialog', { class: 'conv-dlg', 'aria-labelledby': 'conv-tit' },
+      el('div', { class: 'conv-top' }, el('h2', { id: 'conv-tit' }, `💬 ${d.proveedor} · ${d.codigo}`), el('button', { type: 'button', class: 'ghost', 'aria-label': 'Cerrar', onclick: () => dlg.close() }, '✕')),
+      el('p', { class: 'ayuda' }, `${d.email || 'sin email en su ficha'} · lo que le hemos enviado, lo que ha respondido por correo y lo que ha hecho en su enlace del portal.`),
+      el('div', { class: 'conv-lista' }, d.eventos.length ? d.eventos.map(burbuja) : el('p', { class: 'ayuda' }, 'Todavía no hay nada.')),
+      d.email ? el('div', { class: 'conv-pie' }, el('a', { class: 'boton ghost', href: `mailto:${d.email}?subject=${encodeURIComponent(`RE: [${d.codigo}] Petición de oferta`)}` }, '✉ Escribirle desde mi correo')) : null);
+    dlg.addEventListener('close', () => dlg.remove());
+    document.body.append(dlg);
+    dlg.showModal();
+    dlg.querySelector('.conv-lista').scrollTop = 1e6;
   }
 
   // El correo de salida ya no se configura aquí: sale de la cuenta principal de «Cuentas de correo» (Correo entrante › ⚙)

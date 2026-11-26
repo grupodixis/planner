@@ -235,7 +235,13 @@ async function aplicarLectura(c, asoc, d, modelo) {
     const lista = porCodigo.length ? porCodigo : asoc.pedidos;
     if (lista.length === 1) ped = lista[0];
   }
-  const extr = await normalizar(tipo, d, sp, ped, alertas);
+  // aunque no sea una oferta (una pregunta, un «lo miramos»…), si está claro de qué petición o pedido es, queda ligado (conversación)
+  if (!sp && tipo !== 'oferta' && ['respuesta', 'codigo', 'portal'].includes(asoc.por)) {
+    const ss = asoc.sps.filter((s) => !asoc.proveedor_id || s.proveedor_id === asoc.proveedor_id);
+    if (ss.length === 1) sp = ss[0];
+  }
+  if (!ped && tipo !== 'confirmacion_pedido' && ['respuesta', 'codigo'].includes(asoc.por) && asoc.pedidos.length === 1) ped = asoc.pedidos[0];
+  const extr = await normalizar(tipo, ['oferta', 'confirmacion_pedido'].includes(tipo) ? d : {}, tipo === 'oferta' ? sp : null, tipo === 'confirmacion_pedido' ? ped : null, alertas);
   // remitente distinto del proveedor de lo asociado
   const provAsoc = sp?.proveedor_id || ped?.proveedor_id;
   if (provAsoc && c.de_email && c.origen !== 'portal') {
@@ -252,6 +258,12 @@ async function aplicarLectura(c, asoc, d, modelo) {
       provAsoc || asoc.proveedor_id || null, sp?.sp_id || null, ped?.pedido_id || null, (sp || ped) ? (asoc.por || 'ia') : null, modelo]);
   await buz.moverEnDisco(c.id, tipo);
   await buz.archivar(c.id);
+  if (!accionable && sp && tipo === 'consulta') {
+    notif.avisarLuego(notif.conPermiso('compras'), 'correo_revisar', {
+      titulo: `💬 ${c.de_nombre || c.de_email} pregunta sobre ${sp.codigo}`, cuerpo: texto(d.resumen, 200) || 'Ha escrito sobre la petición.',
+      url: `/compras.html?vista=precios&sol=${sp.sol_id}&conv=${sp.sp_id}`, tag: `correo-${c.id}`,
+    });
+  }
   if (accionable) {
     const que = c.origen === 'portal' ? `🌐 PDF en el portal${sp ? ` para ${sp.codigo}` : ''}` : tipo === 'oferta' ? `Oferta${sp ? ` para ${sp.codigo}` : ''}` : `Confirmación${ped ? ` del pedido ${ped.codigo}` : ' de pedido'}`;
     notif.avisarLuego(notif.conPermiso('compras'), 'correo_revisar', {
@@ -555,6 +567,31 @@ function montar(app, asyncH, auth) {
     const { rows: [x] } = await query('SELECT archivo_error FROM correos WHERE id = $1', [c.id]);
     if (x.archivo_error) throw fallo(409, `No se pudo mover en el buzón: ${x.archivo_error}`);
   }));
+  // Conversación con un proveedor de una petición: lo enviado, lo recibido (correo y portal) y lo que hizo en el portal
+  app.get('/api/compras/solicitudes/:id/proveedores/:sp/conversacion', ver, asyncH(async (req, res) => {
+    const { rows: [sp] } = await query(`SELECT sp.*, s.codigo, s.id AS sol_id, s.creado AS sol_creado, p.nombre AS proveedor, p.email FROM solicitud_proveedores sp
+      JOIN solicitudes_precio s ON s.id = sp.solicitud_id JOIN proveedores p ON p.id = sp.proveedor_id WHERE sp.id = $1 AND s.id = $2`, [req.params.sp, req.params.id]);
+    if (!sp) throw fallo(404, 'No encontrado');
+    const ev = [];
+    const { rows: env } = await query(`SELECT * FROM correo_enviados WHERE tipo = 'solicitud' AND ref_id = $1 ORDER BY enviado`, [sp.id]);
+    for (const e of env) ev.push({ clase: 'enviado', fecha: e.enviado, para: e.para, asunto: e.asunto, texto: e.texto, adjuntos: e.adjuntos || [] });
+    // envíos de antes de guardar el texto
+    if (sp.enviado_en && !env.length) ev.push({ clase: 'enviado', fecha: sp.enviado_en, para: sp.enviado_a, asunto: sp.enviado_correo ? `Petición ${sp.codigo}` : `Petición ${sp.codigo} (enviada a mano)`, texto: null, antiguo: true });
+    if (sp.recordado_en && !env.some((e) => +new Date(e.enviado) === +new Date(sp.recordado_en))) ev.push({ clase: 'enviado', fecha: sp.recordado_en, asunto: 'Recordatorio', texto: null, antiguo: true });
+    const ids = env.map((e) => e.message_id);
+    const { rows: rec } = await query(`SELECT c.id, c.origen, c.fecha, c.de_email, c.de_nombre, c.asunto, c.texto, c.estado, c.tipo, c.resumen, c.alertas, c.resultado,
+        (SELECT json_agg(json_build_object('id', a.id, 'nombre', a.nombre, 'tipo', a.tipo) ORDER BY a.id) FROM correo_adjuntos a WHERE a.correo_id = c.id) AS adjuntos
+      FROM correos c WHERE c.sp_id = $1 OR c.en_respuesta_a = ANY($2) OR c.referencias && $2::text[]
+         OR (c.proveedor_id = $3 AND c.asunto ILIKE '%' || $4 || '%') ORDER BY c.fecha`, [sp.id, ids, sp.proveedor_id, sp.codigo]);
+    for (const c of rec) ev.push({ ...c, clase: c.origen === 'portal' ? 'portal_pdf' : 'recibido', texto: (c.texto || '').slice(0, 20000) });
+    if (sp.portal_visto_en) ev.push({ clase: 'portal', fecha: sp.portal_visto_en, texto: '👁 Abrió su enlace de la petición' });
+    if (sp.portal_respondido_en) ev.push({ clase: 'portal', fecha: sp.portal_respondido_en, texto: `🌐 ${sp.estado === 'no_oferta' ? 'Respondió en el portal que no puede ofertar' : 'Puso sus precios en el formulario del portal'}` });
+    const { rows: arch } = await query(`SELECT id, nombre, creado FROM archivos WHERE ref_tipo = 'oferta' AND ref_id = $1 AND creado_por IS NULL ORDER BY id`, [sp.id]);
+    for (const a of arch) ev.push({ clase: 'portal', fecha: a.creado, texto: `📎 Subió «${a.nombre || 'archivo'}» al portal`, archivo_id: a.id });
+    ev.sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
+    res.json({ proveedor: sp.proveedor, email: sp.email, codigo: sp.codigo, estado: sp.estado, eventos: ev });
+  }));
+
   // buscar peticiones o pedidos para asignar a mano
   app.get('/api/correo/buscar-destino', ver, asyncH(async (req, res) => {
     const q = `%${String(req.query.q || '').trim()}%`;

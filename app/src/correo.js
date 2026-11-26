@@ -164,8 +164,9 @@ async function enviarOFallar({ para, cc, asunto, texto, adjuntos, ref }) {
     throw Object.assign(new Error(`No se pudo enviar el correo: ${e.message}`), { status: 502 });
   }
   if (ref && info?.messageId) {
-    require('./db').query(`INSERT INTO correo_enviados (message_id, tipo, ref_id, proveedor_id) VALUES ($1,$2,$3,$4) ON CONFLICT DO NOTHING`,
-      [info.messageId, ref.tipo, ref.id, ref.proveedor_id || null]).catch((e) => console.error('correo_enviados:', e.message));
+    require('./db').query(`INSERT INTO correo_enviados (message_id, tipo, ref_id, proveedor_id, para, asunto, texto, adjuntos) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) ON CONFLICT DO NOTHING`,
+      [info.messageId, ref.tipo, ref.id, ref.proveedor_id || null, [para, cc].filter(Boolean).join(', ').slice(0, 500), String(asunto || '').slice(0, 500),
+        String(texto || '').slice(0, 20000), JSON.stringify((adjuntos || []).map((a) => a.nombre))]).catch((e) => console.error('correo_enviados:', e.message));
   }
   return info;
 }

@@ -1534,6 +1534,11 @@ const MIGRACIONES = [
   `ALTER TABLE correos ALTER COLUMN buzon_id DROP NOT NULL`,
   `ALTER TABLE correos ADD COLUMN IF NOT EXISTS origen TEXT NOT NULL DEFAULT 'correo'`,
   `ALTER TABLE solicitud_proveedores ADD COLUMN IF NOT EXISTS portal_pdf_en TIMESTAMPTZ`,
+  // Conversación con el proveedor: de lo que enviamos se guarda también el texto (antes solo el Message-ID)
+  `ALTER TABLE correo_enviados ADD COLUMN IF NOT EXISTS para TEXT, ADD COLUMN IF NOT EXISTS asunto TEXT,
+     ADD COLUMN IF NOT EXISTS texto TEXT, ADD COLUMN IF NOT EXISTS adjuntos JSONB`,
+  `CREATE INDEX IF NOT EXISTS correo_enviados_ref ON correo_enviados (tipo, ref_id)`,
+  `CREATE INDEX IF NOT EXISTS correos_sp ON correos (sp_id)`,
 ];
 
 async function migrar() {
