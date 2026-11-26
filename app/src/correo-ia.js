@@ -121,6 +121,8 @@ Reglas:
 - Si los precios llevan IVA, pon "iva_incluido_en_precios": true y devuelve el precio SIN IVA (÷1,21) con una alerta.
 - Descuentos: aplica el descuento de la línea al precio unitario.
 - Fechas en AAAA-MM-DD. «Plazo 10 días» o «semana 50»: calcula la fecha desde la fecha del correo y pon el texto original en "plazo_texto".
+- MUY HABITUAL: el proveedor responde con NUESTRA PROPIA petición en PDF (SOL-…) con sus precios escritos encima (a mano, con un editor de PDF, en campos del formulario). Eso ES una oferta: lee los números añadidos. Te paso también lo escrito encima («texto_escrito_encima_de_los_pdf») y las páginas dibujadas con lo añadido. No lo clasifiques como «otro» ni como reenvío.
+- Una respuesta a nuestra petición de precio con un adjunto es casi siempre una oferta. Solo es «otro» si de verdad no aporta precios, plazos ni condiciones (y entonces dilo en el resumen).
 - Si hay dudas (no cuadra el total, unidades distintas, faltan líneas, remitente raro), dilo en "alertas".`;
 }
 
@@ -163,6 +165,29 @@ async function llamarIA(cfg, sis, contenido, archivos) {
   try { return { datos: JSON.parse(t), aviso: aviso.texto, uso: r.uso }; } catch { throw fallo(502, 'La IA devolvió un JSON no válido'); }
 }
 
+// Adjuntos para la IA: PDF y fotos (máx. 4 / 15 MB). Si un PDF tiene cosas escritas encima, además sus páginas dibujadas.
+async function adjuntosIA(correoId) {
+  const { rows: adj } = await query('SELECT * FROM correo_adjuntos WHERE correo_id = $1 ORDER BY id', [correoId]);
+  const archivos = []; let bytes = 0; const otros = []; const encima = [];
+  for (const a of adj) {
+    if (LEIBLES.includes(a.tipo) && archivos.length < MAX_ADJ_IA && bytes + a.bytes <= MAX_BYTES_IA) {
+      let datos; try { datos = fs.readFileSync(buz.absoluta(a.ruta)); } catch { otros.push(`${a.nombre} (no está)`); continue; }
+      archivos.push({ tipo: a.tipo, nombre: a.nombre, datos }); bytes += a.bytes;
+      if (a.tipo === 'application/pdf') {
+        const r = await require('./pdf-leer').prepararPDF(datos);
+        for (const x of r.anadido) encima.push({ archivo: a.nombre, ...x });
+        for (const [i, png] of r.imagenes.entries()) {
+          if (bytes + png.length > MAX_BYTES_IA + 5e6) break;
+          archivos.push({ tipo: 'image/png', nombre: `${a.nombre} · página ${i + 1} (con lo escrito encima)`, datos: png }); bytes += png.length;
+        }
+      }
+      continue;
+    }
+    otros.push(`${a.nombre} (${a.tipo}, no leído)`);
+  }
+  return { archivos, otros, encima };
+}
+
 async function analizar(id) {
   const { rows: [c] } = await query('SELECT c.*, b.direccion AS buzon FROM correos c LEFT JOIN buzones b ON b.id = c.buzon_id WHERE c.id = $1', [id]);
   if (!c) return;
@@ -181,24 +206,19 @@ async function analizar(id) {
     for (const sol of [...new Map(asoc.sps.map((s) => [s.sol_id, s])).values()]) peticiones.push({ codigo: sol.codigo, estado: sol.sol_estado, proveedores: asoc.sps.filter((s) => s.sol_id === sol.sol_id).map((s) => s.proveedor), lineas: await lineasSolicitud(sol.sol_id) });
     const pedidos = [];
     for (const p of asoc.pedidos) pedidos.push({ codigo: p.codigo, proveedor: p.proveedor, fecha_entrega_pedida: p.fecha_entrega, lineas: (await lineasPedido(p.pedido_id)).map(({ precio, ...l }) => l) });
-    const { rows: adj } = await query('SELECT * FROM correo_adjuntos WHERE correo_id = $1 ORDER BY id', [id]);
-    const archivos = []; let bytes = 0; const otros = [];
-    for (const a of adj) {
-      if (LEIBLES.includes(a.tipo) && archivos.length < MAX_ADJ_IA && bytes + a.bytes <= MAX_BYTES_IA) {
-        try { archivos.push({ tipo: a.tipo, nombre: a.nombre, datos: fs.readFileSync(buz.absoluta(a.ruta)) }); bytes += a.bytes; continue; } catch { /* no está */ }
-      }
-      otros.push(`${a.nombre} (${a.tipo}, no leído)`);
-    }
+    const { archivos, otros, encima } = await adjuntosIA(id);
     const contenido = JSON.stringify({
       hoy: new Date().toISOString().slice(0, 10),
       correo: { de: `${c.de_nombre || ''} <${c.de_email || ''}>`, para: c.para, asunto: c.asunto, fecha: c.fecha, adjuntos_no_leidos: otros },
       proveedor_identificado: asoc.proveedor_id ? (await query('SELECT nombre FROM proveedores WHERE id = $1', [asoc.proveedor_id])).rows[0]?.nombre : null,
       nuestras_peticiones_de_precio: peticiones, nuestros_pedidos: pedidos,
+      texto_escrito_encima_de_los_pdf: encima.length ? encima : undefined,
       texto_del_correo: (c.texto || '').slice(0, 12000),
     });
     const r = await llamarIA(cfg, instrucciones(), contenido, archivos);
     datos = r.datos; modelo = r.aviso ? r.aviso.match(/con (\S+):/)?.[1] || modelo : modelo;
     if (otros.length) datos.alertas = [...(datos.alertas || []), `Adjuntos que la IA no ha leído: ${otros.join(', ')}`];
+    if (encima.length) datos.alertas = [...(datos.alertas || []), `El PDF tiene texto escrito encima (${encima.length} anotación/es o campo/s): compruébalo con el original.`];
     if (r.aviso) datos.alertas = [...(datos.alertas || []), r.aviso];
   } catch (e) {
     error = e.message;
@@ -407,7 +427,7 @@ async function confirmarOferta(c, b, usuario) {
         await q.query(`INSERT INTO archivos (tipo, bytes, nombre, datos, ref_tipo, ref_id, creado_por) VALUES ($1,$2,$3,$4,'oferta',$5,$6)`, [a.tipo, datos.length, a.nombre, datos, sp.id, usuario.id]);
       }
     }
-    await q.query(`UPDATE correos SET estado = 'hecho', sp_id = $2, resultado = $3, revisado_por = $4, revisado_en = now() WHERE id = $1`,
+    await q.query(`UPDATE correos SET estado = 'hecho', tipo = 'oferta', sp_id = $2, resultado = $3, revisado_por = $4, revisado_en = now() WHERE id = $1`,
       [c.id, sp.id, `${noOferta ? 'No oferta' : 'Oferta añadida'} a ${sp.codigo} (${sp.proveedor})`, usuario.id]);
   });
   await buz.archivar(c.id, { revisado: true });
@@ -613,10 +633,10 @@ async function reLeer(c, asoc) {
       const peticiones = []; const pedidos = [];
       for (const s of asoc.sps) peticiones.push({ codigo: s.codigo, lineas: await lineasSolicitud(s.sol_id) });
       for (const p of asoc.pedidos) pedidos.push({ codigo: p.codigo, fecha_entrega_pedida: p.fecha_entrega, lineas: (await lineasPedido(p.pedido_id)).map(({ precio, ...l }) => l) });
-      const { rows: adj } = await query('SELECT * FROM correo_adjuntos WHERE correo_id = $1 ORDER BY id', [c.id]);
-      const archivos = adj.filter((a) => LEIBLES.includes(a.tipo)).slice(0, MAX_ADJ_IA).map((a) => { try { return { tipo: a.tipo, nombre: a.nombre, datos: fs.readFileSync(buz.absoluta(a.ruta)) }; } catch { return null; } }).filter(Boolean);
+      const { archivos, encima } = await adjuntosIA(c.id);
       const contenido = JSON.stringify({ hoy: new Date().toISOString().slice(0, 10), correo: { de: `${c.de_nombre || ''} <${c.de_email || ''}>`, asunto: c.asunto, fecha: c.fecha },
-        aviso: 'Una persona ha indicado de qué petición o pedido es este correo.', nuestras_peticiones_de_precio: peticiones, nuestros_pedidos: pedidos, texto_del_correo: (c.texto || '').slice(0, 12000) });
+        aviso: 'Una persona ha indicado de qué petición o pedido es este correo.', nuestras_peticiones_de_precio: peticiones, nuestros_pedidos: pedidos,
+        texto_escrito_encima_de_los_pdf: encima.length ? encima : undefined, texto_del_correo: (c.texto || '').slice(0, 12000) });
       const r = await llamarIA(cfg, instrucciones(), contenido, archivos);
       r.datos.tipo = c.tipo;
       await aplicarLectura(c, asoc, r.datos, cfg.modelo);

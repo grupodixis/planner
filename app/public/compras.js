@@ -497,8 +497,9 @@
         co.adjuntos.filter((a) => a !== pdf).map((a) => el('a', { href: `/api/correo/adjuntos/${a.id}`, target: '_blank', rel: 'noopener', class: 'ayuda' }, `📎 ${a.nombre} `)));
     })() : null;
     const d = el('dialog', { class: `dlg-cos dlg-oferta${co ? ' con-original' : ''}` },
-      el('h2', {}, co ? `🤖 Oferta de ${p.proveedor} · leída por la IA` : `Oferta de ${p.proveedor}`),
-      co ? el('div', { class: 'cmp-ia-caja' }, el('b', {}, '🤖 '), co.resumen || 'La IA ha leído su respuesta.', (co.alertas || []).length ? el('ul', {}, co.alertas.map((a) => el('li', {}, `⚠ ${a}`))) : null,
+      el('h2', {}, co && o ? `🤖 Oferta de ${p.proveedor} · leída por la IA` : `Oferta de ${p.proveedor}`),
+      co && !o ? el('p', { class: 'ayuda' }, 'Apunta los precios mirando su correo o su PDF (a la derecha). Al confirmar, entra en el comparativo y el correo queda resuelto.') : null,
+      co && o ? el('div', { class: 'cmp-ia-caja' }, el('b', {}, '🤖 '), co.resumen || 'La IA ha leído su respuesta.', (co.alertas || []).length ? el('ul', {}, co.alertas.map((a) => el('li', {}, `⚠ ${a}`))) : null,
         el('div', { class: 'ayuda' }, 'Comprueba con el original (a la derecha) y corrige lo que haga falta. Hasta que confirmes, no entra en el comparativo.')) : null,
       el('p', { class: 'ayuda' }, 'Precio unitario de cada línea (sin IVA). Deja vacío lo que no oferta.'),
       el('table', { class: 'tabla-inf' }, el('tbody', {}, s.lineas.map((l) => {
@@ -516,7 +517,7 @@
         el('label', { class: 'cmp-campo ancho' }, el('span', {}, 'Notas'), notas)),
       el('label', { class: 'boton ghost mini' }, '📎 Adjuntar su oferta (PDF o foto)', file, nombre),
       el('div', { class: 'acciones' },
-        co ? el('button', { type: 'button', class: 'ghost', title: 'La lectura de la IA no vale: se descarta (el correo queda en Correo entrante como descartado)', onclick: async () => {
+        co && o ? el('button', { type: 'button', class: 'ghost', title: 'La lectura de la IA no vale: se descarta (el correo queda en Correo entrante como descartado)', onclick: async () => {
           if (!confirm('¿Descartar lo que ha leído la IA? No se apunta nada.')) return;
           try { await api('POST', `/api/correo/${co.id}/descartar`, { motivo: 'Descartado al revisar la petición' }); d.close(); toast('Descartado'); pintar(); } catch (e) { toast(e.message, true); }
         } }, 'Descartar lectura') : null,
@@ -696,7 +697,8 @@
         e.resultado ? el('small', { class: 'ayuda' }, e.resultado) : null,
         e.clase === 'portal_pdf' ? null : textoLargo(e.texto),
         (e.adjuntos || []).length ? el('div', { class: 'conv-adj' }, e.adjuntos.map((a) => el('a', { href: `/api/correo/adjuntos/${a.id}`, target: '_blank', rel: 'noopener' }, `📎 ${a.nombre}`))) : null,
-        e.tipo === 'oferta' && e.estado === 'revisar' && s.estado === 'abierta' ? el('button', { type: 'button', class: 'primario mini', onclick: () => { dlg.close(); dialogoOferta(s, p, e.id); } }, '🤖 Revisar y confirmar aquí') : null,
+        e.tipo === 'oferta' && e.estado === 'revisar' && s.estado === 'abierta' ? el('button', { type: 'button', class: 'primario mini', onclick: () => { dlg.close(); dialogoOferta(s, p, e.id); } }, '🤖 Revisar y confirmar aquí')
+          : !['hecho', 'descartado'].includes(e.estado) && s.estado === 'abierta' ? el('button', { type: 'button', class: 'ghost mini', title: 'Si en realidad es su oferta: abre el cuadro de la oferta con este correo (o su PDF) al lado', onclick: () => { dlg.close(); dialogoOferta(s, p, e.id); } }, '✎ Apuntar oferta con esto al lado') : null,
         el('a', { href: `/correo.html?vista=todos&id=${e.id}`, class: 'conv-abrir' }, '→ Abrir en Correo entrante'));
     };
     const dlg = el('dialog', { class: 'conv-dlg', 'aria-labelledby': 'conv-tit' },
