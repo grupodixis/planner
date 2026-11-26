@@ -1428,6 +1428,58 @@ Endpoints: `GET /api/ia`, `PUT /api/ia/ajustes`, `POST /api/ia/probar/:nombre`, 
 - **Aprendizaje por proveedor**: al confirmar una oferta leída por la IA, lo corregido (precios, portes, entrega, referencia) va a `ia_correcciones`; de ahí `proveedores.notas_ia_auto` (≥ 2 veces: precios con IVA, unidad N veces mayor/menor). Notas escritas por Compras en `proveedores.notas_ia`. La IA devuelve también cómo llama el proveedor a cada línea (`su_texto` → `proveedor_alias`). Todo esto («memoria_de_este_proveedor»: notas, últimas 8 correcciones y equivalencias) se le pasa a la IA cada vez que lee a ese proveedor, con prioridad sobre su interpretación. En la ficha del proveedor: «🤖 Lo que la IA sabe». `GET·PUT /api/proveedores/:id/ia`.
 - **Para Presupuestos**: `GET /api/precios/estimado?catalogo_id=` (precio sugerido y aviso si está viejo o no hay); `solicitudes_precio.motivo` (`compra` | `presupuesto`) y `solicitud_lineas.catalogo_id` para pedir precio de materiales del catálogo sin escandallo.
 
+## Presupuestos (menú Presupuestos, fase 1)
+
+`src/presupuestos.js`, `public/presupuestos.html` + `presupuestos-pantalla.js`. Permiso `costes`. Diseño completo y fases siguientes en el documento de diseño (`claude/diseno-presupuestos.md`).
+
+**Datos**
+- `presupuestos` (`PRE-AAAA-NNNN`): título, cliente y obra (fichas), estado (preparacion → enviado → aceptado / rechazado; anulado), `gg_pct` 12 y `bi_pct` 16, validez, condiciones.
+- `presupuesto_capitulos` y `presupuesto_partidas`: código, nombre interno, **descripción comercial**, unidad y medición.
+- `presupuesto_lineas`:
+  - tipo: material, mano_obra, maquinaria, auxiliar o subcontrata;
+  - concepto, `catalogo_id` o `tarifa_id`, unidad;
+  - **`por_ud`**: cantidad por unidad de partida;
+  - `calculo`: `kg_perfiles` o `m2_perfiles`;
+  - `precio` (coste €/unidad) y `estado_precio`: real, tarifa, estimado o solicitado;
+  - `fuente`: lista, tarifa, manual u oferta;
+  - `precio_info` y `sol_linea_id`.
+
+**Precios**
+- Material: `precios.habitual` convertido a la unidad de la línea (`unidades.precioEn`). Es «real» si tiene 3 meses o menos; si no, «estimado» con aviso.
+- Mano de obra y maquinaria: coste efectivo de la tarifa.
+- Escrito a mano: «estimado».
+- `calculo`:
+  - `kg_perfiles` = Σ kg por unidad de partida de los materiales con equivalencias (`convertirCantidad` a kg);
+  - `m2_perfiles` = Σ ml × `pint_m2_ml`.
+- «⟳ Actualizar precios» vuelve a leer la lista y la tarifa, sin tocar lo manual ni lo pedido.
+
+**Cálculo**
+- Coste de la partida por unidad = Σ cantidad × precio. Coste = × medición.
+- Venta por unidad = coste por unidad × (1 + GG % + beneficio %), redondeada al céntimo. Venta = venta por unidad × medición.
+- Se calculan también el % del coste con precio real o de tarifa y los pendientes (estimados, solicitados y precios nuevos).
+
+**Pedir precio** (`POST /api/presupuestos/:id/pedir-precio {linea_ids, proveedor_ids, responder_antes, notas}`)
+- Crea una petición de precio en Compras con `motivo = 'presupuesto'` y `presupuesto_id`. Una línea por material y unidad, con la cantidad total y `catalogo_id`.
+- Las líneas del presupuesto pasan a «solicitado».
+- En Compras sale «📐 para presupuestar · PRE-…». En lugar de «Crear pedidos» hay un enlace al presupuesto, y la API lo rechaza.
+- Las ofertas confirmadas (`solicitud_precios`) aparecen en la línea como `nuevo` (la más barata) → `POST /api/presupuesto-lineas/:id/aplicar {sp_id}` o `POST /api/presupuestos/:id/aplicar-todos`. La línea pasa a «real», con fuente oferta.
+- Si la petición se cierra sin ofertas, la línea vuelve a contar como estimada.
+
+**PDF** (`GET /api/presupuestos/:id/pdf[?detallado=1]`)
+- Lleva la empresa (Compras › Ajustes), el cliente, la obra, y las partidas con su descripción comercial, medición, precio de venta e importe.
+- Incluye totales por capítulo, base, IVA 21 %, total y condiciones.
+- El detallado añade, bajo cada partida, la descomposición por unidad a **precio de venta** (coste × k), sin costes ni márgenes.
+
+**Otras rutas**
+- `GET·POST /api/presupuestos`, `GET·PUT·DELETE /api/presupuestos/:id` (borra en preparación; si tiene peticiones, anula).
+- `POST /api/presupuestos/:id/capitulos`, `PUT·DELETE /api/presupuesto-capitulos/:id`.
+- `POST /api/presupuestos/:id/partidas {capitulo_id, nombre, unidad, medicion, descripcion, copiar_de}`, `PUT·DELETE /api/presupuesto-partidas/:id`.
+- `POST /api/presupuesto-partidas/:id/lineas {tipo, catalogo_id | tarifa_id | concepto, unidad, por_ud, precio, calculo}`, `PUT·DELETE /api/presupuesto-lineas/:id`.
+- `POST /api/presupuestos/:id/actualizar-precios`, `GET /api/presupuestos/:id/proveedores-sugeridos?catalogo=`.
+- `GET /api/presupuestos-sugerir?q=` (catálogo con su precio), `GET /api/presupuestos-partidas-buscar?q=` (para «Copiar de otra partida»).
+
+**Siguientes fases**: crear con IA desde un texto y adjuntos, Skills de presupuestación (.md) con mejoras propuestas a partir de las correcciones, pedir horas a Producción, condiciones de aceptación y borrador de proyecto.
+
 ## Tarifa de mano de obra y maquinaria (Informes › Tarifa)
 
 `src/tarifa.js`, `public/tarifa.html` + `tarifa-pantalla.js`, tabla `tarifa` (`clase` mano_obra | maquinaria, `clave` = categoría principal del operario o id del tipo de máquina, `unidad`, `precio_venta`, `coste_manual`, `activo`). Permiso `costes`. Es la base de precios de Presupuestos.

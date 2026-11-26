@@ -481,6 +481,17 @@ window.S360_AYUDA = {
       ],
     },
 
+    '/presupuestos.html': {
+      titulo: 'Presupuestos',
+      para_que: 'Preparar presupuestos con el coste técnico bien sacado (materiales de la lista de precios, mano de obra y maquinaria de la tarifa, auxiliares y subcontratas aparte) y aplicar el margen. Sale el PDF para el cliente, resumido o detallado.',
+      secciones: [
+        { titulo: 'Cómo se monta', pasos: ['<b>＋ Nuevo</b>: de qué es, cliente y obra.', 'Capítulos y <b>＋ Partida</b>: código, nombre interno, unidad, medición y la <b>descripción comercial</b> (la que ve el cliente).', 'Dentro de la partida, su descomposición <b>por unidad de partida</b> (0,9 h/ml, 2,3 ml de tubo por ml…): el sistema multiplica por la medición.', 'Material: escribe y elige del catálogo; el precio sale de la lista ya en la unidad de la línea. Mano de obra y maquinaria: de la tarifa. Auxiliares y subcontratas: a mano, o «🧮 kg de los perfiles» / «🧮 m² de pintura» para galvanizado y lacado.'] },
+        { titulo: 'Estados del precio', texto: '<b>real</b>: confirmado por un proveedor hace menos de 3 meses. <b>tarifa</b>: de la tarifa de mano de obra o maquinaria. <b>estimado</b>: escrito a mano, viejo o sin precio. <b>solicitado</b>: hay una petición de precio en marcha. Escribir un precio a mano lo deja «estimado».' },
+        { titulo: 'Pedir precio', texto: '<b>✉ Pedir precio de lo pendiente</b> crea una petición de precio en Compras «para presupuestar» (no crea pedidos). Se envía desde Compras como siempre (portal, correo, PDF, IA). Cuando se confirma una oferta, aquí sale <b>precio nuevo</b>: «Aplicar» o «Aplicar todos» y la línea pasa a real.' },
+        { titulo: 'Margen y PDF', texto: 'Venta = coste × (1 + gastos generales % + beneficio %), por partida y redondeado al céntimo. El <b>PDF resumido</b> lleva partidas con su descripción comercial, medición, precio e importe, IVA y condiciones. El <b>detallado</b> añade la descomposición de cada partida a precio de venta (nunca costes ni márgenes).' },
+      ],
+    },
+
     '/tarifa.html': {
       titulo: 'Tarifa de mano de obra y maquinaria',
       para_que: 'El precio de VENTA de cada categoría de operario y de cada tipo de máquina, y lo que de verdad nos CUESTA: el coste de la ficha corregido por el rendimiento real de los partes. Es la base de Presupuestos.',
@@ -764,5 +775,6 @@ window.S360_AYUDA = {
     { id: 50, fecha: '2026-11-26', si: ['planificar', 'proyectos'], titulo: '✋ Mover el gantt con la mano', texto: '<b>Arrastra el fondo</b> del gantt para moverte: a los lados cambias de semanas y arriba o abajo recorres las obras. Encima de una barra, mantén <b>Alt</b> (o arrastra con la <b>rueda pulsada</b>) para mover la vista en vez de la barra.', ir: '/gantt.html' },
     { id: 51, fecha: '2026-11-26', si: ['compras', 'logistica', 'aprobar_compras'], titulo: '📞 Todo pedido es un pedido de compra', texto: 'Se acabó marcar «pedido» línea a línea en Material de las partidas. Lo que se pide por teléfono se registra con <b>📞 Ya pedido por teléfono</b>: queda como pedido de compra enviado y, cuando llega su confirmación a <b>compras@</b>, la IA la lee y completa precios, su nº y la fecha (lo revisas en Correo entrante). Logística recibe <b>por pedido</b>, con un albarán, desmarcando lo que no ha llegado. Y un pedido enviado se puede <b>anular</b> en Compras.', ir: '/logistica.html?vista=comprar' },
     { id: 52, fecha: '2026-11-26', si: ['costes'], titulo: '💶 Tarifa de mano de obra y maquinaria', texto: 'Nueva pantalla <b>Informes › Tarifa</b>: pones el <b>precio de venta</b> de cada categoría (Oficial 1ª, 2º…) y de cada tipo de máquina, y ves lo que de verdad cuesta: el coste de la ficha corregido por el <b>rendimiento real</b> de los partes (horas previstas ÷ reales), con el margen. También por persona. Es la base de Presupuestos.', ir: '/tarifa.html' },
+    { id: 53, fecha: '2026-11-26', si: ['costes'], titulo: '📐 Presupuestos (fase 1)', texto: 'Nuevo menú <b>Presupuestos</b>: capítulos y partidas con su <b>descripción comercial</b> y su descomposición. Los precios salen solos de la <b>lista de precios</b> (convertidos a la unidad que toca) y de la <b>tarifa</b>, con su estado (real, tarifa, estimado, solicitado). Galvanizado y lacado con los kg y m² calculados de los perfiles. <b>Pedir precio</b> a proveedores y aplicar lo que contestan, margen (GG + beneficio) y <b>PDF</b> resumido o detallado. Llegarán: crear con IA desde texto y adjuntos, Skills de presupuestación y pasar a proyecto.', ir: '/presupuestos.html' },
   ],
 };

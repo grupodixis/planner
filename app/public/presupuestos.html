@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <meta name="theme-color" content="#141414">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="apple-touch-icon" href="/apple-touch-icon-v2.png">
+  <title>Planéalo · Presupuestos</title>
+  <link rel="stylesheet" href="styles.css?v=202611261908">
+</head>
+<body class="pz-pant">
+  <header class="top">
+    <h1 class="marca"><img src="/logo.svg" alt="" class="marca-ico">Planéalo <span>· Presupuestos</span></h1>
+    <nav class="menu" aria-label="Pantallas">
+      <a href="/">Cuadrante</a>
+      <a href="/compras.html">Compras</a>
+    </nav>
+    <div class="usuario"><span id="usuario-nombre"></span> <button id="salir" class="ghost">Salir</button></div>
+  </header>
+  <main class="pz-main">
+    <aside class="pz-lista" data-ayuda="pz-lista">
+      <div class="pz-lista-cab"><h2>Presupuestos</h2><button type="button" class="primario" id="pz-nuevo">＋ Nuevo</button></div>
+      <input type="search" id="pz-q" placeholder="Buscar cliente, obra, código…" aria-label="Buscar presupuesto">
+      <div id="pz-items"></div>
+    </aside>
+    <section class="pz-det" id="pz-det" aria-live="polite"><p class="ayuda">Elige un presupuesto o crea uno nuevo.</p></section>
+  </main>
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <script src="pwa.js?v=202611261908"></script>
+  <script src="comun.js?v=202611261908"></script>
+  <script src="ayuda-textos.js?v=202611261908"></script>
+  <script src="ayuda.js?v=202611261908"></script>
+  <script src="presupuestos-pantalla.js?v=202611261908"></script>
+</body>
+</html>

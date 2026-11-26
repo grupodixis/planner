@@ -114,4 +114,10 @@ function montar(app, asyncH) {
 // sumar un uso (para que lo más usado salga antes)
 function usado(id) { if (id && cache) { const x = cache.lista.find((c) => c.id === id); if (x) x.uso++; } }
 
-module.exports = { montar, sembrar, usado };
+// Buscar en el catálogo desde otro módulo (Presupuestos)
+async function buscarCatalogo(q, tipo = 'material', limite = 10) {
+  const c = cache || await cargarCache();
+  return buscar(c.lista, tipo, String(q || '').slice(0, 100), limite).map(publico);
+}
+
+module.exports = { montar, sembrar, usado, buscarCatalogo };

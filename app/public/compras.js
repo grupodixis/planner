@@ -488,6 +488,13 @@
           try { const r = await api('POST', `/api/compras/solicitudes/${s.id}/pedidos`, {}); toast(`${r.pedidos.length} pedido(s) creados`); estado.vista = 'pedidos'; estado.pedido = r.pedidos[0]; guardarURL(); pintar(); }
           catch (e) { toast(e.message, true); }
         } }, `🛒 Crear pedidos${nElegidas ? '' : ''}`)) : null].filter(Boolean));
+    // petición para presupuestar: no se crean pedidos; los precios se aplican en el presupuesto
+    if (s.motivo === 'presupuesto') {
+      const b = [...document.querySelectorAll('.cmp-acciones button')].find((x) => x.textContent.startsWith('🛒 Crear pedidos'));
+      const aviso = el('span', { class: 'ayuda cmp-para-pre' }, `📐 Para presupuestar (${s.presupuesto_codigo || 'presupuesto'}): las ofertas confirmadas salen allí como «precio nuevo». No se crean pedidos. `,
+        s.presupuesto_id ? el('a', { class: 'boton', href: `/presupuestos.html?id=${s.presupuesto_id}` }, '📐 Ir al presupuesto') : null);
+      if (b) b.replaceWith(aviso); else document.querySelector('.cmp-acciones')?.append(aviso);
+    }
     actualizarPies(); pintarSel();
   }
 

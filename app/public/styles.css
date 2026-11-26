@@ -3204,3 +3204,52 @@ body.gt-mano-on, body.gt-mano-on * { cursor: grabbing !important; user-select: n
 .ta-acc { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; } .ta-acc > input { width: 260px; }
 .ta-tabla select.ta-sin { color: var(--suave); }
 .ficha-dos.una { grid-template-columns: minmax(0, 1fr); max-width: 1100px; }
+/* Presupuestos */
+.pz-main { display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 14px; padding: 12px 16px 24px; align-items: start; }
+.pz-lista { border: 1px solid var(--borde); border-radius: 12px; background: #1a1a1a; padding: 12px; position: sticky; top: 64px; max-height: calc(100vh - 80px); overflow: auto; }
+.pz-lista-cab { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; } .pz-lista-cab h2 { margin: 0; font-size: 16px; }
+.pz-lista > input { width: 100%; margin-bottom: 8px; }
+.pz-tag { font-size: 11px; color: var(--suave); text-transform: uppercase; letter-spacing: .05em; margin: 12px 0 5px; }
+.pz-item { display: block; width: 100%; text-align: left; border: 1px solid var(--borde); border-radius: 9px; padding: 8px 10px; margin-bottom: 7px; background: transparent; color: inherit; font: inherit; font-size: 13px; cursor: pointer; }
+.pz-item.sel { border-color: #3b6ea5; background: #17263a; } .pz-item small { display: block; color: var(--suave); font-size: 11.5px; }
+.pz-item-1 { display: flex; justify-content: space-between; gap: 8px; }
+.pz-card { border: 1px solid var(--borde); border-radius: 12px; background: #1a1a1a; padding: 14px 16px; display: grid; gap: 10px; }
+.pz-cab { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.pz-tit { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; font-size: 18px; font-weight: 700; }
+.pz-in-tit { flex: 1; font-size: 17px; font-weight: 600; background: transparent; border-color: transparent; } .pz-in-tit:hover, .pz-in-tit:focus { border-color: var(--borde); }
+.pz-cod { color: var(--suave); font-variant-numeric: tabular-nums; }
+.pz-campos { display: flex; flex-wrap: wrap; gap: 10px; } .pz-campos label { display: flex; flex-direction: column; gap: 3px; font-size: 12px; color: var(--suave); min-width: 150px; }
+.pz-campos label.ancho { flex: 1; min-width: 260px; } .pz-campos input, .pz-campos select { color: var(--tinta, #eee); }
+.pz-num { width: 86px; text-align: right; } .pz-ud { width: 56px; } .pz-cod-in { width: 70px; } .pz-num.falta { border-color: #c0803a; }
+.pz-tabla { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+.pz-tabla th { text-align: left; font-weight: 500; color: var(--suave); font-size: 12px; padding: 6px 8px; border-bottom: 1px solid var(--borde); white-space: nowrap; }
+.pz-tabla td { padding: 7px 8px; border-bottom: 1px solid #262626; vertical-align: top; } .pz-tabla .n { text-align: right; white-space: nowrap; }
+.pz-tabla td small { display: block; color: var(--suave); font-size: 11.5px; margin-top: 2px; }
+.pz-cap td { background: #212121; font-weight: 700; } .pz-cap-nom { display: flex; gap: 6px; align-items: center; } .pz-in-cap { font-weight: 700; flex: 1; background: transparent; border-color: transparent; }
+.pz-par { cursor: pointer; } .pz-par:hover td { background: #1f2630; }
+.pz-tot td { font-weight: 700; border-top: 2px solid #444; border-bottom: 0; }
+.pz-tipo td { font-size: 11.5px; color: var(--suave); text-transform: uppercase; letter-spacing: .05em; padding-top: 14px; }
+.pz-lineas select, .pz-in-con { max-width: 100%; width: 100%; }
+.pz-con-nuevo td { background: #15261b; }
+.pz-chip { display: inline-block; border-radius: 9px; padding: 1px 8px; font-size: 11px; font-weight: 600; white-space: nowrap; margin-right: 4px; }
+.pz-chip.real, .pz-chip.tarifa, .pz-chip.aceptado { background: #1d4030; color: #7fdca5; } .pz-chip.estimado, .pz-chip.preparacion { background: #3a2f10; color: #f0b060; }
+.pz-chip.solicitado, .pz-chip.enviado { background: #1e2a3a; color: #9cc3ff; } .pz-chip.rechazado { background: #3a1a1a; color: #ff9c9c; }
+.pz-verde { color: #7fdca5; } .pz-naranja { color: #f0b060; }
+.pz-nuevos { background: #15261b; border: 1px solid #2f6b47; border-radius: 9px; padding: 8px 12px; font-size: 13px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.pz-nuevo { margin-top: 4px; font-size: 12px; color: #7fdca5; }
+.pz-acc { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.pz-cond { display: flex; flex-direction: column; gap: 3px; font-size: 12px; color: var(--suave); } .pz-cond textarea { width: 100%; color: var(--tinta, #eee); font: inherit; font-size: 13.5px; }
+.pz-kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-top: 12px; }
+.pz-kpi { background: #151515; border: 1px solid var(--borde); border-radius: 10px; padding: 10px 12px; } .pz-kpi b { font-size: 20px; display: block; } .pz-kpi small { color: var(--suave); font-size: 11.5px; display: block; }
+.pz-miga { font-size: 13px; color: var(--suave); }
+.pz-busca-caja { position: relative; } .pz-busca { width: min(520px, 100%); }
+.pz-sug { position: absolute; z-index: 20; top: 100%; left: 0; width: min(640px, 100%); background: #151515; border: 1px solid #3b6ea5; border-radius: 9px; padding: 4px 0; margin-top: 3px; box-shadow: 0 10px 30px #0008; }
+.pz-sug button { display: flex; justify-content: space-between; gap: 10px; width: 100%; text-align: left; background: transparent; border: 0; color: inherit; font: inherit; font-size: 13px; padding: 6px 10px; cursor: pointer; }
+.pz-sug button:hover, .pz-sug button:focus { background: #1e3a5f; } .pz-sug small { color: var(--suave); } .pz-sug-libre { color: #9cc3ff !important; border-top: 1px solid #2a2a2a !important; }
+.pz-add-fila { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; } .pz-add-fila .pz-in-con { width: 320px; }
+.pz-dlg { width: min(760px, calc(100vw - 32px)); } .pz-dlg table { margin: 6px 0; }
+.pz-provs { display: flex; flex-wrap: wrap; gap: 4px 14px; max-height: 160px; overflow: auto; margin: 6px 0; font-size: 13px; }
+.pz-copiar { max-height: 340px; overflow: auto; margin: 8px 0; }
+@media (max-width: 900px) { .pz-main { grid-template-columns: 1fr; } .pz-lista { position: static; max-height: none; } .pz-kpis { grid-template-columns: 1fr 1fr; } }
+.pz-lineas .pz-add select { width: auto; max-width: 440px; }
+.pz-add-fila .pz-in-con { width: 320px; flex: none; } .pz-add-fila select { width: auto; max-width: 260px; }

@@ -1611,6 +1611,64 @@ const MIGRACIONES = [
      cambiado_en  TIMESTAMPTZ,
      UNIQUE (clase, clave)
    )`,
+  // Presupuestos (fase 1): capítulos › partidas (descripción comercial) › descomposición con el estado de cada precio
+  `CREATE TABLE IF NOT EXISTS presupuestos (
+     id            SERIAL PRIMARY KEY,
+     codigo        TEXT NOT NULL UNIQUE,
+     titulo        TEXT NOT NULL,
+     cliente_id    INT REFERENCES clientes(id) ON DELETE SET NULL,
+     obra_id       INT REFERENCES obras(id) ON DELETE SET NULL,
+     estado        TEXT NOT NULL DEFAULT 'preparacion' CHECK (estado IN ('preparacion', 'enviado', 'aceptado', 'rechazado', 'anulado')),
+     gg_pct        NUMERIC(5,2) NOT NULL DEFAULT 12,
+     bi_pct        NUMERIC(5,2) NOT NULL DEFAULT 16,
+     validez_dias  INT NOT NULL DEFAULT 30,
+     condiciones   TEXT,
+     notas         TEXT,
+     creado_por    INT REFERENCES usuarios(id) ON DELETE SET NULL,
+     creado        TIMESTAMPTZ NOT NULL DEFAULT now(),
+     cambiado      TIMESTAMPTZ NOT NULL DEFAULT now(),
+     enviado_en    TIMESTAMPTZ,
+     decidido_en   TIMESTAMPTZ,
+     decision_nota TEXT
+   )`,
+  `CREATE TABLE IF NOT EXISTS presupuesto_capitulos (
+     id             SERIAL PRIMARY KEY,
+     presupuesto_id INT NOT NULL REFERENCES presupuestos(id) ON DELETE CASCADE,
+     codigo         TEXT,
+     nombre         TEXT NOT NULL,
+     orden          INT NOT NULL DEFAULT 0
+   )`,
+  `CREATE TABLE IF NOT EXISTS presupuesto_partidas (
+     id             SERIAL PRIMARY KEY,
+     presupuesto_id INT NOT NULL REFERENCES presupuestos(id) ON DELETE CASCADE,
+     capitulo_id    INT REFERENCES presupuesto_capitulos(id) ON DELETE CASCADE,
+     codigo         TEXT,
+     nombre         TEXT NOT NULL,              -- interno
+     descripcion    TEXT,                       -- comercial: la que ve el cliente
+     unidad         TEXT NOT NULL DEFAULT 'ud',
+     medicion       NUMERIC(12,3) NOT NULL DEFAULT 1,
+     orden          INT NOT NULL DEFAULT 0
+   )`,
+  `CREATE TABLE IF NOT EXISTS presupuesto_lineas (
+     id            SERIAL PRIMARY KEY,
+     partida_id    INT NOT NULL REFERENCES presupuesto_partidas(id) ON DELETE CASCADE,
+     tipo          TEXT NOT NULL CHECK (tipo IN ('material', 'mano_obra', 'maquinaria', 'auxiliar', 'subcontrata')),
+     concepto      TEXT NOT NULL,
+     catalogo_id   INT REFERENCES catalogo(id) ON DELETE SET NULL,
+     tarifa_id     INT REFERENCES tarifa(id) ON DELETE SET NULL,
+     unidad        TEXT NOT NULL DEFAULT 'ud',
+     por_ud        NUMERIC(14,4) NOT NULL DEFAULT 1,   -- cantidad por unidad de partida (rendimiento)
+     calculo       TEXT CHECK (calculo IN ('kg_perfiles', 'm2_perfiles')),   -- la cantidad sale de los perfiles de la partida
+     precio        NUMERIC(12,4),                       -- coste €/unidad de la línea
+     estado_precio TEXT NOT NULL DEFAULT 'estimado' CHECK (estado_precio IN ('real', 'tarifa', 'estimado', 'solicitado')),
+     fuente        TEXT,                                -- lista | tarifa | manual | oferta
+     precio_info   JSONB,
+     sol_linea_id  INT REFERENCES solicitud_lineas(id) ON DELETE SET NULL,
+     nota          TEXT,
+     orden         INT NOT NULL DEFAULT 0
+   )`,
+  `CREATE INDEX IF NOT EXISTS presupuesto_lineas_partida_idx ON presupuesto_lineas (partida_id)`,
+  `ALTER TABLE solicitudes_precio ADD COLUMN IF NOT EXISTS presupuesto_id INT REFERENCES presupuestos(id) ON DELETE SET NULL`,
 ];
 
 async function migrar() {

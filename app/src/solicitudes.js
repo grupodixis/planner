@@ -23,7 +23,8 @@ async function siguienteCodigo(c) {
 
 async function solicitud(id, c = { query }) {
   const { rows } = await c.query(
-    `SELECT s.*, u.nombre AS creado_por_nombre FROM solicitudes_precio s LEFT JOIN usuarios u ON u.id = s.creado_por WHERE s.id = $1`, [id]);
+    `SELECT s.*, u.nombre AS creado_por_nombre, pz.codigo AS presupuesto_codigo, pz.titulo AS presupuesto_titulo
+       FROM solicitudes_precio s LEFT JOIN usuarios u ON u.id = s.creado_por LEFT JOIN presupuestos pz ON pz.id = s.presupuesto_id WHERE s.id = $1`, [id]);
   if (!rows.length) return null;
   const s = rows[0];
   // en secuencia: dentro de una transacción el cliente no admite consultas a la vez
@@ -130,7 +131,8 @@ function montar(app, asyncH) {
               (SELECT count(*)::int FROM solicitud_proveedores sp WHERE sp.solicitud_id = s.id AND sp.estado IN ('respondida','no_oferta')) AS n_resp,
               COALESCE((SELECT string_agg(DISTINCT pr.codigo, ', ') FROM solicitud_lineas l JOIN partida_escandallo e ON e.id = l.escandallo_id
                  JOIN partidas pa ON pa.id = e.partida_id JOIN proyectos pr ON pr.id = pa.proyecto_id WHERE l.solicitud_id = s.id),
-                (SELECT '🏭 OT ' || o.codigo || ' ' || o.titulo FROM ordenes o WHERE o.id = s.orden_id)) AS proyectos, s.tipo
+                (SELECT '🏭 OT ' || o.codigo || ' ' || o.titulo FROM ordenes o WHERE o.id = s.orden_id),
+                (SELECT '📐 para presupuestar · ' || p.codigo FROM presupuestos p WHERE p.id = s.presupuesto_id)) AS proyectos, s.tipo, s.motivo
          FROM solicitudes_precio s
         WHERE s.estado = 'abierta' OR s.creado > now() - interval '90 days'
         ORDER BY (s.estado = 'abierta') DESC, s.creado DESC LIMIT 200`);
@@ -319,6 +321,8 @@ function montar(app, asyncH) {
 
   // Crear un pedido por proveedor con lo elegido; lo no elegido vuelve a «Por pedir». La petición se cierra.
   app.post('/api/compras/solicitudes/:id/pedidos', pCompras, asyncH(async (req, res) => {
+    { const { rows: [m] } = await query('SELECT motivo FROM solicitudes_precio WHERE id = $1', [Number(req.params.id)]);
+      if (m?.motivo === 'presupuesto') throw fallo(400, 'Es una petición para presupuestar: los precios se aplican en el presupuesto, no se crean pedidos'); }
     const id = Number(req.params.id);
     const creados = await tx(async (c) => {
       const s = await abierta(id, c);
@@ -351,4 +355,4 @@ function montar(app, asyncH) {
   }));
 }
 
-module.exports = { montar, solicitud, pdfSolicitud };
+module.exports = { montar, solicitud, pdfSolicitud, siguienteCodigo };
