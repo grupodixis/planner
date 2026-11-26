@@ -2992,3 +2992,4 @@ html.iac-bloqueo, html.iac-bloqueo body { overflow: hidden; }
 
 .iac-her span.va { color: #f0b060; background: #3a2f10; }
 .iac-puntos small { opacity: .7; }
+.iac-aviso { display: block; margin-top: 6px; font-size: 11px; color: var(--suave, #999); }

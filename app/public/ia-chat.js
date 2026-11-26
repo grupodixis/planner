@@ -116,11 +116,11 @@
         her.length ? el('div', { class: 'iac-her' }, her.map((h) => el('span', { class: h.ok === null ? 'va' : h.ok ? '' : 'mal', title: `${h.nombre} ${JSON.stringify(h.args || {})}${h.error ? `\n${h.error}` : ''}` }, `🔎 ${NOMBRES[h.nombre] || h.nombre}`))) : null);
       if (pend) {
         const seg = m.creado ? Math.max(0, Math.round((Date.now() - new Date(m.creado).getTime()) / 1000)) : 0;
-        const fase = { consultando: 'Consultando', redactando: 'Redactando la respuesta', pensando: 'Pensando' }[m.fase] || 'Pensando';
+        const fase = { consultando: 'Consultando', redactando: 'Redactando la respuesta', pensando: 'Pensando', esperando: 'El modelo está saturado, reintentando' }[m.fase] || 'Pensando';
         div.append(el('span', { class: 'iac-puntos' }, fase, el('i'), el('i'), el('i'), seg >= 3 ? el('small', {}, ` ${seg} s`) : null));
       }
       else if (m.error) div.append(el('p', {}, `✕ ${m.error}`), el('button', { type: 'button', class: 'mini', onclick: () => reintentar(m) }, '↻ Reintentar'));
-      else { const c = el('div', { class: 'iac-txt' }); c.innerHTML = md(m.texto); div.append(c); }
+      else { const c = el('div', { class: 'iac-txt' }); c.innerHTML = md(m.texto); div.append(c); if (m.aviso) div.append(el('small', { class: 'iac-aviso' }, `ℹ ${m.aviso}`)); }
       return div;
     }));
     lista.scrollTop = lista.scrollHeight;

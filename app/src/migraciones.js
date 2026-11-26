@@ -1463,6 +1463,7 @@ const MIGRACIONES = [
   `ALTER TABLE ia_mensajes ADD COLUMN IF NOT EXISTS fase TEXT`,
   // respuestas que se quedaron a medias con la versión anterior
   `UPDATE ia_mensajes SET estado = 'hecho' WHERE estado IS NULL`,
+  `ALTER TABLE ia_mensajes ADD COLUMN IF NOT EXISTS aviso TEXT`,
 ];
 
 async function migrar() {

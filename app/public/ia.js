@@ -175,6 +175,11 @@
             el('option', { value: '__otro' }, 'Otro (escribir)…'));
             return sel;
           })()),
+          p.modelos.length ? el('label', { class: 'ia-chk', title: 'Si el modelo principal está saturado, el asistente reintenta y después usa este' }, 'Reserva ',
+            el('select', { class: 'ia-prov-mod', onchange: (ev) => tras(api('PUT', `/api/ia/proveedores/${p.id}`, { reserva: ev.target.value }), 'Modelo de reserva guardado') },
+              el('option', { value: '', selected: !p.reserva }, `Automático${p.reserva_auto ? ` (${p.reserva_auto})` : ''}`),
+              el('option', { value: '-', selected: p.reserva === '-' }, 'Ninguno'),
+              p.modelos.filter((m) => m !== p.modelo).map((m) => el('option', { value: m, selected: m === p.reserva }, m)))) : null,
           p.configurada ? el('button', { type: 'button', class: 'mini', onclick: (ev) => { ev.target.disabled = true; ev.target.textContent = 'Probando…'; tras(api('POST', `/api/ia/proveedores/${p.id}/probar`)); } }, '🔌 Probar') : null,
           p.origen === 'panel' ? el('button', { type: 'button', class: 'ghost borrar mini', onclick: () => { if (confirm(`¿Quitar la clave de ${p.nombre}? El asistente dejará de poder usarla.`)) tras(api('PUT', `/api/ia/proveedores/${p.id}`, { borrar_clave: true }), 'Clave quitada'); } }, 'Quitar clave') : null),
         el('div', { class: 'ia-prov-pie' },

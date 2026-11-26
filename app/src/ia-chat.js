@@ -51,23 +51,28 @@ function esquemaGemini(h) {
 /* ---------- adaptadores: dan { texto, llamadas:[{id,nombre,args}], uso:{entrada,salida}, seguir(resultados) } ---------- */
 async function post(url, headers, cuerpo) {
   let r;
-  try { r = await fetch(url, { method: 'POST', headers: { 'content-type': 'application/json', ...headers }, body: JSON.stringify(cuerpo), signal: AbortSignal.timeout(90000) }); }
-  catch (e) { throw fallo(502, `No se pudo conectar con el proveedor de IA (${e.name === 'TimeoutError' ? 'tardó demasiado' : e.cause?.code || e.name})`); }
+  try { r = await fetch(url, { method: 'POST', headers: { 'content-type': 'application/json', ...headers }, body: JSON.stringify(cuerpo), signal: AbortSignal.timeout(75000) }); }
+  catch (e) { throw Object.assign(fallo(502, `No se pudo conectar con el proveedor de IA (${e.name === 'TimeoutError' ? 'tardó demasiado' : e.cause?.code || e.name})`), { saturado: e.name === 'TimeoutError' }); }
   let j = {}; try { j = await r.json(); } catch { /* sin cuerpo */ }
   if (r.status === 401 || r.status === 403) throw fallo(502, 'El proveedor de IA rechaza la clave (revisa Recursos › IA › Proveedor)');
+  const msg = (j.error?.message || '').slice(0, 300);
+  // Saturado (503/529, o 429 por «demasiada demanda»): se reintenta y, si sigue, se pasa al modelo de reserva
+  if (r.status === 503 || r.status === 529 || r.status === 500 || (r.status === 429 && /demand|overload|capacity|exhausted/i.test(msg))) {
+    throw Object.assign(fallo(503, `El modelo está saturado ahora mismo (${r.status}). Prueba en un rato.`), { saturado: true });
+  }
   if (r.status === 429) throw fallo(429, 'El proveedor de IA dice que se ha pasado el límite o no hay saldo. Prueba en un rato.');
-  if (!r.ok) throw fallo(502, `El proveedor de IA respondió ${r.status}: ${(j.error?.message || '').slice(0, 300)}`);
+  if (!r.ok) throw fallo(502, `El proveedor de IA respondió ${r.status}: ${msg}`);
   return j;
 }
 
 function gemini(cfg, sis, historial, herr) {
   const contents = historial.map((m) => ({ role: m.rol === 'usuario' ? 'user' : 'model', parts: [{ text: m.texto }] }));
   const tools = [{ functionDeclarations: herr.map((h) => ({ name: h.nombre, description: h.descripcion, ...(esquemaGemini(h) ? { parameters: esquemaGemini(h) } : {}) })) }];
-  const url = `${process.env.IA_GEMINI_URL || 'https://generativelanguage.googleapis.com'}/v1beta/models/${encodeURIComponent(cfg.modelo)}:generateContent`;
   let sinPensar = false;
   const paso = async () => {
     const cuerpo = (pensar) => ({ systemInstruction: { parts: [{ text: sis }] }, contents, tools, generationConfig: { temperature: 0.2, ...(pensar ? { thinkingConfig: pensar } : {}) } });
     // Razonamiento corto: para consultar y resumir basta, y responde mucho antes. Si el modelo no lo admite, sin él.
+    const url = `${process.env.IA_GEMINI_URL || 'https://generativelanguage.googleapis.com'}/v1beta/models/${encodeURIComponent(cfg.modelo)}:generateContent`;
     const pensar = /gemini-[3-9]/.test(cfg.modelo) ? { thinkingLevel: 'low' } : /gemini-2\.5/.test(cfg.modelo) && !/pro/.test(cfg.modelo) ? { thinkingBudget: 512 } : null;
     let j;
     try { j = await post(url, { 'x-goog-api-key': cfg.clave }, cuerpo(sinPensar ? null : pensar)); }
@@ -154,11 +159,29 @@ async function preguntar(usuario, { conversacion_id, mensaje, pagina }) {
   return { conversacion_id: conv.id, titulo: conv.titulo, mensaje: { id: m.id, rol: 'ia', estado: 'pensando', texto: '', herramientas: [], modelo: cfg.modelo, creado: m.creado } };
 }
 
+// Llamada al proveedor con reintentos si está saturado (2 más, esperando 2 s y 6 s) y, si sigue, con el modelo de reserva
+async function conReintento(paso, cfg, aviso, esperando) {
+  const espera = [2000, 6000];
+  for (let n = 0; ; n++) {
+    try { return await paso(); } catch (e) {
+      if (!e.saturado) throw e;
+      if (n < espera.length) { await esperando(); await new Promise((ok) => setTimeout(ok, espera[n])); continue; }
+      if (cfg.reserva && cfg.reserva !== cfg.modelo) {
+        aviso.texto = `Respondido con ${cfg.reserva}: ${cfg.modelo} estaba saturado.`;
+        cfg.modelo = cfg.reserva; cfg.reserva = null; n = -1; continue;
+      }
+      throw e;
+    }
+  }
+}
+
 async function trabajar(usuario, conv, mid, cfg, previos, texto, pagina) {
   const herr = await catalogo(usuario);
   const historial = [...previos, { rol: 'usuario', texto }];
   while (historial.length && historial[0].rol !== 'usuario') historial.shift();   // debe empezar por el usuario
+  cfg = { ...cfg };   // el adaptador lee cfg.modelo en cada llamada (puede pasar al de reserva)
   const paso = ADAPT[cfg.proveedor](cfg, sistema(usuario, pagina), historial, herr);
+  const aviso = { texto: null };
   const t0 = Date.now();
   const usadas = []; const uso = { entrada: 0, salida: 0 };
   const progreso = (fase) => query('UPDATE ia_mensajes SET herramientas = $2, fase = $3 WHERE id = $1', [mid, JSON.stringify(usadas), fase]).catch(() => {});
@@ -167,7 +190,7 @@ async function trabajar(usuario, conv, mid, cfg, previos, texto, pagina) {
     for (let i = 0; i <= PASOS; i++) {
       if (Date.now() - t0 > LIMITE_MS) throw fallo(504, 'La IA está tardando demasiado. Prueba con una pregunta más concreta o un modelo más rápido (Recursos › IA).');
       await progreso(i ? 'redactando' : 'pensando');
-      const r = await paso();
+      const r = await conReintento(paso, cfg, aviso, () => progreso('esperando'));
       uso.entrada += r.uso.entrada; uso.salida += r.uso.salida;
       if (r.texto) respuesta = r.texto;
       if (!r.llamadas.length) break;
@@ -195,13 +218,13 @@ async function trabajar(usuario, conv, mid, cfg, previos, texto, pagina) {
     console.error(`IA chat (${cfg.proveedor} ${cfg.modelo}):`, e.message);
   }
   await query(
-    `UPDATE ia_mensajes SET texto = $2, herramientas = $3, error = $4, estado = $5, fase = NULL, tokens_entrada = $6, tokens_salida = $7, ms = $8 WHERE id = $1`,
-    [mid, error ? '' : respuesta, JSON.stringify(usadas), error, error ? 'error' : 'hecho', uso.entrada, uso.salida, Date.now() - t0]);
+    `UPDATE ia_mensajes SET texto = $2, herramientas = $3, error = $4, estado = $5, fase = NULL, tokens_entrada = $6, tokens_salida = $7, ms = $8, modelo = $9, aviso = $10 WHERE id = $1`,
+    [mid, error ? '' : respuesta, JSON.stringify(usadas), error, error ? 'error' : 'hecho', uso.entrada, uso.salida, Date.now() - t0, cfg.modelo, aviso.texto]);
   await query('UPDATE ia_conversaciones SET actualizado = now() WHERE id = $1', [conv.id]);
 }
 
 // Un mensaje que se quedó «pensando» (p. ej. el servidor se reinició) se da por fallido pasado el límite
-const SQL_MSG = `SELECT id, rol, texto, herramientas, modelo, creado, fase, ms,
+const SQL_MSG = `SELECT id, rol, texto, herramientas, modelo, aviso, creado, fase, ms,
     CASE WHEN estado = 'pensando' AND creado < now() - interval '${Math.ceil(LIMITE_MS / 1000) + 60} seconds' THEN 'error' ELSE COALESCE(estado, 'hecho') END AS estado,
     CASE WHEN estado = 'pensando' AND creado < now() - interval '${Math.ceil(LIMITE_MS / 1000) + 60} seconds' THEN 'Se interrumpió la respuesta. Vuelve a preguntar.' ELSE error END AS error
   FROM ia_mensajes`;

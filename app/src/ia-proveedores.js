@@ -74,13 +74,22 @@ async function claveDe(id) {
   return claveGuardada(v.p[id]) || process.env[PROV[id]?.env] || null;
 }
 // Proveedor y modelo con los que trabajará el asistente (o null si no hay nada configurado)
+// Modelo de reserva (si el principal está saturado): el elegido o, si no, el «flash/sonnet/gpt» estable que no sea el principal
+const ESTABLE = (m) => !/preview|exp|lite|-mini|nano/.test(m);
+function reservaDe(id, c, modelo) {
+  if (c.reserva === '-') return null;
+  if (c.reserva && c.reserva !== modelo) return c.reserva;
+  const lista = [...new Set([...(c.modelos || []), ...PROV[id].modelos])].filter((m) => m !== modelo);
+  return lista.find((m) => /flash|sonnet|gpt/.test(m) && ESTABLE(m)) || lista.find(ESTABLE) || null;
+}
 async function activo() {
   const v = await leer();
   const id = v.activo && PROV[v.activo] ? v.activo : Object.keys(PROV).find((k) => claveGuardada(v.p[k]) || process.env[PROV[k].env]);
   if (!id) return null;
   const clave = claveGuardada(v.p[id]) || process.env[PROV[id].env];
   if (!clave) return null;
-  return { proveedor: id, modelo: v.p[id]?.modelo || PROV[id].def, clave };
+  const modelo = v.p[id]?.modelo || PROV[id].def;
+  return { proveedor: id, modelo, reserva: reservaDe(id, v.p[id] || {}, modelo), clave };
 }
 
 async function vista() {
@@ -97,6 +106,7 @@ async function vista() {
         configurada: guardada || env, origen: guardada ? 'panel' : env ? 'servidor' : null,
         final: guardada ? c.final : env ? `…${String(process.env[d.env]).slice(-4)}` : null,
         modelo: c.modelo || d.def, modelos: [...new Set([...(c.modelos || []), ...d.modelos])],
+        reserva: c.reserva || null, reserva_auto: c.reserva ? null : reservaDe(id, c, c.modelo || d.def),
         guardada_por: c.por || null, guardada_en: c.en || null, prueba: c.prueba || null,
       };
     }),
@@ -139,6 +149,11 @@ function montar(app, asyncH, auth) {
       if (k.length < 20 || k.length > 400 || /\s/.test(k)) throw fallo(400, 'Eso no parece una clave de API (sin espacios, 20+ caracteres)');
       Object.assign(c, { clave: cifrar(k), final: `…${k.slice(-4)}`, por: req.usuario.nombre, en: new Date().toISOString(), prueba: null });
       if (!v.activo) v.activo = id;
+    }
+    if (b.reserva != null) {
+      const m = String(b.reserva).trim();
+      if (m && m !== '-' && !/^[\w.:/-]{2,80}$/.test(m)) throw fallo(400, 'Nombre de modelo no válido');
+      v.p[id].reserva = m || undefined;
     }
     if (b.modelo != null) {
       const m = String(b.modelo).trim();
