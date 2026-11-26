@@ -57,14 +57,16 @@ async function cargar(id) {
       FROM presupuestos p LEFT JOIN clientes c ON c.id = p.cliente_id LEFT JOIN obras o ON o.id = p.obra_id LEFT JOIN usuarios u ON u.id = p.creado_por
      WHERE p.id = $1`, [id]);
   if (!p) return null;
-  const [{ rows: caps }, { rows: parts }, { rows: lins }] = await Promise.all([
+  const [{ rows: caps }, { rows: parts }, { rows: lins }, { rows: eventos }] = await Promise.all([
     query('SELECT * FROM presupuesto_capitulos WHERE presupuesto_id = $1 ORDER BY orden, id', [id]),
     query('SELECT *, medicion::float AS medicion FROM presupuesto_partidas WHERE presupuesto_id = $1 ORDER BY orden, id', [id]),
     query(`SELECT l.*, l.por_ud::float AS por_ud, l.precio::float AS precio, sl.solicitud_id, s.codigo AS sol_codigo, s.responder_antes::text AS sol_responder_antes, s.estado AS sol_estado
              FROM presupuesto_lineas l JOIN presupuesto_partidas pp ON pp.id = l.partida_id
              LEFT JOIN solicitud_lineas sl ON sl.id = l.sol_linea_id LEFT JOIN solicitudes_precio s ON s.id = sl.solicitud_id
             WHERE pp.presupuesto_id = $1 ORDER BY l.orden, l.id`, [id]),
+    query('SELECT id, clase, texto, correo_id, creado FROM presupuesto_eventos WHERE presupuesto_id = $1 ORDER BY creado, id', [id]),
   ]);
+  p.eventos = eventos;
   // ofertas confirmadas de lo que se pidió: { sol_linea_id: [{precio, proveedor, sp_id}] }
   const solIds = [...new Set(lins.map((l) => l.sol_linea_id).filter(Boolean))];
   const ofertas = {};

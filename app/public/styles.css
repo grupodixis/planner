@@ -3265,6 +3265,12 @@ body.gt-mano-on, body.gt-mano-on * { cursor: grabbing !important; user-select: n
 .pz-ia.error { background: #2b1a1a; border-color: #6b2f2f; } .pz-ia summary { cursor: pointer; font-weight: 600; }
 .pz-ia ul { margin: 4px 0 8px; padding-left: 20px; } .pz-ia p { margin: 6px 0; }
 .pz-prompt-ver { margin: 4px 0; padding: 6px 10px; border-left: 3px solid #3b6ea5; background: #151a22; white-space: pre-wrap; font-size: 13px; color: #ccc; max-height: 160px; overflow: auto; }
+.pz-eventos ul { list-style: none; padding: 0; margin: 4px 0; }
+.pz-eventos li { padding: 3px 0; border-bottom: 1px solid #222a35; font-size: 13px; }
+.pz-ev-f { color: #8a94a3; font-variant-numeric: tabular-nums; }
+.pz-ev-respuesta { color: #9fd19f; }
+.pz-ev-aviso { color: #e5b567; }
+.pz-ev-l { font-size: 12px; }
 .pz-creando { text-align: left; } .pz-girando { display: inline-block; width: 12px; height: 12px; border: 2px solid #9cc3ff; border-right-color: transparent; border-radius: 50%; animation: pz-gira 0.8s linear infinite; vertical-align: -1px; }
 @keyframes pz-gira { to { transform: rotate(360deg); } }
 .pz-dlg-skills { width: min(1100px, calc(100vw - 32px)); }

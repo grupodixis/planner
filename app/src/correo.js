@@ -171,7 +171,25 @@ async function enviarOFallar({ para, cc, asunto, texto, adjuntos, ref }) {
   return info;
 }
 
+// Enviar desde una cuenta concreta (p. ej. presupuestos@), como respuesta a un correo: { buzon, para, asunto, texto, enRespuestaA, referencias, ref }
+async function enviarDesde({ buzon: b, para, asunto, texto, enRespuestaA, referencias, ref }) {
+  if (!b?.smtp_host) return enviarOFallar({ para, asunto, texto, ref });   // sin salida propia: la principal
+  let pass = '';
+  try { pass = descifrar(b.clave_smtp || b.clave); } catch { /* sin contraseña */ }
+  const c = { host: b.smtp_host, port: Number(b.smtp_puerto) || 587, secure: b.smtp_seguridad === 'ssl', ignoreTLS: b.smtp_seguridad === 'ninguna', user: b.smtp_usuario || b.usuario, pass };
+  let info;
+  try {
+    info = await transportePara(c).sendMail({ from: b.remitente || b.direccion, to: para, subject: asunto, text: texto,
+      inReplyTo: enRespuestaA || undefined, references: referencias?.length ? referencias : enRespuestaA ? [enRespuestaA] : undefined });
+  } catch (e) { throw Object.assign(new Error(`No se pudo enviar el correo: ${e.message}`), { status: 502 }); }
+  if (ref && info?.messageId) {
+    await require('./db').query(`INSERT INTO correo_enviados (message_id, tipo, ref_id, para, asunto, texto, adjuntos) VALUES ($1,$2,$3,$4,$5,$6,'[]') ON CONFLICT DO NOTHING`,
+      [info.messageId, ref.tipo, ref.id, String(para).slice(0, 500), String(asunto || '').slice(0, 500), String(texto || '').slice(0, 20000)]).catch((e) => console.error('correo_enviados:', e.message));
+  }
+  return info;
+}
+
 // Firma corta con la misma clave del servidor (enlaces sin sesión, p. ej. el de las ofertas)
 const firmar = (txt) => crypto.createHmac('sha256', claveCifrado()).update(String(txt)).digest('base64url').slice(0, 32);
 
-module.exports = { firmar, configurado, enviar, enviarOFallar, remitente, cargar, verAjustes, guardarAjustes, probar, cifrar, descifrar, transportePara, efectiva };
+module.exports = { firmar, configurado, enviar, enviarOFallar, enviarDesde, remitente, cargar, verAjustes, guardarAjustes, probar, cifrar, descifrar, transportePara, efectiva };

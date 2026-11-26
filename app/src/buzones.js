@@ -24,6 +24,7 @@ const MAX_CORREO = 30 * 1024 * 1024;
 const CARPETAS = {
   oferta: 'Ofertas', confirmacion_pedido: 'Confirmaciones de pedido', albaran: 'Albaranes', factura: 'Facturas',
   pedido_cliente: 'Pedidos de clientes', consulta: 'Consultas', publicidad: 'Publicidad', otro: 'Otros',
+  peticion_presupuesto: 'Peticiones de presupuesto', respuesta_presupuesto: 'Peticiones de presupuesto',
 };
 const fallo = (s, m) => Object.assign(new Error(m), { status: s });
 const slug = (t, n = 40) => String(t || '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^\w.-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, n) || 'x';
@@ -296,7 +297,7 @@ function vistaBuzon(b) {
     clave_guardada: !!b.clave, carpeta_entrada: b.carpeta_entrada, carpeta_raiz: b.carpeta_raiz, archivar: b.archivar, tipo: b.tipo,
     activo: b.activo, estado: cx?.b.estado || b.estado, ultimo_error: b.ultimo_error, conectado_en: b.conectado_en, ultimo_correo: b.ultimo_correo,
     entrada: b.entrada, salida: !!b.smtp_host, smtp_host: b.smtp_host, smtp_puerto: b.smtp_puerto, smtp_seguridad: b.smtp_seguridad,
-    smtp_usuario: b.smtp_usuario, clave_smtp_propia: !!b.clave_smtp, remitente: b.remitente, principal: b.principal,
+    smtp_usuario: b.smtp_usuario, clave_smtp_propia: !!b.clave_smtp, remitente: b.remitente, principal: b.principal, uso: b.uso || 'compras',
   };
 }
 const texto = (v, n) => (v == null ? null : String(v).trim().slice(0, n) || null);
@@ -336,6 +337,7 @@ function montar(app, asyncH, auth) {
       smtp_seguridad: ['starttls', 'ssl', 'ninguna'].includes(b.smtp_seguridad) ? b.smtp_seguridad : actual?.smtp_seguridad ?? 'starttls',
       smtp_usuario: 'smtp_usuario' in b ? texto(b.smtp_usuario, 200) : actual?.smtp_usuario ?? null,
       remitente: 'remitente' in b ? texto(b.remitente, 300) : actual?.remitente ?? null,
+      uso: ['compras', 'presupuestos'].includes(b.uso) ? b.uso : actual?.uso ?? 'compras',
     };
     if (d.smtp_host && (!Number.isInteger(d.smtp_puerto) || d.smtp_puerto < 1 || d.smtp_puerto > 65535)) throw fallo(400, 'Puerto de salida no válido');
     if (!d.nombre || !d.direccion || !d.host || !d.usuario) throw fallo(400, 'Faltan datos: nombre, dirección, servidor y usuario');
@@ -349,10 +351,10 @@ function montar(app, asyncH, auth) {
     const clave = req.body?.clave ? cifrar(String(req.body.clave)) : null;
     const { rows: [b] } = await query(
       `INSERT INTO buzones (nombre, direccion, host, puerto, tls, usuario, clave, carpeta_entrada, carpeta_raiz, archivar, activo, creado_por,
-                            entrada, smtp_host, smtp_puerto, smtp_seguridad, smtp_usuario, clave_smtp, remitente)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19) RETURNING *`,
+                            entrada, smtp_host, smtp_puerto, smtp_seguridad, smtp_usuario, clave_smtp, remitente, uso)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20) RETURNING *`,
       [d.nombre, d.direccion, d.host, d.puerto, d.tls, d.usuario, clave, d.carpeta_entrada, d.carpeta_raiz, d.archivar, d.activo, req.usuario.id,
-        d.entrada, d.smtp_host, d.smtp_puerto, d.smtp_seguridad, d.smtp_usuario, req.body?.clave_smtp ? cifrar(String(req.body.clave_smtp)) : null, d.remitente]);
+        d.entrada, d.smtp_host, d.smtp_puerto, d.smtp_seguridad, d.smtp_usuario, req.body?.clave_smtp ? cifrar(String(req.body.clave_smtp)) : null, d.remitente, d.uso]);
     if (req.body?.principal && d.smtp_host) await hacerPrincipal(b.id);
     else if (d.smtp_host) await query(`UPDATE buzones SET principal = true WHERE id = $1 AND NOT EXISTS (SELECT 1 FROM buzones WHERE principal)`, [b.id]);
     await correo.cargar();
@@ -367,11 +369,11 @@ function montar(app, asyncH, auth) {
     const cambiaCarpeta = d.carpeta_entrada !== a.carpeta_entrada || d.host !== a.host || d.usuario !== a.usuario;
     const { rows: [b] } = await query(
       `UPDATE buzones SET nombre=$2, direccion=$3, host=$4, puerto=$5, tls=$6, usuario=$7, clave=$8, carpeta_entrada=$9, carpeta_raiz=$10, archivar=$11, activo=$12,
-              entrada=$13, smtp_host=$14, smtp_puerto=$15, smtp_seguridad=$16, smtp_usuario=$17, clave_smtp=$18, remitente=$19
+              entrada=$13, smtp_host=$14, smtp_puerto=$15, smtp_seguridad=$16, smtp_usuario=$17, clave_smtp=$18, remitente=$19, uso=$20
               ${cambiaCarpeta ? ', ultimo_uid = NULL, uid_validez = NULL' : ''} WHERE id = $1 RETURNING *`,
       [a.id, d.nombre, d.direccion, d.host, d.puerto, d.tls, d.usuario, clave, d.carpeta_entrada, d.carpeta_raiz, d.archivar, d.activo,
         d.entrada, d.smtp_host, d.smtp_puerto, d.smtp_seguridad, d.smtp_usuario,
-        req.body?.misma_clave_smtp ? null : req.body?.clave_smtp ? cifrar(String(req.body.clave_smtp)) : a.clave_smtp, d.remitente]);
+        req.body?.misma_clave_smtp ? null : req.body?.clave_smtp ? cifrar(String(req.body.clave_smtp)) : a.clave_smtp, d.remitente, d.uso]);
     if (req.body?.principal && d.smtp_host) await hacerPrincipal(b.id);
     if (!d.smtp_host && a.principal) await query('UPDATE buzones SET principal = false WHERE id = $1', [a.id]);
     await correo.cargar();

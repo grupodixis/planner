@@ -19,7 +19,7 @@ const buz = require('./buzones');
 const notif = require('./notificaciones');
 
 const TIPOS = ['oferta', 'confirmacion_pedido', 'albaran', 'factura', 'pedido_cliente', 'consulta', 'publicidad', 'otro'];
-const NOMBRE_TIPO = { oferta: 'Oferta', confirmacion_pedido: 'Confirmación de pedido', albaran: 'Albarán', factura: 'Factura', pedido_cliente: 'Pedido de cliente', consulta: 'Consulta', publicidad: 'Publicidad', otro: 'Otro' };
+const NOMBRE_TIPO = { peticion_presupuesto: 'Petición de presupuesto', respuesta_presupuesto: 'Respuesta a un presupuesto', oferta: 'Oferta', confirmacion_pedido: 'Confirmación de pedido', albaran: 'Albarán', factura: 'Factura', pedido_cliente: 'Pedido de cliente', consulta: 'Consulta', publicidad: 'Publicidad', otro: 'Otro' };
 const LEIBLES = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp'];
 const MAX_ADJ_IA = 4; const MAX_BYTES_IA = 15 * 1024 * 1024;
 const DOMINIOS_PUBLICOS = /^(gmail|googlemail|hotmail|outlook|live|yahoo|icloud|me|msn|aol|proton|protonmail|gmx|telefonica|movistar)\./i;
@@ -247,7 +247,7 @@ async function adjuntosIA(correoId) {
 }
 
 async function analizar(id) {
-  const { rows: [c] } = await query('SELECT c.*, b.direccion AS buzon FROM correos c LEFT JOIN buzones b ON b.id = c.buzon_id WHERE c.id = $1', [id]);
+  const { rows: [c] } = await query('SELECT c.*, b.direccion AS buzon, b.uso AS buzon_uso FROM correos c LEFT JOIN buzones b ON b.id = c.buzon_id WHERE c.id = $1', [id]);
   if (!c) return;
   const t0 = Date.now();
   const aj = await ia.ajustesIA();
@@ -257,6 +257,12 @@ async function analizar(id) {
     return;
   }
   await query(`UPDATE correos SET estado = 'analizando', error = NULL WHERE id = $1`, [id]);
+  // presupuestos@: peticiones de clientes → presupuesto con IA, acuse de recibo y aviso a Comercial
+  if (c.buzon_uso === 'presupuestos' && c.origen !== 'portal') {
+    try { await require('./presupuestos-correo').analizar(c, cfg); await buz.archivar(c.id); }
+    catch (e) { console.error('presupuestos@', id, e.message); await query(`UPDATE correos SET estado = 'error', error = $2, analizado_en = now(), modelo = $3 WHERE id = $1`, [id, e.message, cfg.modelo]); }
+    return;
+  }
   let datos; let error = null; let asoc; let modelo = cfg.modelo;
   try {
     asoc = await asociar(c);
@@ -625,6 +631,8 @@ async function detalle(id) {
       FROM pedidos_compra pc LEFT JOIN proveedores pr ON pr.id = pc.proveedor_id WHERE pc.id = $1`, [c.pedido_id]);
     out.pedido = p; out.lineas = await lineasPedido(p.id);
   }
+  const { rows: [pz] } = await query(`SELECT p.id, p.codigo, p.titulo FROM correos c JOIN presupuestos p ON p.id = c.presupuesto_id WHERE c.id = $1`, [id]);
+  if (pz) out.presupuesto = pz;
   if (['oferta', 'confirmacion_pedido'].includes(c.tipo) && !['hecho', 'descartado'].includes(c.estado)) {
     const a = await asociar({ ...c, referencias: [], en_respuesta_a: null });
     out.candidatos = { sps: a.sps.filter((s) => s.sol_estado === 'abierta'), pedidos: a.pedidos };

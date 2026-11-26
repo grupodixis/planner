@@ -213,13 +213,18 @@
   // Lo que hizo la IA: resumen, dudas, avisos, adjuntos y «Rehacer con IA»
   function bloqueIA(p) {
     if (!p.ia_estado && !p.prompt) return null;
-    const caja = el('details', { class: `pz-ia${p.ia_estado === 'error' ? ' error' : ''}`, open: p.ia_estado === 'error' || (p.ia_dudas || []).length > 0 });
+    const caja = el('details', { class: `pz-ia${p.ia_estado === 'error' ? ' error' : ''}`, open: p.ia_estado === 'error' || (p.ia_dudas || []).length > 0 || (p.eventos || []).some((e) => e.clase === 'respuesta') });
     const dudas = p.ia_dudas || []; const avisos = p.ia_avisos || [];
     caja.append(...[el('summary', {}, p.ia_estado === 'error' ? `⚠ La IA no pudo prepararlo: ${p.ia_error}` : `🤖 Preparado por la IA${p.origen === 'correo' ? ' desde un correo' : ''}${p.ia_modelo ? ` · ${p.ia_modelo}` : ''}${p.ia_ms ? ` · ${Math.round(p.ia_ms / 1000)} s` : ''}${dudas.length ? ` · ${dudas.length} duda${dudas.length === 1 ? '' : 's'}` : ''}`),
       p.ia_resumen ? el('p', {}, p.ia_resumen) : null,
       dudas.length ? el('div', {}, el('b', {}, 'Dudas (lo que ha supuesto o falta saber):'), el('ul', {}, dudas.map((d) => el('li', {}, d.partida ? el('span', { class: 'pz-cod' }, `${d.partida}: `) : null, d.texto)))) : null,
       avisos.length ? el('div', {}, el('b', {}, 'Avisos:'), el('ul', {}, avisos.map((a) => el('li', {}, a)))) : null,
       p.prompt ? el('div', {}, el('b', {}, 'Lo que se pidió:'), el('blockquote', { class: 'pz-prompt-ver' }, p.prompt)) : null].filter(Boolean));
+    const ev = p.eventos || [];
+    if (ev.length) caja.append(el('div', { class: 'pz-eventos' }, el('b', {}, 'Correo con el cliente:'),
+      el('ul', {}, ev.map((e) => el('li', { class: `pz-ev-${e.clase}` }, el('span', { class: 'pz-ev-f' }, new Date(e.creado).toLocaleString('es-ES', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })), ' ', e.texto,
+        e.correo_id && window.s360.tiene('compras') ? [' ', el('a', { href: `/correo.html?id=${e.correo_id}`, class: 'pz-ev-l' }, 'ver correo')] : null))),
+      (p.datos_pedidos || []).length ? el('p', { class: 'ayuda' }, `Datos pedidos al cliente: ${p.datos_pedidos.join(', ')}. Si contesta en el mismo hilo, se rellenan solos.`) : null));
     const adj = el('div', { class: 'pz-adj-chips' }); caja.append(adj);
     api('GET', `/api/presupuestos/${p.id}/adjuntos`).then((ls) => adj.replaceChildren(...(ls.length ? [el('b', {}, 'Adjuntos: ')] : []), ...ls.map((a) => el('a', { class: 'pz-adj', href: `/api/presupuestos-adjuntos/${a.id}`, target: '_blank', rel: 'noopener' }, `📎 ${a.nombre}`)))).catch(() => {});
     if (p.estado === 'preparacion') caja.append(el('div', { class: 'pz-acc' }, el('button', { type: 'button', class: 'ghost', onclick: () => dialogoRehacer(p) }, '🤖 Rehacer con IA…')));

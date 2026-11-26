@@ -362,7 +362,7 @@ function montar(app, asyncH) {
 }
 
 // Crear un presupuesto y prepararlo con la IA en segundo plano (desde la pantalla o desde un correo). Devuelve su id.
-async function crear({ titulo, cliente_id, obra_id, prompt, adjuntos = [], skills = [], gg_pct, bi_pct, usuarioId, origen = 'pantalla', correo_id = null }) {
+async function crear({ titulo, cliente_id, obra_id, prompt, adjuntos = [], skills = [], gg_pct, bi_pct, usuarioId, origen = 'pantalla', correo_id = null, arrancar = true }) {
   const id = await tx(async (c) => {
     const y = new Date().getFullYear();
     const { rows: [n] } = await c.query(`SELECT max(substring(codigo from '\\d+$')::int) AS n FROM presupuestos WHERE codigo LIKE $1`, [`PRE-${y}-%`]);
@@ -373,7 +373,7 @@ async function crear({ titulo, cliente_id, obra_id, prompt, adjuntos = [], skill
     if (adjuntos.length) await c.query('UPDATE presupuesto_adjuntos SET presupuesto_id = $1 WHERE id = ANY($2) AND presupuesto_id IS NULL', [r.id, adjuntos]);
     return r.id;
   });
-  setImmediate(() => generar(id, { tituloAuto: !titulo }));   // el título lo pone la IA si no se dio
+  if (arrancar) setImmediate(() => generar(id, { tituloAuto: !titulo }));   // el título lo pone la IA si no se dio
   return id;
 }
 

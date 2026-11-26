@@ -20,7 +20,7 @@
   const eur = (n) => (n == null || !Number.isFinite(Number(n)) ? '—' : Number(n).toLocaleString('es-ES', { style: 'currency', currency: 'EUR', minimumFractionDigits: 2, maximumFractionDigits: 4 }));
   const fcorta = (t) => (t ? new Date(t).toLocaleString('es-ES', { day: 'numeric', month: 'numeric', hour: '2-digit', minute: '2-digit' }) : '');
   const ddmm = (f) => (f ? `${String(f).slice(8, 10)}/${String(f).slice(5, 7)}` : '');
-  const TIPO_ICO = { oferta: '💶', confirmacion_pedido: '✅', albaran: '📦', factura: '🧾', pedido_cliente: '🛒', consulta: '💬', publicidad: '📣', otro: '📄' };
+  const TIPO_ICO = { oferta: '💶', confirmacion_pedido: '✅', albaran: '📦', factura: '🧾', pedido_cliente: '🛒', peticion_presupuesto: '📐', respuesta_presupuesto: '📐', consulta: '💬', publicidad: '📣', otro: '📄' };
   const ESTADO = { nuevo: ['Sin leer por la IA', 'gris'], analizando: ['La IA está leyendo…', 'azul'], revisar: ['Por revisar', 'naranja'], sin_asignar: ['Sin asignar', 'rojo'],
     clasificado: ['Clasificado', 'gris'], hecho: ['Resuelto', 'verde'], descartado: ['Descartado', 'gris'], error: ['Error', 'rojo'] };
   const est = { vista: 'revisar', buzon: '', tipo: '', q: '', lista: [], sel: null, c: null, tipos: {}, sucio: false, buzones: [], yo: null, adj: null };
@@ -89,6 +89,7 @@
         (c.alertas || []).length ? el('ul', { class: 'co-alertas' }, c.alertas.map((a) => el('li', {}, `⚠ ${a}`))) : null,
         el('small', {}, `Leído con ${c.modelo || '—'}${c.analizado_en ? ` · ${fcorta(c.analizado_en)}` : ''}`)) : null,
       c.resultado && !abierto ? el('div', { class: 'co-hecho' }, `${c.estado === 'hecho' ? '✔' : '✕'} ${c.resultado}`) : null,
+      c.presupuesto ? el('div', { class: 'co-hecho' }, '📐 ', el('a', { href: `/presupuestos.html?id=${c.presupuesto.id}` }, `${c.presupuesto.codigo} · ${c.presupuesto.titulo || ''}`)) : null,
       abierto ? asociacion(c) : null,
       abierto && c.tipo === 'oferta' && c.sp ? formOferta(c) : null,
       abierto && c.tipo === 'confirmacion_pedido' && c.pedido ? formPedido(c) : null,
@@ -270,7 +271,7 @@
   function formBuzon(b, repintar) {
     const nuevo = !b;
     const v = b || { nombre: '', direccion: '', host: 'imap.ionos.es', puerto: 993, tls: true, usuario: '', carpeta_entrada: 'INBOX', carpeta_raiz: 'Planéalo', archivar: 'auto', activo: true,
-      entrada: true, salida: true, smtp_host: 'smtp.ionos.es', smtp_puerto: 587, smtp_seguridad: 'starttls', smtp_usuario: '', remitente: '' };
+      entrada: true, salida: true, smtp_host: 'smtp.ionos.es', smtp_puerto: 587, smtp_seguridad: 'starttls', smtp_usuario: '', remitente: '', uso: 'compras' };
     const resIn = el('span', { class: 'co-prueba' }); const resOut = el('span', { class: 'co-prueba' });
     const f = el('form', { class: `co-buz${b?.principal ? ' principal' : ''}`, autocomplete: 'off', onsubmit: async (ev) => {
       ev.preventDefault();
@@ -287,7 +288,7 @@
       smtp_host: f.salida.checked ? f.smtp_host.value : null, smtp_puerto: Number(f.smtp_puerto.value), smtp_seguridad: f.smtp_seguridad.value,
       smtp_usuario: f.smtp_usuario.value || null, remitente: f.remitente.value || null,
       ...(f.otra_clave.checked && f.clave_smtp.value ? { clave_smtp: f.clave_smtp.value } : {}), ...(!f.otra_clave.checked ? { misma_clave_smtp: true } : {}),
-      principal: f.principal.checked,
+      principal: f.principal.checked, uso: f.uso.value,
     });
     const probar = async (ev, ruta, res, extra = {}) => {
       ev.target.disabled = true; res.textContent = 'Probando…'; res.className = 'co-prueba';
@@ -312,13 +313,16 @@
     seg.addEventListener('change', () => { puertoOut.value = seg.value === 'ssl' ? 465 : 587; });
     const destino = el('input', { type: 'email', placeholder: 'enviar prueba a…', 'aria-label': 'Enviar correo de prueba a', class: 'co-dest' });
     f.append(
-      b ? el('div', { class: 'co-buz-cab' }, el('b', {}, b.nombre), el('span', {}, b.direccion), b.principal ? el('span', { class: 'co-chip verde', title: 'Los pedidos, peticiones de precio y avisos salen de esta cuenta' }, '★ principal para enviar') : null,
+      b ? el('div', { class: 'co-buz-cab' }, el('b', {}, b.nombre), el('span', {}, b.direccion), b.uso === 'presupuestos' ? el('span', { class: 'co-chip' }, '📐 presupuestos') : null, b.principal ? el('span', { class: 'co-chip verde', title: 'Los pedidos, peticiones de precio y avisos salen de esta cuenta' }, '★ principal para enviar') : null,
         el('small', {}, b.entrada ? `${b.n} correos leídos` : '')) : null,
       el('div', { class: 'co-campos' },
         el('label', {}, 'Nombre', el('input', { name: 'nombre', value: v.nombre, required: true, placeholder: 'Compras' })),
         el('label', {}, 'Dirección', el('input', { name: 'direccion', type: 'email', value: v.direccion, required: true, placeholder: 'compras@…' })),
         el('label', {}, 'Contraseña', el('input', { name: 'clave', type: 'password', autocomplete: 'new-password', placeholder: b?.clave_guardada ? '🔒 guardada' : '', required: nuevo })),
-        el('label', { class: 'co-chk' }, el('input', { name: 'activo', type: 'checkbox', checked: v.activo }), ' Activa')),
+        el('label', { class: 'co-chk' }, el('input', { name: 'activo', type: 'checkbox', checked: v.activo }), ' Activa'),
+        el('label', { class: 'ancho2' }, 'Para qué es', el('select', { name: 'uso' },
+          [['compras', '🛒 Compras: ofertas, confirmaciones, albaranes y facturas de proveedores'], ['presupuestos', '📐 Presupuestos: peticiones de clientes → la IA prepara el presupuesto']]
+            .map(([k, t]) => el('option', { value: k, selected: (v.uso || 'compras') === k }, t))))),
       seccion('entrada', chkIn, '📥 Recibir (la IA lee el correo)', estadoIn,
         el('label', {}, 'Servidor IMAP', el('input', { name: 'host', value: v.host, required: true })),
         el('label', {}, 'Puerto', el('input', { name: 'puerto', type: 'number', value: v.puerto, class: 'co-num' })),

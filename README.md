@@ -1500,8 +1500,15 @@ Endpoints: `GET /api/ia`, `PUT /api/ia/ajustes`, `POST /api/ia/probar/:nombre`, 
   - En pantalla, botón «🧠 Skills»: editor, descargar o cargar .md, activar.
 - **Permiso `presupuestos`** y rol **Comercial** (solo ese permiso). Administrador y Dirección también lo tienen. Presupuestos admite `presupuestos` o `costes`.
 
+**Peticiones por correo** (`src/presupuestos-correo.js`)
+- Cada cuenta de correo tiene `buzones.uso`: `compras` (por defecto) o `presupuestos`. Se elige en Correo entrante › Cuentas de correo › «Para qué es».
+- `correo-ia.analizar` desvía los correos de una cuenta de presupuestos a `presupuestos-correo.analizar` (otra instrucción a la IA: tipo `peticion|respuesta|otro`, `lo_que_pide`, datos del `cliente` y la `obra`, `titulo`). El texto citado se quita antes (`sinCitar`).
+- **Petición** (confianza ≥ 0,5): cliente por email, contacto o dominio no público; si no existe se crea (con contacto). `presupuestos-ia.crear({origen:'correo', correo_id, arrancar:false})`, se copian los adjuntos del correo y luego arranca la IA (así lee los adjuntos). Acuse de recibo desde la misma cuenta (`correo.enviarDesde`, en respuesta al correo, asunto `Re: … [PRE-…]`) pidiendo lo que falte: nombre, CIF, dirección fiscal, teléfono y dirección de la obra → `presupuestos.datos_pedidos`. No se contesta a noreply ni a direcciones propias. Aviso `presupuesto_correo` a los usuarios con rol Comercial (si no hay, a quien tenga el permiso). Correo: `tipo = peticion_presupuesto`, `presupuesto_id`, carpeta «Peticiones de presupuesto».
+- **Respuesta**: el hilo se reconoce por el acuse enviado (`correo_enviados` ref `acuse_presupuesto`), por correos anteriores del hilo o por el código PRE- del asunto. Completa solo los campos vacíos del cliente, recalcula `datos_pedidos`, copia adjuntos nuevos, suma la respuesta al prompt (si el presupuesto está en preparación) y avisa a Comercial.
+- **Otra cosa** o duda: queda en Correo entrante como clasificado.
+- Historial en `presupuesto_eventos` (`peticion`, `acuse`, `respuesta`, `aviso`), que `cargar()` devuelve como `eventos` y la ficha muestra en «Correo con el cliente».
+
 **Siguientes fases**:
-- correo presupuestos@ como entrada: la IA detecta peticiones de presupuesto, crea el cliente, responde con acuse de recibo pidiendo los datos que falten y avisa a Comercial;
 - mejoras de las Skills propuestas a partir de las correcciones;
 - pedir horas a Producción;
 - condiciones de aceptación y borrador de proyecto.

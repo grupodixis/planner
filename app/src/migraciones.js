@@ -1715,6 +1715,18 @@ const MIGRACIONES = [
   `INSERT INTO roles (clave, nombre, descripcion, permisos) VALUES ('comercial', 'Comercial', 'Prepara presupuestos y recibe las peticiones que llegan a presupuestos@', ARRAY['presupuestos'])
      ON CONFLICT (clave) DO NOTHING`,
   `UPDATE roles SET permisos = permisos || ARRAY['presupuestos'] WHERE clave IN ('admin', 'direccion') AND NOT ('presupuestos' = ANY(permisos))`,
+  // presupuestos@: el buzón tiene un uso; lo que llega de clientes crea presupuestos (acuse de recibo y alta del cliente)
+  `ALTER TABLE buzones ADD COLUMN IF NOT EXISTS uso TEXT NOT NULL DEFAULT 'compras'`,
+  `ALTER TABLE correos ADD COLUMN IF NOT EXISTS presupuesto_id INT REFERENCES presupuestos(id) ON DELETE SET NULL`,
+  `ALTER TABLE presupuestos ADD COLUMN IF NOT EXISTS datos_pedidos JSONB`,
+  `CREATE TABLE IF NOT EXISTS presupuesto_eventos (
+     id             SERIAL PRIMARY KEY,
+     presupuesto_id INT NOT NULL REFERENCES presupuestos(id) ON DELETE CASCADE,
+     clase          TEXT NOT NULL,
+     texto          TEXT NOT NULL,
+     correo_id      INT,
+     creado         TIMESTAMPTZ NOT NULL DEFAULT now()
+   )`,
 ];
 
 async function migrar() {
