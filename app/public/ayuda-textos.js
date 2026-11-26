@@ -481,6 +481,15 @@ window.S360_AYUDA = {
       ],
     },
 
+    '/tarifa.html': {
+      titulo: 'Tarifa de mano de obra y maquinaria',
+      para_que: 'El precio de VENTA de cada categoría de operario y de cada tipo de máquina, y lo que de verdad nos CUESTA: el coste de la ficha corregido por el rendimiento real de los partes. Es la base de Presupuestos.',
+      secciones: [
+        { titulo: 'Cómo se calcula', texto: '<b>Coste ficha</b>: media del coste empresa €/h de los operarios activos de esa categoría (o de las máquinas de ese tipo). <b>Rendimiento real</b>: horas previstas ÷ horas reales en las tareas terminadas de los últimos 6 meses; a cada operario le cuentan las tareas en las que trabajó, según sus horas. Más de 100 % = rinde más de lo previsto. <b>Coste efectivo</b> = coste ficha ÷ rendimiento (con menos de 20 h de base no se corrige: sale subrayado). <b>Margen</b> = (venta − coste efectivo) ÷ venta: verde 25 % o más, naranja 15–25 %, rojo menos.' },
+        { titulo: 'Qué se edita', texto: 'El <b>precio de venta</b> (al salir del campo se guarda). En maquinaria, también la <b>unidad</b> (h, día, km) y, si no va por horas, el <b>coste a mano</b> (vacío = el de las fichas). <b>Ocultar</b> quita una categoría o un tipo de la tarifa (las de oficina nacen ocultas). El coste de cada persona se cambia en su ficha (Recursos).' },
+      ],
+    },
+
     '/mi-dia.html': {
       titulo: 'Mi día',
       para_que: 'Tu trabajo de hoy: dónde, con quién y qué necesitas. Al terminar, apunta cómo fue y envíalo al encargado. El móvil es para confirmar y avisar; lo demás se hace en la oficina.',
@@ -754,5 +763,6 @@ window.S360_AYUDA = {
     { id: 49, fecha: '2026-11-26', si: ['compras', 'aprobar_compras', 'logistica'], titulo: '🔖 Referencia de proyecto en peticiones y pedidos', texto: 'Las peticiones de oferta y los pedidos al proveedor (PDF, correo y su enlace) llevan ahora el <b>proyecto</b> en la cabecera y, bajo cada línea, su <b>referencia</b>: proyecto, partida y OT. Se pide al proveedor que la indique en su oferta, albarán y factura, para saber siempre a qué obra va cada material.', ir: '/compras.html' },
     { id: 50, fecha: '2026-11-26', si: ['planificar', 'proyectos'], titulo: '✋ Mover el gantt con la mano', texto: '<b>Arrastra el fondo</b> del gantt para moverte: a los lados cambias de semanas y arriba o abajo recorres las obras. Encima de una barra, mantén <b>Alt</b> (o arrastra con la <b>rueda pulsada</b>) para mover la vista en vez de la barra.', ir: '/gantt.html' },
     { id: 51, fecha: '2026-11-26', si: ['compras', 'logistica', 'aprobar_compras'], titulo: '📞 Todo pedido es un pedido de compra', texto: 'Se acabó marcar «pedido» línea a línea en Material de las partidas. Lo que se pide por teléfono se registra con <b>📞 Ya pedido por teléfono</b>: queda como pedido de compra enviado y, cuando llega su confirmación a <b>compras@</b>, la IA la lee y completa precios, su nº y la fecha (lo revisas en Correo entrante). Logística recibe <b>por pedido</b>, con un albarán, desmarcando lo que no ha llegado. Y un pedido enviado se puede <b>anular</b> en Compras.', ir: '/logistica.html?vista=comprar' },
+    { id: 52, fecha: '2026-11-26', si: ['costes'], titulo: '💶 Tarifa de mano de obra y maquinaria', texto: 'Nueva pantalla <b>Informes › Tarifa</b>: pones el <b>precio de venta</b> de cada categoría (Oficial 1ª, 2º…) y de cada tipo de máquina, y ves lo que de verdad cuesta: el coste de la ficha corregido por el <b>rendimiento real</b> de los partes (horas previstas ÷ reales), con el margen. También por persona. Es la base de Presupuestos.', ir: '/tarifa.html' },
   ],
 };

@@ -125,7 +125,8 @@
       ['/capacidades.html', 'Capacidades', ['recursos', 'planificar'], 'Lo que sabe hacer cada uno'], ['/usuarios.html', 'Usuarios y accesos', 'usuarios', 'Cuentas, roles y PIN'],
       ['/ia.html', 'IA', ['ia', 'usuarios'], 'Herramientas de la IA, conexión de Claude Code y registro']]],
     ['Informes', [['/informes.html', 'Informes', 'informes', 'Horas, avance y planificación por periodo'],
-      ['/costes.html', 'Control de costes', 'costes', 'Presupuesto, real, previsión y margen por proyecto']]],
+      ['/costes.html', 'Control de costes', 'costes', 'Presupuesto, real, previsión y margen por proyecto'],
+      ['/tarifa.html', 'Tarifa de mano de obra y maquinaria', 'costes', 'Precio de venta y coste real por rendimiento (base de Presupuestos)']]],
   ];
   // pantalla actual (un enlace con «?tipo=…» solo cuenta en esa pestaña)
   const aqui = (href) => {

@@ -313,6 +313,7 @@ require('./ia-chat').montar(app, asyncH);   // Asistente ✨ de la app
 require('./buzones').montar(app, asyncH, auth);   // Correo entrante: buzones IMAP (por eventos)
 require('./correo-ia').montar(app, asyncH, auth);   // Correo entrante: lo que lee la IA y la revisión
 require('./precios').montar(app, asyncH, auth);   // Lista de precios y lo que aprende la IA de cada proveedor
+require('./tarifa').montar(app, asyncH);   // Tarifa de mano de obra y maquinaria (venta y coste por rendimiento real)
 require('./incidencias').montar(app, asyncH);   // incidencias: material, transporte, calidad… con reclamación y cierre
 require('./pedido-transporte').montar(app, asyncH);   // cómo llega cada pedido: proveedor, recogida o almacén del transportista
 require('./recursos')(app, asyncH);

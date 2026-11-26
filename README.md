@@ -1428,6 +1428,22 @@ Endpoints: `GET /api/ia`, `PUT /api/ia/ajustes`, `POST /api/ia/probar/:nombre`, 
 - **Aprendizaje por proveedor**: al confirmar una oferta leída por la IA, lo corregido (precios, portes, entrega, referencia) va a `ia_correcciones`; de ahí `proveedores.notas_ia_auto` (≥ 2 veces: precios con IVA, unidad N veces mayor/menor). Notas escritas por Compras en `proveedores.notas_ia`. La IA devuelve también cómo llama el proveedor a cada línea (`su_texto` → `proveedor_alias`). Todo esto («memoria_de_este_proveedor»: notas, últimas 8 correcciones y equivalencias) se le pasa a la IA cada vez que lee a ese proveedor, con prioridad sobre su interpretación. En la ficha del proveedor: «🤖 Lo que la IA sabe». `GET·PUT /api/proveedores/:id/ia`.
 - **Para Presupuestos**: `GET /api/precios/estimado?catalogo_id=` (precio sugerido y aviso si está viejo o no hay); `solicitudes_precio.motivo` (`compra` | `presupuesto`) y `solicitud_lineas.catalogo_id` para pedir precio de materiales del catálogo sin escandallo.
 
+## Tarifa de mano de obra y maquinaria (Informes › Tarifa)
+
+`src/tarifa.js`, `public/tarifa.html` + `tarifa-pantalla.js`, tabla `tarifa` (`clase` mano_obra | maquinaria, `clave` = categoría principal del operario o id del tipo de máquina, `unidad`, `precio_venta`, `coste_manual`, `activo`). Permiso `costes`. Es la base de precios de Presupuestos.
+
+- Las filas se crean solas, una por categoría de operario y una por tipo de máquina con equipos activos. Las categorías de oficina (administración, dirección, RRHH, comercial, logística) nacen ocultas.
+- **Coste ficha**: media de `recursos.coste_hora` de los activos de esa categoría o tipo. En maquinaria se puede fijar a mano (`coste_manual`, p. ej. €/km).
+- **Rendimiento real** (`rendimientos()`):
+  - cuentan las tareas propias terminadas en los últimos 6 meses;
+  - el rendimiento de cada tarea es horas previstas (estimación inicial × operarios) ÷ horas reales de los partes (`registros` productivos de operarios);
+  - a cada operario le cuenta el de sus tareas, pesado por sus horas;
+  - la categoría suma a sus operarios.
+- **Coste efectivo** = coste ficha ÷ rendimiento. Con menos de 20 h de base no se corrige (`poca_base`).
+- **Margen sobre tarifa** = (venta − coste efectivo) ÷ venta.
+- La tabla **por persona** muestra coste, rendimiento, coste efectivo y la base (horas y tareas).
+- API: `GET /api/tarifa`, `PUT /api/tarifa/:id {precio_venta, unidad, coste_manual, notas, activo, nombre}`.
+
 ## Todo pedido es un pedido de compra
 
 Compras pide y Logística recibe. Ya no se marca «pedido» línea a línea en Material de las partidas: `PUT /api/escandallo/:id/compra` responde que se haga con un pedido de compra.

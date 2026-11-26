@@ -1595,6 +1595,22 @@ const MIGRACIONES = [
   `ALTER TABLE pedidos_compra ADD COLUMN IF NOT EXISTS anulado_en TIMESTAMPTZ`,
   `ALTER TABLE pedidos_compra ADD COLUMN IF NOT EXISTS anulado_por INT REFERENCES usuarios(id) ON DELETE SET NULL`,
   `ALTER TABLE pedidos_compra ADD COLUMN IF NOT EXISTS anulado_motivo TEXT`,
+  // Tarifa de mano de obra y maquinaria: precio de venta estipulado; el coste sale de las fichas y del rendimiento real
+  `CREATE TABLE IF NOT EXISTS tarifa (
+     id           SERIAL PRIMARY KEY,
+     clase        TEXT NOT NULL CHECK (clase IN ('mano_obra', 'maquinaria')),
+     clave        TEXT NOT NULL,              -- categoría del operario (mano de obra) o id del tipo de máquina
+     nombre       TEXT NOT NULL,
+     unidad       TEXT NOT NULL DEFAULT 'h',
+     precio_venta NUMERIC(10,2),
+     coste_manual NUMERIC(10,2),              -- si se fija a mano (p. ej. €/km de la furgoneta); si no, el calculado
+     notas        TEXT,
+     activo       BOOLEAN NOT NULL DEFAULT TRUE,
+     orden        INT NOT NULL DEFAULT 0,
+     cambiado_por INT REFERENCES usuarios(id) ON DELETE SET NULL,
+     cambiado_en  TIMESTAMPTZ,
+     UNIQUE (clase, clave)
+   )`,
 ];
 
 async function migrar() {
