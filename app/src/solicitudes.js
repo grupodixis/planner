@@ -36,7 +36,8 @@ async function solicitud(id, c = { query }) {
               WHERE l.solicitud_id = $1 ORDER BY l.orden, l.id`, [id]),
     () => c.query(`SELECT sp.*, sp.portes::float AS portes, sp.inicio_posible::text AS inicio_posible, p.nombre AS proveedor, p.email, p.plazo_dias,
                     (SELECT count(*)::int FROM correos co WHERE co.sp_id = sp.id) AS n_correos,
-                    (SELECT count(*)::int FROM correos co WHERE co.sp_id = sp.id AND co.estado IN ('revisar','sin_asignar','error','nuevo','analizando')) AS n_revisar
+                    (SELECT count(*)::int FROM correos co WHERE co.sp_id = sp.id AND co.estado IN ('revisar','sin_asignar','error','nuevo','analizando')) AS n_revisar,
+                    (SELECT max(co.id) FROM correos co WHERE co.sp_id = sp.id AND co.tipo = 'oferta' AND co.estado = 'revisar') AS correo_revisar_id
                FROM solicitud_proveedores sp JOIN proveedores p ON p.id = sp.proveedor_id
               WHERE sp.solicitud_id = $1 ORDER BY sp.id`, [id]),
     () => c.query(`SELECT pc.sp_id, pc.linea_id, pc.precio::float AS precio FROM solicitud_precios pc

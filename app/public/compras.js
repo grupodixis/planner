@@ -421,7 +421,9 @@
           onclick: () => conversacion(s, p) }, `💬 Conversación${p.n_correos ? ` (${p.n_correos})` : ''}${p.n_revisar ? ' · por revisar' : ''}`) : null,
         abierta ? el('div', { class: 'cmp-prov-acc' },
           el('button', { type: 'button', class: 'ghost mini', onclick: () => dialogoEnviarSol(s, p) }, p.enviado_en ? '🔔 Recordar' : '📤 Enviar'),
-          el('button', { type: 'button', class: p.estado === 'enviada' ? 'primario mini' : 'ghost mini', onclick: () => dialogoOferta(s, p) }, '✎ Apuntar oferta'),
+          p.correo_revisar_id
+            ? el('button', { type: 'button', class: 'primario mini cmp-ia', title: 'Ha respondido y la IA ya ha leído su oferta: revísala y confírmala', onclick: () => dialogoOferta(s, p, p.correo_revisar_id) }, '🤖 Revisar oferta recibida')
+            : el('button', { type: 'button', class: p.estado === 'enviada' ? 'primario mini' : 'ghost mini', onclick: () => dialogoOferta(s, p) }, '✎ Apuntar oferta'),
           el('button', { type: 'button', class: 'ghost mini', title: 'Enlace para que el proveedor ponga sus precios en la plataforma', onclick: () => copiarEnlace(s, p) }, '🔗 Enlace'),
           el('button', { type: 'button', class: 'ghost mini', 'aria-label': `Quitar ${p.proveedor}`, onclick: () => { if (confirm(`¿Quitar a ${p.proveedor} de esta petición?`)) hacer(() => api('DELETE', `/api/compras/solicitudes/${s.id}/proveedores/${p.id}`)); } }, '✕')) : null);
     };
@@ -460,24 +462,52 @@
     actualizarPies(); pintarSel();
   }
 
-  function dialogoOferta(s, p) {
+  // correoId: la oferta que ha leído la IA (de un correo o de su PDF en el portal): el cuadro sale relleno y con el original al lado
+  async function dialogoOferta(s, p, correoId) {
+    let co = null;
+    if (correoId) { try { co = await api('GET', `/api/correo/${correoId}`); } catch (e) { toast(e.message, true); return; } }
+    const o = co?.extraccion?.oferta || null;
+    const ia = o ? Object.fromEntries((o.lineas || []).map((l) => [l.linea_id, l])) : {};
     const ins = new Map();
-    const fEnt = el('input', { type: 'date', value: p.fecha_entrega || '' });
-    const portes = el('input', { type: 'number', min: '0', step: '0.01', value: p.portes ?? '', placeholder: '0 = pagados' });
-    const ref = el('input', { value: p.ref_oferta || '', maxlength: 80, placeholder: 'nº de su oferta' });
-    const notas = el('textarea', { rows: 2, maxlength: 1000 }); notas.value = p.notas || '';
+    const fEnt = el('input', { type: 'date', value: (o ? o.fecha_entrega : p.fecha_entrega) || '' });
+    const portes = el('input', { type: 'number', min: '0', step: '0.01', value: (o ? o.portes : p.portes) ?? '', placeholder: '0 = pagados' });
+    const ref = el('input', { value: (o ? o.ref_oferta : p.ref_oferta) || '', maxlength: 80, placeholder: 'nº de su oferta' });
+    const notas = el('textarea', { rows: 2, maxlength: 1000 });
+    notas.value = o ? [o.notas, o.validez && `Validez: ${o.validez.split('-').reverse().join('/')}`, o.forma_pago && `Pago: ${o.forma_pago}`, o.plazo_texto && `Plazo: ${o.plazo_texto}`].filter(Boolean).join('\n') : p.notas || '';
     const subidos = []; const nombre = el('span', { class: 'ayuda' });
     const file = el('input', { type: 'file', accept: 'application/pdf,image/*', hidden: true, onchange: async () => {
       const f = file.files[0]; if (!f) return;
       try { toast('Subiendo…'); subidos.push(await window.s360.subirArchivo(f)); nombre.textContent = ` ${f.name}`; toast('Listo: se guarda al guardar la oferta'); } catch (e) { toast(e.message, true); }
     } });
-    const d = el('dialog', { class: 'dlg-cos dlg-oferta' },
-      el('h2', {}, `Oferta de ${p.proveedor}`),
+    const confirmarIA = async (noOferta) => {
+      const lineas = Object.fromEntries([...ins].map(([k, i]) => [k, { precio: i.value === '' ? null : Number(i.value), no: !!ia[k]?.no && i.value === '', alt: ia[k]?.alt || null }]));
+      try {
+        await api('POST', `/api/correo/${co.id}/confirmar-oferta`, { sp_id: p.id, lineas, no_oferta: !!noOferta, fecha_entrega: fEnt.value || null, portes: portes.value === '' ? null : Number(portes.value), ref_oferta: ref.value, notas: notas.value, adjuntar: true });
+        if (subidos.length) await api('PUT', `/api/compras/solicitudes/${s.id}/proveedores/${p.id}`, { archivos: subidos }).catch(() => {});
+        d.close(); toast(noOferta ? 'Apuntado: no oferta' : 'Oferta confirmada: ya está en el comparativo'); pintar();
+      } catch (e) { toast(e.message, true); }
+    };
+    // el original (su correo sin lo citado, o su PDF) al lado
+    const original = co ? (() => {
+      const pdf = co.adjuntos.find((a) => a.tipo === 'application/pdf') || co.adjuntos.find((a) => /^image\//.test(a.tipo));
+      return el('div', { class: 'dlg-oferta-orig' },
+        el('div', { class: 'ayuda' }, `${co.origen === 'portal' ? '🌐 Su PDF del portal' : `📧 ${co.de_nombre || co.de_email} · ${new Date(co.fecha).toLocaleString('es-ES', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}`}`),
+        co.origen !== 'portal' && co.texto ? textoCorreo(co.texto) : null,
+        pdf ? (/^image\//.test(pdf.tipo) ? el('img', { src: `/api/correo/adjuntos/${pdf.id}`, alt: pdf.nombre, class: 'dlg-oferta-pdf' }) : el('iframe', { src: `/api/correo/adjuntos/${pdf.id}#view=FitH`, title: pdf.nombre, class: 'dlg-oferta-pdf' })) : null,
+        co.adjuntos.filter((a) => a !== pdf).map((a) => el('a', { href: `/api/correo/adjuntos/${a.id}`, target: '_blank', rel: 'noopener', class: 'ayuda' }, `📎 ${a.nombre} `)));
+    })() : null;
+    const d = el('dialog', { class: `dlg-cos dlg-oferta${co ? ' con-original' : ''}` },
+      el('h2', {}, co ? `🤖 Oferta de ${p.proveedor} · leída por la IA` : `Oferta de ${p.proveedor}`),
+      co ? el('div', { class: 'cmp-ia-caja' }, el('b', {}, '🤖 '), co.resumen || 'La IA ha leído su respuesta.', (co.alertas || []).length ? el('ul', {}, co.alertas.map((a) => el('li', {}, `⚠ ${a}`))) : null,
+        el('div', { class: 'ayuda' }, 'Comprueba con el original (a la derecha) y corrige lo que haga falta. Hasta que confirmes, no entra en el comparativo.')) : null,
       el('p', { class: 'ayuda' }, 'Precio unitario de cada línea (sin IVA). Deja vacío lo que no oferta.'),
       el('table', { class: 'tabla-inf' }, el('tbody', {}, s.lineas.map((l) => {
-        const i = el('input', { type: 'number', min: '0', step: '0.0001', value: p.precios[l.id] ?? '', 'aria-label': `Precio de ${l.descripcion}`, class: 'cmp-in-num' });
+        const x = ia[l.id];
+        const i = el('input', { type: 'number', min: '0', step: '0.0001', value: (o ? x?.precio : p.precios[l.id]) ?? '', 'aria-label': `Precio de ${l.descripcion}`, class: `cmp-in-num${o && x?.precio == null && !x?.no ? ' cmp-falta' : ''}` });
         ins.set(l.id, i);
-        return el('tr', {}, el('td', {}, l.descripcion, el('div', { class: 'sub' }, `${String(l.cantidad).replace('.', ',')} ${l.unidad || ''}`)), el('td', { class: 'num' }, i, ` €/${l.unidad || 'ud'}`));
+        return el('tr', {}, el('td', {}, l.descripcion, el('div', { class: 'sub' }, `${String(l.cantidad).replace('.', ',')} ${l.unidad || ''}`),
+          x?.no ? el('div', { class: 'cmp-ia-nota' }, '🤖 dice que no lo tiene') : null, x?.alt ? el('div', { class: 'cmp-ia-nota' }, `🤖 alternativa: ${x.alt}`) : null, x?.nota ? el('div', { class: 'cmp-ia-nota' }, `🤖 ${x.nota}`) : null),
+          el('td', { class: 'num' }, i, ` €/${l.unidad || 'ud'}`));
       }))),
       el('div', { class: 'cmp-campos' },
         el('label', { class: 'cmp-campo' }, el('span', {}, 'Entrega el'), fEnt),
@@ -486,15 +516,22 @@
         el('label', { class: 'cmp-campo ancho' }, el('span', {}, 'Notas'), notas)),
       el('label', { class: 'boton ghost mini' }, '📎 Adjuntar su oferta (PDF o foto)', file, nombre),
       el('div', { class: 'acciones' },
+        co ? el('button', { type: 'button', class: 'ghost', title: 'La lectura de la IA no vale: se descarta (el correo queda en Correo entrante como descartado)', onclick: async () => {
+          if (!confirm('¿Descartar lo que ha leído la IA? No se apunta nada.')) return;
+          try { await api('POST', `/api/correo/${co.id}/descartar`, { motivo: 'Descartado al revisar la petición' }); d.close(); toast('Descartado'); pintar(); } catch (e) { toast(e.message, true); }
+        } }, 'Descartar lectura') : null,
         el('button', { type: 'button', class: 'ghost', onclick: async () => {
+          if (co) return confirmarIA(true);
           try { await api('PUT', `/api/compras/solicitudes/${s.id}/proveedores/${p.id}`, { no_oferta: true, notas: notas.value, archivos: subidos }); d.close(); toast('Apuntado: no oferta'); pintar(); } catch (e) { toast(e.message, true); }
         } }, 'No oferta'),
         el('button', { type: 'button', class: 'ghost', onclick: () => d.close() }, 'Cancelar'),
-        el('button', { type: 'button', class: 'primario', onclick: async () => {
+        co ? el('button', { type: 'button', class: 'primario', onclick: () => confirmarIA(false) }, '✔ Confirmar oferta') : null,
+        co ? null : el('button', { type: 'button', class: 'primario', onclick: async () => {
           const precios = Object.fromEntries([...ins].map(([k, i]) => [k, i.value === '' ? null : i.value]));
           try { await api('PUT', `/api/compras/solicitudes/${s.id}/proveedores/${p.id}`, { precios, fecha_entrega: fEnt.value, portes: portes.value, ref_oferta: ref.value, notas: notas.value, archivos: subidos }); d.close(); toast('Oferta guardada'); pintar(); }
           catch (e) { toast(e.message, true); }
         } }, 'Guardar oferta')));
+    if (original) { const cuerpo = el('div', { class: 'dlg-oferta-cols' }, el('div', { class: 'dlg-oferta-izq' }, ...[...d.childNodes]), original); d.replaceChildren(cuerpo); }
     d.addEventListener('close', () => d.remove());
     document.body.append(d); d.showModal();
   }
@@ -626,6 +663,17 @@
       tiene('usuarios') ? await panelCorreo() : null));
   }
 
+  // Texto de un correo sin lo citado («El … escribió:», líneas con «>»), que se puede desplegar
+  function textoCorreo(t) {
+    const m = [/\n[ \t]*(El|On)\s[^\n]{0,160}(\n[^\n]{0,160})?\s(escribió|wrote)\s*:/i, /\n[ \t]*-{2,}\s*(Mensaje original|Original Message)/i, /\n[ \t]*De:\s[^\n]+\n[ \t]*(Enviado|Fecha|Sent)/i, /\n[ \t]*>/]
+      .map((r) => { const x = r.exec(`\n${t}`); return x ? x.index : -1; }).filter((i) => i > 0);
+    const corte = m.length ? Math.min(...m) : -1;
+    const propio = (corte > 0 ? t.slice(0, corte - 1) : t).trim();
+    const citado = corte > 0 ? t.slice(corte - 1).trim() : '';
+    const pre = el('pre', { class: 'conv-txt' }, propio.length > 3000 ? `${propio.slice(0, 3000)}…` : propio || '(sin texto propio)');
+    return el('div', {}, pre, citado ? el('details', { class: 'conv-cita' }, el('summary', {}, 'Mostrar texto citado'), el('pre', { class: 'conv-txt' }, citado.slice(0, 4000))) : null);
+  }
+
   // Conversación con el proveedor de una petición (lo enviado, sus correos y el portal), para supervisar
   async function conversacion(s, p) {
     let d;
@@ -633,13 +681,13 @@
     const fecha = (t) => new Date(t).toLocaleString('es-ES', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
     const ESTADO = { revisar: '⏳ por revisar', sin_asignar: '⏳ sin asignar', hecho: '✔ revisada', descartado: '✕ descartada', clasificado: '✔ leído', error: '⚠ error de lectura', nuevo: '⏳ sin leer', analizando: '🤖 leyendo…' };
     const TIPO = { oferta: 'Oferta', confirmacion_pedido: 'Confirmación', consulta: 'Pregunta', albaran: 'Albarán', factura: 'Factura', publicidad: 'Publicidad', otro: 'Otro', pedido_cliente: 'Pedido' };
-    const textoLargo = (t) => { if (!t) return null; const pre = el('pre', { class: 'conv-txt' }, t.length > 1500 ? `${t.slice(0, 1500)}…` : t); return t.length > 400 ? el('details', {}, el('summary', {}, 'Ver el texto'), pre) : pre; };
+    const textoLargo = (t) => (t ? textoCorreo(t) : null);
     const burbuja = (e) => {
       if (e.clase === 'portal') return el('div', { class: 'conv-sis' }, `${fecha(e.fecha)} · ${e.texto}`, e.archivo_id ? el('a', { href: `/api/archivos/${e.archivo_id}`, target: '_blank', rel: 'noopener' }, ' ver') : null);
       if (e.clase === 'enviado') return el('div', { class: 'conv-m nos' },
         el('div', { class: 'conv-cab' }, el('b', {}, 'Nosotros'), ` → ${e.para || p.proveedor} · ${fecha(e.fecha)}`),
-        el('div', { class: 'conv-asunto' }, e.asunto || ''),
-        e.antiguo ? el('small', { class: 'ayuda' }, '(enviado antes de guardar el texto de los correos)') : textoLargo(e.texto),
+        el('div', { class: 'conv-asunto' }, e.asunto || `Petición ${d.codigo}`),
+        e.texto ? textoLargo(e.texto) : el('small', { class: 'ayuda' }, '(se envió antes de que se guardara el texto de los correos)'),
         (e.adjuntos || []).length ? el('div', { class: 'conv-adj' }, e.adjuntos.map((a) => el('span', {}, `📎 ${a}`))) : null);
       return el('div', { class: `conv-m ellos${['revisar', 'sin_asignar', 'error'].includes(e.estado) ? ' pend' : ''}` },
         el('div', { class: 'conv-cab' }, el('b', {}, e.clase === 'portal_pdf' ? `🌐 ${p.proveedor} (portal)` : `${e.de_nombre || p.proveedor}`), ` ${e.de_email ? `<${e.de_email}>` : ''} · ${fecha(e.fecha)}`),
@@ -648,7 +696,8 @@
         e.resultado ? el('small', { class: 'ayuda' }, e.resultado) : null,
         e.clase === 'portal_pdf' ? null : textoLargo(e.texto),
         (e.adjuntos || []).length ? el('div', { class: 'conv-adj' }, e.adjuntos.map((a) => el('a', { href: `/api/correo/adjuntos/${a.id}`, target: '_blank', rel: 'noopener' }, `📎 ${a.nombre}`))) : null,
-        el('a', { href: `/correo.html?vista=todos&id=${e.id}`, class: 'conv-abrir' }, ['revisar', 'sin_asignar', 'error'].includes(e.estado) ? '→ Revisar en Correo entrante' : '→ Abrir en Correo entrante'));
+        e.tipo === 'oferta' && e.estado === 'revisar' && s.estado === 'abierta' ? el('button', { type: 'button', class: 'primario mini', onclick: () => { dlg.close(); dialogoOferta(s, p, e.id); } }, '🤖 Revisar y confirmar aquí') : null,
+        el('a', { href: `/correo.html?vista=todos&id=${e.id}`, class: 'conv-abrir' }, '→ Abrir en Correo entrante'));
     };
     const dlg = el('dialog', { class: 'conv-dlg', 'aria-labelledby': 'conv-tit' },
       el('div', { class: 'conv-top' }, el('h2', { id: 'conv-tit' }, `💬 ${d.proveedor} · ${d.codigo}`), el('button', { type: 'button', class: 'ghost', 'aria-label': 'Cerrar', onclick: () => dlg.close() }, '✕')),
