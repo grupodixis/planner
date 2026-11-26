@@ -1427,6 +1427,24 @@ Endpoints: `GET /api/ia`, `PUT /api/ia/ajustes`, `POST /api/ia/probar/:nombre`, 
 - **Aprendizaje por proveedor**: al confirmar una oferta leída por la IA, lo corregido (precios, portes, entrega, referencia) va a `ia_correcciones`; de ahí `proveedores.notas_ia_auto` (≥ 2 veces: precios con IVA, unidad N veces mayor/menor). Notas escritas por Compras en `proveedores.notas_ia`. La IA devuelve también cómo llama el proveedor a cada línea (`su_texto` → `proveedor_alias`). Todo esto («memoria_de_este_proveedor»: notas, últimas 8 correcciones y equivalencias) se le pasa a la IA cada vez que lee a ese proveedor, con prioridad sobre su interpretación. En la ficha del proveedor: «🤖 Lo que la IA sabe». `GET·PUT /api/proveedores/:id/ia`.
 - **Para Presupuestos**: `GET /api/precios/estimado?catalogo_id=` (precio sugerido y aviso si está viejo o no hay); `solicitudes_precio.motivo` (`compra` | `presupuesto`) y `solicitud_lineas.catalogo_id` para pedir precio de materiales del catálogo sin escandallo.
 
+## Unidades y equivalencias (todo el sistema)
+
+El proveedor cotiza en su unidad (hierro en €/kg o €/t, tubo en €/barra) y nosotros pedimos en la nuestra (barras, ml). El sistema convierte con las equivalencias de cada material del catálogo (la lista de materiales de los escandallos).
+
+- **Unidad base** de cada material, que es la de comparar y guardar precios: perfiles, tubos, pletinas y macizos en **ml**; chapas en **m²**; el resto en su unidad del catálogo.
+- **Equivalencias calculadas** del nombre y el detalle del catálogo (`src/unidades.js`), al arrancar, en `catalogo.unidad_base` / `equiv` / `equiv_origen`:
+  - kg/ml por geometría y densidad (acero 7,85; inox 7,93; 316 8,0; aluminio 2,7 kg/dm³);
+  - tubos con el radio de esquina de EN 10219; laminados (IPE, HEA, HEB, HEM, IPN, UPN) por tabla;
+  - ml por barra («barra 6 m» del detalle); m² de pintura por ml (perímetro); m² y kg por chapa.
+  - Unos 1.338 de los 2.858 materiales las tienen. Generales: t ↔ kg, mm/cm ↔ m.
+- **Correcciones a mano**: en Lista de precios › material › 📏 (`PUT /api/catalogo/:id/unidades` con `kg_ml`, `ml_barra`, `m2_ud`, `kg_m2`, `pint_m2_ml`, o `{recalcular:true}` para volver a lo calculado). Quedan como `manual` y el arranque no las toca. Al cambiarlas se recalculan los precios guardados de ese material, partiendo de lo que cotizó el proveedor.
+- **Dónde se usa**:
+  - **Portal del proveedor** y **«Apuntar oferta»**: selector de unidad por línea (la nuestra y las convertibles), con la conversión al momento. El servidor convierte (`unidades.aLinea`) y guarda lo cotizado en `solicitud_precios.precio_cotizado` / `unidad_cotizada`.
+  - **IA**: devuelve `precio_cotizado` + `unidad_cotizada` tal cual y no convierte. `normalizar` convierte a la unidad de la línea con una alerta que explica la cuenta. Si falta la equivalencia, deja el precio vacío y pide añadirla.
+  - **Comparativo**: «cotizó 1,15 €/kg» bajo el precio por unidad de la línea.
+  - **Lista de precios** (`precios.precio_base` / `unidad_base` / `precio_orig` / `unidad_orig`): todo en la unidad base, con lo cotizado debajo. El precio habitual se convierte a la unidad de cada línea.
+  - Así lo usará **Presupuestos**.
+
 ## API
 
 | Método | Ruta | Uso |

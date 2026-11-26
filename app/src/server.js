@@ -356,6 +356,7 @@ const PORT = Number(process.env.PORT || 3000);
   await require('./obras-clientes').migrarUnaVez().catch((e) => console.error('Obras y clientes:', e.message));
   await require('./obras-clientes').importarClientes().catch((e) => console.error('Clientes de facturación:', e.message));
   await require('./buzones').migrarSalida().catch((e) => console.error('Cuentas de correo:', e.message));
+  await require('./unidades').calcularCatalogo().catch((e) => console.error('Unidades:', e.message));
   await require('./precios').cargaInicial().catch((e) => console.error('Lista de precios:', e.message));
   await require('./correo').cargar().catch((e) => console.error('Correo:', e.message));
   await auth.asegurarAdmin();

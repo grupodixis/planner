@@ -28,7 +28,7 @@ async function solicitud(id, c = { query }) {
   // en secuencia: dentro de una transacción el cliente no admite consultas a la vez
   const sec = async (qs) => { const out = []; for (const q of qs) out.push(await q()); return out; };
   const [{ rows: lineas }, { rows: provs }, { rows: precios }] = await sec([
-    () => c.query(`SELECT l.id, l.escandallo_id, l.tarea_id, l.descripcion, l.cantidad::float AS cantidad, l.unidad, l.orden, l.elegido,
+    () => c.query(`SELECT l.id, l.escandallo_id, l.tarea_id, COALESCE(l.catalogo_id, e.catalogo_id) AS catalogo_id, l.descripcion, l.cantidad::float AS cantidad, l.unidad, l.orden, l.elegido,
                     pr.codigo AS proyecto_codigo, pa.codigo AS partida_codigo, pa.nombre AS partida_nombre,
                     (SELECT min(x.fecha) FROM tarea_material m JOIN tramos x ON x.tarea_id = m.tarea_id WHERE m.escandallo_id = l.escandallo_id) AS necesaria
                FROM solicitud_lineas l LEFT JOIN partida_escandallo e ON e.id = l.escandallo_id
@@ -40,7 +40,7 @@ async function solicitud(id, c = { query }) {
                     (SELECT max(co.id) FROM correos co WHERE co.sp_id = sp.id AND co.tipo = 'oferta' AND co.estado = 'revisar') AS correo_revisar_id
                FROM solicitud_proveedores sp JOIN proveedores p ON p.id = sp.proveedor_id
               WHERE sp.solicitud_id = $1 ORDER BY sp.id`, [id]),
-    () => c.query(`SELECT pc.sp_id, pc.linea_id, pc.precio::float AS precio FROM solicitud_precios pc
+    () => c.query(`SELECT pc.sp_id, pc.linea_id, pc.precio::float AS precio, pc.precio_cotizado::float AS precio_cotizado, pc.unidad_cotizada FROM solicitud_precios pc
                JOIN solicitud_proveedores sp ON sp.id = pc.sp_id WHERE sp.solicitud_id = $1`, [id]),
   ]);
   const arch = await archivos.de('oferta', provs.map((p) => p.id));
@@ -48,8 +48,12 @@ async function solicitud(id, c = { query }) {
     p.portal = !!p.portal_nonce;
     delete p.portal_nonce;
     p.precios = Object.fromEntries(precios.filter((x) => x.sp_id === p.id).map((x) => [x.linea_id, x.precio]));
+    // lo que cotizó en su unidad (1,15 €/kg…) cuando no es la de la línea
+    p.cotizados = Object.fromEntries(precios.filter((x) => x.sp_id === p.id && x.unidad_cotizada).map((x) => [x.linea_id, { precio: x.precio_cotizado, unidad: x.unidad_cotizada }]));
     p.archivos = arch.get(p.id) || [];
   }
+  const U = require('./unidades');
+  for (const l of lineas) { const o = await U.opcionesLinea(l.catalogo_id, l.unidad); l.unidades = o.opciones; l.equiv = o.explicacion; }
   s.lineas = lineas;
   s.proveedores = provs;
   s.habituales = await require('./precios').habitualesDeSolicitud(id).catch(() => ({}));   // precio habitual de cada línea
@@ -219,11 +223,15 @@ function montar(app, asyncH) {
       for (const [k, v] of Object.entries(b.precios || {})) {
         const lid = Number(k);
         if (!lineas.has(lid)) continue;
-        const pr = num(v);
-        if (pr == null) { await c.query('DELETE FROM solicitud_precios WHERE sp_id = $1 AND linea_id = $2', [sp, lid]); continue; }
-        if (!Number.isFinite(pr) || pr < 0) throw fallo(400, 'Precio no válido');
+        const pIn = num(v);
+        if (pIn == null) { await c.query('DELETE FROM solicitud_precios WHERE sp_id = $1 AND linea_id = $2', [sp, lid]); continue; }
+        if (!Number.isFinite(pIn) || pIn < 0) throw fallo(400, 'Precio no válido');
         hay = true;
-        await c.query(`INSERT INTO solicitud_precios (sp_id, linea_id, precio) VALUES ($1,$2,$3) ON CONFLICT (sp_id, linea_id) DO UPDATE SET precio = EXCLUDED.precio`, [sp, lid, pr]);
+        const l = s.lineas.find((x) => x.id === lid);
+        const cv = await require('./unidades').aLinea(l.catalogo_id, l.unidad, pIn, b.unidades?.[k]);   // cotizado en €/kg, €/barra… → €/unidad de la línea
+        await c.query(`INSERT INTO solicitud_precios (sp_id, linea_id, precio, precio_cotizado, unidad_cotizada) VALUES ($1,$2,$3,$4,$5)
+          ON CONFLICT (sp_id, linea_id) DO UPDATE SET precio = EXCLUDED.precio, precio_cotizado = EXCLUDED.precio_cotizado, unidad_cotizada = EXCLUDED.unidad_cotizada`,
+        [sp, lid, cv.precio, cv.precio_cotizado, cv.unidad_cotizada]);
       }
       const { rows: quedan } = await c.query('SELECT 1 FROM solicitud_precios WHERE sp_id = $1 LIMIT 1', [sp]);
       const portes = num(b.portes);

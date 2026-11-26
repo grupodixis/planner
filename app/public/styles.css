@@ -3148,3 +3148,16 @@ body.pr-pant { height: 100vh; display: flex; flex-direction: column; overflow: h
 .pr-ley { display: flex; gap: 12px; flex-wrap: wrap; font-size: 12px; color: #bbb; } .pr-ley i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 4px; }
 .pr-hist a { color: #7fc8ff; }
 @media (max-width: 1000px) { body.pr-pant { height: auto; overflow: auto; } .pr-cuerpo { grid-template-columns: 1fr; } }
+/* precio cotizado en otra unidad (€/kg, €/barra…) */
+.cmp-pu { display: inline-flex; gap: 4px; align-items: center; }
+.cmp-u { padding: 4px; font-size: 12px; }
+.cmp-cot { display: block; font-size: 11px; color: var(--suave); white-space: nowrap; }
+/* Lista de precios: lo cotizado y las equivalencias del material */
+.pr-cot { display: block; color: #f0b060; font-size: 11px; }
+.pr-uds { margin-top: 16px; border-top: 1px solid var(--linea, #2a2a2a); padding-top: 10px; }
+.pr-uds h3 { font-size: 15px; margin: 0 0 6px; }
+.pr-eq { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0; }
+.pr-eq span { background: #1a1a1a; border: 1px solid var(--linea, #2a2a2a); border-radius: 8px; padding: 3px 8px; font-size: 12px; }
+.pr-eq-campos { display: flex; flex-wrap: wrap; gap: 10px; margin: 8px 0; }
+.pr-eq-campos label { display: flex; flex-direction: column; gap: 2px; font-size: 12px; color: var(--suave, #999); }
+.pr-eq-campos input { width: 110px; text-align: right; }

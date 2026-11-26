@@ -21,6 +21,9 @@
   const ORIGEN = { oferta: 'Oferta', pedido: 'Pedido', albaran: 'Albarán', factura: 'Factura', manual: 'A mano' };
   const VIA = { portal: '🌐 formulario', correo: '📧 correo (IA)', pdf_portal: '🌐 PDF (IA)', manual: '✎ apuntada', pedido: '🛒 pedido' };
   const est = { q: '', prov: '', viejos: false, datos: null, sel: null };
+  // «cotizó 1,15 €/kg» cuando el proveedor dio el precio en otra unidad que la base del material
+  const cotizo = (pr, u, ub) => (pr != null && u && u !== ub ? el('small', { class: 'pr-cot' }, `cotizó ${eur(pr)}/${u}`) : null);
+  const num = (v) => (v == null ? '' : String(v).replace('.', ','));
 
   async function cargar() {
     const q = new URLSearchParams({ ...(est.q ? { q: est.q } : {}), ...(est.prov ? { proveedor: est.prov } : {}) });
@@ -36,7 +39,7 @@
       el('thead', {}, el('tr', {}, el('th', {}, 'Material'), el('th', { class: 'n' }, 'Último (sistema)'), el('th', {}, 'Proveedor · fecha'), el('th', { class: 'n' }, 'Mejor 6 meses'), el('th', { class: 'n' }, 'Medio 12 meses'), el('th', { class: 'n' }, 'Precios'))),
       el('tbody', {}, ps.length ? ps.map((p) => el('tr', { class: `pr-fila${est.sel === p.clave ? ' sel' : ''}`, tabindex: 0, onclick: () => historial(p), onkeydown: (ev) => { if (ev.key === 'Enter') historial(p); } },
         el('td', {}, el('b', {}, p.material), el('small', {}, [p.familia, p.catalogo_id ? null : 'sin material del catálogo'].filter(Boolean).join(' · '))),
-        el('td', { class: `n pr-ult${p.dias > est.datos.dias_viejo ? ' viejo' : ''}`, title: p.dias > est.datos.dias_viejo ? `Tiene ${p.dias} días: conviene pedir precio` : '' }, `${eur(p.ultimo)}`, el('small', {}, `/${p.unidad || 'ud'}`)),
+        el('td', { class: `n pr-ult${p.dias > est.datos.dias_viejo ? ' viejo' : ''}`, title: p.dias > est.datos.dias_viejo ? `Tiene ${p.dias} días: conviene pedir precio` : '' }, `${eur(p.ultimo)}`, el('small', {}, `/${p.unidad || 'ud'}`), cotizo(p.ultimo_orig, p.ultimo_unidad_orig, p.unidad)),
         el('td', {}, p.ultimo_proveedor || '—', el('small', {}, `${fecha(p.ultimo_fecha)} · ${ORIGEN[p.ultimo_origen] || p.ultimo_origen}`)),
         el('td', { class: 'n' }, eur(p.mejor_6m), p.mejor_proveedor && p.mejor_6m !== p.ultimo ? el('small', {}, p.mejor_proveedor) : null),
         el('td', { class: 'n' }, eur(p.medio_12m)),
@@ -78,9 +81,39 @@
         el('thead', {}, el('tr', {}, el('th', {}, 'Fecha'), el('th', {}, 'Proveedor'), el('th', { class: 'n' }, 'Precio'), el('th', { class: 'n' }, 'Cant.'), el('th', {}, 'De dónde'))),
         el('tbody', {}, h.map((x) => el('tr', {},
           el('td', {}, fecha(x.fecha)), el('td', {}, x.proveedor || '—'),
-          el('td', { class: 'n' }, eur(x.precio), el('small', {}, `/${x.unidad || 'ud'}`)), el('td', { class: 'n' }, x.cantidad ?? ''),
+          el('td', { class: 'n' }, eur(x.precio), el('small', {}, `/${x.unidad || 'ud'}`), cotizo(x.precio_orig, x.unidad_orig, x.unidad)),
+          el('td', { class: 'n' }, x.cantidad != null ? `${num(x.cantidad)} ${x.unidad_linea || ''}` : ''),
           el('td', {}, x.sol_id ? el('a', { href: `/compras.html?vista=precios&sol=${x.sol_id}` }, `${ORIGEN[x.origen]} ${x.sol_codigo}`) : x.pedido_id ? el('a', { href: `/compras.html?pedido=${x.pedido_id}` }, `${ORIGEN[x.origen]} ${x.pedido_codigo}`) : ORIGEN[x.origen],
-            el('small', {}, ` ${VIA[x.via] || ''}`), x.correo_id ? el('a', { href: `/correo.html?vista=todos&id=${x.correo_id}`, class: 'ayuda' }, ' · correo') : null))))));
+            el('small', {}, ` ${VIA[x.via] || ''}`), x.correo_id ? el('a', { href: `/correo.html?vista=todos&id=${x.correo_id}`, class: 'ayuda' }, ' · correo') : null))))),
+      p.catalogo_id ? unidades(p) : el('p', { class: 'ayuda' }, 'Este precio no está enlazado a un material del catálogo: no tiene equivalencias de unidades.'));
+  }
+
+  // 📏 Unidades y equivalencias del material: calculadas de su nombre y detalle (dimensiones, material, barra de 6 m); se pueden corregir
+  function unidades(p) {
+    const caja = el('section', { class: 'pr-uds' }, el('h3', {}, '📏 Unidades y equivalencias'), el('p', { class: 'ayuda' }, 'Cargando…'));
+    (async () => {
+      let m;
+      try { m = await api('GET', `/api/catalogo/${p.catalogo_id}/unidades`); } catch (e) { caja.lastChild.textContent = e.message; return; }
+      const CAMPOS = m.base === 'm2' ? [['m2_ud', 'm² por chapa'], ['kg_m2', 'kg por m²']] : m.base === 'ml' ? [['kg_ml', 'kg por ml'], ['ml_barra', 'ml por barra'], ['pint_m2_ml', 'm² de pintura por ml']] : [];
+      const ins = {};
+      const fac = Object.entries(m.factores || {}).filter(([u]) => u !== m.base && !['m', 'mm', 'cm'].includes(u));
+      const ejemplo = p.ultimo != null && p.unidad === m.base ? fac.map(([u, f]) => `${eur(p.ultimo * f)}/${u}`).join(' · ') : '';
+      const ORIG = { calculado: '🧮 calculado del nombre del material', manual: '✎ corregido a mano' };
+      caja.replaceChildren(el('h3', {}, '📏 Unidades y equivalencias'),
+        el('p', { class: 'ayuda' }, `Se compara y guarda en €/${m.base}. `, m.calculo ? `${m.calculo}. ` : '', ORIG[m.origen] || (CAMPOS.length ? 'Sin calcular: pon los datos para poder convertir.' : `Este material se mide en ${m.base}; solo valen las conversiones generales (t ↔ kg).`)),
+        fac.length ? el('div', { class: 'pr-eq' }, fac.map(([u, f]) => el('span', {}, `1 ${u} = ${num(+f.toFixed(4))} ${m.base}`))) : null,
+        ejemplo ? el('p', { class: 'ayuda' }, `Su último precio equivale a: ${ejemplo}`) : null,
+        CAMPOS.length ? el('div', { class: 'pr-eq-campos' }, CAMPOS.map(([k, t]) => { ins[k] = el('input', { type: 'text', inputmode: 'decimal', value: num(m[k]), placeholder: '—', 'aria-label': t }); return el('label', {}, el('span', {}, t), ins[k]); })) : null,
+        CAMPOS.length ? el('div', { class: 'acciones' },
+          m.origen === 'manual' ? el('button', { type: 'button', class: 'ghost', onclick: async () => {
+            try { await api('PUT', `/api/catalogo/${p.catalogo_id}/unidades`, { recalcular: true }); window.s360.aviso('Vuelve a lo calculado'); await cargar(); historial(est.datos.precios.find((x) => x.clave === p.clave) || p); } catch (e) { window.s360.aviso(e.message); }
+          } }, 'Volver a lo calculado') : null,
+          el('button', { type: 'button', class: 'primario', onclick: async () => {
+            const b = Object.fromEntries(Object.entries(ins).map(([k, i]) => [k, i.value.trim()]));
+            try { await api('PUT', `/api/catalogo/${p.catalogo_id}/unidades`, b); window.s360.aviso('Equivalencias guardadas: precios recalculados'); await cargar(); historial(est.datos.precios.find((x) => x.clave === p.clave) || p); } catch (e) { window.s360.aviso(e.message); }
+          } }, 'Guardar equivalencias')) : null);
+    })();
+    return caja;
   }
 
   function csv() {

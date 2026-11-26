@@ -396,7 +396,9 @@
         const radio = el('input', { type: 'radio', name: `l${l.id}`, checked: elegido[l.id] === p.id, disabled: !abierta, 'aria-label': `Elegir ${p.proveedor} para ${l.descripcion}`,
           onchange: () => { elegido[l.id] = p.id; actualizarPies(); guardarEleccion(); pintarSel(); } });
         return el('td', { class: `cmp-oferta${mejor.get(l.id) === p.id ? ' mejor' : ''}`, 'data-l': l.id, 'data-p': p.id },
-          el('label', {}, radio, el('span', {}, el('b', {}, eur(pr)), ` /${l.unidad || 'ud'}`, el('div', { class: 'sub' }, `total ${eur(pr * l.cantidad)}${mejor.get(l.id) === p.id ? ' · mejor' : ''}`), alt)));
+          el('label', {}, radio, el('span', {}, el('b', {}, eur(pr)), ` /${l.unidad || 'ud'}`,
+            p.cotizados?.[l.id] ? el('span', { class: 'cmp-cot', title: l.equiv ? `Convertido con ${l.equiv}` : null }, `cotizó ${eur(p.cotizados[l.id].precio)}/${p.cotizados[l.id].unidad}`) : null,
+            el('div', { class: 'sub' }, `total ${eur(pr * l.cantidad)}${mejor.get(l.id) === p.id ? ' · mejor' : ''}`), alt)));
       }),
       // quitar la línea de esta compra: no se pide a nadie y vuelve a «Por pedir» al crear los pedidos
       el('td', { class: 'cmp-oferta cmp-no', 'data-l': l.id, 'data-p': '0' },
@@ -475,7 +477,7 @@
     if (correoId) { try { co = await api('GET', `/api/correo/${correoId}`); } catch (e) { toast(e.message, true); return; } }
     const o = co?.extraccion?.oferta || null;
     const ia = o ? Object.fromEntries((o.lineas || []).map((l) => [l.linea_id, l])) : {};
-    const ins = new Map();
+    const ins = new Map(); const uds = new Map();
     const fEnt = el('input', { type: 'date', value: (o ? o.fecha_entrega : p.fecha_entrega) || '' });
     const portes = el('input', { type: 'number', min: '0', step: '0.01', value: (o ? o.portes : p.portes) ?? '', placeholder: '0 = pagados' });
     const ref = el('input', { value: (o ? o.ref_oferta : p.ref_oferta) || '', maxlength: 80, placeholder: 'nº de su oferta' });
@@ -487,7 +489,7 @@
       try { toast('Subiendo…'); subidos.push(await window.s360.subirArchivo(f)); nombre.textContent = ` ${f.name}`; toast('Listo: se guarda al guardar la oferta'); } catch (e) { toast(e.message, true); }
     } });
     const confirmarIA = async (noOferta) => {
-      const lineas = Object.fromEntries([...ins].map(([k, i]) => [k, { precio: i.value === '' ? null : Number(i.value), no: !!ia[k]?.no && i.value === '', alt: ia[k]?.alt || null }]));
+      const lineas = Object.fromEntries([...ins].map(([k, i]) => [k, { precio: i.value === '' ? null : Number(i.value), unidad: uds.get(k)?.value || null, no: !!ia[k]?.no && i.value === '', alt: ia[k]?.alt || null }]));
       try {
         await api('POST', `/api/correo/${co.id}/confirmar-oferta`, { sp_id: p.id, lineas, no_oferta: !!noOferta, fecha_entrega: fEnt.value || null, portes: portes.value === '' ? null : Number(portes.value), ref_oferta: ref.value, notas: notas.value, adjuntar: true });
         if (subidos.length) await api('PUT', `/api/compras/solicitudes/${s.id}/proveedores/${p.id}`, { archivos: subidos }).catch(() => {});
@@ -511,12 +513,29 @@
       el('p', { class: 'ayuda' }, 'Precio unitario de cada línea (sin IVA). Deja vacío lo que no oferta.'),
       el('table', { class: 'tabla-inf' }, el('tbody', {}, s.lineas.map((l) => {
         const x = ia[l.id];
-        const i = el('input', { type: 'number', min: '0', step: '0.0001', value: (o ? x?.precio : p.precios[l.id]) ?? '', 'aria-label': `Precio de ${l.descripcion}`, class: `cmp-in-num${o && x?.precio == null && !x?.no ? ' cmp-falta' : ''}` });
+        const ops = l.unidades || [{ u: l.unidad || 'ud', a_linea: 1 }];
+        // si lo cotizó en otra unidad (€/kg, €/barra…) se apunta tal cual y se convierte con el peso y el largo del material
+        const cot = o ? (x?.precio_cotizado != null && ops.some((u) => u.u === x.unidad_cotizada) ? { precio: x.precio_cotizado, unidad: x.unidad_cotizada } : null) : p.cotizados?.[l.id];
+        const ini = cot && ops.some((u) => u.u === cot.unidad) ? cot : { precio: o ? x?.precio : p.precios[l.id], unidad: ops[0].u };
+        const i = el('input', { type: 'number', min: '0', step: '0.0001', value: ini.precio ?? '', 'aria-label': `Precio de ${l.descripcion}`, class: `cmp-in-num${o && x?.precio == null && !x?.no ? ' cmp-falta' : ''}` });
         ins.set(l.id, i);
+        let celda = [i, ` €/${l.unidad || 'ud'}`];
+        if (ops.length > 1) {
+          const sel = el('select', { class: 'cmp-u', 'aria-label': `Unidad del precio de ${l.descripcion}` }, ops.map((u) => el('option', { value: u.u, selected: u.u === ini.unidad }, `€/${u.u}`)));
+          uds.set(l.id, sel);
+          const eq = el('div', { class: 'sub' });
+          const ver = () => {
+            const f = ops.find((u) => u.u === sel.value)?.a_linea ?? 1; const v = i.value === '' ? null : Number(i.value);
+            eq.textContent = f !== 1 && v != null ? `= ${(v * f).toLocaleString('es-ES', { maximumFractionDigits: 4 })} €/${l.unidad || 'ud'}` : '';
+            eq.title = l.equiv || '';
+          };
+          sel.addEventListener('change', ver); i.addEventListener('input', ver); ver();
+          celda = [el('div', { class: 'cmp-pu' }, i, sel), eq];
+        }
         return el('tr', {}, el('td', {}, l.descripcion, el('div', { class: 'sub' }, `${String(l.cantidad).replace('.', ',')} ${l.unidad || ''}`),
           habitual(s.habituales?.[l.id], l.unidad),
           x?.no ? el('div', { class: 'cmp-ia-nota' }, '🤖 dice que no lo tiene') : null, x?.alt ? el('div', { class: 'cmp-ia-nota' }, `🤖 alternativa: ${x.alt}`) : null, x?.nota ? el('div', { class: 'cmp-ia-nota' }, `🤖 ${x.nota}`) : null),
-          el('td', { class: 'num' }, i, ` €/${l.unidad || 'ud'}`));
+          el('td', { class: 'num' }, ...celda));
       }))),
       el('div', { class: 'cmp-campos' },
         el('label', { class: 'cmp-campo' }, el('span', {}, 'Entrega el'), fEnt),
@@ -537,7 +556,8 @@
         co ? el('button', { type: 'button', class: 'primario', onclick: () => confirmarIA(false) }, '✔ Confirmar oferta') : null,
         co ? null : el('button', { type: 'button', class: 'primario', onclick: async () => {
           const precios = Object.fromEntries([...ins].map(([k, i]) => [k, i.value === '' ? null : i.value]));
-          try { await api('PUT', `/api/compras/solicitudes/${s.id}/proveedores/${p.id}`, { precios, fecha_entrega: fEnt.value, portes: portes.value, ref_oferta: ref.value, notas: notas.value, archivos: subidos }); d.close(); toast('Oferta guardada'); pintar(); }
+          const unidades = Object.fromEntries([...uds].map(([k, u]) => [k, u.value]));
+          try { await api('PUT', `/api/compras/solicitudes/${s.id}/proveedores/${p.id}`, { precios, unidades, fecha_entrega: fEnt.value, portes: portes.value, ref_oferta: ref.value, notas: notas.value, archivos: subidos }); d.close(); toast('Oferta guardada'); pintar(); }
           catch (e) { toast(e.message, true); }
         } }, 'Guardar oferta')));
     if (original) { const cuerpo = el('div', { class: 'dlg-oferta-cols' }, el('div', { class: 'dlg-oferta-izq' }, ...[...d.childNodes]), original); d.replaceChildren(cuerpo); }

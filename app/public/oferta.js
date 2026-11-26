@@ -35,21 +35,29 @@
     const abierta = d.abierta;
     const r = d.respuesta;
     const estado = {
-      lineas: Object.fromEntries(d.lineas.map((l) => [l.id, { precio: l.precio, no: l.no_tiene, alt: l.alternativa }])),
+      lineas: Object.fromEntries(d.lineas.map((l) => [l.id, l.precio_cotizado != null && l.unidad_cotizada
+        ? { precio: l.precio_cotizado, u: l.unidad_cotizada, no: l.no_tiene, alt: l.alternativa }
+        : { precio: l.precio, u: l.unidades?.[0]?.u || l.unidad, no: l.no_tiene, alt: l.alternativa }])),
     };
     let archivos = d.archivos;
 
     // ---- líneas
     const total = el('b');
     const importes = new Map();
+    // precio que ha escrito (en la unidad que ha elegido) → por la unidad de nuestra línea
+    const factor = (l, e) => (l.unidades || []).find((o) => o.u === e.u)?.a_linea ?? 1;
+    const enLinea = (l, e) => { const p = e.no ? null : num(e.precio); return p != null && !Number.isNaN(p) ? p * factor(l, e) : p; };
+    const equivs = new Map();
     const recalcular = () => {
       let t = 0;
       for (const l of d.lineas) {
         const e = estado.lineas[l.id];
-        const p = e.no ? null : num(e.precio);
+        const p = enLinea(l, e);
         const imp = p != null && !Number.isNaN(p) ? p * l.cantidad : null;
         if (imp != null) t += imp;
         importes.get(l.id).textContent = imp != null ? eur(imp) : '—';
+        const eq = equivs.get(l.id);
+        if (eq) eq.textContent = factor(l, e) !== 1 && p != null && !Number.isNaN(p) ? `= ${eur(p)} / ${l.unidad || 'ud'}` : '';
       }
       const po = portesIncl.checked ? 0 : num(portes.value);
       total.textContent = eur(t + (po && !Number.isNaN(po) ? po : 0));
@@ -64,12 +72,21 @@
       const alt = el('label', { class: 'alt-caja' }, el('span', {}, 'Alternativa que ofrecen'), altIn);
       alt.hidden = !e.alt;
       altIn.addEventListener('input', () => { e.alt = altIn.value; });
+      // si cotiza en otra unidad (€/kg, €/t, €/barra…), la elige y se convierte con el peso y el largo del material
+      let celdaPrecio = precio;
+      if ((l.unidades || []).length > 1) {
+        const sel = el('select', { class: 'unidad', disabled: !abierta, 'aria-label': `Unidad del precio de ${l.descripcion}` },
+          ...l.unidades.map((o) => el('option', { value: o.u, selected: o.u === e.u }, `€/${o.u}`)));
+        sel.addEventListener('change', () => { e.u = sel.value; recalcular(); });
+        const eq = el('small', { class: 'equiv' }); equivs.set(l.id, eq);
+        celdaPrecio = el('div', { class: 'precio-u' }, el('div', {}, precio, sel), eq);
+      }
       const no = el('input', { type: 'checkbox', checked: e.no, disabled: !abierta });
       const tr = el('tr', { class: e.no ? 'sin' : null },
         el('td', { class: 'desc', 'data-t': null }, el('b', {}, l.descripcion),
           el('div', {}, abierta && alt.hidden ? el('button', { type: 'button', class: 'alt-btn', onclick: (ev) => { alt.hidden = false; ev.currentTarget.hidden = true; altIn.focus(); } }, 'Ofrecer una alternativa') : null, alt)),
         el('td', { class: 'num', 'data-t': 'Cantidad' }, `${cant(l.cantidad)} ${l.unidad || ''}`),
-        el('td', { class: 'num', 'data-t': `Precio / ${l.unidad || 'ud'}` }, precio),
+        el('td', { class: 'num', 'data-t': `Precio / ${l.unidad || 'ud'}` }, celdaPrecio),
         el('td', { class: 'num', 'data-t': 'Importe' }, imp),
         el('td', { class: 'num acc' }, el('label', { class: 'chk' }, no, 'No lo tengo')));
       no.addEventListener('change', () => { e.no = no.checked; precio.disabled = !abierta || e.no; tr.classList.toggle('sin', e.no); recalcular(); });
@@ -113,12 +130,13 @@
     const err = el('p', { class: 'error', role: 'alert' });
     const enviar = async (noOferta) => {
       err.textContent = '';
-      const precios = {}; const lineas = {};
+      const precios = {}; const lineas = {}; const unidades = {};
       for (const l of d.lineas) {
         const e = estado.lineas[l.id];
         const p = e.no ? null : num(e.precio);
         if (Number.isNaN(p)) { err.textContent = `Revise el precio de «${l.descripcion}».`; return; }
         precios[l.id] = p;
+        if (e.u && factor(l, e) !== 1) unidades[l.id] = e.u;
         lineas[l.id] = { no: e.no, alt: e.alt || null };
       }
       const po = portesIncl.checked ? 0 : num(portes.value);
@@ -127,7 +145,7 @@
       if (noOferta && !confirm('¿Confirma que no pueden ofertar esta petición?')) return;
       botones.forEach((b) => { b.disabled = true; });
       try {
-        const nd = await api('PUT', API, { precios, lineas, no_oferta: !!noOferta, fecha_entrega: fEnt.value || null, portes: po, ref_oferta: ref.value, notas: notas.value, contacto: contacto.value,
+        const nd = await api('PUT', API, { precios, unidades, lineas, no_oferta: !!noOferta, fecha_entrega: fEnt.value || null, portes: po, ref_oferta: ref.value, notas: notas.value, contacto: contacto.value,
           ...(d.en_obra ? { dias_trabajo: diasT.value, personas: pers.value, inicio_posible: inicio.value || null } : {}) });
         pintar(nd, noOferta ? 'Gracias. Hemos anotado que no pueden ofertar esta petición.' : 'Gracias, hemos recibido su oferta. Puede corregirla desde este mismo enlace mientras la petición siga abierta.');
         scrollTo({ top: 0, behavior: 'smooth' });

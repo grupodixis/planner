@@ -1583,6 +1583,13 @@ const MIGRACIONES = [
   // Peticiones de precio «para presupuestar» (Presupuestos): líneas del catálogo sin escandallo y sin pedido al final
   `ALTER TABLE solicitud_lineas ADD COLUMN IF NOT EXISTS catalogo_id INT REFERENCES catalogo(id) ON DELETE SET NULL`,
   `ALTER TABLE solicitudes_precio ADD COLUMN IF NOT EXISTS motivo TEXT NOT NULL DEFAULT 'compra'`,
+  // ===== Unidades y equivalencias de los materiales (todo el sistema) =====
+  `ALTER TABLE catalogo ADD COLUMN IF NOT EXISTS unidad_base TEXT, ADD COLUMN IF NOT EXISTS equiv JSONB,
+     ADD COLUMN IF NOT EXISTS equiv_origen TEXT, ADD COLUMN IF NOT EXISTS equiv_por INT REFERENCES usuarios(id) ON DELETE SET NULL,
+     ADD COLUMN IF NOT EXISTS equiv_en TIMESTAMPTZ`,
+  `ALTER TABLE solicitud_precios ADD COLUMN IF NOT EXISTS precio_cotizado NUMERIC(14,6), ADD COLUMN IF NOT EXISTS unidad_cotizada TEXT`,
+  `ALTER TABLE precios ADD COLUMN IF NOT EXISTS unidad_base TEXT, ADD COLUMN IF NOT EXISTS precio_base NUMERIC(14,6),
+     ADD COLUMN IF NOT EXISTS precio_orig NUMERIC(14,6), ADD COLUMN IF NOT EXISTS unidad_orig TEXT`,
 ];
 
 async function migrar() {

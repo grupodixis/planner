@@ -31,7 +31,8 @@ const ddmm = (f) => (f ? `${String(f).slice(8, 10)}/${String(f).slice(5, 7)}` : 
 
 /* ---------- 1. asociar ---------- */
 async function lineasSolicitud(solId) {
-  const { rows } = await query('SELECT id AS linea_id, descripcion, cantidad::float AS cantidad, unidad FROM solicitud_lineas WHERE solicitud_id = $1 ORDER BY orden, id', [solId]);
+  const { rows } = await query(`SELECT sl.id AS linea_id, sl.descripcion, sl.cantidad::float AS cantidad, sl.unidad, COALESCE(sl.catalogo_id, e.catalogo_id) AS catalogo_id
+    FROM solicitud_lineas sl LEFT JOIN partida_escandallo e ON e.id = sl.escandallo_id WHERE sl.solicitud_id = $1 ORDER BY sl.orden, sl.id`, [solId]);
   return rows;
 }
 async function lineasPedido(pedId) {
@@ -104,7 +105,7 @@ Esquema (todas las claves, null si no aplica o no aparece; NO inventes nada):
   "resumen": "1 o 2 frases en español: quién, qué y lo importante",
   "referencia": { "solicitud": "SOL-AAAA-NNNN" | null, "pedido": "PC-AAAA-NNNN" | null, "su_referencia": "nº de su oferta/confirmación" | null },
   "oferta": null | {
-    "lineas": [ { "linea_id": número de NUESTRA línea, "precio_unitario": € sin IVA por la unidad de nuestra línea | null, "no_disponible": bool, "alternativa": texto | null, "nota": texto | null, "su_texto": "cómo lo llama el proveedor (su descripción o referencia)" | null } ],
+    "lineas": [ { "linea_id": número de NUESTRA línea, "precio_cotizado": € sin IVA TAL COMO LO PONE EL PROVEEDOR | null, "unidad_cotizada": "la unidad de su precio: ml, kg, t, barra, m2, chapa, ud…" | null, "precio_unitario": € por la unidad de NUESTRA línea, SOLO si cotiza en nuestra misma unidad | null, "no_disponible": bool, "alternativa": texto | null, "nota": texto | null, "su_texto": "cómo lo llama el proveedor (su descripción o referencia)" | null } ],
     "portes": € | null, "portes_incluidos": bool | null, "fecha_entrega": "AAAA-MM-DD" | null, "plazo_texto": texto | null,
     "validez": "AAAA-MM-DD" | null, "forma_pago": texto | null, "iva_incluido_en_precios": bool | null, "total_sin_iva": € | null, "notas": texto | null },
   "confirmacion": null | {
@@ -117,7 +118,7 @@ Esquema (todas las claves, null si no aplica o no aparece; NO inventes nada):
 Reglas:
 - "oferta": responde a una petición de precio con precios. "confirmacion_pedido": confirma o acepta un pedido nuestro (con fecha, nº de confirmación o cambios). Rellena "oferta" solo si tipo = oferta y "confirmacion" solo si tipo = confirmacion_pedido.
 - Te paso nuestras peticiones (con sus líneas) y pedidos candidatos. Usa SOLO esos linea_id. Elige en "referencia" el código que corresponda (por el asunto, el texto o porque los materiales coinciden).
-- Precios: unitarios, sin IVA, en euros, por la UNIDAD de nuestra línea. Si cotizan en otra unidad (p. ej. barra de 6 m y pedimos m) convierte solo si es inequívoco y añade una alerta; si no, precio null y explícalo en "nota". Si una línea no la cotizan, no la incluyas; si dicen que no la tienen, "no_disponible": true.
+- Precios: unitarios, sin IVA, en euros. Pon SIEMPRE "precio_cotizado" y "unidad_cotizada" tal como los da el proveedor (p. ej. 1,15 €/kg, 1.080 €/t, 15,40 €/barra). NO conviertas de unidad: el sistema conoce los kg/ml, el largo de barra y los m² de cada material y lo convierte él. Rellena "precio_unitario" solo si su unidad es la misma que la de nuestra línea. Si una línea no la cotizan, no la incluyas; si dicen que no la tienen, "no_disponible": true.
 - Si los precios llevan IVA, pon "iva_incluido_en_precios": true y devuelve el precio SIN IVA (÷1,21) con una alerta.
 - Descuentos: aplica el descuento de la línea al precio unitario.
 - Fechas en AAAA-MM-DD. «Plazo 10 días» o «semana 50»: calcula la fecha desde la fecha del correo y pon el texto original en "plazo_texto".
@@ -347,7 +348,31 @@ async function normalizar(tipo, d, sp, ped, alertas) {
     const validas = sp ? new Set((await lineasSolicitud(sp.sol_id)).map((l) => l.linea_id)) : null;
     const lineas = (Array.isArray(o.lineas) ? o.lineas : []).map((l) => ({
       linea_id: Number(l.linea_id), precio: num(l.precio_unitario), no: !!l.no_disponible, alt: texto(l.alternativa, 300), nota: texto(l.nota, 300), su_texto: texto(l.su_texto, 200),
+      precio_cotizado: num(l.precio_cotizado), unidad_cotizada: texto(l.unidad_cotizada, 20),
     })).filter((l) => Number.isInteger(l.linea_id) && (!validas || validas.has(l.linea_id)) && (l.precio == null || (l.precio >= 0 && l.precio < 1e7)));
+    // unidades: lo cotizado (€/kg, €/t, €/barra…) → la unidad de nuestra línea, con las equivalencias del material
+    if (sp) {
+      const U = require('./unidades');
+      const ls = await lineasSolicitud(sp.sol_id);
+      for (const l of lineas) {
+        const nuestra = ls.find((x) => x.linea_id === l.linea_id);
+        if (!nuestra || l.precio_cotizado == null || !l.unidad_cotizada) continue;
+        const uc = U.unidad(l.unidad_cotizada); const un = U.unidad(nuestra.unidad);
+        l.unidad_cotizada = uc;
+        if (uc === un || !un) { l.precio = l.precio ?? l.precio_cotizado; continue; }
+        const conv = await U.precioEn(nuestra.catalogo_id, l.precio_cotizado, uc, un);
+        const m = await U.deCatalogo(nuestra.catalogo_id);
+        if (conv != null) {
+          l.precio = +conv.toFixed(4);
+          l.conversion = `${String(l.precio_cotizado).replace('.', ',')} €/${uc} → ${l.precio.toLocaleString('es-ES', { maximumFractionDigits: 4 })} €/${un}${m ? ` (${U.explicar(m)})` : ''}`;
+          alertas.push(`«${nuestra.descripcion}»: cotiza ${String(l.precio_cotizado).replace('.', ',')} €/${uc}; convertido a ${l.precio.toLocaleString('es-ES', { maximumFractionDigits: 4 })} €/${un}${m ? ` con ${U.explicar(m)}` : ''}.`);
+        } else {
+          l.precio = null;
+          l.nota = [l.nota, `Cotiza ${l.precio_cotizado} €/${uc} y pedimos ${un}: falta la equivalencia ${uc}→${un} de este material`].filter(Boolean).join(' · ');
+          alertas.push(`«${nuestra.descripcion}»: cotiza en ${uc} y pedimos ${un}, y el material no tiene esa equivalencia. Añádela (Lista de precios › el material › Unidades) o pon el precio a mano.`);
+        }
+      }
+    }
     if (sp && validas && lineas.length < validas.size) alertas.push(`Faltan precios en ${validas.size - lineas.filter((l) => l.precio != null || l.no).length} línea(s).`);
     // ¿precio muy distinto de lo habitual? (lista de precios del sistema)
     if (sp) {
@@ -359,7 +384,7 @@ async function normalizar(tipo, d, sp, ped, alertas) {
         const dif = (l.precio - h.precio) / h.precio;
         if (Math.abs(dif) > 0.4) {
           const d = ls.find((x) => x.linea_id === l.linea_id)?.descripcion || '';
-          alertas.push(`«${d}»: ${l.precio} € es un ${Math.round(Math.abs(dif) * 100)} % ${dif > 0 ? 'más caro' : 'más barato'} que lo habitual (${h.precio} € · ${h.proveedor || '—'}, ${new Date(h.fecha).toLocaleDateString('es-ES')}). ¿Unidad, IVA o descuento?`);
+          alertas.push(`«${d}»: ${String(l.precio).replace('.', ',')} € es un ${Math.round(Math.abs(dif) * 100)} % ${dif > 0 ? 'más caro' : 'más barato'} que lo habitual (${String(+Number(h.precio).toFixed(4)).replace('.', ',')} € · ${h.proveedor || '—'}, ${new Date(h.fecha).toLocaleDateString('es-ES')}). ¿Unidad, IVA o descuento?`);
         }
       }
     }
@@ -459,18 +484,23 @@ async function confirmarOferta(c, b, usuario) {
     if (!sp) throw fallo(404, 'Petición no encontrada');
     if (sp.sol_estado !== 'abierta') throw fallo(409, `La petición ${sp.codigo} ya está ${sp.sol_estado}`);
     sol = sp;
-    const { rows: ls } = await q.query('SELECT id FROM solicitud_lineas WHERE solicitud_id = $1', [sp.sol_id]);
+    const { rows: ls } = await q.query(`SELECT sl.id, sl.unidad, COALESCE(sl.catalogo_id, e.catalogo_id) AS catalogo_id FROM solicitud_lineas sl
+      LEFT JOIN partida_escandallo e ON e.id = sl.escandallo_id WHERE sl.solicitud_id = $1`, [sp.sol_id]);
     const info = {}; let hay = false;
-    for (const { id: lid } of ls) {
+    for (const { id: lid, unidad: uLinea, catalogo_id: catId } of ls) {
       const i = b.lineas?.[lid] || {};
       const no = !!i.no || !!b.no_oferta;
       const alt = texto(i.alt, 300);
       if (no || alt) info[lid] = { ...(no ? { no: true } : {}), ...(alt ? { alt } : {}) };
-      const pr = no ? null : num(i.precio);
-      if (pr == null) { await q.query('DELETE FROM solicitud_precios WHERE sp_id = $1 AND linea_id = $2', [sp.id, lid]); continue; }
-      if (pr < 0 || pr > 1e7) throw fallo(400, 'Hay un precio que no es válido');
+      const pIn = no ? null : num(i.precio);
+      if (pIn == null) { await q.query('DELETE FROM solicitud_precios WHERE sp_id = $1 AND linea_id = $2', [sp.id, lid]); continue; }
+      if (pIn < 0 || pIn > 1e7) throw fallo(400, 'Hay un precio que no es válido');
       hay = true;
-      await q.query(`INSERT INTO solicitud_precios (sp_id, linea_id, precio) VALUES ($1,$2,$3) ON CONFLICT (sp_id, linea_id) DO UPDATE SET precio = EXCLUDED.precio`, [sp.id, lid, pr]);
+      // { precio, unidad }: precio en la unidad en que lo cotizó (€/kg, €/barra…); se convierte a la de la línea
+      const cv = await require('./unidades').aLinea(catId, uLinea, pIn, i.unidad);
+      const pr = cv.precio; const pc = cv.precio_cotizado; const uc = cv.unidad_cotizada;
+      await q.query(`INSERT INTO solicitud_precios (sp_id, linea_id, precio, precio_cotizado, unidad_cotizada) VALUES ($1,$2,$3,$4,$5)
+        ON CONFLICT (sp_id, linea_id) DO UPDATE SET precio = EXCLUDED.precio, precio_cotizado = EXCLUDED.precio_cotizado, unidad_cotizada = EXCLUDED.unidad_cotizada`, [sp.id, lid, pr, pc, uc]);
     }
     const noOferta = !!b.no_oferta || (!hay && ls.every((l) => info[l.id]?.no));
     if (!hay && !noOferta) throw fallo(400, 'Pon el precio de alguna línea o marca las que no tienen.');

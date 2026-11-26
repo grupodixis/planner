@@ -57,11 +57,15 @@ async function vista(r) {
   const { ajustes } = require('./compras');
   const aj = await ajustes();
   const [{ rows: lineas }, { rows: precios }, { rows: arch }] = [
-    await query(`SELECT id, descripcion, cantidad::float AS cantidad, unidad FROM solicitud_lineas WHERE solicitud_id = $1 ORDER BY orden, id`, [r.sol_id]),
-    await query(`SELECT linea_id, precio::float AS precio FROM solicitud_precios WHERE sp_id = $1`, [r.id]),
+    await query(`SELECT sl.id, sl.descripcion, sl.cantidad::float AS cantidad, sl.unidad, COALESCE(sl.catalogo_id, e.catalogo_id) AS catalogo_id
+                   FROM solicitud_lineas sl LEFT JOIN partida_escandallo e ON e.id = sl.escandallo_id WHERE sl.solicitud_id = $1 ORDER BY sl.orden, sl.id`, [r.sol_id]),
+    await query(`SELECT linea_id, precio::float AS precio, precio_cotizado::float AS precio_cotizado, unidad_cotizada FROM solicitud_precios WHERE sp_id = $1`, [r.id]),
     await query(`SELECT id, tipo, nombre, bytes FROM archivos WHERE ref_tipo = 'oferta' AND ref_id = $1 AND creado_por IS NULL ORDER BY id`, [r.id]),
   ];
   const pr = Object.fromEntries(precios.map((x) => [x.linea_id, x.precio]));
+  const cot = Object.fromEntries(precios.map((x) => [x.linea_id, x]));
+  const U = require('./unidades');
+  for (const l of lineas) { const o = await U.opcionesLinea(l.catalogo_id, l.unidad); l.unidades = o.opciones; delete l.catalogo_id; }
   // trabajo en obra (subcontrata): además, días de trabajo, personas y cuándo puede empezar
   const { rows: ob } = await query(`SELECT 1 FROM solicitud_lineas l JOIN tareas t ON t.id = l.tarea_id WHERE l.solicitud_id = $1 AND t.ext_en_obra LIMIT 1`, [r.sol_id]);
   const info = r.lineas_info || {};
@@ -71,7 +75,7 @@ async function vista(r) {
     codigo: r.codigo, proveedor: r.proveedor,
     abierta: r.sol_estado === 'abierta',
     responder_antes: r.responder_antes, necesario_el: r.necesario_el, notas_peticion: r.sol_notas,
-    lineas: lineas.map((l) => ({ ...l, precio: pr[l.id] ?? null, no_tiene: !!info[l.id]?.no, alternativa: info[l.id]?.alt || '' })),
+    lineas: lineas.map((l) => ({ ...l, precio: pr[l.id] ?? null, precio_cotizado: cot[l.id]?.precio_cotizado ?? null, unidad_cotizada: cot[l.id]?.unidad_cotizada || null, no_tiene: !!info[l.id]?.no, alternativa: info[l.id]?.alt || '' })),
     respuesta: {
       fecha_entrega: r.fecha_entrega, portes: r.portes, ref_oferta: r.ref_oferta, notas: r.notas, contacto: r.contacto,
       dias_trabajo: r.dias_trabajo != null ? Number(r.dias_trabajo) : null, personas: r.personas, inicio_posible: r.inicio_posible ? new Date(r.inicio_posible).toLocaleDateString('sv-SE') : null,
@@ -95,8 +99,10 @@ function montar(app, asyncH) {
     await tx(async (c) => {
       r = await porToken(req.params.t, c);
       if (r.sol_estado !== 'abierta') throw fallo(409, 'Esta petición ya está cerrada; si quiere cambiar algo, contacte con nosotros.');
-      const { rows: ls } = await c.query('SELECT id FROM solicitud_lineas WHERE solicitud_id = $1', [r.sol_id]);
+      const { rows: ls } = await c.query(`SELECT sl.id, sl.unidad, COALESCE(sl.catalogo_id, e.catalogo_id) AS catalogo_id FROM solicitud_lineas sl
+        LEFT JOIN partida_escandallo e ON e.id = sl.escandallo_id WHERE sl.solicitud_id = $1`, [r.sol_id]);
       const validas = new Set(ls.map((l) => l.id));
+      const deLinea = Object.fromEntries(ls.map((l) => [l.id, l]));
       const info = {};
       let hay = false;
       for (const lid of validas) {
@@ -104,11 +110,15 @@ function montar(app, asyncH) {
         const no = !!i.no || !!b.no_oferta;
         const alt = texto(i.alt, 300);
         if (no || alt) info[lid] = { ...(no ? { no: true } : {}), ...(alt ? { alt } : {}) };
-        const pr = no ? null : num(b.precios?.[lid]);
-        if (pr == null) { await c.query('DELETE FROM solicitud_precios WHERE sp_id = $1 AND linea_id = $2', [r.id, lid]); continue; }
-        if (!Number.isFinite(pr) || pr < 0 || pr > 1e7) throw fallo(400, 'Hay un precio que no es válido');
+        const pIn = no ? null : num(b.precios?.[lid]);
+        if (pIn == null) { await c.query('DELETE FROM solicitud_precios WHERE sp_id = $1 AND linea_id = $2', [r.id, lid]); continue; }
+        if (!Number.isFinite(pIn) || pIn < 0 || pIn > 1e7) throw fallo(400, 'Hay un precio que no es válido');
         hay = true;
-        await c.query(`INSERT INTO solicitud_precios (sp_id, linea_id, precio) VALUES ($1,$2,$3) ON CONFLICT (sp_id, linea_id) DO UPDATE SET precio = EXCLUDED.precio`, [r.id, lid, pr]);
+        // puede cotizar en su unidad (€/kg, €/barra…): se guarda lo suyo y se convierte a la de la línea
+        const cv = await require('./unidades').aLinea(deLinea[lid].catalogo_id, deLinea[lid].unidad, pIn, b.unidades?.[lid]);
+        await c.query(`INSERT INTO solicitud_precios (sp_id, linea_id, precio, precio_cotizado, unidad_cotizada) VALUES ($1,$2,$3,$4,$5)
+          ON CONFLICT (sp_id, linea_id) DO UPDATE SET precio = EXCLUDED.precio, precio_cotizado = EXCLUDED.precio_cotizado, unidad_cotizada = EXCLUDED.unidad_cotizada`,
+        [r.id, lid, cv.precio, cv.precio_cotizado, cv.unidad_cotizada]);
       }
       const noOferta = !!b.no_oferta || (!hay && [...validas].every((l) => info[l]?.no));
       if (!hay && !noOferta) throw fallo(400, 'Ponga el precio de alguna línea, o marque «No lo tengo» en las que no pueda servir.');
