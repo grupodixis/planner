@@ -111,9 +111,14 @@
     lista.replaceChildren(...est.mensajes.map((m) => {
       if (m.rol === 'usuario') return el('div', { class: 'iac-m yo' }, m.texto);
       const her = (m.herramientas || []);
-      const div = el('div', { class: `iac-m ia${m.error ? ' mal' : ''}${m.pensando ? ' pensando' : ''}` },
-        her.length ? el('div', { class: 'iac-her' }, her.map((h) => el('span', { class: h.ok ? '' : 'mal', title: `${h.nombre} ${JSON.stringify(h.args || {})}${h.error ? `\n${h.error}` : ''}` }, `🔎 ${NOMBRES[h.nombre] || h.nombre}`))) : null);
-      if (m.pensando) div.append(el('span', { class: 'iac-puntos' }, 'Consultando', el('i'), el('i'), el('i')));
+      const pend = m.pensando || m.estado === 'pensando';
+      const div = el('div', { class: `iac-m ia${m.error ? ' mal' : ''}${pend ? ' pensando' : ''}` },
+        her.length ? el('div', { class: 'iac-her' }, her.map((h) => el('span', { class: h.ok === null ? 'va' : h.ok ? '' : 'mal', title: `${h.nombre} ${JSON.stringify(h.args || {})}${h.error ? `\n${h.error}` : ''}` }, `🔎 ${NOMBRES[h.nombre] || h.nombre}`))) : null);
+      if (pend) {
+        const seg = m.creado ? Math.max(0, Math.round((Date.now() - new Date(m.creado).getTime()) / 1000)) : 0;
+        const fase = { consultando: 'Consultando', redactando: 'Redactando la respuesta', pensando: 'Pensando' }[m.fase] || 'Pensando';
+        div.append(el('span', { class: 'iac-puntos' }, fase, el('i'), el('i'), el('i'), seg >= 3 ? el('small', {}, ` ${seg} s`) : null));
+      }
       else if (m.error) div.append(el('p', {}, `✕ ${m.error}`), el('button', { type: 'button', class: 'mini', onclick: () => reintentar(m) }, '↻ Reintentar'));
       else { const c = el('div', { class: 'iac-txt' }); c.innerHTML = md(m.texto); div.append(c); }
       return div;
@@ -131,13 +136,30 @@
     try {
       const r = await api('POST', '/api/ia/chat', { conversacion_id: est.conv, mensaje: t, pagina: location.pathname + location.search });
       est.conv = r.conversacion_id; guardado('iac-conv', String(r.conversacion_id));
-      est.mensajes.pop(); est.mensajes.push(r.mensaje);
+      est.mensajes.pop(); est.mensajes.push(r.mensaje); pintar();
+      await seguir(r.mensaje);
     } catch (e) {
       est.mensajes.pop(); est.mensajes.push({ rol: 'ia', error: navigator.onLine === false ? 'Sin conexión: el asistente necesita internet.' : e.message, reintento: t });
     }
     est.enviando = false;
     pintar(); entrada.focus();
   }
+  // La respuesta se prepara en el servidor: preguntar cómo va hasta que esté (o falle)
+  async function seguir(m) {
+    let fallos = 0;
+    while (m.estado === 'pensando') {
+      await new Promise((ok) => setTimeout(ok, 1200));
+      if (!est.mensajes.includes(m)) return;   // cambió de conversación
+      try {
+        Object.assign(m, await api('GET', `/api/ia/mensajes/${m.id}`)); fallos = 0;
+      } catch (e) {
+        if (++fallos >= 5) { Object.assign(m, { estado: 'error', error: navigator.onLine === false ? 'Sin conexión: el asistente necesita internet.' : e.message }); }
+      }
+      if (m.estado === 'error') m.reintento = est.mensajes[est.mensajes.indexOf(m) - 1]?.texto;
+      if (!panel.hidden) pintar();
+    }
+  }
+
   function reintentar(m) {
     const i = est.mensajes.indexOf(m);
     const t = m.reintento || est.mensajes[i - 1]?.texto;
@@ -150,6 +172,8 @@
       est.conv = c.id; est.mensajes = c.mensajes; guardado('iac-conv', String(c.id));
     } catch { est.conv = null; est.mensajes = []; guardado('iac-conv', null); }
     pintar();
+    const pend = est.mensajes.find((m) => m.estado === 'pensando');
+    if (pend && !est.enviando) { est.enviando = true; await seguir(pend); est.enviando = false; pintar(); }
   }
   function nueva() { est.conv = null; est.mensajes = []; guardado('iac-conv', null); pintar(); entrada.focus(); }
 

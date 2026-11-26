@@ -2989,3 +2989,6 @@ html.iac-bloqueo, html.iac-bloqueo body { overflow: hidden; }
 .iac-mic.oyendo { background: #7a2a2a; border-color: #c55; animation: iac-oye 1s infinite; }
 @keyframes iac-oye { 50% { box-shadow: 0 0 0 6px #c5555533; } }
 @media (prefers-reduced-motion: reduce) { .iac-mic.oyendo { animation: none; } }
+
+.iac-her span.va { color: #f0b060; background: #3a2f10; }
+.iac-puntos small { opacity: .7; }

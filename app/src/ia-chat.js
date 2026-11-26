@@ -13,6 +13,7 @@ const prov = require('./ia-proveedores');
 const PASOS = 8;
 const TURNOS = 16;            // turnos de texto anteriores que se mandan
 const MAX_RESULTADO = 24000;  // caracteres de cada resultado de herramienta que ve la IA
+const LIMITE_MS = 120000;     // tiempo máximo para preparar una respuesta
 const fallo = (s, m) => Object.assign(new Error(m), { status: s });
 const hoyMadrid = () => new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Madrid' });
 
@@ -63,8 +64,14 @@ function gemini(cfg, sis, historial, herr) {
   const contents = historial.map((m) => ({ role: m.rol === 'usuario' ? 'user' : 'model', parts: [{ text: m.texto }] }));
   const tools = [{ functionDeclarations: herr.map((h) => ({ name: h.nombre, description: h.descripcion, ...(esquemaGemini(h) ? { parameters: esquemaGemini(h) } : {}) })) }];
   const url = `${process.env.IA_GEMINI_URL || 'https://generativelanguage.googleapis.com'}/v1beta/models/${encodeURIComponent(cfg.modelo)}:generateContent`;
+  let sinPensar = false;
   const paso = async () => {
-    const j = await post(url, { 'x-goog-api-key': cfg.clave }, { systemInstruction: { parts: [{ text: sis }] }, contents, tools, generationConfig: { temperature: 0.2 } });
+    const cuerpo = (pensar) => ({ systemInstruction: { parts: [{ text: sis }] }, contents, tools, generationConfig: { temperature: 0.2, ...(pensar ? { thinkingConfig: pensar } : {}) } });
+    // Razonamiento corto: para consultar y resumir basta, y responde mucho antes. Si el modelo no lo admite, sin él.
+    const pensar = /gemini-[3-9]/.test(cfg.modelo) ? { thinkingLevel: 'low' } : /gemini-2\.5/.test(cfg.modelo) && !/pro/.test(cfg.modelo) ? { thinkingBudget: 512 } : null;
+    let j;
+    try { j = await post(url, { 'x-goog-api-key': cfg.clave }, cuerpo(sinPensar ? null : pensar)); }
+    catch (e) { if (!pensar || sinPensar || !/think/i.test(e.message)) throw e; sinPensar = true; j = await post(url, { 'x-goog-api-key': cfg.clave }, cuerpo(null)); }
     const c = j.candidates?.[0];
     if (!c?.content) throw fallo(502, `La IA no respondió${j.promptFeedback?.blockReason ? ` (bloqueado: ${j.promptFeedback.blockReason})` : c?.finishReason ? ` (${c.finishReason})` : ''}`);
     contents.push(c.content);   // tal cual (lleva las firmas de pensamiento que Gemini pide de vuelta)
@@ -134,21 +141,32 @@ async function preguntar(usuario, { conversacion_id, mensaje, pagina }) {
     conv = rows[0];
   }
   const { rows: previos } = await query(
-    `SELECT rol, texto FROM (SELECT id, rol, texto FROM ia_mensajes WHERE conversacion_id = $1 AND texto <> '' ORDER BY id DESC LIMIT $2) x ORDER BY id`,
+    `SELECT rol, texto FROM (SELECT id, rol, texto FROM ia_mensajes WHERE conversacion_id = $1 AND texto <> '' AND COALESCE(estado, 'hecho') <> 'pensando' ORDER BY id DESC LIMIT $2) x ORDER BY id`,
     [conv.id, TURNOS]);
   await query('INSERT INTO ia_mensajes (conversacion_id, rol, texto, pagina) VALUES ($1, $2, $3, $4)', [conv.id, 'usuario', texto, pagina || null]);
 
+  // La respuesta se prepara en segundo plano: así no la corta el proxy y la pantalla ve el progreso (GET /api/ia/mensajes/:id)
+  const { rows: [m] } = await query(
+    `INSERT INTO ia_mensajes (conversacion_id, rol, texto, herramientas, estado, proveedor, modelo)
+     VALUES ($1, 'ia', '', '[]', 'pensando', $2, $3) RETURNING id, creado`, [conv.id, cfg.proveedor, cfg.modelo]);
+  await query('UPDATE ia_conversaciones SET actualizado = now() WHERE id = $1', [conv.id]);
+  trabajar(usuario, conv, m.id, cfg, previos, texto, pagina).catch((e) => console.error('IA chat:', e));
+  return { conversacion_id: conv.id, titulo: conv.titulo, mensaje: { id: m.id, rol: 'ia', estado: 'pensando', texto: '', herramientas: [], modelo: cfg.modelo, creado: m.creado } };
+}
+
+async function trabajar(usuario, conv, mid, cfg, previos, texto, pagina) {
   const herr = await catalogo(usuario);
   const historial = [...previos, { rol: 'usuario', texto }];
-  // el historial debe empezar por el usuario
-  while (historial.length && historial[0].rol !== 'usuario') historial.shift();
+  while (historial.length && historial[0].rol !== 'usuario') historial.shift();   // debe empezar por el usuario
   const paso = ADAPT[cfg.proveedor](cfg, sistema(usuario, pagina), historial, herr);
-
   const t0 = Date.now();
   const usadas = []; const uso = { entrada: 0, salida: 0 };
+  const progreso = (fase) => query('UPDATE ia_mensajes SET herramientas = $2, fase = $3 WHERE id = $1', [mid, JSON.stringify(usadas), fase]).catch(() => {});
   let respuesta = ''; let error = null;
   try {
     for (let i = 0; i <= PASOS; i++) {
+      if (Date.now() - t0 > LIMITE_MS) throw fallo(504, 'La IA está tardando demasiado. Prueba con una pregunta más concreta o un modelo más rápido (Recursos › IA).');
+      await progreso(i ? 'redactando' : 'pensando');
       const r = await paso();
       uso.entrada += r.uso.entrada; uso.salida += r.uso.salida;
       if (r.texto) respuesta = r.texto;
@@ -156,15 +174,17 @@ async function preguntar(usuario, { conversacion_id, mensaje, pagina }) {
       if (i === PASOS) { respuesta = respuesta || 'He necesitado demasiados pasos para responder. ¿Puedes concretar más la pregunta?'; break; }
       const res = [];
       for (const ll of r.llamadas) {
+        usadas.push({ nombre: ll.nombre, args: ll.args, ok: null });
+        await progreso('consultando');
+        const u = usadas[usadas.length - 1];
         try {
           const datos = await ia.ejecutar(usuario, 'app', ll.nombre, ll.args, { conversacion_id: conv.id });
-          let s = JSON.stringify(datos);
-          const recortado = s.length > MAX_RESULTADO;
-          res.push({ ...ll, datos: recortado ? { aviso: 'Resultado recortado por tamaño; pide algo más concreto', parcial: s.slice(0, MAX_RESULTADO) } : datos });
-          usadas.push({ nombre: ll.nombre, args: ll.args, ok: true });
+          const s = JSON.stringify(datos);
+          res.push({ ...ll, datos: s.length > MAX_RESULTADO ? { aviso: 'Resultado recortado por tamaño; pide algo más concreto', parcial: s.slice(0, MAX_RESULTADO) } : datos });
+          u.ok = true;
         } catch (e) {
           res.push({ ...ll, error: e.message });
-          usadas.push({ nombre: ll.nombre, args: ll.args, ok: false, error: e.message });
+          Object.assign(u, { ok: false, error: e.message });
         }
       }
       r.seguir(res);
@@ -172,14 +192,19 @@ async function preguntar(usuario, { conversacion_id, mensaje, pagina }) {
     if (!respuesta.trim()) respuesta = 'No he obtenido respuesta de la IA. Prueba a reformular la pregunta.';
   } catch (e) {
     error = e.message;
+    console.error(`IA chat (${cfg.proveedor} ${cfg.modelo}):`, e.message);
   }
-  const { rows: [m] } = await query(
-    `INSERT INTO ia_mensajes (conversacion_id, rol, texto, herramientas, error, proveedor, modelo, tokens_entrada, tokens_salida, ms)
-     VALUES ($1, 'ia', $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id, creado`,
-    [conv.id, error ? '' : respuesta, JSON.stringify(usadas), error, cfg.proveedor, cfg.modelo, uso.entrada, uso.salida, Date.now() - t0]);
+  await query(
+    `UPDATE ia_mensajes SET texto = $2, herramientas = $3, error = $4, estado = $5, fase = NULL, tokens_entrada = $6, tokens_salida = $7, ms = $8 WHERE id = $1`,
+    [mid, error ? '' : respuesta, JSON.stringify(usadas), error, error ? 'error' : 'hecho', uso.entrada, uso.salida, Date.now() - t0]);
   await query('UPDATE ia_conversaciones SET actualizado = now() WHERE id = $1', [conv.id]);
-  return { conversacion_id: conv.id, titulo: conv.titulo, mensaje: { id: m.id, rol: 'ia', texto: error ? '' : respuesta, error, herramientas: usadas, modelo: cfg.modelo, creado: m.creado } };
 }
+
+// Un mensaje que se quedó «pensando» (p. ej. el servidor se reinició) se da por fallido pasado el límite
+const SQL_MSG = `SELECT id, rol, texto, herramientas, modelo, creado, fase, ms,
+    CASE WHEN estado = 'pensando' AND creado < now() - interval '${Math.ceil(LIMITE_MS / 1000) + 60} seconds' THEN 'error' ELSE COALESCE(estado, 'hecho') END AS estado,
+    CASE WHEN estado = 'pensando' AND creado < now() - interval '${Math.ceil(LIMITE_MS / 1000) + 60} seconds' THEN 'Se interrumpió la respuesta. Vuelve a preguntar.' ELSE error END AS error
+  FROM ia_mensajes`;
 
 function montar(app, asyncH) {
   const usar = auth.permiso('ia', 'usuarios');
@@ -190,6 +215,11 @@ function montar(app, asyncH) {
     res.json({ disponible: !!(aj.activo && aj.canales.app && cfg?.modelo), motivo: !aj.activo ? 'La IA está apagada' : !aj.canales.app ? 'El asistente está apagado' : !cfg ? 'Falta la clave del proveedor' : null, modelo: cfg?.modelo || null, proveedor: cfg?.proveedor || null });
   }));
   app.post('/api/ia/chat', usar, asyncH(async (req, res) => res.json(await preguntar(req.usuario, req.body || {}))));
+  app.get('/api/ia/mensajes/:id', usar, asyncH(async (req, res) => {
+    const { rows } = await query(`${SQL_MSG} m WHERE m.id = $1 AND EXISTS (SELECT 1 FROM ia_conversaciones c WHERE c.id = m.conversacion_id AND c.usuario_id = $2)`, [req.params.id, req.usuario.id]);
+    if (!rows.length) throw fallo(404, 'Mensaje no encontrado');
+    res.json(rows[0]);
+  }));
 
   app.get('/api/ia/conversaciones', usar, asyncH(async (req, res) => {
     const { rows } = await query(
@@ -200,7 +230,7 @@ function montar(app, asyncH) {
   app.get('/api/ia/conversaciones/:id', usar, asyncH(async (req, res) => {
     const { rows: c } = await query('SELECT id, titulo, creado FROM ia_conversaciones WHERE id = $1 AND usuario_id = $2', [req.params.id, req.usuario.id]);
     if (!c.length) throw fallo(404, 'Conversación no encontrada');
-    const { rows } = await query('SELECT id, rol, texto, error, herramientas, modelo, creado FROM ia_mensajes WHERE conversacion_id = $1 ORDER BY id', [c[0].id]);
+    const { rows } = await query(`${SQL_MSG} WHERE conversacion_id = $1 ORDER BY id`, [c[0].id]);
     res.json({ ...c[0], mensajes: rows });
   }));
   app.delete('/api/ia/conversaciones/:id', usar, asyncH(async (req, res) => {

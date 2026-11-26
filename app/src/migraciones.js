@@ -1459,6 +1459,10 @@ const MIGRACIONES = [
      creado TIMESTAMPTZ NOT NULL DEFAULT now())`,
   `CREATE INDEX IF NOT EXISTS ia_mensajes_conv ON ia_mensajes (conversacion_id, id)`,
   `ALTER TABLE ia_registro ADD COLUMN IF NOT EXISTS conversacion_id INTEGER REFERENCES ia_conversaciones(id) ON DELETE SET NULL`,
+  `ALTER TABLE ia_mensajes ADD COLUMN IF NOT EXISTS estado TEXT`,
+  `ALTER TABLE ia_mensajes ADD COLUMN IF NOT EXISTS fase TEXT`,
+  // respuestas que se quedaron a medias con la versión anterior
+  `UPDATE ia_mensajes SET estado = 'hecho' WHERE estado IS NULL`,
 ];
 
 async function migrar() {
