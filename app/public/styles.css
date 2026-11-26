@@ -3161,3 +3161,11 @@ body.pr-pant { height: 100vh; display: flex; flex-direction: column; overflow: h
 .pr-eq-campos { display: flex; flex-wrap: wrap; gap: 10px; margin: 8px 0; }
 .pr-eq-campos label { display: flex; flex-direction: column; gap: 2px; font-size: 12px; color: var(--suave, #999); }
 .pr-eq-campos input { width: 110px; text-align: right; }
+/* Gantt: desplazar con la mano (arrastrar el fondo, Alt + arrastrar o rueda pulsada) */
+.gt-g .gt-tl { cursor: grab; }
+.gt-g .gt-tl .gt-bb, .gt-g .gt-tl button, .gt-g .gt-tl a { cursor: pointer; }
+body.gt-alt .gt-g .gt-tl, body.gt-alt .gt-g .gt-tl * { cursor: grab !important; }
+body.gt-mano-on, body.gt-mano-on * { cursor: grabbing !important; user-select: none; }
+.gt-g.gt-pan .gt-tl > * { transform: translateX(var(--gt-pan, 0px)); }
+.gt-g.gt-pan > .gt-flechas { opacity: 0; }
+.gt-g.gt-pan .gt-tl { overflow: hidden !important; clip-path: inset(0); }

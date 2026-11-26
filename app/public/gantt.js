@@ -564,7 +564,7 @@
   // Arrastrar en horizontal una barra: muestra cuántos días, y al soltar llama a soltar(días de calendario)
   function arrastrable(nodo, diasVista, texto, soltar) {
     nodo.addEventListener('pointerdown', (ev) => {
-      if (ev.button !== 0) return;
+      if (ev.button !== 0 || ev.altKey) return;   // Alt: mover la vista con la mano
       ev.preventDefault();
       const tl = nodo.closest('.gt-tl');
       const w = tl.getBoundingClientRect().width / diasVista;
@@ -865,6 +865,53 @@
         }))))) : el('p', { class: 'ayuda' }, 'Nada planificado en estas semanas.'));
   }
 
+  /* ---------- desplazar con la mano ----------
+     Arrastrar el fondo del gantt (o Alt + arrastrar en cualquier sitio, o con la rueda pulsada) mueve la vista:
+     en horizontal se ve al momento y al soltar se carga desde la semana a la que se ha llegado; en vertical sube y baja la página. */
+  function mano() {
+    const g = $('#gt-g');
+    const INTERACTIVO = 'button, a, input, select, textarea, label, .gt-bb, .gt-ent, .gt-dep-n, [draggable="true"]';
+    g.addEventListener('pointerdown', (ev) => {
+      const alt = ev.altKey || ev.button === 1;
+      if (!(ev.button === 0 || ev.button === 1)) return;
+      const tl = ev.target.closest('.gt-tl');
+      if (!tl || !est.datos) return;
+      if (!alt && ev.target.closest(INTERACTIVO)) return;
+      ev.preventDefault();
+      const d = est.datos;
+      const dias = Math.round((Date.parse(`${d.hasta}T12:00:00Z`) - Date.parse(`${d.desde}T12:00:00Z`)) / 864e5) + 1;
+      const diaW = tl.getBoundingClientRect().width / dias;
+      const x0 = ev.clientX; const y0 = ev.clientY; const s0 = window.scrollY;
+      const capas = [...g.querySelectorAll('.gt-tl')];
+      let dx = 0; let movido = false;
+      g.setPointerCapture(ev.pointerId);
+      document.body.classList.add('gt-mano-on');
+      const mover = (e) => {
+        dx = e.clientX - x0; const dy = e.clientY - y0;
+        if (!movido && Math.abs(dx) < 4 && Math.abs(dy) < 4) return;
+        movido = true;
+        for (const c of capas) c.style.setProperty('--gt-pan', `${dx}px`);
+        g.classList.add('gt-pan');
+        window.scrollTo(window.scrollX, s0 - dy);
+      };
+      const soltar = () => {
+        g.removeEventListener('pointermove', mover); g.removeEventListener('pointerup', soltar); g.removeEventListener('pointercancel', soltar);
+        document.body.classList.remove('gt-mano-on');
+        if (!movido) return;
+        // evitar que el «clic» de soltar abra una tarea
+        g.addEventListener('click', (e) => { e.stopPropagation(); e.preventDefault(); }, { capture: true, once: true });
+        const semanas = Math.round(-dx / diaW / 7);
+        if (!semanas) { g.classList.remove('gt-pan'); for (const c of capas) c.style.removeProperty('--gt-pan'); return; }
+        est.desde = masDias(est.desde, semanas * 7);
+        cargar().finally(() => g.classList.remove('gt-pan'));
+      };
+      g.addEventListener('pointermove', mover); g.addEventListener('pointerup', soltar); g.addEventListener('pointercancel', soltar);
+    });
+    // Alt pulsado: la mano en todo el gantt
+    const alt = (e) => document.body.classList.toggle('gt-alt', e.altKey);
+    addEventListener('keydown', alt); addEventListener('keyup', alt); addEventListener('blur', () => document.body.classList.remove('gt-alt'));
+  }
+
   async function iniciar() {
     let yo;
     try { yo = await api('GET', '/api/me'); } catch { location.href = '/login.html'; return; }
@@ -899,5 +946,6 @@
   };
   try { const ro = new ResizeObserver(fijar); ro.observe(document.querySelector('body > header.top')); ro.observe($('#gt-ctl')); ro.observe($('#gt-prop')); } catch { /* sin ResizeObserver */ }
   addEventListener('resize', fijar);
+  mano();
   iniciar().catch((e) => { $('#gt-g').replaceChildren(el('p', { class: 'error' }, e.message)); });
 })();
