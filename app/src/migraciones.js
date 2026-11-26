@@ -1669,6 +1669,52 @@ const MIGRACIONES = [
    )`,
   `CREATE INDEX IF NOT EXISTS presupuesto_lineas_partida_idx ON presupuesto_lineas (partida_id)`,
   `ALTER TABLE solicitudes_precio ADD COLUMN IF NOT EXISTS presupuesto_id INT REFERENCES presupuestos(id) ON DELETE SET NULL`,
+  // Presupuestos (fase 2): crear con IA desde un texto y adjuntos, Skills de presupuestación (.md) y el rol Comercial
+  `ALTER TABLE presupuestos ADD COLUMN IF NOT EXISTS prompt TEXT`,
+  `ALTER TABLE presupuestos ADD COLUMN IF NOT EXISTS origen TEXT NOT NULL DEFAULT 'pantalla'`,
+  `ALTER TABLE presupuestos ADD COLUMN IF NOT EXISTS correo_id INT`,
+  `ALTER TABLE presupuestos ADD COLUMN IF NOT EXISTS skills INT[]`,
+  `ALTER TABLE presupuestos ADD COLUMN IF NOT EXISTS ia_estado TEXT`,          // creando | listo | error
+  `ALTER TABLE presupuestos ADD COLUMN IF NOT EXISTS ia_fase TEXT`,
+  `ALTER TABLE presupuestos ADD COLUMN IF NOT EXISTS ia_error TEXT`,
+  `ALTER TABLE presupuestos ADD COLUMN IF NOT EXISTS ia_resumen TEXT`,
+  `ALTER TABLE presupuestos ADD COLUMN IF NOT EXISTS ia_dudas JSONB`,
+  `ALTER TABLE presupuestos ADD COLUMN IF NOT EXISTS ia_borrador JSONB`,       // lo que devolvió la IA (para aprender de las correcciones)
+  `ALTER TABLE presupuestos ADD COLUMN IF NOT EXISTS ia_modelo TEXT`,
+  `ALTER TABLE presupuestos ADD COLUMN IF NOT EXISTS ia_ms INT`,
+  `ALTER TABLE presupuestos ADD COLUMN IF NOT EXISTS ia_avisos JSONB`,
+  `CREATE TABLE IF NOT EXISTS presupuesto_adjuntos (
+     id             SERIAL PRIMARY KEY,
+     presupuesto_id INT REFERENCES presupuestos(id) ON DELETE CASCADE,
+     nombre         TEXT NOT NULL,
+     tipo           TEXT NOT NULL,
+     bytes          INT NOT NULL,
+     ruta           TEXT NOT NULL,               -- relativa a ARCHIVOS_DIR
+     origen         TEXT NOT NULL DEFAULT 'pantalla',
+     creado_por     INT REFERENCES usuarios(id) ON DELETE SET NULL,
+     creado         TIMESTAMPTZ NOT NULL DEFAULT now()
+   )`,
+  `CREATE TABLE IF NOT EXISTS presupuesto_skills (
+     id           SERIAL PRIMARY KEY,
+     nombre       TEXT NOT NULL UNIQUE,
+     contenido    TEXT NOT NULL DEFAULT '',
+     siempre      BOOLEAN NOT NULL DEFAULT FALSE,   -- se usa en todos los presupuestos (Reglas generales)
+     activo       BOOLEAN NOT NULL DEFAULT TRUE,
+     version      INT NOT NULL DEFAULT 1,
+     cambiado_por INT REFERENCES usuarios(id) ON DELETE SET NULL,
+     cambiado_en  TIMESTAMPTZ NOT NULL DEFAULT now()
+   )`,
+  `CREATE TABLE IF NOT EXISTS presupuesto_skill_versiones (
+     id          SERIAL PRIMARY KEY,
+     skill_id    INT NOT NULL REFERENCES presupuesto_skills(id) ON DELETE CASCADE,
+     version     INT NOT NULL,
+     contenido   TEXT NOT NULL,
+     cambiado_por INT REFERENCES usuarios(id) ON DELETE SET NULL,
+     cambiado_en TIMESTAMPTZ NOT NULL DEFAULT now()
+   )`,
+  `INSERT INTO roles (clave, nombre, descripcion, permisos) VALUES ('comercial', 'Comercial', 'Prepara presupuestos y recibe las peticiones que llegan a presupuestos@', ARRAY['presupuestos'])
+     ON CONFLICT (clave) DO NOTHING`,
+  `UPDATE roles SET permisos = permisos || ARRAY['presupuestos'] WHERE clave IN ('admin', 'direccion') AND NOT ('presupuestos' = ANY(permisos))`,
 ];
 
 async function migrar() {

@@ -258,7 +258,7 @@ async function pdf(p, detallado) {
 
 /* ---------- rutas ---------- */
 function montar(app, asyncH) {
-  const ver = auth.permiso('costes');
+  const ver = auth.permiso('presupuestos', 'costes');
 
   app.get('/api/presupuestos', ver, asyncH(async (req, res) => {
     const { rows } = await query(`SELECT p.id FROM presupuestos p LEFT JOIN clientes c ON c.id = p.cliente_id LEFT JOIN obras o ON o.id = p.obra_id
@@ -268,7 +268,7 @@ function montar(app, asyncH) {
     for (const r of rows) {
       const p = await cargar(r.id);
       out.push({ id: p.id, codigo: p.codigo, titulo: p.titulo, cliente: p.cliente, obra: p.obra, estado: p.estado, coste: p.coste, venta: p.venta, capitulos: p.capitulos.filter((c) => c.id).length,
-        partidas: p.n_partidas, pendientes: p.pendientes, real_pct: p.real_pct, enviado_en: p.enviado_en, decidido_en: p.decidido_en, cambiado: p.cambiado });
+        partidas: p.n_partidas, pendientes: p.pendientes, ia_estado: p.ia_estado, origen: p.origen, real_pct: p.real_pct, enviado_en: p.enviado_en, decidido_en: p.decidido_en, cambiado: p.cambiado });
     }
     res.json(out);
   }));
@@ -469,7 +469,7 @@ function montar(app, asyncH) {
 
   // Pedir precio de líneas de material a proveedores: petición de precio «para presupuestar» en Compras
   // { linea_ids, proveedor_ids, responder_antes, notas }
-  app.post('/api/presupuestos/:id/pedir-precio', auth.permiso('costes'), asyncH(async (req, res) => {
+  app.post('/api/presupuestos/:id/pedir-precio', ver, asyncH(async (req, res) => {
     const id = Number(req.params.id); const b = req.body || {};
     const p = await cargar(id); editable(p);
     const ids = new Set((b.linea_ids || []).map(Number));
@@ -542,4 +542,4 @@ function montar(app, asyncH) {
   }));
 }
 
-module.exports = { montar, cargar };
+module.exports = { montar, cargar, precioMaterial, precioTarifa };

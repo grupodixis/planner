@@ -315,6 +315,7 @@ require('./correo-ia').montar(app, asyncH, auth);   // Correo entrante: lo que l
 require('./precios').montar(app, asyncH, auth);   // Lista de precios y lo que aprende la IA de cada proveedor
 require('./tarifa').montar(app, asyncH);   // Tarifa de mano de obra y maquinaria (venta y coste por rendimiento real)
 require('./presupuestos').montar(app, asyncH);   // Presupuestos: capítulos › partidas › descomposición, precios de la lista y la tarifa
+require('./presupuestos-ia').montar(app, asyncH);   // Presupuestos con IA (texto + adjuntos) y Skills de presupuestación
 require('./incidencias').montar(app, asyncH);   // incidencias: material, transporte, calidad… con reclamación y cierre
 require('./pedido-transporte').montar(app, asyncH);   // cómo llega cada pedido: proveedor, recogida o almacén del transportista
 require('./recursos')(app, asyncH);
@@ -359,6 +360,8 @@ const PORT = Number(process.env.PORT || 3000);
   await require('./obras-clientes').importarClientes().catch((e) => console.error('Clientes de facturación:', e.message));
   await require('./buzones').migrarSalida().catch((e) => console.error('Cuentas de correo:', e.message));
   await require('./unidades').calcularCatalogo().catch((e) => console.error('Unidades:', e.message));
+  await require('./presupuestos-ia').sembrarSkills().catch((e) => console.error('Skills:', e.message));
+  await require('./presupuestos-ia').reanudar().catch(() => {});
   await require('./compras').migrarPedidosSueltos().catch((e) => console.error('Pedidos sueltos:', e.message));
   await require('./precios').cargaInicial().catch((e) => console.error('Lista de precios:', e.message));
   await require('./correo').cargar().catch((e) => console.error('Correo:', e.message));

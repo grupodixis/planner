@@ -114,7 +114,7 @@
     ['Proyectos', [['/proyectos.html', 'Proyectos y OTs', null, 'Partidas, OTs, tareas, escandallo e importación'],
       ['/obras.html', 'Obras', null, 'Direcciones con sus proyectos, contacto en obra y lo próximo'],
       ['/clientes.html', 'Clientes', null, 'Datos del cliente y sus personas de contacto']]],
-    ['Presupuestos', [['/presupuestos.html', 'Presupuestos', 'costes', 'Capítulos, partidas con su descomposición, precios de la lista y la tarifa, margen y PDF'],
+    ['Presupuestos', [['/presupuestos.html', 'Presupuestos', ['presupuestos', 'costes'], 'Capítulos, partidas con su descomposición, precios de la lista y la tarifa, margen y PDF'],
       ['/tarifa.html', 'Tarifa de mano de obra y maquinaria', 'costes', 'Precio de venta y coste real por rendimiento'],
       ['/precios.html', 'Lista de precios', ['compras', 'aprobar_compras', 'costes'], 'El último precio de cada material (sin IVA)']]],
     ['Compras', [['/logistica.html', 'Material de las partidas', ['logistica', 'compras', 'escandallo'], 'Stock, por pedir, pedido y recepción'],

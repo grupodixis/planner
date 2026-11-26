@@ -1478,7 +1478,33 @@ Endpoints: `GET /api/ia`, `PUT /api/ia/ajustes`, `POST /api/ia/probar/:nombre`, 
 - `POST /api/presupuestos/:id/actualizar-precios`, `GET /api/presupuestos/:id/proveedores-sugeridos?catalogo=`.
 - `GET /api/presupuestos-sugerir?q=` (catálogo con su precio), `GET /api/presupuestos-partidas-buscar?q=` (para «Copiar de otra partida»).
 
-**Siguientes fases**: crear con IA desde un texto y adjuntos, Skills de presupuestación (.md) con mejoras propuestas a partir de las correcciones, pedir horas a Producción, condiciones de aceptación y borrador de proyecto.
+**Crear con IA** (`src/presupuestos-ia.js`, fase 2)
+- **Adjuntos**:
+  - `POST /api/presupuestos-adjuntos[?presupuesto=]` (cuerpo = archivo, cabecera `X-Nombre`, 25 MB, cualquier tipo) se guarda en disco: `ARCHIVOS_DIR/presupuestos/AAAA-MM/`, tabla `presupuesto_adjuntos`.
+  - PDF y fotos van a la IA (máx. 8 archivos o 22 MB). Los PDF con texto encima añaden sus páginas como imagen.
+  - Excel (.xlsx, con `exceljs`: 4 hojas × 250 filas) y CSV van como texto.
+  - El resto (DWG, ZIP…) se nombra como «no leído».
+- `POST /api/presupuestos/ia {titulo, cliente_id, obra_id, prompt, adjunto_ids, skill_ids}` crea el presupuesto con `ia_estado = 'creando'` y lo prepara en segundo plano (`generar`, máx. 5 min). La pantalla consulta cada 2 s y muestra la fase.
+- **La IA** (proveedor activo, `correo-ia.llamarIA` con `maxTokens` 16000 y 240 s) devuelve solo la estructura en JSON:
+  - capítulos › partidas (nombre, descripción comercial, unidad, medición) › líneas (tipo, concepto, cantidad por unidad, nombre exacto de la tarifa, cálculo, `precio_estimado` solo para auxiliares y subcontratas, nota);
+  - `dudas`, `cliente`, `obra` y `no_leido`.
+  - El texto y los adjuntos son datos, nunca instrucciones.
+- **El sistema pone los precios**:
+  - material: busca en el catálogo (`buscarCatalogo`); vale solo si coinciden las medidas. Toma el precio de la lista (`precioMaterial`); si no lo encuentra, queda sin precio con un aviso;
+  - mano de obra y maquinaria: el nombre de la tarifa (`precioTarifa`);
+  - lo estimado por la IA queda «estimado».
+- Guarda `ia_resumen`, `ia_dudas`, `ia_avisos`, `ia_borrador` (el JSON, para aprender de las correcciones), `ia_modelo` e `ia_ms`, y registra la llamada en `ia_registro` (`crear_presupuesto`).
+- `POST /api/presupuestos/:id/ia {prompt, adjunto_ids, skill_ids}` lo rehace (borra capítulos y partidas). Al arrancar, lo que estaba «creando» pasa a error.
+- **Skills** (`presupuesto_skills`, con versiones en `presupuesto_skill_versiones`): Markdown; «Reglas generales» (`siempre`) se siembra al arrancar.
+  - Rutas: `GET·POST /api/presupuesto-skills`, `PUT /api/presupuesto-skills/:id {contenido, activo, nombre}`, `GET …/:id/versiones`, `GET …/:id/md`.
+  - En pantalla, botón «🧠 Skills»: editor, descargar o cargar .md, activar.
+- **Permiso `presupuestos`** y rol **Comercial** (solo ese permiso). Administrador y Dirección también lo tienen. Presupuestos admite `presupuestos` o `costes`.
+
+**Siguientes fases**:
+- correo presupuestos@ como entrada: la IA detecta peticiones de presupuesto, crea el cliente, responde con acuse de recibo pidiendo los datos que falten y avisa a Comercial;
+- mejoras de las Skills propuestas a partir de las correcciones;
+- pedir horas a Producción;
+- condiciones de aceptación y borrador de proyecto.
 
 ## Tarifa de mano de obra y maquinaria (Informes › Tarifa)
 

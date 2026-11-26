@@ -49,9 +49,9 @@ function esquemaGemini(h) {
 }
 
 /* ---------- adaptadores: dan { texto, llamadas:[{id,nombre,args}], uso:{entrada,salida}, seguir(resultados) } ---------- */
-async function post(url, headers, cuerpo) {
+async function post(url, headers, cuerpo, ms = 75000) {
   let r;
-  try { r = await fetch(url, { method: 'POST', headers: { 'content-type': 'application/json', ...headers }, body: JSON.stringify(cuerpo), signal: AbortSignal.timeout(75000) }); }
+  try { r = await fetch(url, { method: 'POST', headers: { 'content-type': 'application/json', ...headers }, body: JSON.stringify(cuerpo), signal: AbortSignal.timeout(ms) }); }
   catch (e) { throw Object.assign(fallo(502, `No se pudo conectar con el proveedor de IA (${e.name === 'TimeoutError' ? 'tardó demasiado' : e.cause?.code || e.name})`), { saturado: e.name === 'TimeoutError' }); }
   let j = {}; try { j = await r.json(); } catch { /* sin cuerpo */ }
   if (r.status === 401 || r.status === 403) throw fallo(502, 'El proveedor de IA rechaza la clave (revisa Recursos › IA › Proveedor)');

@@ -139,7 +139,9 @@ Reglas:
 - Si hay dudas (no cuadra el total, unidades distintas, faltan líneas, remitente raro), dilo en "alertas".`;
 }
 
-async function llamarIA(cfg, sis, contenido, archivos) {
+// op: { maxTokens, ms } (un presupuesto devuelve mucho más que la lectura de un correo)
+async function llamarIA(cfg, sis, contenido, archivos, op = {}) {
+  const ms = op.ms || 75000;
   const conDatos = archivos.map((a) => ({ ...a, b64: a.datos.toString('base64') }));
   const paso = async () => {
     if (cfg.proveedor === 'google') {
@@ -147,26 +149,26 @@ async function llamarIA(cfg, sis, contenido, archivos) {
       const pensar = /gemini-[3-9]/.test(cfg.modelo) ? { thinkingLevel: 'low' } : /gemini-2\.5/.test(cfg.modelo) && !/pro/.test(cfg.modelo) ? { thinkingBudget: 1024 } : null;
       const cuerpo = (p) => ({ systemInstruction: { parts: [{ text: sis }] },
         contents: [{ role: 'user', parts: [...conDatos.map((a) => ({ inlineData: { mimeType: a.tipo, data: a.b64 } })), { text: contenido }] }],
-        generationConfig: { temperature: 0, responseMimeType: 'application/json', ...(p ? { thinkingConfig: p } : {}) } });
+        generationConfig: { temperature: 0, responseMimeType: 'application/json', ...(op.maxTokens ? { maxOutputTokens: op.maxTokens } : {}), ...(p ? { thinkingConfig: p } : {}) } });
       let j;
-      try { j = await iaChat.post(url, { 'x-goog-api-key': cfg.clave }, cuerpo(pensar)); }
-      catch (e) { if (!pensar || !/think/i.test(e.message)) throw e; j = await iaChat.post(url, { 'x-goog-api-key': cfg.clave }, cuerpo(null)); }
+      try { j = await iaChat.post(url, { 'x-goog-api-key': cfg.clave }, cuerpo(pensar), ms); }
+      catch (e) { if (!pensar || !/think/i.test(e.message)) throw e; j = await iaChat.post(url, { 'x-goog-api-key': cfg.clave }, cuerpo(null), ms); }
       const parts = j.candidates?.[0]?.content?.parts || [];
       return { texto: parts.filter((p) => p.text && !p.thought).map((p) => p.text).join(''), uso: (j.usageMetadata?.promptTokenCount || 0) + (j.usageMetadata?.candidatesTokenCount || 0) };
     }
     if (cfg.proveedor === 'anthropic') {
       const j = await iaChat.post('https://api.anthropic.com/v1/messages', { 'x-api-key': cfg.clave, 'anthropic-version': '2023-06-01' }, {
-        model: cfg.modelo, max_tokens: 4096, temperature: 0, system: sis,
+        model: cfg.modelo, max_tokens: op.maxTokens || 4096, temperature: 0, system: sis,
         messages: [{ role: 'user', content: [...conDatos.map((a) => (a.tipo === 'application/pdf'
           ? { type: 'document', source: { type: 'base64', media_type: a.tipo, data: a.b64 } }
-          : { type: 'image', source: { type: 'base64', media_type: a.tipo, data: a.b64 } })), { type: 'text', text: contenido }] }] });
+          : { type: 'image', source: { type: 'base64', media_type: a.tipo, data: a.b64 } })), { type: 'text', text: contenido }] }] }, ms);
       return { texto: (j.content || []).filter((b) => b.type === 'text').map((b) => b.text).join(''), uso: (j.usage?.input_tokens || 0) + (j.usage?.output_tokens || 0) };
     }
     const j = await iaChat.post('https://api.openai.com/v1/chat/completions', { authorization: `Bearer ${cfg.clave}` }, {
       model: cfg.modelo, response_format: { type: 'json_object' },
       messages: [{ role: 'system', content: sis }, { role: 'user', content: [{ type: 'text', text: contenido }, ...conDatos.map((a) => (a.tipo === 'application/pdf'
         ? { type: 'file', file: { filename: a.nombre || 'documento.pdf', file_data: `data:application/pdf;base64,${a.b64}` } }
-        : { type: 'image_url', image_url: { url: `data:${a.tipo};base64,${a.b64}` } }))] }] });
+        : { type: 'image_url', image_url: { url: `data:${a.tipo};base64,${a.b64}` } }))] }] }, ms);
     return { texto: j.choices?.[0]?.message?.content || '', uso: (j.usage?.prompt_tokens || 0) + (j.usage?.completion_tokens || 0) };
   };
   const aviso = { texto: null };
@@ -779,4 +781,4 @@ async function reLeer(c, asoc) {
   return cadena;
 }
 
-module.exports = { montar, encolar, reanudar, asociar, desdePortal, portalCompletado, NOMBRE_TIPO };
+module.exports = { montar, encolar, reanudar, asociar, desdePortal, portalCompletado, NOMBRE_TIPO, llamarIA };
