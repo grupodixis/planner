@@ -657,12 +657,12 @@ window.S360_AYUDA = {
           ],
         },
         {
-          id: 'log-pedir', version: 1, si: 'compras', ofrecer: true, duracion: '40 s',
+          id: 'log-pedir', version: 2, si: 'compras', ofrecer: true, duracion: '40 s',
           titulo: 'Cómo pedir lo que falta',
           pasos: [
             { sel: 'log-pestana-comprar', esperar: 'click', texto: 'En <b>Por pedir</b> está lo que logística ha dicho que falta.', saltar_si: (n) => n.getAttribute('aria-selected') === 'true' },
-            { sel: 'log-pedir', opcional: true, texto: 'Elige <b>proveedor</b>, <b>cuándo llega</b>, el <b>nº de pedido</b> y, si lo tienes, adjunta el PDF. Luego <b>🛒 Pedido</b>.', aviso: 'Al marcarlo como pedido se avisa al técnico y a logística, y el cuadrante comprueba si llega a tiempo para la tarea.' },
-            { sel: 'log-pestana-recibir', texto: 'Lo pedido pasa a <b>Pedido · por recibir</b>, donde logística lo recibe con el albarán.' },
+            { sel: '.log-sel', opcional: true, texto: 'Marca las líneas. Abajo eliges: <b>🛒 Crear pedido de compra</b>, <b>✉ Pedir precio</b> o, si ya lo has pedido, <b>📞 Ya pedido por teléfono</b>.', aviso: 'Todo pedido es un pedido de compra (en Compras): ahí se ve, se cambia o se anula. El de teléfono se completa solo con su confirmación por correo.' },
+            { sel: 'log-pestana-recibir', texto: 'Lo pedido pasa a <b>Pedido · por recibir</b>, agrupado por pedido, donde logística lo recibe con el albarán.' },
           ],
         },
       ],
@@ -679,15 +679,15 @@ window.S360_AYUDA = {
         {
           titulo: 'Recibir material', si: 'logistica',
           pasos: [
-            'Pestaña <b>Pedido · por recibir</b>.',
-            'Comprueba lo que ha llegado con el albarán.',
+            'Pestaña <b>Pedido · por recibir</b>: va agrupado por <b>pedido de compra</b>.',
+            'Comprueba lo que ha llegado con el albarán y <b>desmarca</b> lo que no ha venido (queda pendiente).',
             'Escribe el <b>nº de albarán</b> y adjunta la foto o el PDF.',
-            'Pulsa <b>✔ Recibido</b>: el operario de la tarea lo verá en Mi día.',
+            'Pulsa <b>✔ Recibir el pedido</b> (o «lo marcado»): el operario de la tarea lo verá en Mi día.',
           ],
         },
         {
           titulo: 'Pedir', si: 'compras',
-          pasos: ['Pestaña <b>Por pedir</b>.', 'Proveedor, fecha de llegada y nº de pedido (y PDF si lo hay).', 'Pulsa <b>🛒 Pedido</b>.'],
+          pasos: ['Pestaña <b>Por pedir</b> y marca las líneas.', '<b>🛒 Crear pedido de compra</b> (se prepara y envía en Compras) o <b>✉ Pedir precio</b>.', 'Si ya lo has pedido por teléfono: <b>📞 Ya pedido por teléfono</b>, con proveedor, fecha y, si lo sabes, precio y su nº. Cuando llegue su confirmación a compras@, la IA completa el pedido.', 'Cambiar o anular: en el pedido, en Compras (<b>✕ Anular pedido</b>: lo que no ha llegado vuelve a «Por pedir»).'],
         },
         {
           titulo: 'Qué significa…',
@@ -753,5 +753,6 @@ window.S360_AYUDA = {
     { id: 48, fecha: '2026-11-26', si: ['compras', 'aprobar_compras', 'costes', 'escandallo'], titulo: '📏 Unidades y equivalencias en todo el sistema', texto: 'El proveedor puede cotizar en <b>€/kg, €/t o €/barra</b> aunque pidamos barras o metros: en su formulario, en «Apuntar oferta» y en lo que lee la IA se elige la unidad y el sistema lo convierte con el <b>peso por metro</b> y el <b>largo de barra</b> de cada material, calculados de la lista de materiales de los escandallos (1.338 perfiles, tubos, pletinas y chapas). En el comparativo ves «cotizó 1,15 €/kg» y la lista de precios compara todo en €/ml o €/m². Las equivalencias se corrigen en Lista de precios › el material › 📏.', ir: '/precios.html' },
     { id: 49, fecha: '2026-11-26', si: ['compras', 'aprobar_compras', 'logistica'], titulo: '🔖 Referencia de proyecto en peticiones y pedidos', texto: 'Las peticiones de oferta y los pedidos al proveedor (PDF, correo y su enlace) llevan ahora el <b>proyecto</b> en la cabecera y, bajo cada línea, su <b>referencia</b>: proyecto, partida y OT. Se pide al proveedor que la indique en su oferta, albarán y factura, para saber siempre a qué obra va cada material.', ir: '/compras.html' },
     { id: 50, fecha: '2026-11-26', si: ['planificar', 'proyectos'], titulo: '✋ Mover el gantt con la mano', texto: '<b>Arrastra el fondo</b> del gantt para moverte: a los lados cambias de semanas y arriba o abajo recorres las obras. Encima de una barra, mantén <b>Alt</b> (o arrastra con la <b>rueda pulsada</b>) para mover la vista en vez de la barra.', ir: '/gantt.html' },
+    { id: 51, fecha: '2026-11-26', si: ['compras', 'logistica', 'aprobar_compras'], titulo: '📞 Todo pedido es un pedido de compra', texto: 'Se acabó marcar «pedido» línea a línea en Material de las partidas. Lo que se pide por teléfono se registra con <b>📞 Ya pedido por teléfono</b>: queda como pedido de compra enviado y, cuando llega su confirmación a <b>compras@</b>, la IA la lee y completa precios, su nº y la fecha (lo revisas en Correo entrante). Logística recibe <b>por pedido</b>, con un albarán, desmarcando lo que no ha llegado. Y un pedido enviado se puede <b>anular</b> en Compras.', ir: '/logistica.html?vista=comprar' },
   ],
 };

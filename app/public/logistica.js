@@ -43,13 +43,17 @@
     const ls = d.lineas.filter((l) => (!est || l.estado === est) && (!pa || l.partida_id === pa)
       && (!txt || norm(`${l.descripcion} ${l.proyecto_codigo} ${l.proyecto_nombre} ${l.partida_nombre} ${l.proveedor || ''}`).includes(txt)));
     // por partida, y dentro lo que hace falta antes
+    // «Pedido · por recibir»: por pedido de compra (se recibe el pedido entero o lo marcado, con un albarán)
+    const porPedido = vista === 'recibir';
+    const clave = (l) => (porPedido ? `pc${l.pedido_compra?.id || 0}` : l.partida_id);
     const grupos = new Map();
-    for (const l of ls) { if (!grupos.has(l.partida_id)) grupos.set(l.partida_id, []); grupos.get(l.partida_id).push(l); }
+    for (const l of ls) { if (!grupos.has(clave(l))) grupos.set(clave(l), []); grupos.get(clave(l)).push(l); }
     const orden = [...grupos.values()].sort((a, b) => String(a[0].fecha_necesaria || '9').localeCompare(String(b[0].fecha_necesaria || '9')));
     // acordeón por partida: se recuerda qué está abierto; con una sola partida (o buscando) va abierta
     const forzar = orden.length === 1 || !!txt || !!pa;
     const abierta = (id) => forzar || abiertas[id] === true;
-    const grupoEl = (g) => {
+    const grupoEl = (g) => (porPedido ? grupoPedido(g) : grupoPartida(g));
+    const grupoPartida = (g) => {
       const l0 = g[0];
       const nTarde = g.filter((l) => l.fecha_necesaria && l.fecha_necesaria < hoy && l.estado !== 'disponible').length;
       const nFalta = g.filter((l) => l.falta).length;
@@ -70,7 +74,7 @@
     };
     const todas = (v) => { for (const g of orden) abiertas[g[0].partida_id] = v; guardarAbiertas(); pintar(); };
     $('#lista').replaceChildren(...(orden.length ? [
-      orden.length > 1 && !forzar ? el('div', { class: 'log-acc-barra', 'data-ayuda': 'log-acc-barra' },
+      orden.length > 1 && !forzar && !porPedido ? el('div', { class: 'log-acc-barra', 'data-ayuda': 'log-acc-barra' },
         el('span', { class: 'ayuda' }, `${orden.length} partidas`),
         el('button', { type: 'button', class: 'ghost', onclick: () => todas(true) }, 'Abrir todas'),
         el('button', { type: 'button', class: 'ghost', onclick: () => todas(false) }, 'Cerrar todas')) : null,
@@ -98,8 +102,43 @@
           location.href = `/compras.html?pedido=${p.id}`;
         } catch (e) { toast(e.message, true); }
       } }, '🛒 Crear pedido de compra'),
+      el('button', { type: 'button', class: 'ghost', onclick: dialogoTelefono, title: 'Ya lo has pedido por teléfono: queda como pedido de compra enviado y se completa con su confirmación por correo' }, '📞 Ya pedido por teléfono…'),
       el('button', { type: 'button', class: 'ghost', onclick: dialogoPedirPrecio }, '✉ Pedir precio…'),
       el('button', { type: 'button', class: 'ghost mini', onclick: () => { marcadas.clear(); pintar(); } }, 'Desmarcar'));
+  }
+
+  // 📞 Ya pedido por teléfono: queda como pedido de compra enviado (Compras). Precio y su nº si se saben; si no, los trae
+  // su confirmación cuando llegue a compras@ (la IA la lee y completa el pedido).
+  function dialogoTelefono() {
+    const ls = d.lineas.filter((l) => marcadas.has(l.id));
+    const prov = el('select', { required: true, 'aria-label': 'Proveedor' }, el('option', { value: '' }, 'A quién se lo has pedido…'),
+      d.proveedores.map((p) => el('option', { value: p.id, selected: p.id === provBarra }, p.nombre)));
+    const necesaria = ls.map((l) => l.fecha_necesaria).filter(Boolean).sort()[0] || '';
+    const f = el('input', { type: 'date', min: hoy, value: necesaria >= hoy ? necesaria : '', 'aria-label': 'Llega el' });
+    const num = el('input', { maxlength: 80, placeholder: 'si te lo ha dado', 'aria-label': 'Su nº de pedido' });
+    const nota = el('textarea', { rows: 2, maxlength: 1000, placeholder: 'Con quién hablaste, condiciones…' });
+    const precios = new Map();
+    const dlg = el('dialog', { class: 'dlg-cos log-dlg' },
+      el('h2', {}, '📞 Ya pedido por teléfono'),
+      el('p', { class: 'ayuda' }, 'Queda como pedido de compra enviado. Si no sabes el precio, déjalo vacío: cuando llegue su confirmación a compras@ la IA la lee y completa el pedido (precios, su nº y la fecha).'),
+      el('div', { class: 'cmp-campos' },
+        el('label', { class: 'cmp-campo' }, el('span', {}, 'Proveedor'), prov), el('label', { class: 'cmp-campo' }, el('span', {}, 'Llega el'), f), el('label', { class: 'cmp-campo' }, el('span', {}, 'Su nº de pedido'), num)),
+      el('table', { class: 'tabla-inf' }, el('thead', {}, el('tr', {}, el('th', {}, 'Material'), el('th', { class: 'num' }, 'Cantidad'), el('th', { class: 'num' }, '€/ud sin IVA (opcional)'))),
+        el('tbody', {}, ls.map((l) => { const i = el('input', { type: 'number', min: 0, step: '0.0001', class: 'log-num', 'aria-label': `Precio de ${l.descripcion}` }); precios.set(l.id, i);
+          return el('tr', {}, el('td', {}, l.descripcion, el('div', { class: 'ayuda' }, `${l.proyecto_codigo} · ${l.partida_codigo || ''} ${l.partida_nombre}`)), el('td', { class: 'num' }, `${cant(l.falta || l.cantidad)} ${l.unidad || ''}`), el('td', { class: 'num' }, i)); }))),
+      el('label', { class: 'cmp-campo ancho' }, el('span', {}, 'Nota'), nota),
+      el('div', { class: 'acciones' },
+        el('button', { type: 'button', class: 'ghost', onclick: () => dlg.close() }, 'Cancelar'),
+        el('button', { type: 'button', class: 'primario', onclick: async () => {
+          if (!prov.value) { toast('Elige el proveedor', true); prov.focus(); return; }
+          try {
+            const p = await api('POST', '/api/compras/pedidos/telefono', { escandallo_ids: [...marcadas], proveedor_id: prov.value, fecha_entrega: f.value || null, num_proveedor: num.value, nota: nota.value,
+              precios: Object.fromEntries([...precios].filter(([, i]) => i.value !== '').map(([k, i]) => [k, Number(i.value)])) });
+            dlg.close(); marcadas.clear(); toast(`Pedido ${p.codigo} registrado; logística ya lo ve por recibir`); await cargar();
+          } catch (e) { toast(e.message, true); }
+        } }, '📞 Registrar pedido')));
+    dlg.addEventListener('close', () => dlg.remove());
+    document.body.append(dlg); dlg.showModal(); prov.focus();
   }
 
   // pedir precio de las líneas marcadas a varios proveedores (sugeridos por lo que sirven)
@@ -135,6 +174,43 @@
         } }, 'Crear petición de precio')));
     dlg.addEventListener('close', () => dlg.remove());
     document.body.append(dlg); dlg.showModal();
+  }
+
+  // Un pedido de compra por recibir: sus líneas con casilla (todas marcadas) y abajo albarán, foto y «Recibir»
+  function grupoPedido(g) {
+    const pc = g[0].pedido_compra;
+    const marc = new Set(g.map((l) => l.id));
+    const albaran = el('input', { placeholder: 'Nº albarán', maxlength: 60, class: 'log-num', 'aria-label': 'Número de albarán del proveedor' });
+    let docIds = [];
+    const nombreDoc = el('span', { class: 'ayuda' });
+    const fichero = el('input', { type: 'file', accept: 'image/*,application/pdf', hidden: true, onchange: async () => {
+      const f = fichero.files[0]; if (!f) return;
+      try { toast('Subiendo…'); docIds = [await window.s360.subirArchivo(f)]; nombreDoc.textContent = ` ${f.name}`; toast('Listo: se guarda al recibir'); } catch (e) { toast(e.message, true); }
+    } });
+    const boton = el('button', { type: 'button', class: 'primario' });
+    const contar = () => { boton.textContent = marc.size === g.length ? `✔ Recibir el pedido (${g.length})` : `✔ Recibir lo marcado (${marc.size} de ${g.length})`; boton.disabled = !marc.size; };
+    boton.addEventListener('click', async () => {
+      if (!pc) return;
+      try { boton.disabled = true; await api('POST', `/api/compras/pedidos/${pc.id}/recibir`, { escandallo_ids: [...marc], num_albaran: albaran.value, archivos: docIds });
+        toast(marc.size === g.length ? `${pc.codigo} recibido; avisado a los operarios` : `Recibido lo marcado de ${pc.codigo}; lo demás sigue pendiente`); await cargar(); }
+      catch (e) { toast(e.message, true); contar(); }
+    });
+    contar();
+    const tarde = pc?.fecha_entrega && pc.fecha_entrega < hoy;
+    return el('section', { class: 'log-pedido' },
+      el('div', { class: 'log-pedido-cab' },
+        pc ? el('a', { href: `/compras.html?pedido=${pc.id}`, title: 'Abrir el pedido en Compras' }, el('b', {}, `${pc.por_telefono ? '📞 ' : '🛒 '}${pc.codigo}`)) : el('b', {}, 'Sin pedido de compra'),
+        pc?.proveedor ? el('span', {}, ` · ${pc.proveedor}`) : null,
+        pc?.su_numero ? el('span', { class: 'ayuda' }, ` · su nº ${pc.su_numero}`) : null,
+        pc?.fecha_entrega ? el('span', { class: tarde ? 'neg' : 'ayuda' }, ` · ${tarde ? 'debía llegar' : 'llega'} ${fecha(pc.fecha_entrega)}`) : null,
+        pc?.por_telefono && !pc.confirmado ? el('span', { class: 'llv-n aviso', title: 'Pedido por teléfono: se completa con su confirmación por correo' }, 'sin confirmar') : null,
+        el('span', { class: 'llv-n' }, `${g.length} ${g.length === 1 ? 'línea' : 'líneas'}`)),
+      el('div', { class: 'log-pedido-cuerpo' }, ...g.map((l) => el('div', { class: 'log-pedido-fila' },
+        puede.logistica && pc ? el('input', { type: 'checkbox', checked: true, class: 'log-pedido-chk', 'aria-label': `Ha llegado ${l.descripcion}`, onchange: (ev) => { ev.target.checked ? marc.add(l.id) : marc.delete(l.id); contar(); } }) : null,
+        tarjeta(l)))),
+      puede.logistica && pc ? el('div', { class: 'log-acc log-pedido-pie', 'data-ayuda': 'log-recibir' }, albaran,
+        el('label', { class: 'boton ghost mini', title: 'Adjuntar el albarán (PDF o foto)' }, '📎 Albarán', fichero, nombreDoc), boton,
+        el('span', { class: 'ayuda' }, 'Desmarca lo que no ha llegado: queda pendiente.')) : null);
   }
 
   function tarjeta(l) {
@@ -219,25 +295,17 @@
       out.push(el('label', { class: 'log-sel' }, el('input', { type: 'checkbox', checked: marcadas.has(l.id), onchange: (ev) => { ev.target.checked ? marcadas.add(l.id) : marcadas.delete(l.id); barraPedido(); } }),
         ' Pedir precio o incluir en un pedido'));
     }
-    // compras: pedir (rápido: ya pedido por teléfono, sin pedido de compra)
-    if (puede.compras && l.estado === 'por_pedir' && !l.pedido_compra && !l.solicitud) {
-      const prov = el('select', { 'aria-label': 'Proveedor' }, el('option', { value: '' }, 'Proveedor…'),
-        d.proveedores.map((p) => el('option', { value: p.id }, p.nombre)));
-      const f = el('input', { type: 'date', 'aria-label': 'Llega el', min: hoy });
-      const num = el('input', { placeholder: 'Nº pedido', maxlength: 60, class: 'log-num', 'aria-label': 'Número de pedido o referencia del proveedor' });
-      const doc = adjDoc('pedido');
-      out.push(el('div', { class: 'log-acc', 'data-ayuda': 'log-pedir' },
-        prov, el('label', { class: 'ayuda' }, 'llega ', f), num, doc.nodo,
-        el('button', { type: 'button', class: 'primario', onclick: () => hecho(`/api/escandallo/${l.id}/compra`, { estado: 'pedido', proveedor_id: prov.value || null, fecha_prevista: f.value || null, num_pedido: num.value, archivos: doc.ids }, 'Marcado como pedido; avisado a logística y técnico') }, '🛒 Pedido')));
-    }
-    if (puede.compras && l.estado === 'pedido') {
-      // corregir o poner después el nº de pedido
-      const num = el('input', { value: l.num_pedido || '', placeholder: 'Nº pedido', maxlength: 60, class: 'log-num', 'aria-label': 'Número de pedido',
-        onchange: () => hecho(`/api/escandallo/${l.id}/documentos`, { num_pedido: num.value }, 'Nº de pedido guardado') });
-      out.push(el('div', { class: 'log-acc' }, num, el('button', { type: 'button', class: 'ghost mini', onclick: () => hecho(`/api/escandallo/${l.id}/compra`, { estado: 'por_pedir' }, 'Vuelve a «por pedir»') }, 'Deshacer pedido')));
+    // en un pedido de compra enviado: de qué pedido es (se anula o se cambia en el pedido, en Compras)
+    if (l.estado === 'pedido' && l.pedido_compra && vista !== 'recibir') {
+      const pc = l.pedido_compra;
+      out.push(el('div', { class: 'log-acc log-en-pedido' },
+        `${pc.por_telefono ? '📞' : '🛒'} ${pc.codigo}${pc.proveedor ? ` · ${pc.proveedor}` : ''}${pc.fecha_entrega ? ` · llega ${fecha(pc.fecha_entrega)}` : ''}`,
+        pc.por_telefono && !pc.confirmado ? el('span', { class: 'llv-n aviso', title: 'Pedido por teléfono: se completa con su confirmación por correo' }, 'sin confirmar') : null,
+        ' ', el('a', { class: 'boton ghost mini', href: `/compras.html?pedido=${pc.id}` }, 'Ver pedido')));
     }
     // logística: recibir
-    if (puede.logistica && (l.estado === 'pedido' || (l.estado === 'por_pedir' && vista === 'recibir'))) {
+    // (en «Pedido · por recibir» se recibe por pedido, con las casillas; aquí, una línea suelta desde las otras vistas)
+    if (puede.logistica && l.estado === 'pedido' && (vista !== 'recibir' || !l.pedido_compra)) {
       const alb = el('input', { placeholder: 'Nº albarán', maxlength: 60, class: 'log-num', 'aria-label': 'Número de albarán del proveedor' });
       const doc = adjDoc('albarán');
       out.push(el('div', { class: 'log-acc', 'data-ayuda': 'log-recibir' }, alb, doc.nodo,

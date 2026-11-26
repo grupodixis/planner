@@ -33,7 +33,9 @@ const SQL_LINEAS = `
   SELECT e.id, e.partida_id, e.catalogo_id, e.descripcion, e.cantidad::float, e.unidad, e.nota, e.orden,
          e.enlaces, e.stock::float, e.stock_en, e.compra, e.proveedor_id, e.fecha_prevista, e.pedido_en, e.recibido_en, e.nota_logistica,
          e.num_pedido, e.num_albaran, e.ref_externa, e.baja_presupuesto, e.pedido_compra_id, e.precio_pedido::float,
-         (SELECT json_build_object('id', c.id, 'codigo', c.codigo, 'estado', c.estado) FROM pedidos_compra c WHERE c.id = e.pedido_compra_id) AS pedido_compra,
+         (SELECT json_build_object('id', c.id, 'codigo', c.codigo, 'estado', c.estado, 'proveedor', cp.nombre, 'fecha_entrega', c.fecha_entrega::text,
+                                   'por_telefono', c.por_telefono, 'confirmado', c.prov_confirmado_en IS NOT NULL, 'su_numero', c.prov_num_confirmacion)
+            FROM pedidos_compra c LEFT JOIN proveedores cp ON cp.id = c.proveedor_id WHERE c.id = e.pedido_compra_id) AS pedido_compra,
          (SELECT json_build_object('id', s.id, 'codigo', s.codigo) FROM solicitudes_precio s WHERE s.id = e.solicitud_id AND s.estado = 'abierta') AS solicitud,
          pa.codigo AS partida_codigo, pa.nombre AS partida_nombre, pa.escandallo_enviado, pa.proyecto_id,
          p.codigo AS proyecto_codigo, p.nombre AS proyecto_nombre,
@@ -195,50 +197,11 @@ function montar(app, asyncH) {
     res.json(l);
   }));
 
-  /* ---------- 3. Compras: pedido ---------- */
-  app.put('/api/escandallo/:id/compra', pCompras, asyncH(async (req, res) => {
-    const id = Number(req.params.id);
-    const b = req.body || {};
-    const l0 = await linea(id);
-    if (!l0) throw fallo(404, 'Línea no encontrada');
-    if (b.estado === 'pedido') {
-      if (l0.stock == null) throw fallo(400, 'Logística aún no ha revisado el stock de este material');
-      const fecha = b.fecha_prevista && /^\d{4}-\d{2}-\d{2}$/.test(b.fecha_prevista) ? b.fecha_prevista : null;
-      await query(
-        `UPDATE partida_escandallo SET compra = 'pedido', proveedor_id = $2, fecha_prevista = $3, pedido_por = $4, pedido_en = now(),
-                nota_logistica = COALESCE($5, nota_logistica), num_pedido = COALESCE($6, num_pedido) WHERE id = $1`,
-        [id, b.proveedor_id ? Number(b.proveedor_id) : null, fecha, req.usuario.id, 'nota' in b ? texto(b.nota, 300) : null, texto(b.num_pedido, 60)]);
-      // el pedido en PDF o foto, si lo adjuntan
-      if (Array.isArray(b.archivos) && b.archivos.length) await tx((c) => archivos.enlazar(c, b.archivos, 'escandallo', id, req.usuario.id));
-      const l = await linea(id);
-      notif.avisarLuego(notif.conPermiso('logistica', 'escandallo'), 'mat_pedido', {
-        titulo: `Pedido: ${l.descripcion}`,
-        cuerpo: `${cant(l.falta, l.unidad)}${l.proveedor ? ` a ${l.proveedor}` : ''}${l.fecha_prevista ? `, llega el ${ddmm(l.fecha_prevista)}` : ''} · ${l.proyecto_codigo} ${l.partida_nombre}`,
-        url: '/logistica.html?vista=recibir', tag: `pedido-${l.partida_id}`,
-      });
-      // si llega después del día en que está planificada alguna tarea que lo usa, que lo sepa quien planifica
-      if (l.fecha_prevista) {
-        const { rows: tt } = await query(
-          `SELECT min(x.fecha) AS fecha, string_agg(DISTINCT o.codigo || ' ' || t.nombre, ', ') AS tareas
-             FROM tarea_material m JOIN tramos x ON x.tarea_id = m.tarea_id JOIN tareas t ON t.id = m.tarea_id JOIN ordenes o ON o.id = t.orden_id
-            WHERE m.escandallo_id = $1 AND x.fecha >= CURRENT_DATE AND x.fecha < $2`, [id, l.fecha_prevista]);
-        if (tt[0]?.fecha) {
-          notif.avisarLuego(notif.conPermiso('planificar', 'escandallo'), 'mat_tarde', {
-            titulo: `⚠ Material tarde: ${l.descripcion}`,
-            cuerpo: `Llega el ${ddmm(l.fecha_prevista)} y ${tt[0].tareas} está planificada el ${ddmm(tt[0].fecha)}`,
-            url: `/?fecha=${tt[0].fecha}`, tag: `tarde-${id}`,
-          });
-        }
-      }
-      return res.json(l);
-    }
-    if (b.estado === 'por_pedir') {
-      await query(`UPDATE partida_escandallo SET compra = 'por_pedir', proveedor_id = NULL, fecha_prevista = NULL, pedido_por = NULL, pedido_en = NULL,
-                           pedido_compra_id = NULL, precio_pedido = NULL
-                    WHERE id = $1 AND compra = 'pedido'`, [id]);
-      return res.json(await linea(id));
-    }
-    throw fallo(400, 'Estado no válido');
+  /* ---------- 3. Compras: pedido ----------
+     Ya no se marca «pedido» línea a línea: todo pedido es un pedido de compra (Compras), también lo pedido por teléfono
+     (POST /api/compras/pedidos/telefono). Anular, en el propio pedido (POST /api/compras/pedidos/:id/anular). */
+  app.put('/api/escandallo/:id/compra', pCompras, asyncH(async () => {
+    throw fallo(400, 'Ahora se pide con un pedido de compra: «Incluir en un pedido» o «📞 Ya pedido por teléfono». Para anularlo, en el pedido (Compras).');
   }));
 
   /* ---------- 4. Logística: recepción ---------- */
@@ -267,6 +230,38 @@ function montar(app, asyncH) {
       url: '/mi-dia.html', tag: `recibido-${id}`,
     });
     res.json(l);
+  }));
+
+  // Recibir un pedido de compra (todo o lo marcado): { escandallo_ids, num_albaran, archivos }. Un aviso por tarea, no uno por línea.
+  app.post('/api/compras/pedidos/:id/recibir', pLogistica, asyncH(async (req, res) => {
+    const pid = Number(req.params.id);
+    const b = req.body || {};
+    const ids = (Array.isArray(b.escandallo_ids) ? b.escandallo_ids : []).map(Number).filter(Number.isInteger);
+    if (!ids.length) throw fallo(400, 'Marca lo que ha llegado');
+    const { rows: [p] } = await query('SELECT id, codigo, proveedor_id FROM pedidos_compra WHERE id = $1', [pid]);
+    if (!p) throw fallo(404, 'Pedido no encontrado');
+    const alb = texto(b.num_albaran, 60);
+    const recibidas = await tx(async (c) => {
+      const { rows } = await c.query(`UPDATE partida_escandallo SET compra = 'recibido', recibido_por = $3, recibido_en = now(), num_albaran = COALESCE($4, num_albaran)
+                                       WHERE id = ANY($1) AND pedido_compra_id = $2 AND compra = 'pedido' RETURNING id`, [ids, pid, req.usuario.id, alb]);
+      if (!rows.length) throw fallo(400, 'Nada de eso está pendiente de llegar en este pedido');
+      if (Array.isArray(b.archivos) && b.archivos.length) await archivos.enlazar(c, b.archivos, 'pedido_albaran', pid, req.usuario.id);
+      const r = rows.map((x) => x.id);
+      await require('./incidencias').resolverAuto(c, 'escandallo_id = ANY($1)', [r], 'Material recibido en Logística', req.usuario).catch((e) => console.warn('resolver incidencia', e.message));
+      const { rows: [q] } = await c.query(`SELECT count(*)::int AS n FROM partida_escandallo WHERE pedido_compra_id = $1 AND compra = 'pedido'`, [pid]);
+      await require('./pedido-transporte').evento(c, pid, `📦 Recibido en Logística: ${r.length} línea(s)${alb ? ` · albarán ${alb}` : ''}${q.n ? ` · faltan ${q.n}` : ' · completo'}`, { usuario: req.usuario.id });
+      return r;
+    });
+    for (const id of recibidas) {
+      const l = await linea(id);
+      const tareas = l.tareas.map((t) => `«${t.tarea}»`).join(', ');
+      notif.avisarLuego(interesadosRecepcion(id), 'mat_recibido', {
+        titulo: `Ya ha llegado: ${l.descripcion}`,
+        cuerpo: `${cant(l.cantidad, l.unidad)} · ${l.proyecto_codigo} ${l.partida_nombre}${tareas ? ` · para ${tareas}` : ''}`,
+        url: '/mi-dia.html', tag: `recibido-${id}`,
+      });
+    }
+    res.json({ recibidas: recibidas.length });
   }));
 
   // Corregir después el nº de pedido o de albarán: { num_pedido?, num_albaran? }

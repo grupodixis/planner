@@ -3169,3 +3169,16 @@ body.gt-mano-on, body.gt-mano-on * { cursor: grabbing !important; user-select: n
 .gt-g.gt-pan .gt-tl > * { transform: translateX(var(--gt-pan, 0px)); }
 .gt-g.gt-pan > .gt-flechas { opacity: 0; }
 .gt-g.gt-pan .gt-tl { overflow: hidden !important; clip-path: inset(0); }
+.co-precio { width: 96px; text-align: right; } .co-precio.falta { border-color: #c0803a; }
+.log-dlg { width: min(720px, calc(100vw - 32px)); } .log-dlg table { width: 100%; margin: 8px 0; } .log-dlg td .log-num { width: 100px; }
+/* Logística › Pedido · por recibir: agrupado por pedido de compra */
+.log-pedido { border: 1px solid var(--borde); border-radius: 10px; margin: 0 0 12px; background: #171717; }
+.log-pedido-cab { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px; padding: 10px 12px; border-bottom: 1px solid var(--borde); }
+.log-pedido-cab a { color: inherit; text-decoration: none; } .log-pedido-cab a:hover b { text-decoration: underline; }
+.log-pedido-cab .llv-n { margin-left: auto; } .log-pedido-cab .llv-n.aviso { margin-left: 6px; }
+.log-pedido-cuerpo { padding: 6px 12px; display: flex; flex-direction: column; gap: 8px; }
+.log-pedido-fila { display: flex; gap: 10px; align-items: flex-start; } .log-pedido-fila > .log-linea { flex: 1; min-width: 0; }
+.log-pedido-chk { width: 20px; height: 20px; margin-top: 12px; flex: none; }
+.log-pedido-pie { padding: 10px 12px; border-top: 1px solid var(--borde); flex-wrap: wrap; }
+.cmp-tel { background: #2a2210; border: 1px solid #6b5420; border-radius: 8px; padding: 8px 10px; font-size: 13px; }
+.cmp-tel.ok { background: #13261c; border-color: #2f6b47; }

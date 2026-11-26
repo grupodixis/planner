@@ -68,6 +68,7 @@ async function pedido(id, c = { query }) {
   const p = rows[0];
   p.total = Number(p.total);
   p.lineas = lineas;
+  p.albaranes = (await require('./archivos').de('pedido_albaran', [p.id])).get(p.id) || [];   // los que sube logística al recibir
   p.limite = aj.limite_aprobacion;
   p.necesita_aprobacion = p.total > aj.limite_aprobacion;
   return p;
@@ -104,6 +105,36 @@ async function lineasLibres(c, ids, { solicitud = null } = {}) {
 }
 
 // Crea un pedido en borrador con sus líneas; las de material quedan enlazadas al pedido
+// Las líneas de material de un pedido enviado pasan a «Pedido» (logística las ve por recibir)
+async function pasarAPedido(c, p, usuarioId) {
+  for (const l of p.lineas.filter((x) => x.escandallo_id)) {
+    await c.query(`UPDATE partida_escandallo SET compra = 'pedido', proveedor_id = $2, fecha_prevista = $3, pedido_por = $4, pedido_en = now(),
+                          num_pedido = $5, precio_pedido = $6, pedido_compra_id = $7
+                    WHERE id = $1 AND compra IN ('por_pedir', 'pedido')`,
+    [l.escandallo_id, p.proveedor_id, p.fecha_entrega ? String(p.fecha_entrega).slice(0, 10) : null, usuarioId, p.codigo, l.precio, p.id]);
+  }
+}
+
+// Precios de las líneas de un pedido ya enviado (pedido por teléfono, o lo que confirma el proveedor):
+// { pedido_compra_lineas.id: precio }. Actualiza el material, el total y la lista de precios. Devuelve qué cambió.
+async function ponerPrecios(c, pedidoId, precios, usuarioId) {
+  const cambios = [];
+  for (const [k, v] of Object.entries(precios || {})) {
+    const pr = num(v);
+    if (pr == null || !Number.isFinite(pr) || pr < 0 || pr > 1e7) continue;
+    const { rows: [l] } = await c.query('SELECT id, escandallo_id, descripcion, precio::float AS precio FROM pedido_compra_lineas WHERE id = $1 AND pedido_id = $2', [Number(k), pedidoId]);
+    if (!l || (l.precio != null && Math.abs(l.precio - pr) < 0.00005)) continue;
+    await c.query('UPDATE pedido_compra_lineas SET precio = $2 WHERE id = $1', [l.id, pr]);
+    if (l.escandallo_id) await c.query('UPDATE partida_escandallo SET precio_pedido = $2 WHERE id = $1 AND pedido_compra_id = $3', [l.escandallo_id, pr, pedidoId]);
+    cambios.push({ descripcion: l.descripcion, antes: l.precio, ahora: pr });
+  }
+  if (cambios.length) {
+    await recalcular(c, pedidoId);
+    await require('./precios').registrarPedido(c, pedidoId, usuarioId);
+  }
+  return cambios;
+}
+
 async function crearPedido(c, { proveedor_id, lineas, fecha_entrega, referencia, usuarioId, tipo = 'material', orden_id = null, observaciones = null }) {
   const aj = await ajustes();
   let formaPago = null;
@@ -357,6 +388,83 @@ function montar(app, asyncH) {
     res.json({ ok: true });
   }));
 
+  // 📞 Ya pedido por teléfono: queda como pedido de compra ENVIADO (sin correo), con lo que se sepa. Lo completa su
+  // confirmación por correo (compras@) o se completa a mano. { escandallo_ids, proveedor_id, fecha_entrega, num_proveedor,
+  //   precios: { escandallo_id: precio }, nota }
+  app.post('/api/compras/pedidos/telefono', pCompras, asyncH(async (req, res) => {
+    const b = req.body || {};
+    const ids = (Array.isArray(b.escandallo_ids) ? b.escandallo_ids : []).map(Number).filter(Number.isInteger).slice(0, 200);
+    if (!b.proveedor_id) throw fallo(400, 'Elige a qué proveedor se lo has pedido');
+    const id = await tx(async (c) => {
+      const ls = await lineasLibres(c, ids);
+      const pid = await crearPedido(c, {
+        proveedor_id: Number(b.proveedor_id),
+        lineas: ls.map((l) => ({ escandallo_id: l.id, descripcion: l.descripcion, cantidad: l.falta, unidad: l.unidad, precio: num(b.precios?.[l.id]) })),
+        fecha_entrega: fechaOk(b.fecha_entrega) || ls.map((l) => l.necesaria).filter(Boolean).sort()[0] || null,
+        referencia: [...new Set(ls.map((l) => `${l.proyecto} · ${l.proyecto_nombre}`))].join(' / '),
+        observaciones: texto(b.nota, 1000), usuarioId: req.usuario.id,
+      });
+      await c.query(`UPDATE pedidos_compra SET estado = 'enviado', por_telefono = TRUE, enviado_por = $2, enviado_en = now(), enviado_correo = FALSE,
+                            prov_num_confirmacion = $3 WHERE id = $1`, [pid, req.usuario.id, texto(b.num_proveedor, 80)]);
+      const p = await pedido(pid, c);
+      await pasarAPedido(c, p, req.usuario.id);
+      await require('./precios').registrarPedido(c, pid, req.usuario.id);
+      await require('./pedido-transporte').evento(c, pid, `📞 Pedido por teléfono a ${p.proveedor}${b.num_proveedor ? ` (su nº ${texto(b.num_proveedor, 80)})` : ''}`, { usuario: req.usuario.id });
+      return pid;
+    });
+    const p = await pedido(id);
+    if (p.necesita_aprobacion) {
+      notif.avisarLuego(notif.conPermiso('aprobar_compras'), 'compra_aprobar', {
+        titulo: `Pedido por teléfono sin aprobar: ${p.codigo}`,
+        cuerpo: `${p.proveedor} · ${eur(p.total)} (pasa del límite) · lo pidió ${req.usuario.nombre}`, url: `/compras.html?pedido=${id}`, tag: `pedido-tel-${id}`,
+      });
+    }
+    notif.avisarLuego(notif.conPermiso('logistica', 'escandallo'), 'mat_pedido', {
+      titulo: `Pedido ${p.codigo} (por teléfono)`,
+      cuerpo: `${p.proveedor} · ${p.lineas.length} línea${p.lineas.length === 1 ? '' : 's'}${p.fecha_entrega ? ` · llega el ${ddmm(p.fecha_entrega)}` : ''}`,
+      url: '/logistica.html?vista=recibir', tag: `pedido-c-${id}`,
+    });
+    res.status(201).json(p);
+  }));
+
+  // Completar los precios de un pedido por teléfono (si no llega su confirmación por correo): { lineas: { id: precio } }
+  app.put('/api/compras/pedidos/:id/precios', pCompras, asyncH(async (req, res) => {
+    const id = Number(req.params.id);
+    const cambios = await tx(async (c) => {
+      const p = await pedido(id, c);
+      if (!p) throw fallo(404, 'Pedido no encontrado');
+      if (!p.por_telefono || p.estado !== 'enviado') throw fallo(400, 'Solo se completan así los pedidos por teléfono');
+      const cs = await ponerPrecios(c, id, req.body?.lineas, req.usuario.id);
+      if (cs.length) await require('./pedido-transporte').evento(c, id, `✎ Precios apuntados a mano: ${cs.map((x) => `${x.descripcion} ${eur(x.ahora)}`).join(' · ')}`, { usuario: req.usuario.id });
+      return cs;
+    });
+    res.json({ ...(await pedido(id)), cambios });
+  }));
+
+  // Anular un pedido ya enviado: lo que no ha llegado vuelve a «Por pedir» (lo recibido se queda). { motivo }
+  app.post('/api/compras/pedidos/:id/anular', pCompras, asyncH(async (req, res) => {
+    const id = Number(req.params.id);
+    const motivo = texto(req.body?.motivo, 500);
+    if (!motivo) throw fallo(400, 'Escribe el motivo');
+    const vuelven = await tx(async (c) => {
+      const p = await pedido(id, c);
+      if (!p) throw fallo(404, 'Pedido no encontrado');
+      if (p.estado !== 'enviado') throw fallo(400, 'Solo se anula un pedido enviado (uno sin enviar se borra)');
+      const { rows } = await c.query(`UPDATE partida_escandallo SET compra = 'por_pedir', proveedor_id = NULL, fecha_prevista = NULL, pedido_por = NULL, pedido_en = NULL,
+                                             pedido_compra_id = NULL, precio_pedido = NULL, num_pedido = NULL
+                                       WHERE pedido_compra_id = $1 AND compra = 'pedido' RETURNING id`, [id]);
+      await c.query('UPDATE tareas SET ext_pedido_id = NULL WHERE ext_pedido_id = $1', [id]);
+      await c.query(`UPDATE pedidos_compra SET estado = 'anulado', anulado_en = now(), anulado_por = $2, anulado_motivo = $3 WHERE id = $1`, [id, req.usuario.id, motivo]);
+      await c.query(`DELETE FROM precios WHERE pedido_id = $1`, [id]).catch(() => {});
+      await require('./pedido-transporte').evento(c, id, `✕ Anulado: ${motivo}`, { usuario: req.usuario.id });
+      return rows.length;
+    });
+    notif.avisarLuego(notif.conPermiso('logistica', 'escandallo'), 'mat_pedido', {
+      titulo: `Pedido anulado`, cuerpo: `${vuelven} línea(s) vuelven a «Por pedir» · ${motivo}`, url: '/logistica.html?vista=comprar', tag: `pedido-anulado-${id}`,
+    });
+    res.json({ ...(await pedido(id)), vuelven });
+  }));
+
   // Pedir aprobación a Dirección
   app.post('/api/compras/pedidos/:id/aprobacion', pCompras, asyncH(async (req, res) => {
     const id = Number(req.params.id);
@@ -452,13 +560,7 @@ function montar(app, asyncH) {
           await c.query('UPDATE tareas SET proveedor_id = $2, linea_id = $3 WHERE id = $1', [l.tarea_id, p.proveedor_id, await require('./externos').areaExterna(c, p.proveedor_id)]);
         }
       }
-      // sus líneas de material pasan a «Pedido»
-      for (const l of p.lineas.filter((x) => x.escandallo_id)) {
-        await c.query(`UPDATE partida_escandallo SET compra = 'pedido', proveedor_id = $2, fecha_prevista = $3, pedido_por = $4, pedido_en = now(),
-                              num_pedido = $5, precio_pedido = $6, pedido_compra_id = $7
-                        WHERE id = $1 AND compra IN ('por_pedir', 'pedido')`,
-        [l.escandallo_id, p.proveedor_id, p.fecha_entrega ? String(p.fecha_entrega).slice(0, 10) : null, req.usuario.id, p.codigo, l.precio, id]);
-      }
+      await pasarAPedido(c, p, req.usuario.id);   // sus líneas de material pasan a «Pedido»
     });
     if (sub) return res.json({ ...(await pedido(id)), seguimiento_url: seg?.url || null });
     notif.avisarLuego(notif.conPermiso('logistica', 'escandallo'), 'mat_pedido', {
@@ -470,4 +572,33 @@ function montar(app, asyncH) {
   }));
 }
 
-module.exports = { montar, ajustes, lineasLibres, crearPedido, eur, cantTxt, texto, num, fechaOk, ddmm };
+// Una vez: el material marcado «pedido» con el botón rápido antiguo (sin pedido de compra) pasa a pedidos por teléfono,
+// uno por proveedor, nº y día, para que todo pedido esté en Compras y se pueda recibir por pedido.
+async function migrarPedidosSueltos() {
+  const { rows: [m] } = await query(`SELECT 1 FROM ajustes WHERE clave = 'migr_pedidos_telefono'`);
+  if (m) return;
+  const { rows } = await query(`SELECT e.id, e.descripcion, e.unidad, GREATEST(e.cantidad - COALESCE(e.stock, 0), 0)::float AS falta, e.proveedor_id, e.num_pedido,
+                                       e.fecha_prevista::text AS fecha, e.pedido_por, e.pedido_en, pr.codigo AS proyecto, pr.nombre AS proyecto_nombre
+                                  FROM partida_escandallo e JOIN partidas pa ON pa.id = e.partida_id JOIN proyectos pr ON pr.id = pa.proyecto_id
+                                 WHERE e.compra = 'pedido' AND e.pedido_compra_id IS NULL ORDER BY e.pedido_en NULLS FIRST, e.id`);
+  const grupos = new Map();
+  for (const r of rows) {
+    const k = `${r.proveedor_id || 0}|${r.num_pedido || ''}|${r.pedido_en ? new Date(r.pedido_en).toISOString().slice(0, 10) : ''}`;
+    if (!grupos.has(k)) grupos.set(k, []); grupos.get(k).push(r);
+  }
+  await tx(async (c) => {
+    for (const ls of grupos.values()) {
+      const r0 = ls[0];
+      const pid = await crearPedido(c, { proveedor_id: r0.proveedor_id, lineas: ls.map((l) => ({ escandallo_id: l.id, descripcion: l.descripcion, cantidad: l.falta || 1, unidad: l.unidad, precio: null })),
+        fecha_entrega: ls.map((l) => l.fecha).filter(Boolean).sort()[0] || null, referencia: [...new Set(ls.map((l) => `${l.proyecto} · ${l.proyecto_nombre}`))].join(' / '),
+        observaciones: 'Pedido marcado en Logística antes de que existiera «Ya pedido por teléfono».', usuarioId: r0.pedido_por });
+      await c.query(`UPDATE pedidos_compra SET estado = 'enviado', por_telefono = TRUE, enviado_por = $2, enviado_en = COALESCE($3, now()), enviado_correo = FALSE, prov_num_confirmacion = $4 WHERE id = $1`,
+        [pid, r0.pedido_por, r0.pedido_en, r0.num_pedido]);
+      await c.query(`UPDATE partida_escandallo SET pedido_compra_id = $2 WHERE id = ANY($1)`, [ls.map((l) => l.id), pid]);
+    }
+    await c.query(`INSERT INTO ajustes (clave, valor) VALUES ('migr_pedidos_telefono', $1) ON CONFLICT (clave) DO NOTHING`, [JSON.stringify({ lineas: rows.length, pedidos: grupos.size })]);
+  });
+  if (rows.length) console.log(`Pedidos sueltos: ${rows.length} línea(s) pasadas a ${grupos.size} pedido(s) por teléfono`);
+}
+
+module.exports = { montar, ajustes, lineasLibres, crearPedido, ponerPrecios, migrarPedidosSueltos, eur, cantTxt, texto, num, fechaOk, ddmm };

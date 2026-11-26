@@ -36,8 +36,17 @@ async function lineasSolicitud(solId) {
   return rows;
 }
 async function lineasPedido(pedId) {
-  const { rows } = await query('SELECT id AS linea_id, descripcion, cantidad::float AS cantidad, unidad, precio::float AS precio FROM pedido_compra_lineas WHERE pedido_id = $1 ORDER BY orden, id', [pedId]);
+  const { rows } = await query(`SELECT l.id AS linea_id, l.descripcion, l.cantidad::float AS cantidad, l.unidad, l.precio::float AS precio, e.catalogo_id
+    FROM pedido_compra_lineas l LEFT JOIN partida_escandallo e ON e.id = l.escandallo_id WHERE l.pedido_id = $1 ORDER BY l.orden, l.id`, [pedId]);
   return rows;
+}
+// Un pedido candidato tal como se le pasa a la IA. Los pedidos por teléfono: el proveedor no conoce nuestro código PC.
+async function pedidoParaIA(p) {
+  return {
+    codigo: p.codigo, proveedor: p.proveedor, fecha_entrega_pedida: p.fecha_entrega,
+    ...(p.por_telefono ? { pedido_por_telefono: true, confirmado: !!p.confirmado, su_numero: p.su_numero || null } : {}),
+    lineas: (await lineasPedido(p.pedido_id)).map(({ precio, catalogo_id, ...l }) => l),
+  };
 }
 async function asociar(c) {
   const a = { proveedor_id: c.proveedor_id || null, sps: [], pedidos: [], por: null };
@@ -45,7 +54,8 @@ async function asociar(c) {
   const addPed = (r, por) => { if (!a.pedidos.some((x) => x.pedido_id === r.pedido_id)) a.pedidos.push(r); a.por = a.por || por; };
   const SQL_SP = `SELECT sp.id AS sp_id, s.id AS sol_id, s.codigo, s.estado AS sol_estado, sp.proveedor_id, p.nombre AS proveedor
                     FROM solicitud_proveedores sp JOIN solicitudes_precio s ON s.id = sp.solicitud_id JOIN proveedores p ON p.id = sp.proveedor_id`;
-  const SQL_PED = `SELECT pc.id AS pedido_id, pc.codigo, pc.estado, pc.proveedor_id, p.nombre AS proveedor, pc.fecha_entrega::text AS fecha_entrega
+  const SQL_PED = `SELECT pc.id AS pedido_id, pc.codigo, pc.estado, pc.proveedor_id, p.nombre AS proveedor, pc.fecha_entrega::text AS fecha_entrega,
+                          pc.por_telefono, pc.prov_confirmado_en IS NOT NULL AS confirmado, pc.prov_num_confirmacion AS su_numero
                      FROM pedidos_compra pc LEFT JOIN proveedores p ON p.id = pc.proveedor_id`;
   // 0) subido al portal: ya se sabe de qué petición es
   if (c.origen === 'portal' && c.sp_id) (await query(`${SQL_SP} WHERE sp.id = $1`, [c.sp_id])).rows.forEach((r) => addSp(r, 'portal'));
@@ -110,12 +120,13 @@ Esquema (todas las claves, null si no aplica o no aparece; NO inventes nada):
     "validez": "AAAA-MM-DD" | null, "forma_pago": texto | null, "iva_incluido_en_precios": bool | null, "total_sin_iva": € | null, "notas": texto | null },
   "confirmacion": null | {
     "confirma": bool, "fecha_entrega": "AAAA-MM-DD" | null, "numero": texto | null,
-    "lineas": [ { "linea_id": número de NUESTRA línea de pedido, "fecha_entrega": "AAAA-MM-DD" | null, "cantidad": número | null, "nota": texto | null } ],
+    "lineas": [ { "linea_id": número de NUESTRA línea de pedido, "fecha_entrega": "AAAA-MM-DD" | null, "cantidad": número | null, "precio_cotizado": € sin IVA tal como lo pone | null, "unidad_cotizada": "ml, kg, t, barra, m2, ud…" | null, "nota": texto | null } ],
     "notas": texto | null },
   "alertas": [ "frases cortas sobre lo dudoso o lo que hay que revisar" ]
 }
 
 Reglas:
+- Pedidos con "pedido_por_telefono": los pedimos por teléfono, así que el proveedor NO conoce nuestro código PC. Su confirmación de pedido, proforma, albarán o factura que trae esos materiales (por su nº "su_numero", o porque coinciden los materiales y cantidades) es "confirmacion_pedido" de ese pedido: pon en "referencia.pedido" su código y, en cada línea, el precio tal como lo da (precio_cotizado + unidad_cotizada), su nº de pedido/documento en "numero" y la fecha de entrega.
 - "oferta": responde a una petición de precio con precios. "confirmacion_pedido": confirma o acepta un pedido nuestro (con fecha, nº de confirmación o cambios). Rellena "oferta" solo si tipo = oferta y "confirmacion" solo si tipo = confirmacion_pedido.
 - Te paso nuestras peticiones (con sus líneas) y pedidos candidatos. Usa SOLO esos linea_id. Elige en "referencia" el código que corresponda (por el asunto, el texto o porque los materiales coinciden).
 - Precios: unitarios, sin IVA, en euros. Pon SIEMPRE "precio_cotizado" y "unidad_cotizada" tal como los da el proveedor (p. ej. 1,15 €/kg, 1.080 €/t, 15,40 €/barra). NO conviertas de unidad: el sistema conoce los kg/ml, el largo de barra y los m² de cada material y lo convierte él. Rellena "precio_unitario" solo si su unidad es la misma que la de nuestra línea. Si una línea no la cotizan, no la incluyas; si dicen que no la tienen, "no_disponible": true.
@@ -250,7 +261,7 @@ async function analizar(id) {
     const peticiones = [];
     for (const sol of [...new Map(asoc.sps.map((s) => [s.sol_id, s])).values()]) peticiones.push({ codigo: sol.codigo, estado: sol.sol_estado, proveedores: asoc.sps.filter((s) => s.sol_id === sol.sol_id).map((s) => s.proveedor), lineas: await lineasSolicitud(sol.sol_id) });
     const pedidos = [];
-    for (const p of asoc.pedidos) pedidos.push({ codigo: p.codigo, proveedor: p.proveedor, fecha_entrega_pedida: p.fecha_entrega, lineas: (await lineasPedido(p.pedido_id)).map(({ precio, ...l }) => l) });
+    for (const p of asoc.pedidos) pedidos.push(await pedidoParaIA(p));
     const { archivos, otros, encima } = await adjuntosIA(id);
     const contenido = JSON.stringify({
       hoy: new Date().toISOString().slice(0, 10),
@@ -300,6 +311,11 @@ async function aplicarLectura(c, asoc, d, modelo) {
     const porCodigo = d.referencia?.pedido ? asoc.pedidos.filter((p) => p.codigo.toUpperCase() === String(d.referencia.pedido).toUpperCase()) : [];
     const lista = porCodigo.length ? porCodigo : asoc.pedidos;
     if (lista.length === 1) ped = lista[0];
+    else if (lista.length > 1) {
+      // varios pedidos del proveedor (p. ej. uno por teléfono, que no trae nuestro código): el de las líneas que confirma
+      const ids = new Set((d.confirmacion?.lineas || []).map((l) => Number(l.linea_id)));
+      for (const p of lista) { const ls = await lineasPedido(p.pedido_id); if (ls.some((l) => ids.has(l.linea_id))) { ped = p; break; } }
+    }
   }
   // aunque no sea una oferta (una pregunta, un «lo miramos»…), si está claro de qué petición o pedido es, queda ligado (conversación)
   if (!sp && tipo !== 'oferta' && ['respuesta', 'codigo', 'portal'].includes(asoc.por)) {
@@ -401,8 +417,26 @@ async function normalizar(tipo, d, sp, ped, alertas) {
   if (tipo === 'confirmacion_pedido') {
     const k = d.confirmacion || {};
     const validas = ped ? new Set((await lineasPedido(ped.pedido_id)).map((l) => l.linea_id)) : null;
-    const lineas = (Array.isArray(k.lineas) ? k.lineas : []).map((l) => ({ linea_id: Number(l.linea_id), fecha: fechaOk(l.fecha_entrega), cantidad: num(l.cantidad), nota: texto(l.nota, 300) }))
+    const lineas = (Array.isArray(k.lineas) ? k.lineas : []).map((l) => ({ linea_id: Number(l.linea_id), fecha: fechaOk(l.fecha_entrega), cantidad: num(l.cantidad), nota: texto(l.nota, 300),
+      precio_cotizado: num(l.precio_cotizado), unidad_cotizada: texto(l.unidad_cotizada, 20) }))
       .filter((l) => Number.isInteger(l.linea_id) && (!validas || validas.has(l.linea_id)));
+    // precios: a la unidad de nuestra línea (con las equivalencias del material) y comparados con lo que ya tenía el pedido
+    if (ped) {
+      const U = require('./unidades');
+      const nuestras = await lineasPedido(ped.pedido_id);
+      for (const l of lineas) {
+        const n = nuestras.find((x) => x.linea_id === l.linea_id);
+        if (!n || l.precio_cotizado == null) continue;
+        const uc = U.unidad(l.unidad_cotizada) || U.unidad(n.unidad); const un = U.unidad(n.unidad);
+        l.unidad_cotizada = uc;
+        const p = uc === un ? l.precio_cotizado : await U.precioEn(n.catalogo_id, l.precio_cotizado, uc, un);
+        if (p == null) { alertas.push(`«${n.descripcion}»: viene en €/${uc} y el pedido es en ${un}; falta la equivalencia: pon el precio a mano.`); continue; }
+        l.precio = +Number(p).toFixed(4);
+        if (uc !== un) alertas.push(`«${n.descripcion}»: ${String(l.precio_cotizado).replace('.', ',')} €/${uc} = ${String(l.precio).replace('.', ',')} €/${un}.`);
+        if (n.precio != null && Math.abs(n.precio - l.precio) > 0.005) alertas.push(`«${n.descripcion}»: confirma ${String(l.precio).replace('.', ',')} € y el pedido tenía ${String(n.precio).replace('.', ',')} €.`);
+      }
+      if (ped.por_telefono && nuestras.some((n) => n.precio == null) && !lineas.some((l) => l.precio != null)) alertas.push('Pedido por teléfono sin precios: no vienen en este correo; apúntalos a mano si los sabes.');
+    }
     if (ped?.fecha_entrega && fechaOk(k.fecha_entrega) && fechaOk(k.fecha_entrega) > ped.fecha_entrega) alertas.push(`Entregan el ${ddmm(k.fecha_entrega)}, más tarde de lo pedido (${ddmm(ped.fecha_entrega)}).`);
     return { confirmacion: { confirma: k.confirma !== false, fecha_entrega: fechaOk(k.fecha_entrega), numero: texto(k.numero || d.referencia?.su_referencia, 80), lineas, notas: texto(k.notas, 1500) } };
   }
@@ -553,6 +587,10 @@ async function confirmarPedido(c, b, usuario) {
                       WHERE l.id = $1 AND l.pedido_id = $2 AND e.id = l.escandallo_id AND e.compra = 'pedido'`, [Number(lid), p.id, fl]);
       hechos.push(`una línea llega el ${ddmm(fl)}`);
     }
+    // precios (pedido por teléfono, o un precio distinto al pactado): { linea_id: { precio } }
+    const precios = Object.fromEntries(Object.entries(b.lineas || {}).filter(([, f]) => f && typeof f === 'object' && f.precio != null && f.precio !== '').map(([lid, f]) => [lid, f.precio]));
+    const cambios = await require('./compras').ponerPrecios(q, p.id, precios, usuario.id);
+    if (cambios.length) hechos.push(cambios.length === 1 ? `precio de «${cambios[0].descripcion}»: ${cambios[0].ahora} €` : `${cambios.length} precios`);
     await pt.evento(q, p.id, `📧 Por correo: ${hechos.join(' · ') || 'confirmación revisada'}`, { usuario: usuario.id });
     await q.query(`UPDATE correos SET estado = 'hecho', pedido_id = $2, resultado = $3, revisado_por = $4, revisado_en = now() WHERE id = $1`,
       [c.id, p.id, `Aplicado al pedido ${p.codigo}: ${hechos.join(' · ') || 'sin cambios'}`, usuario.id]);
@@ -581,7 +619,7 @@ async function detalle(id) {
     out.sp = sp; out.lineas = await lineasSolicitud(sp.sol_id); out.habituales = await require('./precios').habitualesDeSolicitud(sp.sol_id).catch(() => ({}));
   }
   if (c.pedido_id) {
-    const { rows: [p] } = await query(`SELECT pc.id, pc.codigo, pc.estado, pc.fecha_entrega::text AS fecha_entrega, pc.prov_confirmado_en, pr.nombre AS proveedor
+    const { rows: [p] } = await query(`SELECT pc.id, pc.codigo, pc.estado, pc.fecha_entrega::text AS fecha_entrega, pc.prov_confirmado_en, pc.por_telefono, pc.prov_num_confirmacion, pr.nombre AS proveedor
       FROM pedidos_compra pc LEFT JOIN proveedores pr ON pr.id = pc.proveedor_id WHERE pc.id = $1`, [c.pedido_id]);
     out.pedido = p; out.lineas = await lineasPedido(p.id);
   }
@@ -724,7 +762,7 @@ async function reLeer(c, asoc) {
     try {
       const peticiones = []; const pedidos = [];
       for (const s of asoc.sps) peticiones.push({ codigo: s.codigo, lineas: await lineasSolicitud(s.sol_id) });
-      for (const p of asoc.pedidos) pedidos.push({ codigo: p.codigo, fecha_entrega_pedida: p.fecha_entrega, lineas: (await lineasPedido(p.pedido_id)).map(({ precio, ...l }) => l) });
+      for (const p of asoc.pedidos) pedidos.push(await pedidoParaIA(p));
       const { archivos, encima } = await adjuntosIA(c.id);
       const contenido = JSON.stringify({ hoy: new Date().toISOString().slice(0, 10), correo: { de: `${c.de_nombre || ''} <${c.de_email || ''}>`, asunto: c.asunto, fecha: c.fecha },
         aviso: 'Una persona ha indicado de qué petición o pedido es este correo.', nuestras_peticiones_de_precio: peticiones, nuestros_pedidos: pedidos,

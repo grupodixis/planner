@@ -199,19 +199,24 @@
     const form = el('form', { class: 'co-form', oninput: () => { est.sucio = true; }, onsubmit: async (ev) => {
       ev.preventDefault();
       const lineas = {};
-      form.querySelectorAll('[data-l]').forEach((i) => { if (i.value) lineas[i.dataset.l] = i.value; });
+      form.querySelectorAll('[data-l]').forEach((i) => { if (i.value) lineas[i.dataset.l] = { ...(lineas[i.dataset.l] || {}), fecha: i.value }; });
+      form.querySelectorAll('[data-p]').forEach((i) => { if (i.value !== '' && Number(i.value) !== (c.lineas.find((l) => String(l.linea_id) === i.dataset.p)?.precio ?? null)) lineas[i.dataset.p] = { ...(lineas[i.dataset.p] || {}), precio: Number(i.value) }; });
       await accion('confirmar-pedido', { pedido_id: c.pedido.id, confirma: form.confirma.checked, fecha_entrega: form.fecha.value || null, numero: form.numero.value, comentario: form.comentario.value, lineas });
     } },
-    el('h3', {}, `Confirmación del pedido ${c.pedido.codigo}`, el('small', {}, ` · ${c.pedido.proveedor}${c.pedido.prov_confirmado_en ? ' · ya estaba confirmado' : ''}`)),
+    el('h3', {}, `Confirmación del pedido ${c.pedido.codigo}`, el('small', {}, ` · ${c.pedido.proveedor}${c.pedido.por_telefono ? ' · 📞 pedido por teléfono' : ''}${c.pedido.prov_confirmado_en ? ' · ya estaba confirmado' : ''}`)),
     el('div', { class: 'co-campos' },
       el('label', { class: 'co-chk' }, el('input', { type: 'checkbox', name: 'confirma', checked: k.confirma !== false }), ' Confirma el pedido'),
       el('label', {}, 'Llega el', el('input', { type: 'date', name: 'fecha', value: k.fecha_entrega || '' }), el('small', {}, c.pedido.fecha_entrega ? `pedido para el ${ddmm(c.pedido.fecha_entrega)}` : 'sin fecha pedida')),
       el('label', {}, 'Su nº de confirmación', el('input', { type: 'text', name: 'numero', value: k.numero || '', maxlength: 80 })),
       el('label', { class: 'ancho' }, 'Comentario', el('textarea', { name: 'comentario', rows: 2 }, k.notas || ''))),
-    c.lineas.length ? el('details', { open: (k.lineas || []).some((l) => l.fecha) }, el('summary', {}, 'Fecha distinta por línea (opcional)'),
-      el('table', { class: 'co-tabla' }, el('tbody', {}, c.lineas.map((l) => el('tr', {}, el('td', {}, l.descripcion), el('td', { class: 'n' }, `${l.cantidad} ${l.unidad || ''}`),
-        el('td', {}, el('input', { type: 'date', value: porLinea[l.linea_id]?.fecha || '', 'data-l': l.linea_id, 'aria-label': `Fecha de ${l.descripcion}` }))))))) : null,
-    el('p', { class: 'ayuda' }, 'La fecha pasa al material del pedido: el cuadrante avisará si llega después del día planificado.'),
+    // líneas: precio (el que confirma; en un pedido por teléfono, el que faltaba) y fecha si es distinta
+    c.lineas.length ? el('details', { open: c.pedido.por_telefono || (k.lineas || []).some((l) => l.fecha || l.precio != null) }, el('summary', {}, c.pedido.por_telefono ? 'Precios y fechas por línea' : 'Precio o fecha distintos por línea (opcional)'),
+      el('table', { class: 'co-tabla' }, el('thead', {}, el('tr', {}, el('th', {}, 'Material'), el('th', { class: 'n' }, 'Cant.'), el('th', { class: 'n' }, '€ / ud (sin IVA)'), el('th', {}, 'Llega'))),
+        el('tbody', {}, c.lineas.map((l) => { const x = porLinea[l.linea_id] || {}; return el('tr', {}, el('td', {}, l.descripcion, x.precio_cotizado != null && x.unidad_cotizada && x.unidad_cotizada !== l.unidad ? el('small', { class: 'ayuda' }, ` · cotizó ${x.precio_cotizado} €/${x.unidad_cotizada}`) : null),
+          el('td', { class: 'n' }, `${l.cantidad} ${l.unidad || ''}`),
+          el('td', { class: 'n' }, el('input', { type: 'number', min: '0', step: '0.0001', value: x.precio ?? l.precio ?? '', 'data-p': l.linea_id, class: `co-precio${l.precio == null && x.precio == null ? ' falta' : ''}`, 'aria-label': `Precio de ${l.descripcion}` })),
+          el('td', {}, el('input', { type: 'date', value: x.fecha || '', 'data-l': l.linea_id, 'aria-label': `Fecha de ${l.descripcion}` }))); })))) : null,
+    el('p', { class: 'ayuda' }, `La fecha pasa al material del pedido: el cuadrante avisará si llega después del día planificado.${c.pedido.por_telefono ? ' Los precios completan el pedido y pasan a la lista de precios y a costes.' : ''}`),
     el('div', { class: 'co-pie' }, el('button', { type: 'submit', class: 'primario' }, '✔ Aplicar al pedido')));
     return form;
   }

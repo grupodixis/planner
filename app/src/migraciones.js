@@ -1590,6 +1590,11 @@ const MIGRACIONES = [
   `ALTER TABLE solicitud_precios ADD COLUMN IF NOT EXISTS precio_cotizado NUMERIC(14,6), ADD COLUMN IF NOT EXISTS unidad_cotizada TEXT`,
   `ALTER TABLE precios ADD COLUMN IF NOT EXISTS unidad_base TEXT, ADD COLUMN IF NOT EXISTS precio_base NUMERIC(14,6),
      ADD COLUMN IF NOT EXISTS precio_orig NUMERIC(14,6), ADD COLUMN IF NOT EXISTS unidad_orig TEXT`,
+  // pedido hecho por teléfono (se registra como pedido de compra ya enviado; lo completa la confirmación que llega a compras@)
+  `ALTER TABLE pedidos_compra ADD COLUMN IF NOT EXISTS por_telefono BOOLEAN NOT NULL DEFAULT FALSE`,
+  `ALTER TABLE pedidos_compra ADD COLUMN IF NOT EXISTS anulado_en TIMESTAMPTZ`,
+  `ALTER TABLE pedidos_compra ADD COLUMN IF NOT EXISTS anulado_por INT REFERENCES usuarios(id) ON DELETE SET NULL`,
+  `ALTER TABLE pedidos_compra ADD COLUMN IF NOT EXISTS anulado_motivo TEXT`,
 ];
 
 async function migrar() {

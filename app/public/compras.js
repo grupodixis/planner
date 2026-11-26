@@ -201,6 +201,7 @@
     let p;
     try { p = await api('GET', `/api/compras/pedidos/${estado.pedido}`); } catch (e) { caja.replaceChildren(el('p', { class: 'ayuda' }, e.message)); return; }
     const editable = ['borrador', 'por_aprobar'].includes(p.estado) && tiene('compras');
+    const telefono = p.por_telefono && p.estado === 'enviado' && tiene('compras');
     const [txtEstado, claseEstado] = ESTADOS[p.estado] || [p.estado, ''];
     const pasos = [['Preparado', true], ['Aprobación', p.necesita_aprobacion ? !!p.aprobado_en : null], ['Enviado', p.estado === 'enviado']];
     // líneas editables
@@ -227,7 +228,11 @@
             origenLinea(l, p)),
           el('td', { class: 'num' }, editable ? el('input', { type: 'number', min: '0', step: 'any', value: l.cantidad, class: 'cmp-in-num', 'aria-label': 'Cantidad', oninput: cambia('cantidad') }) : String(l.cantidad).replace('.', ',')),
           el('td', {}, editable && !l.escandallo_id ? el('input', { value: l.unidad || '', class: 'cmp-in-ud', 'aria-label': 'Unidad', oninput: cambia('unidad') }) : (l.unidad || '')),
-          el('td', { class: 'num' }, editable ? el('input', { type: 'number', min: '0', step: '0.0001', value: l.precio ?? '', placeholder: '€', class: `cmp-in-num${l.precio == null ? ' falta' : ''}`, 'aria-label': 'Precio unitario', oninput: cambia('precio') }) : eur(l.precio)),
+          el('td', { class: 'num' }, editable ? el('input', { type: 'number', min: '0', step: '0.0001', value: l.precio ?? '', placeholder: '€', class: `cmp-in-num${l.precio == null ? ' falta' : ''}`, 'aria-label': 'Precio unitario', oninput: cambia('precio') })
+            // pedido por teléfono: los precios se completan después (a mano o con su confirmación por correo)
+            : telefono ? el('input', { type: 'number', min: '0', step: '0.0001', value: l.precio ?? '', placeholder: '€', class: `cmp-in-num${l.precio == null ? ' falta' : ''}`, 'aria-label': 'Precio unitario',
+              onchange: async (ev) => { if (ev.target.value === '') return; try { await api('PUT', `/api/compras/pedidos/${p.id}/precios`, { lineas: { [l.id]: Number(ev.target.value) } }); toast('Precio guardado: pasa a la lista de precios'); pintar(); } catch (e) { toast(e.message, true); } } })
+              : eur(l.precio)),
           imp,
           el('td', {}, editable ? el('button', { type: 'button', class: 'ghost mini', 'aria-label': `Quitar ${l.descripcion}`, title: 'Quitar del pedido (vuelve a «Por pedir»)',
             onclick: () => { lineas.splice(i, 1); pintarLineas(); totalEl.textContent = eur(total()); guardar(cuerpoLineas, 'repintar'); } }, '✕') : null));
@@ -248,6 +253,7 @@
     const acciones = [];
     acciones.push(el('a', { class: 'boton ghost', href: `/api/compras/pedidos/${p.id}/pdf`, target: '_blank', rel: 'noopener' }, '📄 Ver PDF'));
     if (editable) acciones.push(el('button', { type: 'button', class: 'ghost peligro', onclick: () => borrar(p) }, 'Borrar'));
+    if (p.estado === 'enviado' && tiene('compras')) acciones.push(el('button', { type: 'button', class: 'ghost peligro', onclick: () => anular(p), title: 'Lo que no ha llegado vuelve a «Por pedir»' }, '✕ Anular pedido'));
     if (p.estado === 'borrador' && tiene('compras')) {
       if (p.necesita_aprobacion && !p.aprobado_en) acciones.push(el('button', { type: 'button', class: 'primario', onclick: () => accion(p, 'aprobacion', 'Enviado a Dirección para aprobar') }, '⏳ Pedir aprobación'));
       else acciones.push(el('button', { type: 'button', class: 'primario', onclick: () => dialogoEnviar(p, prov) }, '📤 Enviar al proveedor…'));
@@ -266,6 +272,12 @@
         el('span', { class: `cmp-estado ${claseEstado}` }, txtEstado)),
       el('ol', { class: 'cmp-pasos' }, pasos.filter(([, v]) => v !== null).map(([t, v], i, arr) => el('li', { class: v ? 'hecho' : arr.findIndex(([, x]) => !x) === i ? 'ahora' : '' }, el('i', {}, v ? '✓' : String(i + 1)), t))),
       p.rechazo ? el('p', { class: 'aviso-coste' }, `✗ Dirección no lo aprobó: ${p.rechazo}`) : null,
+      p.estado === 'anulado' ? el('p', { class: 'aviso-coste' }, `✕ Anulado el ${cuando(p.anulado_en)}${p.anulado_motivo ? `: ${p.anulado_motivo}` : ''}`) : null,
+      p.por_telefono ? el('p', { class: `cmp-tel${p.prov_confirmado_en ? ' ok' : ''}` }, '📞 Pedido por teléfono',
+        p.prov_num_confirmacion ? ` · su nº ${p.prov_num_confirmacion}` : '',
+        p.prov_confirmado_en ? ` · ✔ confirmado ${cuando(p.prov_confirmado_en)}` : ' · esperando su confirmación por correo (compras@): la IA la lee y completa precios, su nº y la fecha. Si no llega, apunta aquí los precios.',
+        p.lineas.some((l) => l.precio == null) ? el('b', {}, ` · faltan ${p.lineas.filter((l) => l.precio == null).length} precio(s)`) : null) : null,
+      (p.albaranes || []).length ? el('p', { class: 'ayuda' }, '📦 Albarán: ', p.albaranes.map((a) => el('a', { href: `/api/archivos/${a.id}`, target: '_blank', rel: 'noopener' }, `${a.nombre || 'albarán'} `))) : null,
       el('div', { class: 'cmp-campos' },
         campo('proveedor_id', 'Proveedor', selProv),
         campo('fecha_entrega', 'Entrega el', inCampo('fecha_entrega', { type: 'date' })),
@@ -285,6 +297,18 @@
 
   async function accion(p, que, ok) {
     try { await api('POST', `/api/compras/pedidos/${p.id}/${que}`, {}); toast(ok); pintar(); } catch (e) { toast(e.message, true); }
+  }
+  function anular(p) {
+    const motivo = el('textarea', { rows: 3, maxlength: 500, 'aria-label': 'Motivo' });
+    const d = el('dialog', { class: 'dlg-cos' }, el('h2', {}, `Anular ${p.codigo}`),
+      el('p', { class: 'ayuda' }, 'Lo que no ha llegado vuelve a «Por pedir» y logística deja de esperarlo. Lo ya recibido se queda. Avisa tú al proveedor si hace falta.'),
+      motivo,
+      el('div', { class: 'acciones' }, el('button', { type: 'button', class: 'ghost', onclick: () => d.close() }, 'Cancelar'),
+        el('button', { type: 'button', class: 'primario peligro', onclick: async () => {
+          try { const r = await api('POST', `/api/compras/pedidos/${p.id}/anular`, { motivo: motivo.value }); d.close(); toast(`Anulado: ${r.vuelven} línea(s) vuelven a «Por pedir»`); pintar(); } catch (e) { toast(e.message, true); }
+        } }, '✕ Anular pedido')));
+    d.addEventListener('close', () => d.remove());
+    document.body.append(d); d.showModal(); motivo.focus();
   }
   async function borrar(p) {
     if (!confirm(`¿Borrar el pedido ${p.codigo}? Sus líneas de material vuelven a «Por pedir».`)) return;

@@ -699,7 +699,7 @@ compositor los use.
 
 - **Material de las partidas** (logística) pasa al menú Compras. En «Por pedir» cada línea tiene
   **«Incluir en un pedido de compra»**; abajo se elige el proveedor y **Crear pedido de compra**.
-  (El «🛒 Pedido» rápido de cada línea sigue, para lo pedido por teléfono.)
+  Lo pedido por teléfono, con **📞 Ya pedido por teléfono** (ver «Todo pedido es un pedido de compra»).
 - **Pedidos de compra** (`/compras.html`): por estado (esperando aprobación, aprobados por enviar,
   borradores, enviados). Ficha con proveedor, entrega, dónde, referencia, forma de pago,
   observaciones y **líneas con precio** (más líneas a mano: portes…); se guarda al cambiar.
@@ -1315,10 +1315,11 @@ Circuito entre Dto. técnico, operaciones, logística y compras, con avisos al m
    - *Herramientas*: catálogo con filtro y casillas; pulsar una tarea y **Agregar a la tarea**.
 3. **Logística** (`logistica`, p. ej. Sergio): menú **Logística** → *Revisar stock*: «No hay»,
    «Hay todo» o «Hay N». Lo que falta pasa a *Por pedir* → aviso a compras.
-4. **Compras** (`compras`): *Por pedir* → proveedor + fecha prevista → **Pedido** → aviso a
-   logística y al técnico.
-5. **Recepción** (logística): *Pedido · por recibir* → **✔ Recibido** → aviso a los operarios con
-   plan en las tareas que usan ese material (de hoy en adelante) y al técnico.
+4. **Compras** (`compras`): *Por pedir* → marcar líneas → **🛒 Crear pedido de compra**, **✉ Pedir precio** o
+   **📞 Ya pedido por teléfono** → al enviarse el pedido, aviso a logística y al técnico.
+5. **Recepción** (logística): *Pedido · por recibir*, agrupado por pedido de compra → albarán → **✔ Recibir el
+   pedido** (o lo marcado) → aviso a los operarios con plan en las tareas que usan ese material (de hoy en
+   adelante) y al técnico.
 
 **Fotos, PDF y enlaces** de cada material: en el escandallo, botón 📎 de la línea (subir foto/PDF
 desde el ordenador o pegar un enlace); en Logística, **📷 Foto** en cada material (en el móvil
@@ -1426,6 +1427,31 @@ Endpoints: `GET /api/ia`, `PUT /api/ia/ajustes`, `POST /api/ia/probar/:nombre`, 
 - **Precio habitual** en la revisión de ofertas (petición y Correo entrante): `habitualesDeSolicitud` (sin contar los precios de esa misma petición). La lectura de la IA avisa si un precio se aleja más de un 40 % del habitual.
 - **Aprendizaje por proveedor**: al confirmar una oferta leída por la IA, lo corregido (precios, portes, entrega, referencia) va a `ia_correcciones`; de ahí `proveedores.notas_ia_auto` (≥ 2 veces: precios con IVA, unidad N veces mayor/menor). Notas escritas por Compras en `proveedores.notas_ia`. La IA devuelve también cómo llama el proveedor a cada línea (`su_texto` → `proveedor_alias`). Todo esto («memoria_de_este_proveedor»: notas, últimas 8 correcciones y equivalencias) se le pasa a la IA cada vez que lee a ese proveedor, con prioridad sobre su interpretación. En la ficha del proveedor: «🤖 Lo que la IA sabe». `GET·PUT /api/proveedores/:id/ia`.
 - **Para Presupuestos**: `GET /api/precios/estimado?catalogo_id=` (precio sugerido y aviso si está viejo o no hay); `solicitudes_precio.motivo` (`compra` | `presupuesto`) y `solicitud_lineas.catalogo_id` para pedir precio de materiales del catálogo sin escandallo.
+
+## Todo pedido es un pedido de compra
+
+Compras pide y Logística recibe. Ya no se marca «pedido» línea a línea en Material de las partidas: `PUT /api/escandallo/:id/compra` responde que se haga con un pedido de compra.
+
+- **📞 Ya pedido por teléfono**: en *Por pedir* se marcan las líneas y en la barra se pulsa «📞 Ya pedido por teléfono…». Se indican proveedor (obligatorio), fecha de llegada, su nº de pedido, precio por línea (opcional) y una nota. `POST /api/compras/pedidos/telefono {escandallo_ids, proveedor_id, fecha_entrega, num_proveedor, precios: {escandallo_id: €}, nota}` crea un pedido de compra:
+  - **ya enviado**, con `pedidos_compra.por_telefono` y su nº en `prov_num_confirmacion`;
+  - pasa las líneas a «Pedido» (`pasarAPedido`), registra en la lista de precios los precios que haya y avisa a logística;
+  - si pasa del límite de aprobación, avisa a Dirección (no lo bloquea: ya está pedido).
+- **Se completa con su confirmación por correo** (compras@):
+  - los pedidos por teléfono son candidatos para los correos de ese proveedor, y a la IA se le dice que el proveedor no conoce nuestro código PC (`pedido_por_telefono`, `su_numero`);
+  - su confirmación, proforma, albarán o factura con esos materiales se lee como `confirmacion_pedido`, con precio por línea (`precio_cotizado` + `unidad_cotizada`, convertido con las equivalencias del material), su nº y la fecha;
+  - con varios pedidos abiertos del proveedor, se elige el de las líneas que confirma;
+  - en Correo entrante, «Precios y fechas por línea» (editables) → **✔ Aplicar al pedido**. `ponerPrecios` actualiza las líneas, el material (`precio_pedido`), el total y la lista de precios, y deja el evento «📧 Por correo: … · 2 precios».
+  - Si no llega, los precios se apuntan en el propio pedido: `PUT /api/compras/pedidos/:id/precios {lineas: {id: €}}`, solo en los de teléfono.
+  - La ficha del pedido muestra «📞 Pedido por teléfono · esperando su confirmación…» o «✔ confirmado».
+- **Anular** un pedido enviado (`POST /api/compras/pedidos/:id/anular {motivo}`, botón «✕ Anular pedido»):
+  - lo que no ha llegado vuelve a *Por pedir* y lo recibido se queda;
+  - se quitan sus precios de la lista y se avisa a logística;
+  - guarda `anulado_en`, `anulado_por` y `anulado_motivo`.
+- **Recibir por pedido**: *Pedido · por recibir* agrupa por pedido de compra (📞/🛒, proveedor, su nº, fecha, «sin confirmar»). Cada línea tiene casilla (todas marcadas) y abajo van nº de albarán, foto o PDF y **✔ Recibir el pedido** o «Recibir lo marcado (N de M)».
+  - `POST /api/compras/pedidos/:id/recibir {escandallo_ids, num_albaran, archivos}` marca recibido, resuelve sus incidencias, avisa a los operarios y deja el evento en el pedido.
+  - El albarán queda en el pedido (`archivos` `ref_tipo = 'pedido_albaran'`, `pedido.albaranes`).
+  - Desde las otras pestañas se puede recibir una línea suelta.
+- **Paso de lo anterior** (una vez, `migr_pedidos_telefono`): las líneas marcadas «pedido» con el botón rápido antiguo pasan a pedidos por teléfono, uno por proveedor, nº y día.
 
 ## Trazabilidad en los documentos al proveedor
 
