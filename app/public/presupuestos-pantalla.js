@@ -223,7 +223,8 @@
         ] : null)));
       for (const pa of c.partidas) {
         filas.push(el('tr', { class: 'pz-par', tabindex: 0, onclick: () => abrir(p.id, pa.id), onkeydown: (ev) => { if (ev.key === 'Enter') abrir(p.id, pa.id); } },
-          el('td', {}, el('span', { class: 'pz-cod' }, pa.codigo || ''), ' ', pa.nombre, pa.descripcion ? null : el('small', { class: 'pz-naranja' }, 'sin descripción comercial')),
+          el('td', {}, el('span', { class: 'pz-cod' }, pa.codigo || ''), ' ', pa.nombre, pa.descripcion ? null : el('small', { class: 'pz-naranja' }, 'sin descripción comercial'),
+            pa.kg ? el('small', { class: 'pz-kg', title: `${pu(pa.kg_ud)} kg y ${pu(pa.m2_ud)} m² de pintura por ${ud(pa.unidad)}` }, ` ${pu(pa.kg)} kg · ${pu(pa.m2)} m²${pa.desglose_kg ? ' · 📏 en el PDF' : ''}`) : null),
           el('td', { class: 'n' }, `${fmt(pa.medicion)} ${ud(pa.unidad)}`), el('td', { class: 'n' }, eur(pa.coste_ud)), el('td', { class: 'n' }, eur0(pa.coste)),
           el('td', { class: 'n' }, eur(pa.venta_ud)), el('td', { class: 'n' }, eur0(pa.venta), pa.dto_pct ? el('small', { class: 'pz-dto-chip' }, `dto. ${fmt(pa.dto_pct)} %`) : null), el('td', {}, chipsPartida(pa))));
       }
@@ -419,9 +420,11 @@
             : campo(l.concepto, (v) => putL(l, { concepto: v }), { class: 'pz-in-con', 'aria-label': 'Concepto' });
         lineas.push(el('tr', { class: l.nuevo ? 'pz-con-nuevo' : '' },
           el('td', {}, concepto, l.tipo === 'material' ? el('small', {}, l.catalogo_id ? (l.equiv_txt || 'de la lista') : '⚠ no está en la lista: elígelo') : null),
-          el('td', { class: 'n' }, l.calculo === 'l_pintura' ? el('span', { class: 'pz-lpint', title: l.calculo_txt }, campo(fmt(l.por_ud), (v) => putL(l, { por_ud: leer(v) }), { class: 'pz-num', inputmode: 'decimal', 'aria-label': 'Consumo en l/m²' }), el('small', {}, ` l/m² × ${pu(l.m2_pintura)} m² = ${pu(l.cantidad_ud)} l`)) : l.calculo ? el('span', { title: l.calculo_txt }, pu(l.cantidad_ud)) : campo(fmt(l.por_ud), (v) => putL(l, { por_ud: leer(v) }), { class: 'pz-num', inputmode: 'decimal', 'aria-label': `Cantidad por ${ud(pa.unidad)}` }),
+          el('td', { class: 'n' }, ['l_pintura', 'x_m2'].includes(l.calculo) ? el('span', { class: 'pz-lpint', title: l.calculo_txt }, campo(fmt(l.por_ud), (v) => putL(l, { por_ud: leer(v) }), { class: 'pz-num', inputmode: 'decimal', 'aria-label': `${ud(l.unidad)} por m² de pintura` }), el('small', {}, ` ${ud(l.unidad)}/m² × ${pu(l.m2_pintura)} m² = ${pu(l.cantidad_ud)} ${ud(l.unidad)}`)) : l.calculo ? el('span', { title: l.calculo_txt }, pu(l.cantidad_ud)) : campo(fmt(l.por_ud), (v) => putL(l, { por_ud: leer(v) }), { class: 'pz-num', inputmode: 'decimal', 'aria-label': `Cantidad por ${ud(pa.unidad)}` }),
             ['auxiliar', 'subcontrata'].includes(l.tipo) && abiertoP() ? el('select', { class: 'pz-calc', 'aria-label': 'Cómo se calcula la cantidad', onchange: (ev) => putL(l, { calculo: ev.target.value || null }, 'Cálculo cambiado') },
-              [['', 'a mano'], ['kg_perfiles', 'Σ kg perfiles'], ['m2_perfiles', 'Σ m² pintura'], ['l_pintura', 'l/m² × Σ m² pintura']].map(([v, t]) => el('option', { value: v, selected: (l.calculo || '') === v }, t))) : null),
+              [['', 'a mano'], ['kg_perfiles', 'Σ kg perfiles'], ['m2_perfiles', 'Σ m² pintura'], ['l_pintura', 'l/m² × Σ m² pintura']].map(([v, t]) => el('option', { value: v, selected: (l.calculo || '') === v }, t)))
+              : ['mano_obra', 'maquinaria'].includes(l.tipo) && abiertoP() ? el('select', { class: 'pz-calc', 'aria-label': 'Cómo se calcula la cantidad', onchange: (ev) => putL(l, { calculo: ev.target.value || null }, 'Cálculo cambiado') },
+                [['', 'a mano'], ['x_m2', `${ud(l.unidad)}/m² × Σ m² pintura`]].map(([v, t]) => el('option', { value: v, selected: (l.calculo || '') === v }, t))) : null),
           el('td', {}, l.calculo || l.tarifa_id || (l.tipo === 'material' && l.catalogo_id) ? el('span', { title: l.equiv_txt || '' }, ud(l.unidad)) : campo(l.unidad, (v) => putL(l, { unidad: v }), { class: 'pz-ud', 'aria-label': 'Unidad' })),
           el('td', { class: 'n' }, `${pu(l.cantidad_total)} ${ud(l.unidad)}`),
           el('td', { class: 'n' }, precioLinea(l)),
@@ -446,10 +449,13 @@
           el('label', {}, el('span', {}, 'Unidad'), campo(pa.unidad, (v) => putP({ unidad: v }), { class: 'pz-ud' })),
           el('label', {}, el('span', {}, 'Medición'), campo(fmt(pa.medicion), (v) => putP({ medicion: leer(v) }), { class: 'pz-num', inputmode: 'decimal' })),
           el('label', { title: 'Descuento de esta partida: sale en el PDF del cliente (precio, «Dto. %» y subtotal ya rebajado)' }, el('span', {}, 'Dto. %'), campo(pa.dto_pct ? fmt(pa.dto_pct) : '', (v) => putP({ dto_pct: leer(v) || null }, 'Descuento de la partida guardado'), { class: 'pz-num', inputmode: 'decimal', placeholder: '0' })),
+          el('label', { class: 'pz-chk-kg', title: 'Hierro de obra: en el PDF del cliente salen la medida y los kg de cada pieza y los kg totales' }, el('span', {}, 'PDF'), el('span', {}, el('input', { type: 'checkbox', checked: !!pa.desglose_kg, disabled: !abiertoP(), onchange: (ev) => putP({ desglose_kg: ev.target.checked }, ev.target.checked ? 'Medidas y kg en el PDF' : 'Sin medidas ni kg en el PDF') }), ' 📏 medidas y kg')),
           el('label', {}, el('span', {}, 'Capítulo'), el('select', { disabled: !abiertoP(), onchange: (ev) => putP({ capitulo_id: ev.target.value }, 'Movida de capítulo') }, p.capitulos.filter((c) => c.id).map((c) => el('option', { value: c.id, selected: c.id === pa.capitulo_id }, `${c.codigo} · ${c.nombre}`))))),
         el('label', { class: 'pz-cond' }, el('span', {}, 'Descripción comercial ', el('small', {}, '(la que ve el cliente en el presupuesto)')),
           campo(pa.descripcion || '', (v) => putP({ descripcion: v }, 'Descripción guardada'), { multilinea: true, rows: 3, placeholder: 'Barandilla de escalera de 1,10 m de altura formada por… Incluye transporte y montaje.' })),
         el('p', { class: 'ayuda' }, `Cada línea: cantidad por ${ud(pa.unidad)} de partida × ${fmt(pa.medicion)} ${ud(pa.unidad)} = total. El precio sale de la lista de precios o de la tarifa; si lo escribes a mano queda «estimado». La descomposición es interna: el cliente solo la ve en el PDF detallado (a precio de venta).`),
+        pa.piezas?.length ? el('p', { class: 'pz-piezas' }, '📏 ', ...pa.piezas.flatMap((x, i) => [i ? ' · ' : '', `${x.concepto}${x.ml != null ? ` L ${pu(+(x.ml * 1000).toFixed(0))} mm` : ''}: ${pu(x.kg)} kg${x.m2 != null ? ` · ${pu(x.m2)} m²` : ''}`]),
+          el('b', {}, ` → por ${ud(pa.unidad)}: ${pu(pa.kg_ud)} kg y ${pu(pa.m2_ud)} m² de pintura · total ${pu(pa.kg)} kg y ${pu(pa.m2)} m²`)) : null,
         el('div', { class: 'tabla-scroll' }, el('table', { class: 'pz-tabla pz-lineas' },
           el('thead', {}, el('tr', {}, el('th', {}, 'Concepto'), el('th', { class: 'n' }, `Por ${ud(pa.unidad)}`), el('th', {}, 'Ud'), el('th', { class: 'n' }, 'Total'), el('th', { class: 'n' }, '€ coste / ud'), el('th', { class: 'n' }, 'Importe'), el('th', {}, 'Precio'), el('th', {}))),
           el('tbody', {}, lineas))),

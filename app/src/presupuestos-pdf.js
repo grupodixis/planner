@@ -151,6 +151,8 @@ async function cliente(p, aj, { detallado = false } = {}) {
       let h = alto(doc, nom, wDesc, 8.5, 'Helvetica-Bold') + (des ? alto(doc, des, wDesc, 7.5) + 3 : 0) + 10;
       const desglose = detallado ? pa.lineas.filter((l) => l.precio != null) : [];
       if (desglose.length) h += 12 + desglose.length * 9.5;
+      const piezas = pa.desglose_kg ? (pa.piezas || []) : [];
+      if (piezas.length) h += 4 + (piezas.length + 1) * 9.5;
       sitioItems(Math.min(h, fin() - 140));
       // números primero (en la primera línea de la partida), luego nombre y descripción (que puede seguir en otra página)
       doc.font('Helvetica-Bold').fontSize(8.5).fillColor(C.osc).text(latin(cod), xs[0] + 2, y + 5, { width: cols[0][1] * W - 4, align: 'center' });
@@ -168,6 +170,16 @@ async function cliente(p, aj, { detallado = false } = {}) {
           if (yy + hp > fin()) { nueva(); cabItems(); yy = y + 4; }
           rico(doc, parrafo || ' ', xs[1] + 4, yy, wDesc, { size: 7.5, color: C.gris }); yy += hp;
         }
+      }
+      if (piezas.length) {
+        // hierro de obra: cada pieza con su medida y peso, y los kg de la partida
+        yy += 3;
+        for (const x of piezas) {
+          if (yy + 10 > fin()) { nueva(); cabItems(); yy = y + 4; }
+          const med = x.ml != null ? ` · L = ${num(x.ml * 1000, 0)} mm` : '';
+          doc.font('Helvetica').fontSize(7.5).fillColor(C.texto).text(latin(`${x.concepto}${med} · ${num(x.kg, 2)} kg${piezas.length > 1 ? '' : `/${ud(pa.unidad)}`}`), xs[1] + 10, yy, { width: wDesc - 6 }); yy += 9.5;
+        }
+        doc.font('Helvetica-Bold').fontSize(7.5).fillColor(C.osc).text(latin(`Peso: ${num(pa.kg_ud, 2)} kg/${ud(pa.unidad)} × ${cant(pa.medicion)} = ${num(pa.kg, 2)} kg`), xs[1] + 10, yy, { width: wDesc - 6 }); yy += 9.5;
       }
       y = Math.max(yy, y + (pa.dto ? 26 : 17)) + 3;
       if (desglose.length) {
@@ -190,6 +202,8 @@ async function cliente(p, aj, { detallado = false } = {}) {
   y += 10;
 
   // totales
+  const conKg = p.capitulos.flatMap((c) => c.partidas).filter((pa) => pa.desglose_kg && pa.kg);
+  if (conKg.length) { sitio(16); doc.font('Helvetica-Bold').fontSize(8).fillColor(C.osc).text(`Peso total del suministro: ${num(conKg.reduce((s, pa) => s + pa.kg, 0), 2)} kg`, x0, y + 2, { width: W, align: 'right' }); y += 14; }
   const iva = r2(p.venta * 0.21);
   const tw = W * 0.44; const tx = x0 + W - tw;
   sitio(p.dto_general ? 94 : 62);

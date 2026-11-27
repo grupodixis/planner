@@ -1790,7 +1790,11 @@ const MIGRACIONES = [
   `ALTER TABLE presupuestos ADD COLUMN IF NOT EXISTS dto_pedido_por INT REFERENCES usuarios(id) ON DELETE SET NULL`,
   `ALTER TABLE presupuestos ADD COLUMN IF NOT EXISTS dto_respuesta TEXT`,
   `ALTER TABLE presupuesto_partidas ADD COLUMN IF NOT EXISTS dto_pct NUMERIC(7,3)`,
-  `ALTER TABLE presupuestos ADD COLUMN IF NOT EXISTS reenvio_de JSONB`,   // petición reenviada por alguien de la casa con «presupuestar»: {email, nombre, por} del cliente original
+  `ALTER TABLE presupuestos ADD COLUMN IF NOT EXISTS reenvio_de JSONB`,
+  // Hierro de obra: «factor × Σ m² de pintura» también en mano de obra y maquinaria (h/m²); piezas y kg en el PDF
+  `ALTER TABLE presupuesto_lineas DROP CONSTRAINT IF EXISTS presupuesto_lineas_calculo_check`,
+  `ALTER TABLE presupuesto_lineas ADD CONSTRAINT presupuesto_lineas_calculo_check CHECK (calculo IN ('kg_perfiles', 'm2_perfiles', 'l_pintura', 'x_m2'))`,
+  `ALTER TABLE presupuesto_partidas ADD COLUMN IF NOT EXISTS desglose_kg BOOLEAN NOT NULL DEFAULT FALSE`,   // petición reenviada por alguien de la casa con «presupuestar»: {email, nombre, por} del cliente original
   `DO $$ BEGIN
      IF NOT EXISTS (SELECT 1 FROM ajustes WHERE clave = 'migr_permiso_aprobar_descuentos') THEN
        UPDATE roles SET permisos = array_append(permisos, 'aprobar_descuentos') WHERE clave IN ('admin', 'direccion') AND NOT ('aprobar_descuentos' = ANY(permisos));

@@ -242,6 +242,7 @@ Esquema:
       "nombre": "nombre interno corto",
       "descripcion_comercial": "lo que lee el cliente, al estilo de HAM: una frase de qué es (suministro, fabricación e instalación…), luego líneas que empiezan por «• **Elemento:**» con medidas, perfiles, material, soldadura y acabado, y al final qué incluye. Puedes usar **negrita** y saltos de línea",
       "unidad": "ml" | "m2" | "ud" | "kg" | "h" | "pa",
+      "desglose_kg": true | false   (true en hierro de obra / perfiles a medida: el PDF enseña la medida y los kg de cada pieza),
       "medicion": número,
       "lineas": [ {
         "tipo": "material" | "mano_obra" | "maquinaria" | "auxiliar" | "subcontrata",
@@ -249,7 +250,7 @@ Esquema:
         "unidad": "ml" | "m2" | "ud" | "kg" | "h" | "dia" | …,
         "por_ud": número (cantidad POR UNIDAD de partida),
         "tarifa": "nombre EXACTO de una categoría de la tarifa, sin la unidad (p. ej. «Oficial 1ª»), solo en mano_obra y maquinaria" | null,
-        "calculo": "kg_perfiles" | "m2_perfiles" | "l_pintura" | null   (SOLO en subcontrata o auxiliar: galvanizado y pintura; NUNCA en materiales: un perfil lleva sus ml o kg por unidad en «por_ud». Con l_pintura, «por_ud» es el consumo práctico en l/m² del componente y el sistema lo multiplica por los m² a pintar),
+        "calculo": "kg_perfiles" | "m2_perfiles" | "l_pintura" | "x_m2" | null   (x_m2 = «por_ud» × m² de pintura de la partida, en la unidad de la línea: horas de pintor (mano_obra) o de equipo de pintura (maquinaria) por m²; los demás SOLO en subcontrata o auxiliar: galvanizado y pintura; NUNCA en materiales: un perfil lleva sus ml o kg por unidad en «por_ud». Con l_pintura, «por_ud» es el consumo práctico en l/m² del componente y el sistema lo multiplica por los m² a pintar),
         "precio_estimado": € coste sin IVA por unidad de la línea, SOLO si no es material del catálogo ni de la tarifa (auxiliares, subcontratas) | null,
         "nota": "de dónde sale la cantidad (p. ej. «pasamanos + 2 montantes por ml»)" | null
       } ] } ] } ],
@@ -354,14 +355,15 @@ async function generar(id, { tituloAuto = false } = {}) {
         let pi = 0;
         for (const pa of (Array.isArray(cap.partidas) ? cap.partidas : []).slice(0, 80)) {
           pi++;
-          const { rows: [pr] } = await c.query(`INSERT INTO presupuesto_partidas (presupuesto_id, capitulo_id, codigo, nombre, descripcion, unidad, medicion, orden) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id`,
-            [id, cr.id, `${ci}.${String(pi).padStart(2, '0')}`, texto(pa.nombre, 200) || `Partida ${pi}`, texto(pa.descripcion_comercial, 4000), U.unidad(pa.unidad) || texto(pa.unidad, 12) || 'ud', Math.max(0, num(pa.medicion) ?? 1), pi]);
+          const { rows: [pr] } = await c.query(`INSERT INTO presupuesto_partidas (presupuesto_id, capitulo_id, codigo, nombre, descripcion, unidad, medicion, orden, desglose_kg) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING id`,
+            [id, cr.id, `${ci}.${String(pi).padStart(2, '0')}`, texto(pa.nombre, 200) || `Partida ${pi}`, texto(pa.descripcion_comercial, 4000), U.unidad(pa.unidad) || texto(pa.unidad, 12) || 'ud', Math.max(0, num(pa.medicion) ?? 1), pi, pa.desglose_kg === true]);
           let li = 0;
           for (const l of (Array.isArray(pa.lineas) ? pa.lineas : []).slice(0, 60)) {
             const tipo = TIPOS.includes(l.tipo) ? l.tipo : 'auxiliar';
             const base = { tipo, concepto: texto(l.concepto, 300) || '(sin concepto)', catalogo_id: null, tarifa_id: null, unidad: U.unidad(l.unidad) || texto(l.unidad, 12) || 'ud',
-              por_ud: Math.max(0, num(l.por_ud) ?? 1), calculo: ['kg_perfiles', 'm2_perfiles', 'l_pintura'].includes(l.calculo) && ['subcontrata', 'auxiliar'].includes(tipo) ? l.calculo : null, precio: null, estado_precio: 'estimado', fuente: null, precio_info: null, nota: texto(l.nota, 500) };
-            if (base.calculo === 'l_pintura') { base.unidad = 'l'; if (!(base.por_ud > 0 && base.por_ud < 3)) { base.por_ud = 0.2; avisos.push(`«${base.concepto}»: consumo de pintura no válido, puesto 0,2 l/m² (revísalo).`); } }
+              por_ud: Math.max(0, num(l.por_ud) ?? 1), calculo: ['kg_perfiles', 'm2_perfiles', 'l_pintura'].includes(l.calculo) && ['subcontrata', 'auxiliar'].includes(tipo) ? l.calculo : l.calculo === 'x_m2' && tipo !== 'material' ? 'x_m2' : null, precio: null, estado_precio: 'estimado', fuente: null, precio_info: null, nota: texto(l.nota, 500) };
+            if (base.calculo === 'x_m2') { if (!(base.por_ud > 0 && base.por_ud < 5)) { base.por_ud = 0.1; avisos.push(`«${base.concepto}»: factor por m² de pintura no válido, puesto 0,1 (revísalo).`); } }
+            else if (base.calculo === 'l_pintura') { base.unidad = 'l'; if (!(base.por_ud > 0 && base.por_ud < 3)) { base.por_ud = 0.2; avisos.push(`«${base.concepto}»: consumo de pintura no válido, puesto 0,2 l/m² (revísalo).`); } }
             else if (base.calculo) { base.unidad = base.calculo === 'kg_perfiles' ? 'kg' : 'm2'; base.por_ud = 1; }
             if (tipo === 'material') {
               // de la lista de materiales; si no está, se añade a la lista (con sus equivalencias y precio estimado)
