@@ -1751,6 +1751,15 @@ const MIGRACIONES = [
   `ALTER TABLE presupuesto_lineas ADD COLUMN IF NOT EXISTS unidad_ver TEXT`,
   // la IA llegó a poner «Σ kg de los perfiles» en los propios perfiles (salía 0 y no se podía editar): pasan a cantidad a mano
   `UPDATE presupuesto_lineas SET calculo = NULL WHERE tipo = 'material' AND calculo IS NOT NULL`,
+  `ALTER TABLE tarifa ADD COLUMN IF NOT EXISTS coste_presupuesto NUMERIC(10,2)`,
+  `ALTER TABLE precios ADD COLUMN IF NOT EXISTS presupuesto_id INT`,
+  `ALTER TABLE precios ADD COLUMN IF NOT EXISTS presupuesto_linea_id INT`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS precios_pres_linea ON precios (presupuesto_linea_id) WHERE presupuesto_linea_id IS NOT NULL`,
+  `CREATE TABLE IF NOT EXISTS presupuesto_aprendizajes (
+     id SERIAL PRIMARY KEY, presupuesto_id INT REFERENCES presupuestos(id) ON DELETE SET NULL, skill_id INT REFERENCES presupuesto_skills(id) ON DELETE SET NULL,
+     skill_nombre TEXT, titulo TEXT NOT NULL, texto TEXT NOT NULL, motivo TEXT, estado TEXT NOT NULL DEFAULT 'pendiente' CHECK (estado IN ('pendiente','aceptada','descartada')),
+     creado TIMESTAMPTZ NOT NULL DEFAULT now(), decidido_por INT REFERENCES usuarios(id), decidido_en TIMESTAMPTZ)`,
+  `ALTER TABLE presupuestos ADD COLUMN IF NOT EXISTS aprendido_en TIMESTAMPTZ`,
 ];
 
 async function migrar() {

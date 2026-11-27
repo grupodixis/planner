@@ -1524,8 +1524,13 @@ Endpoints: `GET /api/ia`, `PUT /api/ia/ajustes`, `POST /api/ia/probar/:nombre`, 
 - **Otra cosa** o duda: queda en Correo entrante como clasificado.
 - Historial en `presupuesto_eventos` (`peticion`, `acuse`, `respuesta`, `aviso`), que `cargar()` devuelve como `eventos` y la ficha muestra en «Correo con el cliente».
 
+**Aprender de las correcciones** (`src/presupuestos-aprender.js`, `precioALista` en `src/presupuestos.js`)
+- **Precios**: al poner a mano el precio de una línea de material, auxiliar o subcontrata (o al cambiar su material), `precioALista` lo guarda en `precios` (`origen = 'manual'`, `via = 'presupuesto'`, `presupuesto_id`, `presupuesto_linea_id` único: se reemplaza si se vuelve a cambiar; se borra si la línea deja de ser manual). Orden de uso: precio real de proveedor > precio de presupuesto > estimado. `precioMaterial` lo muestra como real «Tu precio (PRE-…)». Una vez al arrancar (`ajustes.migr_pres_precios_lista`) se pasan los precios manuales que ya había.
+- **Tarifa**: si se cambia a mano el precio de una línea de mano de obra o maquinaria, el PUT devuelve `sugerencia_tarifa` y la pantalla pregunta si se guarda en la tarifa (`POST /api/presupuestos/tarifa-desde-linea {tarifa_id, coste}` → `tarifa.coste_presupuesto` en mano de obra, `coste_manual` en maquinaria). `coste_presupuesto` manda sobre el coste calculado (columna «Coste para presupuestar»).
+- **Skills**: `aprender(id)` compara `presupuestos.ia_borrador` (lo que devolvió la IA) con `estructura(cargar(id))` y pide a la IA mejoras concretas (con cifras) para las Skills → `presupuesto_aprendizajes` (`pendiente|aceptada|descartada`, skill destino o nombre nuevo con `[claves]`), `presupuestos.aprendido_en`, aviso a Comercial. Se lanza con «🧠 Aprender de este presupuesto» (`POST /api/presupuestos/:id/aprender`) y solo la primera vez que se marca enviado. En 🧠 Skills: `GET /api/presupuesto-aprendizajes`, `POST …/:id/aceptar {texto?, skill_id?}` (añade un apartado `## título (aprendido de PRE-…, fecha)` como nueva versión, o crea la Skill) y `POST …/:id/descartar`.
+- **Ejemplos**: `parecidos(p)` busca entre los presupuestos enviados o aceptados los 2 más parecidos (palabras del título, partidas y petición) y `generar` se los pasa a la IA como `presupuestos_parecidos_de_referencia` (partidas con líneas, cantidades y precios).
+
 **Siguientes fases**:
-- mejoras de las Skills propuestas a partir de las correcciones;
 - pedir horas a Producción;
 - condiciones de aceptación y borrador de proyecto.
 

@@ -285,7 +285,12 @@
       dudas.length ? el('div', {}, el('b', {}, 'Dudas (lo que ha supuesto o falta saber):'), el('ul', {}, dudas.map((d) => el('li', {}, d.partida ? el('span', { class: 'pz-cod' }, `${d.partida}: `) : null, d.texto)))) : null,
       avisos.length ? el('div', {}, el('b', {}, 'Avisos:'), el('ul', {}, avisos.map((a) => el('li', {}, a)))) : null,
       p.prompt ? el('div', {}, el('b', {}, 'Lo que se pidió:'), el('blockquote', { class: 'pz-prompt-ver' }, p.prompt)) : null,
-      (p.ia_skills || []).length ? el('p', { class: 'ayuda' }, `🧠 Skills usadas: ${p.ia_skills.join(' · ')}`) : null].filter(Boolean));
+      (p.ia_skills || []).length ? el('p', { class: 'ayuda' }, `🧠 Skills usadas: ${p.ia_skills.join(' · ')}`) : null,
+      el('div', { class: 'pz-acc' }, el('button', { type: 'button', class: 'ghost mini', title: 'Compara lo que propuso la IA con cómo lo has dejado y propone mejoras para las Skills (las revisas tú antes de aplicarlas). Se hace solo al marcarlo como enviado.', onclick: async (ev) => {
+        const b = ev.currentTarget; b.disabled = true; b.textContent = '🧠 Aprendiendo…';
+        try { const r = await api('POST', `/api/presupuestos/${p.id}/aprender`); aviso(r.propuestas ? `${r.propuestas} mejora(s) propuesta(s): revísalas` : 'No hay nada nuevo que aprender de este presupuesto'); if (r.propuestas) dialogoSkills(); }
+        catch (e) { aviso(e.message); } finally { b.disabled = false; b.textContent = '🧠 Aprender de este presupuesto'; }
+      } }, '🧠 Aprender de este presupuesto'), p.aprendido_en ? el('span', { class: 'ayuda' }, ` · aprendido el ${fecha(p.aprendido_en)}`) : null)].filter(Boolean));
     const ev = p.eventos || [];
     if (ev.length) caja.append(el('div', { class: 'pz-eventos' }, el('b', {}, 'Correo con el cliente:'),
       el('ul', {}, ev.map((e) => el('li', { class: `pz-ev-${e.clase}` }, el('span', { class: 'pz-ev-f' }, new Date(e.creado).toLocaleString('es-ES', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })), ' ', e.texto,
@@ -337,7 +342,15 @@
     if (!pa) { est.partida = null; url(); pintarFicha(); return; }
     if (!est.tarifa) est.tarifa = await api('GET', '/api/tarifa').catch(() => ({ mano_obra: [], maquinaria: [] }));
     const putP = (b, msg) => hacer('PUT', `/api/presupuesto-partidas/${pa.id}`, b, msg);
-    const putL = (l, b, msg) => hacer('PUT', `/api/presupuesto-lineas/${l.id}`, b, msg);
+    const putL = async (l, b, msg) => {
+      const r = await hacer('PUT', `/api/presupuesto-lineas/${l.id}`, b, msg);
+      const s = r?.sugerencia_tarifa;
+      // mano de obra / maquinaria corregida: ¿se fija en la tarifa para los próximos presupuestos?
+      if (s && confirm(`Has puesto ${pu(s.nuevo)} €/${s.unidad || 'h'} para «${s.nombre}» y la tarifa da ${s.actual == null ? 'sin coste' : `${pu(s.actual)} €/${s.unidad || 'h'}`}.\n\n¿Lo fijo en la Tarifa para los próximos presupuestos?`)) {
+        try { await api('POST', '/api/presupuestos/tarifa-desde-linea', { tarifa_id: s.tarifa_id, coste: s.nuevo }); est.tarifa = null; pintar(); aviso(`Tarifa: ${s.nombre} a ${pu(s.nuevo)} €/${s.unidad || 'h'}`); } catch (e) { aviso(e.message); }
+      }
+      return r;
+    };
     const lineas = [];
     for (const [tipo, titulo] of TIPOS) {
       const ls = pa.lineas.filter((l) => l.tipo === tipo);
@@ -550,6 +563,28 @@
     let lista = await api('GET', '/api/presupuesto-skills');
     let sel = lista[0]?.id || null;
     const izq = el('div', { class: 'pz-sk-lista' }); const der = el('div', { class: 'pz-sk-ed' });
+    // Propuestas aprendidas de presupuestos corregidos: Aceptar (se añade a la Skill), Editar, Descartar
+    const props = el('div', { class: 'pz-sk-props' });
+    const pintarProps = async () => {
+      const ps = await api('GET', '/api/presupuesto-aprendizajes').catch(() => []);
+      if (!ps.length) { props.replaceChildren(); return; }
+      props.replaceChildren(el('details', { open: true }, el('summary', {}, `💡 Propuestas aprendidas de presupuestos corregidos (${ps.length})`),
+        ...ps.map((a) => {
+          const ta = el('textarea', { class: 'pz-md pz-prop-txt', value: a.texto, rows: 4, hidden: true, 'aria-label': 'Texto de la propuesta' });
+          const ver = el('div', { class: 'pz-prop-ver' }, a.texto);
+          const destino = el('select', { 'aria-label': 'Skill donde se añade' },
+            el('option', { value: '' }, a.skill_id ? '' : `➕ Nueva: ${String(a.skill_nombre).replace(/\s*\[.*\]$/, '')}`),
+            ...lista.map((x) => el('option', { value: x.id, selected: x.id === a.skill_id }, x.nombre)));
+          if (a.skill_id) destino.firstChild.remove();
+          return el('div', { class: 'pz-prop' },
+            el('div', {}, el('b', {}, a.titulo), el('span', { class: 'ayuda' }, ` · de ${a.codigo || '—'}`)),
+            a.motivo ? el('p', { class: 'ayuda' }, `Por qué: ${a.motivo}`) : null, ver, ta,
+            el('div', { class: 'pz-acc' }, el('label', { class: 'ayuda' }, 'Añadir a ', destino),
+              el('button', { type: 'button', class: 'primario mini', onclick: async () => { try { const r = await api('POST', `/api/presupuesto-aprendizajes/${a.id}/aceptar`, { texto: ta.hidden ? undefined : ta.value, skill_id: destino.value || undefined }); lista = await api('GET', '/api/presupuesto-skills'); sel = r.skill_id; pintarSk(); pintarProps(); aviso('Añadida a la Skill (queda la versión anterior)'); } catch (e) { aviso(e.message); } } }, '✓ Aceptar'),
+              el('button', { type: 'button', class: 'ghost mini', onclick: () => { ta.hidden = !ta.hidden; ver.hidden = !ta.hidden; } }, '✎ Editar'),
+              el('button', { type: 'button', class: 'ghost mini', onclick: async () => { await api('POST', `/api/presupuesto-aprendizajes/${a.id}/descartar`); pintarProps(); } }, '✕ Descartar')));
+        })));
+    };
     const pintarSk = () => {
       izq.replaceChildren(...lista.map((x) => el('button', { type: 'button', class: `pz-item${x.id === sel ? ' sel' : ''}${x.activo ? '' : ' apagada'}`, onclick: () => { sel = x.id; pintarSk(); } },
         el('b', {}, `${x.nombre}.md`), el('small', {}, `v${x.version}${x.siempre ? ' · siempre' : ''}${x.activo ? '' : ' · desactivada'} · ${x.cambiado_por_nombre || '—'} ${fecha(x.cambiado_en)}`))),
@@ -581,9 +616,9 @@
       } }));
     const d = el('dialog', { class: 'dlg-cos pz-dlg pz-dlg-skills' }, el('h2', {}, '🧠 Skills de presupuestación'),
       el('p', { class: 'ayuda' }, 'Documentos en Markdown con vuestra forma de presupuestar: descomposiciones tipo, rendimientos (h/ml…), reglas y cómo redactar la descripción comercial. La IA lee las que se usan siempre y las de producto cuyas palabras aparecen en la petición o en los adjuntos (o las que marques al crear). Con «⬆ Importar» subes un .zip con varias de golpe.'),
-      el('div', { class: 'pz-sk' }, izq, der),
+      props, el('div', { class: 'pz-sk' }, izq, der),
       el('div', { class: 'acciones' }, importar, el('button', { type: 'button', class: 'ghost', onclick: () => d.close() }, 'Cerrar')));
-    d.addEventListener('close', () => d.remove()); document.body.append(d); pintarSk(); d.showModal();
+    d.addEventListener('close', () => d.remove()); document.body.append(d); pintarSk(); pintarProps(); d.showModal();
   }
 
   async function iniciar() {
@@ -594,6 +629,7 @@
     est.id = Number(q.get('id')) || null; est.partida = Number(q.get('partida')) || null;
     $('#pz-nuevo').onclick = dialogoNuevo;
     $('#pz-skills').onclick = dialogoSkills;
+    if (q.get('skills')) dialogoSkills();
     est.soloLeads = q.get('vista') === 'leads';
     $('#pz-leads').onclick = () => { est.soloLeads = !est.soloLeads; const u = new URL(location); if (est.soloLeads) u.searchParams.set('vista', 'leads'); else u.searchParams.delete('vista'); history.replaceState(null, '', u); cargarLista(); };
     let t = null; $('#pz-q').addEventListener('input', (ev) => { clearTimeout(t); t = setTimeout(() => { est.q = ev.target.value.trim(); cargarLista(); }, 250); });

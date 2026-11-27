@@ -39,6 +39,7 @@ async function precioMaterial(catalogoId, unidad, descripcion) {
   const info = { proveedor: h.proveedor, fecha: h.fecha, dias: h.dias, origen: h.origen, base: { precio: h.precio, unidad: h.unidad },
     cotizo: h.precio_orig != null && h.unidad_orig && h.unidad_orig !== h.unidad ? { precio: h.precio_orig, unidad: h.unidad_orig } : null };
   if (p == null) return { precio: null, estado_precio: 'estimado', fuente: null, precio_info: { ...info, aviso: `Hay precio en €/${h.unidad} pero falta la equivalencia a ${unidad}` } };
+  if (h.via === 'presupuesto') return { precio: +Number(p).toFixed(4), estado_precio: 'real', fuente: 'lista', precio_info: { ...info, presupuesto: true, aviso: `Tu precio (${h.nota || 'de un presupuesto'})` } };
   if (h.origen === 'estimado') return { precio: +Number(p).toFixed(4), estado_precio: 'estimado', fuente: 'lista', precio_info: { ...info, estimado: true, aviso: `Precio estimado (${h.nota || 'sin precio real todavía'}): conviene pedir precio` } };
   return { precio: +Number(p).toFixed(4), estado_precio: h.dias > DIAS_VIEJO ? 'estimado' : 'real', fuente: 'lista', precio_info: { ...info, viejo: h.dias > DIAS_VIEJO } };
 }
@@ -157,6 +158,20 @@ async function deLinea(lineaId) {
 const tocar = (id) => query('UPDATE presupuestos SET cambiado = now() WHERE id = $1', [id]);
 
 // Datos de una línea nueva según su tipo
+// Lo que se escribe a mano en un presupuesto pasa a la lista de precios (origen «presupuesto»): manda sobre los estimados,
+// nunca sobre un precio real de proveedor. Uno por línea (si se corrige, se sustituye; si se borra el precio, se quita).
+async function precioALista(lineaId) {
+  const { rows: [l] } = await query(`SELECT l.*, pp.presupuesto_id, p.codigo FROM presupuesto_lineas l JOIN presupuesto_partidas pp ON pp.id = l.partida_id
+                                       JOIN presupuestos p ON p.id = pp.presupuesto_id WHERE l.id = $1`, [lineaId]);
+  if (!l) return;
+  await query('DELETE FROM precios WHERE presupuesto_linea_id = $1', [l.id]);
+  if (l.precio == null || l.fuente !== 'manual' || !['material', 'auxiliar', 'subcontrata'].includes(l.tipo)) return;
+  const cot = l.precio_info?.cotizado;
+  const norm = require('./precios').norm;
+  await query(`INSERT INTO precios (catalogo_id, descripcion, desc_norm, precio, unidad, fecha, origen, via, unidad_base, precio_base, precio_orig, unidad_orig, presupuesto_id, presupuesto_linea_id, nota)
+               VALUES ($1,$2,$3,$4,$5,CURRENT_DATE,'manual','presupuesto',$5,$4,$6,$7,$8,$9,$10)`,
+  [l.catalogo_id, l.concepto, norm(l.concepto), l.precio, U.unidad(l.unidad) || 'ud', cot?.precio ?? null, cot?.unidad ?? null, l.presupuesto_id, l.id, `Puesto en el presupuesto ${l.codigo}`]);
+}
 async function lineaNueva(b, td) {
   const tipo = TIPOS.includes(b.tipo) ? b.tipo : null;
   if (!tipo) throw fallo(400, 'Tipo de línea no válido');
@@ -265,6 +280,8 @@ function montar(app, asyncH) {
     if (!sets.length) throw fallo(400, 'Nada que cambiar');
     sets.push('cambiado = now()');
     await query(`UPDATE presupuestos SET ${sets.join(', ')} WHERE id = $1`, vals);
+    // Al enviarlo por primera vez, aprende de lo que se corrigió (en segundo plano)
+    if (b.estado === 'enviado' && p.estado !== 'enviado' && !p.aprendido_en) require('./presupuestos-aprender').aprender(id, req.usuario.id).catch((e) => console.error('Aprender', id, e.message));
     res.json(await cargar(id));
   }));
 
@@ -414,7 +431,23 @@ function montar(app, asyncH) {
       poner('tarifa_id', pt.t.id); poner('concepto', pt.t.nombre); poner('unidad', pt.t.unidad || 'h'); poner('precio', pt.precio); poner('estado_precio', pt.estado_precio); poner('fuente', 'tarifa'); poner('precio_info', JSON.stringify(pt.precio_info));
     }
     if (sets.length) await query(`UPDATE presupuesto_lineas SET ${sets.join(', ')} WHERE id = $1`, vals);
-    await tocar(l.presupuesto_id); res.json(await cargar(l.presupuesto_id));
+    if ('precio' in b || b.catalogo_id || b.nuevo_material) await precioALista(l.id).catch((e) => console.warn('precio a la lista', e.message));
+    // mano de obra / maquinaria corregida a mano: proponer fijarla en la tarifa
+    let sugerencia = null;
+    if ('precio' in b && l.tarifa_id && num(b.precio) != null) {
+      const t = (await require('./tarifa').datos()); const x = [...t.mano_obra, ...t.maquinaria].find((y) => y.id === l.tarifa_id);
+      if (x && Math.abs((x.coste_efectivo ?? 0) - num(b.precio)) > 0.005) sugerencia = { tarifa_id: x.id, nombre: x.nombre, clase: x.clase, unidad: x.unidad, actual: x.coste_efectivo, nuevo: num(b.precio) };
+    }
+    await tocar(l.presupuesto_id); res.json({ ...(await cargar(l.presupuesto_id)), sugerencia_tarifa: sugerencia });
+  }));
+  // Fijar en la tarifa el coste corregido en un presupuesto: { tarifa_id, coste }
+  app.post('/api/presupuestos/tarifa-desde-linea', ver, asyncH(async (req, res) => {
+    const id = Number(req.body?.tarifa_id); const c = num(req.body?.coste);
+    if (!id || c == null || c < 0) throw fallo(400, 'Datos no válidos');
+    const { rows: [t] } = await query('SELECT clase FROM tarifa WHERE id = $1', [id]);
+    if (!t) throw fallo(404, 'No está en la tarifa');
+    await query(`UPDATE tarifa SET ${t.clase === 'mano_obra' ? 'coste_presupuesto' : 'coste_manual'} = $2, cambiado_por = $3, cambiado_en = now() WHERE id = $1`, [id, c, req.usuario.id]);
+    res.json({ ok: true });
   }));
   app.delete('/api/presupuesto-lineas/:id', ver, asyncH(async (req, res) => {
     const l = await deLinea(Number(req.params.id));
@@ -545,7 +578,7 @@ function montar(app, asyncH) {
 // convirtiendo cantidad y precio; el precio se sigue viendo en la unidad que tenía (€/kg).
 async function normalizarUnidades() {
   const { rows: [h] } = await query(`SELECT 1 FROM ajustes WHERE clave = 'migr_pres_unidades'`);
-  if (h) return;
+  if (h) return preciosAntiguosALista();
   const { rows } = await query(`SELECT id, catalogo_id, unidad, por_ud::float AS por_ud, precio::float AS precio FROM presupuesto_lineas WHERE tipo = 'material' AND catalogo_id IS NOT NULL AND calculo IS NULL`);
   let n = 0;
   for (const l of rows) {
@@ -557,6 +590,17 @@ async function normalizarUnidades() {
   }
   await query(`INSERT INTO ajustes (clave, valor) VALUES ('migr_pres_unidades', $1) ON CONFLICT (clave) DO NOTHING`, [JSON.stringify({ lineas: n })]);
   if (n) console.log(`Presupuestos: ${n} línea(s) de material pasadas a la unidad de su material`);
+  await preciosAntiguosALista();
+}
+
+// Una vez: los precios ya corregidos a mano en presupuestos pasan a la Lista de precios (origen «presupuesto»)
+async function preciosAntiguosALista() {
+  const { rows: [h] } = await query(`SELECT 1 FROM ajustes WHERE clave = 'migr_pres_precios_lista'`);
+  if (h) return;
+  const { rows } = await query(`SELECT id FROM presupuesto_lineas WHERE fuente = 'manual' AND precio IS NOT NULL AND tipo IN ('material', 'auxiliar', 'subcontrata')`);
+  for (const l of rows) await precioALista(l.id).catch((e) => console.warn('precio a lista', l.id, e.message));
+  await query(`INSERT INTO ajustes (clave, valor) VALUES ('migr_pres_precios_lista', $1) ON CONFLICT (clave) DO NOTHING`, [JSON.stringify({ lineas: rows.length })]);
+  if (rows.length) console.log(`Presupuestos: ${rows.length} precio(s) corregido(s) a mano pasados a la Lista de precios`);
 }
 
 module.exports = { normalizarUnidades, montar, cargar, precioMaterial, precioTarifa };

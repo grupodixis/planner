@@ -3284,6 +3284,11 @@ body.gt-mano-on, body.gt-mano-on * { cursor: grabbing !important; user-select: n
 .pz-skills-elegir > p { flex-basis: 100%; margin: 0; }
 .pz-md { width: 100%; min-height: 50vh; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12.5px; line-height: 1.55; color: var(--tinta, #eee); background: #141414; }
 @media (max-width: 800px) { .pz-sk { grid-template-columns: 1fr; } }
+.pz-sk-props details { border: 1px solid var(--borde, #ddd); border-radius: 8px; padding: 6px 10px; margin-bottom: 10px; max-height: 40vh; overflow: auto; }
+.pz-sk-props summary { font-weight: 600; cursor: pointer; }
+.pz-prop { border-top: 1px solid var(--borde, #eee); padding: 8px 0; }
+.pz-prop-ver { white-space: pre-wrap; font-size: .92em; background: rgba(127,127,127,.12); color: inherit; border-radius: 6px; padding: 6px 8px; margin: 4px 0; }
+.pz-prop .pz-acc { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
 .pz-azul { color: #9cc3ff; } .pz-rojo { color: #ff8a8a; }
 .pz-dlg.pz-dlg-skills, .pz-dlg.pz-dlg-ancho { max-width: none; }
 .pz-lista-cab { flex-wrap: wrap; gap: 6px; } .pz-lista-bot button { white-space: nowrap; }

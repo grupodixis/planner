@@ -43,7 +43,7 @@
     const mo = d.mano_obra.filter((t) => ocultas || t.activo);
     $('#ta-mo').replaceChildren(
       el('thead', {}, el('tr', {}, el('th', {}, 'Categoría'), el('th', { class: 'n' }, 'Venta (tarifa)'), el('th', { class: 'n' }, 'Coste ficha'), el('th', { class: 'n' }, 'Rendimiento real'),
-        el('th', { class: 'n' }, 'Coste efectivo'), el('th', { class: 'n' }, 'Margen s/ tarifa'), el('th', {}, 'Base'), el('th', {}))),
+        el('th', { class: 'n' }, 'Coste para presupuestar'), el('th', { class: 'n' }, 'Margen s/ tarifa'), el('th', {}, 'Base'), el('th', {}))),
       el('tbody', {}, mo.length ? mo.map((t) => el('tr', { class: t.activo ? '' : 'oculta' },
         el('td', {}, el('b', {}, t.nombre), el('small', {}, `${t.operarios} operario${t.operarios === 1 ? '' : 's'}${t.sin_coste ? ` · ${t.sin_coste} sin coste en su ficha` : ''}`)),
         el('td', { class: 'n' }, importe(t, 'precio_venta', { placeholder: '€/h', 'aria-label': `Precio de venta de ${t.nombre}` }), el('span', { class: 'ayuda' }, ' €/h')),
@@ -51,7 +51,8 @@
         el('td', { class: 'n' }, importe(t, 'coste_manual', { placeholder: t.coste_calculado != null ? fmt(t.coste_calculado) : '€/h', title: 'Vacío = media del coste €/h de las fichas de sus operarios. Escríbelo para fijar otro en la tarifa.', 'aria-label': `Coste por hora de ${t.nombre}` }),
           el('span', { class: 'ayuda' }, ' €/h'), el('small', { class: 'ta-nota' }, t.coste_manual != null ? 'a mano' : 'media de las fichas')),
         el('td', { class: 'n' }, rendTxt(t)),
-        el('td', { class: 'n' }, el('b', {}, eur(t.coste_efectivo)), el('small', {}, '/h')),
+        el('td', { class: 'n' }, importe(t, 'coste_presupuesto', { placeholder: t.fijo ? fmt(t.coste_calculado_rend) : t.coste_efectivo != null ? fmt(t.coste_efectivo) : '€/h', title: 'El coste por hora que usan los presupuestos. Vacío = coste ficha ÷ rendimiento. Escríbelo para fijarlo (también se fija al corregirlo en un presupuesto).', 'aria-label': `Coste para presupuestar de ${t.nombre}` }),
+          el('span', { class: 'ayuda' }, ' €/h'), el('small', { class: 'ta-nota' }, t.fijo ? `fijado · por rendimiento saldría ${eur(t.coste_calculado_rend)}` : 'ficha ÷ rendimiento')),
         el('td', { class: `n ta-margen ${margenCls(t.margen_pct)}` }, t.margen_pct == null ? '—' : `${t.margen_pct} %`),
         el('td', { class: 'ayuda' }, t.horas ? `${fmt(t.horas)} h en ${t.tareas} tarea${t.tareas === 1 ? '' : 's'}` : '—'),
         el('td', {}, el('button', { type: 'button', class: 'ghost mini', title: t.activo ? 'No sale en la tarifa ni en Presupuestos' : 'Volver a mostrar', onclick: () => guardar(t.id, { activo: !t.activo }, t.activo ? 'Oculta' : 'Visible') }, t.activo ? 'Ocultar' : 'Mostrar'))))

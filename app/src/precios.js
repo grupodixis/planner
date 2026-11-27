@@ -95,10 +95,10 @@ async function cargaInicial() {
 async function habitual({ catalogo_id, descripcion }) {
   const { rows: [r] } = await query(
     `SELECT COALESCE(p.precio_base, p.precio)::float AS precio, COALESCE(p.unidad_base, p.unidad) AS unidad, p.fecha, p.origen, pr.nombre AS proveedor, (CURRENT_DATE - p.fecha) AS dias,
-            p.precio_orig::float AS precio_orig, p.unidad_orig, p.nota
+            p.precio_orig::float AS precio_orig, p.unidad_orig, p.nota, p.via, p.presupuesto_id
        FROM precios p LEFT JOIN proveedores pr ON pr.id = p.proveedor_id
       WHERE ${catalogo_id ? 'p.catalogo_id = $1' : 'p.desc_norm = $1'}
-      ORDER BY (p.origen = 'estimado'), p.fecha DESC, (p.origen = 'pedido') DESC, p.id DESC LIMIT 1`, [catalogo_id || norm(descripcion)]);
+      ORDER BY (p.origen = 'estimado'), (p.via = 'presupuesto') IS TRUE, p.fecha DESC, (p.origen = 'pedido') DESC, p.id DESC LIMIT 1`, [catalogo_id || norm(descripcion)]);
   return r ? { ...r, viejo: r.dias > DIAS_VIEJO } : null;
 }
 // Para las líneas de una petición: { linea_id: habitual } (sin contar los precios de esta misma petición)
@@ -112,7 +112,7 @@ async function habitualesDeSolicitud(solId) {
       `SELECT COALESCE(p.precio_base, p.precio)::float AS precio, COALESCE(p.unidad_base, p.unidad) AS unidad, p.fecha, p.origen, pr.nombre AS proveedor, (CURRENT_DATE - p.fecha) AS dias
          FROM precios p LEFT JOIN proveedores pr ON pr.id = p.proveedor_id
         WHERE ${l.catalogo_id ? 'p.catalogo_id = $1' : 'p.desc_norm = $1'} AND (p.sp_id IS NULL OR p.sp_id NOT IN (SELECT id FROM solicitud_proveedores WHERE solicitud_id = $2))
-        ORDER BY (p.origen = 'estimado'), p.fecha DESC, (p.origen = 'pedido') DESC, p.id DESC LIMIT 1`, [l.catalogo_id || norm(l.descripcion), solId]);
+        ORDER BY (p.origen = 'estimado'), (p.via = 'presupuesto') IS TRUE, p.fecha DESC, (p.origen = 'pedido') DESC, p.id DESC LIMIT 1`, [l.catalogo_id || norm(l.descripcion), solId]);
     if (!r) continue;
     // en la unidad de la línea (si el habitual está en €/ml y pedimos barras, se convierte)
     const enLinea = U.unidad(r.unidad) === U.unidad(l.unidad) ? r.precio : await U.precioEn(l.catalogo_id, r.precio, r.unidad, l.unidad);
@@ -198,7 +198,7 @@ function montar(app, asyncH, auth) {
            FROM precios p LEFT JOIN proveedores pr ON pr.id = p.proveedor_id
           WHERE ($1 = '' OR p.desc_norm LIKE '%' || $1 || '%' OR EXISTS (SELECT 1 FROM catalogo c WHERE c.id = p.catalogo_id AND translate(lower(c.nombre), 'áéíóúüñàèòç', 'aeiouunaeoc') LIKE '%' || $1 || '%'))
             AND ($2::int IS NULL OR p.proveedor_id = $2)),
-       u AS (SELECT DISTINCT ON (clave) clave, pb, ub, precio_orig, unidad_orig, proveedor, fecha, origen FROM b ORDER BY clave, (origen = 'estimado'), fecha DESC, (origen = 'pedido') DESC, id DESC)
+       u AS (SELECT DISTINCT ON (clave) clave, pb, ub, precio_orig, unidad_orig, proveedor, fecha, origen FROM b ORDER BY clave, (origen = 'estimado'), (via = 'presupuesto') IS TRUE, fecha DESC, (origen = 'pedido') DESC, id DESC)
        SELECT b.clave, max(b.catalogo_id) AS catalogo_id, COALESCE(max(c.nombre), max(b.descripcion)) AS material, max(c.familia) AS familia,
               u.pb::float AS ultimo, u.proveedor AS ultimo_proveedor, u.fecha AS ultimo_fecha, u.ub AS unidad, u.origen AS ultimo_origen, (CURRENT_DATE - u.fecha) AS dias,
               u.precio_orig::float AS ultimo_orig, u.unidad_orig AS ultimo_unidad_orig,

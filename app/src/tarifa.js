@@ -52,7 +52,7 @@ async function datos() {
   // las de oficina nacen ocultas (no se presupuestan por horas); se pueden mostrar
   for (const c of cats) await query(`INSERT INTO tarifa (clase, clave, nombre, activo) VALUES ('mano_obra', $1, $1, $2) ON CONFLICT DO NOTHING`, [c, !/administr|director|rrhh|recursos humanos|comercial|log[ií]stica|contab/i.test(c)]);
   for (const m of maqs) await query(`INSERT INTO tarifa (clase, clave, nombre) VALUES ('maquinaria', $1, $2) ON CONFLICT DO NOTHING`, [m.clave, m.nombre]);
-  const { rows: tar } = await query(`SELECT t.*, t.precio_venta::float AS precio_venta, t.coste_manual::float AS coste_manual, u.nombre AS cambiado_por_nombre
+  const { rows: tar } = await query(`SELECT t.*, t.precio_venta::float AS precio_venta, t.coste_manual::float AS coste_manual, t.coste_presupuesto::float AS coste_presupuesto, u.nombre AS cambiado_por_nombre
                                        FROM tarifa t LEFT JOIN usuarios u ON u.id = t.cambiado_por ORDER BY t.clase, t.orden, t.nombre`);
 
   const personas = ops.map((o) => {
@@ -67,6 +67,8 @@ async function datos() {
     const prev = ps.reduce((s, o) => s + (rend[o.id]?.prev || 0), 0); const real = ps.reduce((s, o) => s + (rend[o.id]?.real || 0), 0);
     const tareas = ps.reduce((s, o) => s + (rend[o.id]?.tareas || 0), 0);
     const c = calcular(t.coste_manual ?? coste, prev, real);
+    // fijado para presupuestar (lo que se corrige en los presupuestos): manda sobre el calculado con el rendimiento
+    if (t.coste_presupuesto != null) { c.coste_calculado_rend = c.coste_efectivo; c.coste_efectivo = t.coste_presupuesto; c.fijo = true; }
     return { ...t, operarios: ps.length, sin_coste: ps.length - conCoste.length, coste_ficha: t.coste_manual ?? coste, coste_calculado: coste, horas: r2(real), tareas, ...c, margen_pct: margen(t.precio_venta, c.coste_efectivo) };
   });
   const maquinaria = tar.filter((t) => t.clase === 'maquinaria').map((t) => {
@@ -92,7 +94,7 @@ function montar(app, asyncH) {
   app.put('/api/tarifa/:id', ver, asyncH(async (req, res) => {
     const b = req.body || {}; const sets = []; const vals = [Number(req.params.id)];
     const poner = (k, v) => { vals.push(v); sets.push(`${k} = $${vals.length}`); };
-    for (const k of ['precio_venta', 'coste_manual']) if (k in b) {
+    for (const k of ['precio_venta', 'coste_manual', 'coste_presupuesto']) if (k in b) {
       const v = num(b[k]); if (v != null && !(v >= 0 && v < 1e6)) throw fallo(400, 'Importe no válido'); poner(k, v);
     }
     if ('unidad' in b) { const u = String(b.unidad || '').trim().slice(0, 12); if (!u) throw fallo(400, 'Falta la unidad'); poner('unidad', u); }
