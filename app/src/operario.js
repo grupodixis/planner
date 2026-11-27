@@ -392,6 +392,7 @@ function montar(app, asyncH) {
     if (auth.tiene(u, 'recursos')) out.cap_validar = await require('./capacidades').porValidar();
     out.incidencias = await require('./incidencias').contar(u);
     if (auth.tiene(u, 'compras')) out.correo = (await query(`SELECT count(*)::int AS n FROM correos WHERE estado IN ('revisar','sin_asignar','error')`)).rows[0].n;
+    if (auth.tiene(u, 'presupuestos')) out.leads = (await query(`SELECT count(*)::int AS n FROM presupuestos WHERE estado = 'lead'`)).rows[0].n;
     if (auth.tiene(u, 'autorizar_horas_extra')) out.horas_extra = await require('./horas-extra').contarPendientes();
     if (auth.tiene(u, 'autorizar_compras_locales')) out.cl_autorizar = (await query(`SELECT count(*)::int AS n FROM compras_locales WHERE estado = 'pendiente'`)).rows[0].n;
     res.json(out);

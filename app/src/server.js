@@ -315,6 +315,7 @@ require('./correo-ia').montar(app, asyncH, auth);   // Correo entrante: lo que l
 require('./precios').montar(app, asyncH, auth);   // Lista de precios y lo que aprende la IA de cada proveedor
 require('./tarifa').montar(app, asyncH);   // Tarifa de mano de obra y maquinaria (venta y coste por rendimiento real)
 require('./presupuestos').montar(app, asyncH);   // Presupuestos: capítulos › partidas › descomposición, precios de la lista y la tarifa
+require('./presupuestos-leads').montar(app, asyncH);   // Leads capturados desde el móvil
 require('./presupuestos-ia').montar(app, asyncH);   // Presupuestos con IA (texto + adjuntos) y Skills de presupuestación
 require('./incidencias').montar(app, asyncH);   // incidencias: material, transporte, calidad… con reclamación y cierre
 require('./pedido-transporte').montar(app, asyncH);   // cómo llega cada pedido: proveedor, recogida o almacén del transportista
@@ -339,6 +340,8 @@ app.get('/api/tareas/:id/historial', asyncH(async (req, res) => {
 
 // no-cache: el navegador revalida siempre (ETag), así tras cada actualización
 // nadie se queda con un JavaScript antiguo que no entiende los datos nuevos
+// «Compartir › Planéalo» sin el service worker activo (primera vez): se abre Capturar (lo compartido se pierde)
+app.post('/compartir', (req, res) => res.redirect(303, '/mi-dia.html?vista=capturar&compartido=0'));
 app.use(express.static(path.join(__dirname, '..', 'public'), {
   setHeaders: (res) => res.setHeader('Cache-Control', 'no-cache'),
 }));

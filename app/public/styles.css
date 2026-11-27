@@ -3288,3 +3288,20 @@ body.gt-mano-on, body.gt-mano-on * { cursor: grabbing !important; user-select: n
 .pz-dlg.pz-dlg-skills, .pz-dlg.pz-dlg-ancho { max-width: none; }
 .pz-lista-cab { flex-wrap: wrap; gap: 6px; } .pz-lista-bot button { white-space: nowrap; }
 dialog.pz-dlg { width: min(760px, calc(100vw - 32px)); } dialog.pz-dlg-ancho { width: min(880px, calc(100vw - 32px)); } dialog.pz-dlg-skills { width: min(1100px, calc(100vw - 32px)); }
+
+/* Leads (Presupuestos) */
+#pz-leads.activo { background: #3a2a10; border-color: #f59e0b; color: #fbbf24; }
+.pz-item-lead { border-left: 3px solid #f59e0b; }
+.pz-lead-cab { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; align-items: flex-start; }
+.pz-lead-chip { background: #3a2a10; color: #fbbf24; border-radius: 999px; padding: 2px 10px; font-size: 13px; font-weight: 600; }
+.pz-lead-tit { width: 100%; font-size: 18px; font-weight: 600; margin: 10px 0 6px; }
+.pz-lead-adj { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0; align-items: center; }
+.pz-lead-adj img { width: 140px; height: 105px; object-fit: cover; border-radius: 8px; border: 1px solid #2a3340; }
+.pz-lead-ia { background: #141c26; border: 1px solid #22303f; border-radius: 8px; padding: 8px 12px; margin: 8px 0; }
+.pz-lead-ia p { margin: 4px 0; }
+.pz-lead-datos { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 8px 14px; border: 1px solid #2a3340; border-radius: 8px; padding: 10px 12px; margin: 10px 0; }
+.pz-lead-datos legend { font-size: 12px; color: #9aa4b2; padding: 0 4px; }
+.pz-lead-dato { display: flex; flex-direction: column; gap: 3px; font-size: 12px; color: #9aa4b2; }
+.pz-lead-dato input { font-size: 14px; }
+.pz-lead-tel { display: flex; gap: 6px; align-items: flex-end; } .pz-lead-tel .pz-lead-dato { flex: 1; min-width: 0; }
+.cap-doc { display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 26px; } .cap-doc small { font-size: 10px; max-width: 70px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

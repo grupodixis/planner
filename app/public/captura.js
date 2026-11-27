@@ -30,8 +30,14 @@
     return c.find((t) => window.MediaRecorder && MediaRecorder.isTypeSupported(t)) || '';
   }
 
+  // al compartir desde otra app, a veces el archivo llega sin tipo: se deduce de la extensión
+  const POR_EXT = { pdf: 'application/pdf', jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', webp: 'image/webp', heic: 'image/heic', heif: 'image/heif',
+    doc: 'application/msword', docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', xls: 'application/vnd.ms-excel',
+    xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', odt: 'application/vnd.oasis.opendocument.text',
+    ods: 'application/vnd.oasis.opendocument.spreadsheet', txt: 'text/plain', csv: 'text/csv', mp4: 'video/mp4', mov: 'video/quicktime', m4a: 'audio/x-m4a', mp3: 'audio/mpeg' };
+  const tipoDe = (blob, nombre) => ((blob.type || '').split(';')[0].replace(/^application\/octet-stream$/, '')) || POR_EXT[String(nombre || '').split('.').pop().toLowerCase()] || 'application/octet-stream';
   async function subirBlob(blob, nombre) {
-    const tipo = (blob.type || '').split(';')[0] || 'application/octet-stream';
+    const tipo = tipoDe(blob, nombre);
     const r = await fetch('/api/archivos', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': tipo, 'X-Nombre': encodeURIComponent(nombre) }, body: blob });
     const d = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error(d.error || `Error ${r.status}`);
@@ -46,11 +52,11 @@
     const minis = el('div', { class: 'cap-adjuntos' });
     const grab = el('div', { class: 'cap-grabando', hidden: true });
     const inFoto = el('input', { type: 'file', accept: 'image/*', capture: 'environment', hidden: true });
-    const inGaleria = el('input', { type: 'file', accept: 'image/*,video/*,audio/*,application/pdf', multiple: '', hidden: true });
+    const inGaleria = el('input', { type: 'file', accept: 'image/*,video/*,audio/*,application/pdf,.doc,.docx,.xls,.xlsx,.odt,.ods,.txt,.csv', multiple: '', hidden: true });
     const btnAudio = el('button', { type: 'button', class: 'cap-btn' }, el('span', { 'aria-hidden': 'true' }, '🎤'), 'Audio');
     const btnVideo = el('button', { type: 'button', class: 'cap-btn' }, el('span', { 'aria-hidden': 'true' }, '📹'), 'Vídeo 30 s');
     const btnFoto = el('button', { type: 'button', class: 'cap-btn', onclick: () => inFoto.click() }, el('span', { 'aria-hidden': 'true' }, '📷'), 'Foto');
-    const btnGal = el('button', { type: 'button', class: 'cap-btn', onclick: () => inGaleria.click() }, el('span', { 'aria-hidden': 'true' }, '🖼️'), 'De la galería');
+    const btnGal = el('button', { type: 'button', class: 'cap-btn', onclick: () => inGaleria.click() }, el('span', { 'aria-hidden': 'true' }, '🖼️'), 'Galería o archivo');
     const chips = el('div', { class: 'md-chips cap-cats', role: 'radiogroup', 'aria-label': 'Qué tipo de asunto es (opcional)' });
     const selDonde = el('select', { 'aria-label': 'De qué trabajo, proyecto u OT es' });
     const selOT = el('select', { 'aria-label': 'OT', hidden: true });
@@ -71,12 +77,12 @@
       minis.replaceChildren(...est.adjuntos.map((a, i) => el('span', { class: `cap-adj ${a.clase}` },
         a.clase === 'foto' ? el('img', { src: a.url, alt: 'foto' })
           : a.clase === 'video' ? el('video', { src: a.url, muted: true, playsinline: '', preload: 'metadata' })
-            : a.clase === 'audio' ? el('audio', { src: a.url, controls: '' }) : el('span', {}, '📄'),
+            : a.clase === 'audio' ? el('audio', { src: a.url, controls: '' }) : el('span', { class: 'cap-doc', title: a.nombre || '' }, '📄', el('small', {}, (a.nombre || '').slice(0, 18))),
         a.subiendo ? el('span', { class: 'cap-subiendo' }, 'subiendo…') : null,
         el('button', { type: 'button', class: 'cap-quitar', 'aria-label': 'Quitar', onclick: () => { est.adjuntos.splice(i, 1); pintarAdjuntos(); } }, '✕'))));
     }
     async function añadir(blob, nombre, clase) {
-      const a = { url: URL.createObjectURL(blob), clase, subiendo: true, id: null };
+      const a = { url: URL.createObjectURL(blob), clase, subiendo: true, id: null, nombre };
       est.adjuntos.push(a); pintarAdjuntos();
       try {
         a.id = clase === 'foto' ? await window.s360.subirArchivo(new File([blob], nombre, { type: blob.type })) : await subirBlob(blob, nombre);
@@ -86,15 +92,34 @@
       }
       a.subiendo = false; pintarAdjuntos();
     }
-    const claseDe = (t) => (t.startsWith('image/') ? 'foto' : t.startsWith('video/') ? 'video' : t.startsWith('audio/') ? 'audio' : 'doc');
+    const claseDe = (t) => (/^image\/(jpeg|png|webp)$/.test(t) ? 'foto' : t.startsWith('video/') ? 'video' : t.startsWith('audio/') ? 'audio' : 'doc');
     inFoto.onchange = () => { for (const f of inFoto.files) añadir(f, f.name || 'foto.jpg', 'foto'); inFoto.value = ''; };
     inGaleria.onchange = async () => {
       for (const f of inGaleria.files) {
         if (f.type.startsWith('video/') && !(await duracionOk(f))) { toast('El vídeo pasa de 30 segundos: recórtalo o grábalo aquí', true); continue; }
-        añadir(f, f.name || 'archivo', claseDe(f.type));
+        añadir(f, f.name || 'archivo', claseDe(tipoDe(f, f.name)));
       }
       inGaleria.value = '';
     };
+    // Lo compartido desde otra app del móvil («Compartir › Planéalo»): el service worker lo deja en una caché
+    async function recogerCompartido() {
+      if (!window.caches) return;
+      const cache = await caches.open('planealo-compartido'); const claves = await cache.keys();
+      if (!claves.length) return;
+      for (const k of claves) {
+        const r = await cache.match(k); await cache.delete(k);
+        if (!r) continue;
+        if (k.url.endsWith('/compartido/texto')) {
+          const t = await r.text(); if (t && !texto.value.includes(t)) texto.value = [texto.value, t].filter(Boolean).join('\n');
+          continue;
+        }
+        const blob = await r.blob(); const nombre = decodeURIComponent(r.headers.get('X-Nombre') || 'archivo');
+        const f = new File([blob], nombre, { type: tipoDe(blob, nombre) });
+        añadir(f, nombre, claseDe(f.type));
+      }
+      toast('Lo compartido está listo: elige qué es y envíalo');
+    }
+
     function duracionOk(f) {
       return new Promise((ok) => {
         const v = document.createElement('video');
@@ -166,6 +191,10 @@
         onclick: () => { est.categoria = est.categoria === k ? null : k; pintarOpciones(); },
       }, t)));
       selMaq.hidden = est.categoria !== 'averia';
+      const lead = est.categoria === 'lead';
+      selDonde.hidden = lead; selOT.hidden = lead || !selDonde.value.startsWith('p');
+      enviar.textContent = lead ? '🎯 Enviar a Comercial como lead' : 'Enviar a la bandeja';
+      texto.placeholder = lead ? 'Quién es, qué necesita, dónde, teléfono… (o una foto del cartel de la obra, una tarjeta, un plano)' : '¿Qué pasa? Escríbelo, o graba un audio o un vídeo…';
       const maqSel = selMaq.value;
       selMaq.replaceChildren(el('option', { value: '' }, '¿Qué máquina?'), ...o.maquinas.map((m) => el('option', { value: m.id }, m.nombre)));
       selMaq.value = maqSel;
@@ -196,7 +225,7 @@
       if (est.adjuntos.some((a) => a.subiendo)) return toast('Espera a que termine de subir', true);
       const ids = est.adjuntos.map((a) => a.id).filter(Boolean);
       if (!texto.value.trim() && !ids.length) return toast('Escribe algo, graba un audio o haz una foto o vídeo', true);
-      const v = selDonde.value;
+      const v = est.categoria === 'lead' ? '' : selDonde.value;
       const tramo = v.startsWith('t') ? est.op.tramos_hoy.find((t) => `t${t.id}` === v) : null;
       const cuerpo = {
         texto: texto.value, categoria: est.categoria, archivos: ids,
@@ -207,8 +236,8 @@
       };
       enviar.disabled = true;
       try {
-        await api('POST', '/api/capturas', cuerpo);
-        toast('Enviado a la bandeja');
+        const r = await api('POST', '/api/capturas', cuerpo);
+        toast(r?.lead ? `🎯 Lead enviado a Comercial (${r.lead.codigo})` : r?.offline ? 'Guardado: se enviará al volver la cobertura' : 'Enviado a la bandeja');
         texto.value = ''; est.adjuntos = []; est.categoria = null; pintarAdjuntos(); pintarOpciones();
         await cargarLista();
       } catch (e) { toast(e.message, true); } finally { enviar.disabled = false; }
@@ -226,6 +255,7 @@
         window.s360.adjuntos(c.archivos),
         c.orden_codigo || c.proyecto_codigo ? el('div', { class: 'ayuda' }, [c.proyecto_codigo, c.orden_codigo].filter(Boolean).join(' · ')) : null,
         c.estado === 'tarea' && c.tarea_creada ? el('div', { class: 'ayuda' }, `→ Tarea: ${c.tarea_creada}`) : null,
+        c.presupuesto_codigo ? el('div', { class: 'ayuda' }, `→ ${c.presupuesto_estado === 'lead' ? 'Lead' : 'Presupuesto'} ${c.presupuesto_codigo}`) : null,
         c.estado === 'asunto' && c.responsable ? el('div', { class: 'ayuda' }, `→ Lo lleva ${c.responsable}${c.fecha_limite ? ` (para el ${new Date(`${c.fecha_limite}T12:00:00`).toLocaleDateString('es-ES')})` : ''}`) : null,
         c.nota ? el('div', { class: 'ayuda' }, `Nota: ${c.nota}`) : null,
         c.resolucion ? el('div', { class: 'md-ok' }, `✔ ${c.resolucion}`) : null)) : [el('li', { class: 'ayuda' }, 'Aún no has capturado nada.')]));
@@ -234,6 +264,7 @@
     async function recargar() {
       est.op = await api('GET', '/api/capturas/opciones');
       pintarOpciones();
+      await recogerCompartido().catch(() => {});
       await cargarLista();
     }
     recargar().catch((e) => toast(e.message, true));

@@ -1503,6 +1503,14 @@ Endpoints: `GET /api/ia`, `PUT /api/ia/ajustes`, `POST /api/ia/probar/:nombre`, 
   - En pantalla, botón «🧠 Skills»: editor, descargar o cargar .md, activar, «Usar en todos los presupuestos» y palabras clave.
 - **Permiso `presupuestos`** y rol **Comercial** (solo ese permiso). Administrador y Dirección también lo tienen. Presupuestos admite `presupuestos` o `costes`.
 
+**Leads desde el móvil** (`src/presupuestos-leads.js`)
+- Captura con `categoria = 'lead'` («🎯 Lead (posible cliente)»): no pasa por la Bandeja. `desdeCaptura` crea un presupuesto `estado = 'lead'` (`origen = 'captura'`, `captura_id`, `prompt` = la nota), copia los archivos de la captura a `presupuesto_adjuntos` (`archivos.leer`), deja `capturas.estado = 'lead'` y `presupuesto_id`, evento y aviso `lead_nuevo` a Comercial.
+- La IA lo lee en segundo plano (`leer`, JSON: título, resumen, cliente, otros contactos, obra, qué necesita, siguiente paso, dudas) → `presupuestos.lead_datos` (`{leyendo:true}` mientras tanto).
+- Pantalla: botón «🎯 Leads» en la lista (`?vista=leads`; también en el menú, con contador `pendientes.leads`), ficha propia con fotos, lo leído, datos editables (`PUT /api/presupuestos/:id/lead`), 📞 Llamar, añadir archivos y «Volver a leer» (`POST …/lead/leer`).
+- `POST …/lead/preparar {modo: ia|mano}`: busca el cliente por correo, teléfono o nombre o lo crea (con contacto), pasa a `preparacion` con la nota y lo leído como prompt y, con IA, lanza `generar`; avisa a quien lo capturó. `POST …/lead/descartar {motivo}` → anulado.
+- **Compartir desde otras apps (Android)**: `manifest.webmanifest` declara `share_target` (POST multipart a `/compartir`, campos `title`, `text`, `url` y `archivos`). El service worker lo intercepta, guarda texto y archivos en la caché `planealo-compartido` y redirige a `/mi-dia.html?vista=capturar&compartido=1`; Capturar los recoge al abrirse (y deduce el tipo por la extensión si llega sin él). Sin service worker, el servidor redirige a Capturar (sin los archivos). iPhone no permite que una web reciba lo compartido: allí, «Galería o archivo».
+- Capturas admiten documentos (Word, Excel, ODT/ODS, texto, CSV, HEIC), guardados en disco como los audios.
+
 **Peticiones por correo** (`src/presupuestos-correo.js`)
 - Cada cuenta de correo tiene `buzones.uso`: `compras` (por defecto) o `presupuestos`. Se elige en Correo entrante › Cuentas de correo › «Para qué es».
 - `correo-ia.analizar` desvía los correos de una cuenta de presupuestos a `presupuestos-correo.analizar` (otra instrucción a la IA: tipo `peticion|respuesta|otro`, `lo_que_pide`, datos del `cliente` y la `obra`, `titulo`). El texto citado se quita antes (`sinCitar`).

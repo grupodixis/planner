@@ -25,25 +25,26 @@ const CATEGORIAS = {
   calidad: 'Problema de calidad / error',
   seguridad: 'Seguridad',
   mejora: 'Idea / mejora',
+  lead: '🎯 Lead (posible cliente)',
   otro: 'Otro',
 };
 const ESTADOS = {
   bandeja: 'En la bandeja', asunto: 'Asunto abierto', tarea: 'Convertida en tarea',
-  info: 'Información', resuelta: 'Resuelta', descartada: 'Descartada',
+  info: 'Información', resuelta: 'Resuelta', descartada: 'Descartada', lead: 'Lead para Comercial',
 };
 
 const SQL = `
   SELECT c.*, u.nombre AS autor, r.nombre AS recurso, p.codigo AS proyecto_codigo, p.nombre AS proyecto_nombre,
          o.codigo AS orden_codigo, o.titulo AS orden_titulo, t.nombre AS tarea, m.nombre AS maquina,
          ur.nombre AS responsable, uc.nombre AS clasificada_por_nombre, us.nombre AS resuelta_por_nombre,
-         tc.nombre AS tarea_creada, tc.estado AS tarea_creada_estado,
+         tc.nombre AS tarea_creada, tc.estado AS tarea_creada_estado, pz.codigo AS presupuesto_codigo, pz.estado AS presupuesto_estado,
          EXISTS (SELECT 1 FROM ausencias a WHERE a.recurso_id = c.maquina_id AND a.tipo = 'averia' AND a.hasta >= CURRENT_DATE) AS maquina_parada
     FROM capturas c
     LEFT JOIN usuarios u ON u.id = c.usuario_id LEFT JOIN recursos r ON r.id = c.recurso_id
     LEFT JOIN proyectos p ON p.id = c.proyecto_id LEFT JOIN ordenes o ON o.id = c.orden_id
     LEFT JOIN tareas t ON t.id = c.tarea_id LEFT JOIN recursos m ON m.id = c.maquina_id
     LEFT JOIN usuarios ur ON ur.id = c.responsable_id LEFT JOIN usuarios uc ON uc.id = c.clasificada_por
-    LEFT JOIN usuarios us ON us.id = c.resuelta_por LEFT JOIN tareas tc ON tc.id = c.tarea_creada_id`;
+    LEFT JOIN usuarios us ON us.id = c.resuelta_por LEFT JOIN tareas tc ON tc.id = c.tarea_creada_id LEFT JOIN presupuestos pz ON pz.id = c.presupuesto_id`;
 
 async function conArchivos(rows) {
   const adj = await archivos.de('captura', rows.map((c) => c.id));
@@ -124,6 +125,11 @@ function montar(app, asyncH) {
         titulo: `⚠ ${CATEGORIAS[b.categoria]}`, cuerpo: `${req.usuario.nombre}: ${(t || 'ver foto / vídeo').slice(0, 140)}`,
         url: '/bandeja.html', tag: `captura-${id}`, urgente: true,
       });
+    }
+    // lead: va directo a Comercial (Presupuestos › Leads), sin pasar por la bandeja
+    if (b.categoria === 'lead') {
+      const lead = await require('./presupuestos-leads').desdeCaptura(id, req.usuario);
+      return res.status(201).json({ id, lead });
     }
     res.status(201).json({ id });
   }));

@@ -68,6 +68,7 @@ async function cargar(id) {
     query('SELECT id, clase, texto, correo_id, creado FROM presupuesto_eventos WHERE presupuesto_id = $1 ORDER BY creado, id', [id]),
   ]);
   p.eventos = eventos;
+  if (p.captura_id) p.captura_autor = (await query('SELECT u.nombre FROM capturas c JOIN usuarios u ON u.id = c.usuario_id WHERE c.id = $1', [p.captura_id])).rows[0]?.nombre || null;
   // ofertas confirmadas de lo que se pidió: { sol_linea_id: [{precio, proveedor, sp_id}] }
   const solIds = [...new Set(lins.map((l) => l.sol_linea_id).filter(Boolean))];
   const ofertas = {};
@@ -266,12 +267,13 @@ function montar(app, asyncH) {
   app.get('/api/presupuestos', ver, asyncH(async (req, res) => {
     const { rows } = await query(`SELECT p.id FROM presupuestos p LEFT JOIN clientes c ON c.id = p.cliente_id LEFT JOIN obras o ON o.id = p.obra_id
       WHERE p.estado <> 'anulado' AND ($1 = '' OR (p.codigo || ' ' || p.titulo || ' ' || COALESCE(c.nombre, '') || ' ' || COALESCE(o.nombre, '')) ILIKE '%' || $1 || '%')
-      ORDER BY (p.estado = 'preparacion') DESC, p.cambiado DESC LIMIT 200`, [String(req.query.q || '').trim().slice(0, 80)]);
+      ORDER BY (p.estado = 'lead') DESC, (p.estado = 'preparacion') DESC, p.cambiado DESC LIMIT 300`, [String(req.query.q || '').trim().slice(0, 80)]);
     const out = [];
     for (const r of rows) {
       const p = await cargar(r.id);
       out.push({ id: p.id, codigo: p.codigo, titulo: p.titulo, cliente: p.cliente, obra: p.obra, estado: p.estado, coste: p.coste, venta: p.venta, capitulos: p.capitulos.filter((c) => c.id).length,
-        partidas: p.n_partidas, pendientes: p.pendientes, ia_estado: p.ia_estado, origen: p.origen, real_pct: p.real_pct, enviado_en: p.enviado_en, decidido_en: p.decidido_en, cambiado: p.cambiado });
+        partidas: p.n_partidas, pendientes: p.pendientes, ia_estado: p.ia_estado, origen: p.origen, real_pct: p.real_pct, enviado_en: p.enviado_en, decidido_en: p.decidido_en, cambiado: p.cambiado, creado: p.creado,
+        lead: p.estado === 'lead' ? { ...(p.lead_datos || {}), autor: p.captura_autor } : null });
     }
     res.json(out);
   }));

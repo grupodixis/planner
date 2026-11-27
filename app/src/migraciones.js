@@ -1733,6 +1733,15 @@ const MIGRACIONES = [
   `ALTER TABLE precios ADD COLUMN IF NOT EXISTS nota TEXT`,
   `ALTER TABLE precios DROP CONSTRAINT IF EXISTS precios_origen_check`,
   `ALTER TABLE precios ADD CONSTRAINT precios_origen_check CHECK (origen IN ('oferta','pedido','albaran','factura','manual','estimado'))`,
+  `ALTER TABLE presupuestos DROP CONSTRAINT IF EXISTS presupuestos_estado_check`,
+  `ALTER TABLE presupuestos ADD CONSTRAINT presupuestos_estado_check CHECK (estado IN ('lead', 'preparacion', 'enviado', 'aceptado', 'rechazado', 'anulado'))`,
+  `ALTER TABLE presupuestos ADD COLUMN IF NOT EXISTS captura_id INT REFERENCES capturas(id) ON DELETE SET NULL`,
+  `ALTER TABLE presupuestos ADD COLUMN IF NOT EXISTS lead_datos JSONB`,
+  `ALTER TABLE capturas ADD COLUMN IF NOT EXISTS presupuesto_id INT REFERENCES presupuestos(id) ON DELETE SET NULL`,
+  `ALTER TABLE capturas DROP CONSTRAINT IF EXISTS capturas_categoria_check`,
+  `ALTER TABLE capturas ADD CONSTRAINT capturas_categoria_check CHECK (categoria IN ('material', 'averia', 'calidad', 'seguridad', 'mejora', 'otro', 'lead'))`,
+  `ALTER TABLE capturas DROP CONSTRAINT IF EXISTS capturas_estado_check`,
+  `ALTER TABLE capturas ADD CONSTRAINT capturas_estado_check CHECK (estado IN ('bandeja', 'asunto', 'tarea', 'info', 'resuelta', 'descartada', 'lead'))`,
 ];
 
 async function migrar() {

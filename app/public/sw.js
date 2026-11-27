@@ -9,7 +9,7 @@
 //    pedir compra local, ticket) va a una BANDEJA DE SALIDA (IndexedDB) y se envía solo, en orden, en cuanto hay red.
 //    Mientras tanto, lo pendiente se ve ya aplicado en Mi día y en Mis compras. Las fotos sin enviar llevan un id
 //    provisional negativo que se cambia por el de verdad al enviarlas.
-const VERSION = 'v57';
+const VERSION = 'v58';
 const SHELL = `planealo-shell-${VERSION}`;
 const DATOS = 'planealo-datos-v1';
 const OFFLINE = '/offline.html';
@@ -356,6 +356,22 @@ self.addEventListener('fetch', (e) => {
   const url = new URL(r.url);
   if (url.origin !== self.location.origin) return;
 
+  // «Compartir › Planéalo» desde otra app (Android): se guarda lo compartido y se abre Capturar, que lo recoge
+  if (r.method === 'POST' && url.pathname === '/compartir') {
+    e.respondWith((async () => {
+      try {
+        const fd = await r.formData(); const c = await caches.open('planealo-compartido'); let i = 0;
+        const t = [fd.get('title'), fd.get('text'), fd.get('url')].filter((x) => x && typeof x === 'string').join('\n');
+        if (t) await c.put('/compartido/texto', new Response(t));
+        for (const f of fd.getAll('archivos')) {
+          if (!f || typeof f === 'string' || !f.size) continue;
+          await c.put(`/compartido/${Date.now()}-${i++}`, new Response(f, { headers: { 'Content-Type': f.type || 'application/octet-stream', 'X-Nombre': encodeURIComponent(f.name || 'archivo') } }));
+        }
+      } catch { /* sin archivos: se abre Capturar igualmente */ }
+      return Response.redirect('/mi-dia.html?vista=capturar&compartido=1', 303);
+    })());
+    return;
+  }
   // apuntar algo: a la red; si no hay red (o ya hay cosas en la bandeja, para no cambiar el orden), a la bandeja
   if (r.method !== 'GET') {
     if (url.pathname === '/api/logout') { e.waitUntil(caches.delete(DATOS)); return; }

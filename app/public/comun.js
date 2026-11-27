@@ -114,7 +114,8 @@
     ['Proyectos', [['/proyectos.html', 'Proyectos y OTs', null, 'Partidas, OTs, tareas, escandallo e importación'],
       ['/obras.html', 'Obras', null, 'Direcciones con sus proyectos, contacto en obra y lo próximo'],
       ['/clientes.html', 'Clientes', null, 'Datos del cliente y sus personas de contacto']]],
-    ['Presupuestos', [['/presupuestos.html', 'Presupuestos', ['presupuestos', 'costes'], 'Capítulos, partidas con su descomposición, precios de la lista y la tarifa, margen y PDF'],
+    ['Presupuestos', [['/presupuestos.html?vista=leads', '🎯 Leads', ['presupuestos', 'costes'], 'Posibles clientes capturados desde el móvil (fotos, documentos, notas)'],
+      ['/presupuestos.html', 'Presupuestos', ['presupuestos', 'costes'], 'Capítulos, partidas con su descomposición, precios de la lista y la tarifa, margen y PDF'],
       ['/tarifa.html', 'Tarifa de mano de obra y maquinaria', 'costes', 'Precio de venta y coste real por rendimiento'],
       ['/precios.html', 'Lista de precios', ['compras', 'aprobar_compras', 'costes'], 'El último precio de cada material (sin IVA)']]],
     ['Compras', [['/logistica.html', 'Material de las partidas', ['logistica', 'compras', 'escandallo'], 'Stock, por pedir, pedido y recepción'],
@@ -137,7 +138,7 @@
     if (!(p === '/' ? ['/', '/index.html'].includes(location.pathname) : location.pathname === p)) return false;
     const aqu = new URLSearchParams(location.search); const q = new URLSearchParams(qs || '');
     const tipo = aqu.get('tipo');
-    if (q.get('vista') || aqu.get('vista')) return (q.get('vista') || '') === (aqu.get('vista') || '') || (!q.get('vista') && !['locales', 'proveedores'].includes(aqu.get('vista')));
+    if (q.get('vista') || aqu.get('vista')) return (q.get('vista') || '') === (aqu.get('vista') || '') || (!q.get('vista') && !['locales', 'proveedores', 'leads'].includes(aqu.get('vista')));
     return qs ? q.get('tipo') === tipo : tipo !== 'areas';
   };
   function pintarMenu(menu) {
@@ -292,7 +293,7 @@
       if (a.tipo.startsWith('audio/')) return el('audio', { src, controls: '', preload: 'none', title: a.nombre || 'audio' });
       if (a.tipo.startsWith('video/')) return el('video', { src, controls: '', preload: 'metadata', playsinline: '', title: a.nombre || 'vídeo' });
       return el('a', { href: src, target: '_blank', rel: 'noopener', title: a.nombre || 'Ver' },
-        a.tipo.startsWith('image/') ? el('img', { src, alt: a.nombre || 'foto', loading: 'lazy' }) : '📄 PDF');
+        /^image\/(jpeg|png|webp)$/.test(a.tipo) ? el('img', { src, alt: a.nombre || 'foto', loading: 'lazy' }) : a.tipo === 'application/pdf' ? '📄 PDF' : `📄 ${a.nombre || 'documento'}`);
     }));
   }
 
@@ -325,6 +326,7 @@
     poner('/incidencias.html', p.incidencias || 0, `${p.incidencias} incidencia(s) tuyas por gestionar o cerrar`);
     poner('/compras.html?vista=locales', p.cl_autorizar || 0, `${p.cl_autorizar} compra(s) local(es) por autorizar`);
     poner('/correo.html', p.correo || 0, `${p.correo} correo(s) por revisar`);
+    poner('/presupuestos.html?vista=leads', p.leads || 0, `${p.leads} lead(s) por atender`);
     // los asuntos que me han asignado (aunque no planifique): en «＋ Capturar» › Mis asuntos
     poner('/capturar.html', p.mis_asuntos || 0, `${p.mis_asuntos} asunto(s) a tu cargo`);
     poner('/capacidades.html', p.cap_validar || 0, `${p.cap_validar} capacidad(es) que dicen saber los operarios, por validar`);

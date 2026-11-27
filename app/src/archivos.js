@@ -13,13 +13,18 @@ const { query } = require('./db');
 
 const fallo = (status, msg) => Object.assign(new Error(msg), { status });
 const EN_BD = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
-const EN_DISCO = ['audio/webm', 'audio/ogg', 'audio/mp4', 'audio/mpeg', 'audio/aac', 'audio/x-m4a', 'video/webm', 'video/mp4', 'video/quicktime'];
+// documentos (Word, Excel, texto…): a disco, como los audios
+const DOCS = { 'application/msword': 'doc', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'docx',
+  'application/vnd.ms-excel': 'xls', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': 'xlsx',
+  'application/vnd.oasis.opendocument.text': 'odt', 'application/vnd.oasis.opendocument.spreadsheet': 'ods', 'text/plain': 'txt', 'text/csv': 'csv',
+  'image/heic': 'heic', 'image/heif': 'heif' };
+const EN_DISCO = ['audio/webm', 'audio/ogg', 'audio/mp4', 'audio/mpeg', 'audio/aac', 'audio/x-m4a', 'video/webm', 'video/mp4', 'video/quicktime', ...Object.keys(DOCS)];
 const TIPOS = [...EN_BD, ...EN_DISCO];
 const MAX_BD = 6 * 1024 * 1024;
 const MAX_DISCO = 60 * 1024 * 1024;   // ~30 s de vídeo del móvil con margen
 const DIR = process.env.ARCHIVOS_DIR || path.join(__dirname, '..', 'datos-archivos');
 const EXT = { 'audio/webm': 'webm', 'audio/ogg': 'ogg', 'audio/mp4': 'm4a', 'audio/mpeg': 'mp3', 'audio/aac': 'aac', 'audio/x-m4a': 'm4a',
-  'video/webm': 'webm', 'video/mp4': 'mp4', 'video/quicktime': 'mov' };
+  'video/webm': 'webm', 'video/mp4': 'mp4', 'video/quicktime': 'mov', ...DOCS };
 
 // Enlaza archivos subidos por el usuario a una ficha (ausencia, captura…)
 async function enlazar(c, ids, refTipo, refId, usuarioId) {
@@ -54,7 +59,7 @@ function montar(app, asyncH) {
 
   app.post('/api/archivos', express.raw({ type: TIPOS, limit: MAX_DISCO }), asyncH(async (req, res) => {
     const tipo = String(req.headers['content-type'] || '').split(';')[0].trim().toLowerCase();
-    if (!TIPOS.includes(tipo)) throw fallo(415, 'Solo fotos, PDF, audio o vídeo');
+    if (!TIPOS.includes(tipo)) throw fallo(415, 'Solo fotos, PDF, documentos (Word, Excel, texto), audio o vídeo');
     if (!Buffer.isBuffer(req.body) || !req.body.length) throw fallo(400, 'Archivo vacío');
     const aDisco = EN_DISCO.includes(tipo);
     if (!aDisco && req.body.length > MAX_BD) throw fallo(413, 'La foto o el PDF pasa de 6 MB');
@@ -93,4 +98,11 @@ function montar(app, asyncH) {
   }));
 }
 
-module.exports = { montar, enlazar, de, TIPOS };
+// Contenido de un archivo (de la base de datos o del disco)
+async function leer(id) {
+  const { rows: [a] } = await query('SELECT id, tipo, nombre, bytes, datos, ruta FROM archivos WHERE id = $1', [id]);
+  if (!a) return null;
+  return { ...a, datos: a.ruta ? await fs.promises.readFile(path.join(DIR, a.ruta)) : a.datos };
+}
+
+module.exports = { montar, enlazar, de, leer, TIPOS };

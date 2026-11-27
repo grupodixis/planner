@@ -25,25 +25,33 @@
   const UDS = { m2: 'm²', m3: 'm³' };
   const ud = (u) => UDS[u] || u || 'ud';
   const fecha = (f) => (f ? new Date(`${String(f).slice(0, 10)}T12:00:00`).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' }) : '');
-  const ESTADO = { preparacion: 'en preparación', enviado: 'enviado', aceptado: 'aceptado', rechazado: 'rechazado' };
+  const ESTADO = { lead: 'lead', preparacion: 'en preparación', enviado: 'enviado', aceptado: 'aceptado', rechazado: 'rechazado' };
   const TIPOS = [['material', '🧱 Materiales'], ['mano_obra', '👷 Mano de obra'], ['maquinaria', '🏗 Maquinaria'], ['auxiliar', '🧰 Auxiliares (coste aparte)'], ['subcontrata', '🏭 Subcontratas']];
   const CHIP = { real: 'real', tarifa: 'tarifa', estimado: 'estimado', solicitado: 'solicitado' };
 
-  const est = { q: '', id: null, partida: null, p: null, lista: [], tarifa: null, clientes: null, obras: null };
+  const est = { q: '', soloLeads: false, id: null, partida: null, p: null, lista: [], tarifa: null, clientes: null, obras: null };
   const url = () => { const u = new URL(location); u.searchParams.delete('id'); u.searchParams.delete('partida'); if (est.id) u.searchParams.set('id', est.id); if (est.partida) u.searchParams.set('partida', est.partida); history.replaceState(null, '', u); };
 
   /* ---------- lista ---------- */
   async function cargarLista() {
     est.lista = await api('GET', `/api/presupuestos?q=${encodeURIComponent(est.q)}`);
-    const grupos = [['preparacion', 'En preparación'], ['enviado', 'Enviados'], ['aceptado', 'Aceptados'], ['rechazado', 'Rechazados']];
+    const nLeads = est.lista.filter((p) => p.estado === 'lead').length;
+    const bl = $('#pz-leads'); if (bl) { bl.textContent = `🎯 Leads${nLeads ? ` (${nLeads})` : ''}`; bl.classList.toggle('activo', est.soloLeads); bl.setAttribute('aria-pressed', est.soloLeads ? 'true' : 'false'); }
+    const grupos = (est.soloLeads ? [['lead', '🎯 Leads']] : [['lead', '🎯 Leads'], ['preparacion', 'En preparación'], ['enviado', 'Enviados'], ['aceptado', 'Aceptados'], ['rechazado', 'Rechazados']]);
+    const itemLead = (p) => el('button', { type: 'button', class: `pz-item pz-item-lead${p.id === est.id ? ' sel' : ''}`, onclick: () => abrir(p.id) },
+      el('div', { class: 'pz-item-1' }, el('b', {}, p.codigo), el('span', {}, fecha(p.creado))),
+      el('div', {}, String(p.titulo || '').replace(/^Lead · /, '')),
+      p.lead?.leyendo ? el('small', { class: 'pz-azul' }, '🤖 leyéndolo la IA…') : el('small', {}, [p.lead?.cliente?.nombre, p.lead?.cliente?.telefono, p.lead?.obra?.localidad].filter(Boolean).join(' · ') || p.lead?.resumen?.slice(0, 90) || ''),
+      el('small', { class: 'ayuda' }, `📱 ${p.lead?.autor || 'capturado'}`));
     $('#pz-items').replaceChildren(...grupos.flatMap(([k, t]) => {
       const ls = est.lista.filter((p) => p.estado === k);
-      if (!ls.length) return [];
+      if (!ls.length) return k === 'lead' && est.soloLeads ? [el('p', { class: 'ayuda' }, 'No hay leads. Se capturan desde el móvil: Capturar › 🎯 Lead.')] : [];
+      if (k === 'lead') return [el('div', { class: 'pz-tag' }, `${t} (${ls.length})`), ...ls.map(itemLead)];
       return [el('div', { class: 'pz-tag' }, `${t} (${ls.length})`), ...ls.map((p) => el('button', { type: 'button', class: `pz-item${p.id === est.id ? ' sel' : ''}`, onclick: () => abrir(p.id) },
         el('div', { class: 'pz-item-1' }, el('b', {}, p.codigo), el('span', {}, p.venta ? eur0(p.venta) : '—')),
         el('div', {}, [p.cliente, p.titulo].filter(Boolean).join(' · ')),
         p.ia_estado === 'creando' ? el('small', { class: 'pz-azul' }, '🤖 preparándolo la IA…') : p.ia_estado === 'error' ? el('small', { class: 'pz-rojo' }, '⚠ la IA no pudo prepararlo') : null,
-        el('small', {}, p.origen === 'correo' ? '📧 ' : '', p.partidas ? `${p.capitulos} capítulo${p.capitulos === 1 ? '' : 's'} · ${p.partidas} partida${p.partidas === 1 ? '' : 's'}` : 'sin partidas',
+        el('small', {}, p.origen === 'correo' ? '📧 ' : p.origen === 'captura' ? '🎯 ' : '', p.partidas ? `${p.capitulos} capítulo${p.capitulos === 1 ? '' : 's'} · ${p.partidas} partida${p.partidas === 1 ? '' : 's'}` : 'sin partidas',
           p.pendientes.nuevos ? el('span', { class: 'pz-verde' }, ` · ${p.pendientes.nuevos} precio(s) nuevo(s)`)
             : p.pendientes.estimado + p.pendientes.solicitado ? el('span', { class: 'pz-naranja' }, ` · ${p.pendientes.estimado + p.pendientes.solicitado} precio(s) pendientes`)
               : p.partidas ? el('span', { class: 'pz-verde' }, ' · todo con precio real') : null)))];
@@ -54,8 +62,57 @@
   async function cargar() {
     if (!est.id) { $('#pz-det').replaceChildren(el('p', { class: 'ayuda' }, 'Elige un presupuesto o crea uno nuevo.')); return; }
     try { est.p = await api('GET', `/api/presupuestos/${est.id}`); } catch (e) { $('#pz-det').replaceChildren(el('p', { class: 'ayuda' }, e.message)); return; }
+    if (est.p.estado === 'lead') {
+      pintarLead();
+      if (est.p.lead_datos?.leyendo) { clearTimeout(est.sondeo); est.sondeo = setTimeout(async () => { await cargar(); if (!est.p?.lead_datos?.leyendo) cargarLista(); }, 2500); }
+      return;
+    }
     if (est.p.ia_estado === 'creando') { pintarCreando(); clearTimeout(est.sondeo); est.sondeo = setTimeout(async () => { const antes = est.p?.ia_estado; await cargar(); if (antes === 'creando' && est.p?.ia_estado !== 'creando') cargarLista(); }, 2000); return; }
     pintar();
+  }
+  /* ---------- lead (capturado desde el móvil) ---------- */
+  function pintarLead() {
+    const p = est.p; const d = p.lead_datos || {}; const cl = d.cliente || {}; const ob = d.obra || {};
+    const guardar = (b) => api('PUT', `/api/presupuestos/${p.id}/lead`, b).then(() => { aviso('Guardado'); cargarLista(); }).catch((e) => aviso(e.message));
+    const dato = (etq, val, fn, attrs = {}) => el('label', { class: 'pz-lead-dato' }, etq, el('input', { value: val || '', ...attrs, onchange: (ev) => fn(ev.target.value) }));
+    const tel = cl.telefono ? String(cl.telefono).replace(/[^\d+]/g, '') : '';
+    const accion = async (ruta, cuerpo, msg) => { try { await api('POST', `/api/presupuestos/${p.id}/lead/${ruta}`, cuerpo); aviso(msg); await cargar(); cargarLista(); } catch (e) { aviso(e.message); } };
+    const adj = el('div', { class: 'pz-lead-adj' });
+    api('GET', `/api/presupuestos/${p.id}/adjuntos`).then((ls) => adj.replaceChildren(...ls.map((a) => /^image\/(jpeg|png|webp)$/.test(a.tipo)
+      ? el('a', { href: `/api/presupuestos-adjuntos/${a.id}`, target: '_blank', rel: 'noopener', title: a.nombre }, el('img', { src: `/api/presupuestos-adjuntos/${a.id}`, alt: a.nombre, loading: 'lazy' }))
+      : el('a', { class: 'pz-adj', href: `/api/presupuestos-adjuntos/${a.id}`, target: '_blank', rel: 'noopener' }, `📎 ${a.nombre}`)))).catch(() => {});
+    const zona = zonaAdjuntos();
+    $('#pz-det').replaceChildren(el('div', { class: 'pz-card pz-lead' },
+      el('div', { class: 'pz-lead-cab' },
+        el('div', {}, el('span', { class: 'pz-lead-chip' }, '🎯 Lead'), ' ', el('b', {}, p.codigo),
+          el('div', { class: 'ayuda' }, `Capturado por ${p.captura_autor || p.creado_por_nombre || '—'} · ${new Date(p.creado).toLocaleString('es-ES', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}`)),
+        el('div', { class: 'pz-acc' },
+          el('button', { type: 'button', class: 'primario', disabled: !!d.leyendo, onclick: () => accion('preparar', { modo: 'ia' }, 'Preparando el presupuesto con IA…') }, '🤖 Preparar presupuesto con IA'),
+          el('button', { type: 'button', class: 'ghost', disabled: !!d.leyendo, onclick: () => accion('preparar', { modo: 'mano' }, 'Pasa a preparación') }, '✎ Prepararlo a mano'),
+          el('button', { type: 'button', class: 'ghost peligro', onclick: () => { const m = prompt('¿Por qué se descarta? (opcional)'); if (m !== null) accion('descartar', { motivo: m }, 'Lead descartado').then(() => { est.id = null; url(); cargar(); }); } }, '✕ Descartar'))),
+      el('input', { class: 'pz-lead-tit', value: String(p.titulo || '').replace(/^Lead · /, ''), 'aria-label': 'De qué es', onchange: (ev) => guardar({ titulo: `Lead · ${ev.target.value}` }) }),
+      p.prompt ? el('blockquote', { class: 'pz-prompt-ver' }, p.prompt) : null,
+      adj,
+      d.leyendo ? el('p', { class: 'pz-azul' }, el('span', { class: 'pz-girando' }), ' La IA está leyendo las fotos y documentos…')
+        : d.error ? el('p', { class: 'pz-rojo' }, `⚠ ${d.error}`)
+          : el('div', { class: 'pz-lead-ia' },
+            d.resumen ? el('p', {}, '🤖 ', d.resumen) : null,
+            (d.que_necesita || []).length ? el('div', { class: 'pz-adj-chips' }, el('b', {}, 'Podría necesitar: '), d.que_necesita.map((x) => el('span', { class: 'pz-adj' }, x))) : null,
+            d.siguiente_paso ? el('p', {}, el('b', {}, 'Siguiente paso: '), d.siguiente_paso) : null,
+            (d.otros_contactos || []).length ? el('div', {}, el('b', {}, 'Otros contactos: '), el('ul', {}, d.otros_contactos.map((o) => el('li', {}, [o.papel, o.nombre, o.telefono, o.email].filter(Boolean).join(' · '))))) : null,
+            (d.dudas || []).length ? el('div', { class: 'ayuda' }, el('b', {}, 'Dudas: '), d.dudas.join(' · ')) : null),
+      el('fieldset', { class: 'pz-lead-datos' }, el('legend', {}, 'Cliente y obra (corrige lo que haga falta: al preparar el presupuesto se da de alta el cliente si no existe)'),
+        dato('Cliente', cl.nombre, (v) => guardar({ cliente: { nombre: v } })),
+        dato('Persona de contacto', cl.contacto_nombre, (v) => guardar({ cliente: { contacto_nombre: v } })),
+        el('div', { class: 'pz-lead-tel' }, dato('Teléfono', cl.telefono, (v) => guardar({ cliente: { telefono: v } }), { type: 'tel' }), tel ? el('a', { class: 'boton ghost', href: `tel:${tel}` }, '📞 Llamar') : null),
+        dato('Correo', cl.email, (v) => guardar({ cliente: { email: v } }), { type: 'email' }),
+        dato('CIF / NIF', cl.cif, (v) => guardar({ cliente: { cif: v } })),
+        dato('Obra / dirección', ob.direccion, (v) => guardar({ obra: { direccion: v } })),
+        dato('Localidad', ob.localidad, (v) => guardar({ obra: { localidad: v } }))),
+      el('details', {}, el('summary', {}, '📎 Añadir más fotos o documentos'), zona.caja,
+        el('button', { type: 'button', class: 'ghost', onclick: async () => { try { const f = zona.archivos(); if (!f.length) return aviso('Elige algún archivo'); await subirAdjuntos(f, p.id); await accion('leer', {}, 'La IA lo vuelve a leer'); } catch (e) { aviso(e.message); } } }, 'Subir y volver a leer')),
+      !d.leyendo ? el('div', {}, el('button', { type: 'button', class: 'ghost mini', onclick: () => accion('leer', {}, 'La IA lo vuelve a leer') }, '🔄 Volver a leer con IA')) : null,
+      (p.eventos || []).length ? el('div', { class: 'pz-eventos' }, el('ul', {}, p.eventos.map((e) => el('li', {}, el('span', { class: 'pz-ev-f' }, new Date(e.creado).toLocaleString('es-ES', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })), ' ', e.texto)))) : null));
   }
   // la IA lo está preparando
   function pintarCreando() {
@@ -509,6 +566,8 @@
     est.id = Number(q.get('id')) || null; est.partida = Number(q.get('partida')) || null;
     $('#pz-nuevo').onclick = dialogoNuevo;
     $('#pz-skills').onclick = dialogoSkills;
+    est.soloLeads = q.get('vista') === 'leads';
+    $('#pz-leads').onclick = () => { est.soloLeads = !est.soloLeads; const u = new URL(location); if (est.soloLeads) u.searchParams.set('vista', 'leads'); else u.searchParams.delete('vista'); history.replaceState(null, '', u); cargarLista(); };
     let t = null; $('#pz-q').addEventListener('input', (ev) => { clearTimeout(t); t = setTimeout(() => { est.q = ev.target.value.trim(); cargarLista(); }, 250); });
     await opciones();
     await Promise.all([cargarLista(), cargar()]);
