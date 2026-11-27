@@ -476,6 +476,15 @@
   }
 
   /* ---------- pedir precio ---------- */
+  function resultadoEnvio(e = {}, solId) {
+    const partes = [];
+    if (e.enviados?.length) partes.push(`✔ Enviada a ${e.enviados.map((x) => `${x.proveedor} (${x.para})`).join(', ')}`);
+    if (e.sin_correo?.length) partes.push(`⚠ Sin correo en su ficha: ${e.sin_correo.join(', ')} (envíasela a mano desde Compras)`);
+    if (e.errores?.length) partes.push(`✕ No se pudo enviar: ${e.errores.join(' · ')}`);
+    aviso(e.enviados?.length && !e.errores?.length && !e.sin_correo?.length ? 'Petición enviada a los proveedores' : 'Revisa el envío de la petición');
+    $('#pz-det .pz-card')?.prepend(el('div', { class: 'pz-nuevos' }, ...partes.flatMap((t) => [t, el('br')]),
+      el('a', { class: 'boton ghost mini', href: `/compras.html?vista=precios${solId ? `&sol=${solId}` : ''}` }, 'Ver en Compras')));
+  }
   async function dialogoPedir() {
     const p = est.p;
     const ls = p.capitulos.flatMap((c) => c.partidas.flatMap((pa) => pa.lineas.filter((l) => l.tipo === 'material' || l.tipo === 'subcontrata' || l.tipo === 'auxiliar').map((l) => ({ ...l, pa }))));
@@ -488,15 +497,25 @@
     const resp = el('input', { type: 'date', 'aria-label': 'Responder antes del' });
     const nota = el('input', { value: `Precio para presupuesto${p.obra ? `, obra ${p.obra}` : ''}`, maxlength: 300, 'aria-label': 'Nota para el proveedor' });
     const boton = el('button', { type: 'button', class: 'primario' }, '✉ Crear la petición');
-    const contar = () => { boton.textContent = `✉ Crear la petición (${marc.size} línea${marc.size === 1 ? '' : 's'} · ${elegidos.size} proveedor${elegidos.size === 1 ? '' : 'es'})`; };
+    const enviarYa = el('input', { type: 'checkbox', checked: true });
+    const contar = () => { boton.textContent = `✉ ${enviarYa.checked ? 'Crear y enviar' : 'Crear la petición'} (${marc.size} línea${marc.size === 1 ? '' : 's'} · ${elegidos.size} proveedor${elegidos.size === 1 ? '' : 'es'})`; };
+    enviarYa.addEventListener('change', contar);
+    // peticiones de este presupuesto que aún no se han enviado a algún proveedor
+    const pendEnvio = await api('GET', `/api/presupuestos/${p.id}/peticiones-sin-enviar`).catch(() => []);
     const fp = el('input', { type: 'search', placeholder: 'Buscar proveedor…', 'aria-label': 'Buscar proveedor' });
     const caja = el('div', { class: 'pz-provs' });
     const pintarProvs = () => caja.replaceChildren(...provs.filter((x) => !fp.value || x.nombre.toLowerCase().includes(fp.value.toLowerCase())).slice(0, 40).map((x) => el('label', { class: 'co-chk' },
-      el('input', { type: 'checkbox', checked: elegidos.has(x.id), onchange: (ev) => { ev.target.checked ? elegidos.add(x.id) : elegidos.delete(x.id); contar(); } }), ` ${x.nombre}`, x.precios ? el('small', {}, ` (${x.precios} precio${x.precios === 1 ? '' : 's'} de estos)`) : null)));
+      el('input', { type: 'checkbox', checked: elegidos.has(x.id), onchange: (ev) => { ev.target.checked ? elegidos.add(x.id) : elegidos.delete(x.id); contar(); } }), ` ${x.nombre}`, x.precios ? el('small', {}, ` (${x.precios} precio${x.precios === 1 ? '' : 's'} de estos)`) : null,
+      x.email ? null : el('small', { class: 'pz-sin-correo', title: 'No tiene correo en su ficha: habrá que enviárselo a mano desde Compras' }, ' ✉✕'))));
     fp.addEventListener('input', pintarProvs);
     const d = el('dialog', { class: 'dlg-cos pz-dlg' },
       el('h2', {}, `✉ Pedir precio para presupuestar · ${p.codigo}`),
-      el('p', { class: 'ayuda' }, 'Se crea una petición de precio normal en Compras (portal, correo, PDF y lectura con IA), marcada «para presupuestar»: no crea pedidos. Desde allí se envía a cada proveedor. Cuando se confirme una oferta, aquí sale como «precio nuevo».'),
+      el('p', { class: 'ayuda' }, 'Se crea una petición de precio en Compras, marcada «para presupuestar» (no crea pedidos), y se envía por correo a cada proveedor con el PDF y su enlace para responder en la plataforma. Cuando se confirme una oferta, aquí sale como «precio nuevo».'),
+      pendEnvio.length ? el('div', { class: 'pz-nuevos' }, `⚠ Sin enviar: ${pendEnvio.map((x) => `${x.codigo} a ${x.proveedor}${x.email ? '' : ' (sin correo)'}`).join(' · ')} `,
+        el('button', { type: 'button', class: 'primario mini', onclick: async (ev) => {
+          ev.currentTarget.disabled = true;
+          try { const r = await api('POST', `/api/presupuestos/${p.id}/enviar-peticiones`); d.close(); resultadoEnvio(r.envio); } catch (e) { aviso(e.message); ev.currentTarget.disabled = false; }
+        } }, '✉ Enviarlas ahora')) : null,
       el('table', { class: 'pz-tabla' }, el('thead', {}, el('tr', {}, el('th', {}), el('th', {}, 'Línea'), el('th', { class: 'n' }, 'Cantidad'), el('th', {}, 'Ahora'))),
         el('tbody', {}, candidatas.map((l) => el('tr', {},
           el('td', {}, el('input', { type: 'checkbox', checked: marc.has(l.id), disabled: l.estado_precio === 'solicitado', onchange: (ev) => { ev.target.checked ? marc.add(l.id) : marc.delete(l.id); contar(); } })),
@@ -504,16 +523,20 @@
           el('td', {}, el('span', { class: `pz-chip ${l.estado_precio}` }, l.estado_precio === 'real' && l.precio_info?.viejo ? 'viejo' : l.estado_precio), l.estado_precio === 'solicitado' ? el('small', {}, l.sol_codigo) : null))))),
       el('div', { class: 'pz-tag' }, 'Proveedores ', el('small', {}, '(primero los que ya nos han dado precio de estos materiales)')), fp, caja,
       el('div', { class: 'pz-campos' }, el('label', {}, el('span', {}, 'Responder antes del'), resp), el('label', { class: 'ancho' }, el('span', {}, 'Nota para el proveedor'), nota)),
-      el('div', { class: 'acciones' }, el('button', { type: 'button', class: 'ghost', onclick: () => d.close() }, 'Cancelar'), boton));
+      el('div', { class: 'acciones' }, el('label', { class: 'co-chk' }, enviarYa, ' Enviar ya por correo a cada proveedor'), el('button', { type: 'button', class: 'ghost', onclick: () => d.close() }, 'Cancelar'), boton));
     boton.addEventListener('click', async () => {
       if (!marc.size) { aviso('Marca alguna línea'); return; }
+      boton.disabled = false;
       if (!elegidos.size) { aviso('Elige al menos un proveedor'); return; }
       try {
-        const r = await api('POST', `/api/presupuestos/${p.id}/pedir-precio`, { linea_ids: [...marc], proveedor_ids: [...elegidos], responder_antes: resp.value || null, notas: nota.value });
+        boton.disabled = true; boton.textContent = enviarYa.checked ? 'Enviando…' : 'Creando…';
+        const r = await api('POST', `/api/presupuestos/${p.id}/pedir-precio`, { linea_ids: [...marc], proveedor_ids: [...elegidos], responder_antes: resp.value || null, notas: nota.value, enviar: enviarYa.checked });
         d.close(); est.p = r; pintar(); cargarLista();
-        aviso('Petición creada: ábrela en Compras para enviarla a cada proveedor');
-        const ir = el('div', { class: 'pz-nuevos' }, '✉ Petición creada. ', el('a', { class: 'boton primario mini', href: `/compras.html?vista=precios&sol=${r.solicitud_id}` }, 'Abrir en Compras para enviarla'));
-        $('#pz-det .pz-card')?.prepend(ir);
+        if (enviarYa.checked) resultadoEnvio(r.envio, r.solicitud_id);
+        else {
+          aviso('Petición creada: ábrela en Compras para enviarla a cada proveedor');
+          $('#pz-det .pz-card')?.prepend(el('div', { class: 'pz-nuevos' }, '✉ Petición creada. ', el('a', { class: 'boton primario mini', href: `/compras.html?vista=precios&sol=${r.solicitud_id}` }, 'Abrir en Compras para enviarla')));
+        }
       } catch (e) { aviso(e.message); }
     });
     d.addEventListener('close', () => d.remove()); document.body.append(d); pintarProvs(); contar(); d.showModal();

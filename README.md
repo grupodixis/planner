@@ -1468,6 +1468,7 @@ Endpoints: `GET /api/ia`, `PUT /api/ia/ajustes`, `POST /api/ia/probar/:nombre`, 
 **Pedir precio** (`POST /api/presupuestos/:id/pedir-precio {linea_ids, proveedor_ids, responder_antes, notas}`)
 - Crea una petición de precio en Compras con `motivo = 'presupuesto'` y `presupuesto_id`. Una línea por material y unidad, con la cantidad total y `catalogo_id`.
 - Las líneas del presupuesto pasan a «solicitado».
+- Con `enviar: true` (casilla «Enviar ya por correo», marcada de serie) se envía al momento a cada proveedor con correo en su ficha (`solicitudes.enviarAProveedor`: mismo correo, PDF y enlace del portal que en Compras) y devuelve `envio {enviados, sin_correo, errores}`. `GET /api/presupuestos/:id/peticiones-sin-enviar` y `POST /api/presupuestos/:id/enviar-peticiones` envían las que quedaron sin enviar.
 - En Compras sale «📐 para presupuestar · PRE-…». En lugar de «Crear pedidos» hay un enlace al presupuesto, y la API lo rechaza.
 - Las ofertas confirmadas (`solicitud_precios`) aparecen en la línea como `nuevo` (la más barata) → `POST /api/presupuesto-lineas/:id/aplicar {sp_id}` o `POST /api/presupuestos/:id/aplicar-todos`. La línea pasa a «real», con fuente oferta.
 - Si la petición se cierra sin ofertas, la línea vuelve a contar como estimada.

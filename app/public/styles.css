@@ -3335,3 +3335,4 @@ dialog.pz-dlg { width: min(760px, calc(100vw - 32px)); } dialog.pz-dlg-ancho { w
 .pz-calc { display: block; margin: 3px 0 0 auto; font-size: 11px; padding: 1px 3px; width: auto; }
 .pz-busca-caja .pz-sug { min-width: 440px; }
 .pz-lpint .pz-num { width: 4.2em; } .pz-lpint small { display: block; white-space: nowrap; }
+.pz-sin-correo { color: #e05252; }

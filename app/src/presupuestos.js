@@ -530,7 +530,30 @@ function montar(app, asyncH) {
       return s.id;
     });
     await tocar(id);
-    res.status(201).json({ ...(await cargar(id)), solicitud_id: sid });
+    // { enviar: true }: se manda ya el correo a cada proveedor (PDF + enlace para responder en la plataforma)
+    const envio = { enviados: [], sin_correo: [], errores: [] };
+    if (b.enviar) {
+      const Sol = require('./solicitudes'); const s = await Sol.solicitud(sid);
+      for (const pv of s.proveedores) {
+        if (!pv.email) { envio.sin_correo.push(pv.proveedor); continue; }
+        try { envio.enviados.push(await Sol.enviarAProveedor(sid, pv.id, {}, req)); } catch (e) { envio.errores.push(`${pv.proveedor}: ${e.message}`); }
+      }
+    }
+    res.status(201).json({ ...(await cargar(id)), solicitud_id: sid, envio });
+  }));
+
+  // Peticiones de este presupuesto abiertas y sin enviar a algún proveedor · enviarlas todas por correo
+  const sinEnviar = (id) => query(`SELECT s.id AS solicitud_id, s.codigo, sp.id AS sp_id, pr.nombre AS proveedor, pr.email
+      FROM solicitudes_precio s JOIN solicitud_proveedores sp ON sp.solicitud_id = s.id JOIN proveedores pr ON pr.id = sp.proveedor_id
+     WHERE s.presupuesto_id = $1 AND s.estado = 'abierta' AND sp.enviado_en IS NULL ORDER BY s.id, pr.nombre`, [id]).then((r) => r.rows);
+  app.get('/api/presupuestos/:id/peticiones-sin-enviar', ver, asyncH(async (req, res) => res.json(await sinEnviar(Number(req.params.id)))));
+  app.post('/api/presupuestos/:id/enviar-peticiones', ver, asyncH(async (req, res) => {
+    const envio = { enviados: [], sin_correo: [], errores: [] }; const Sol = require('./solicitudes');
+    for (const x of await sinEnviar(Number(req.params.id))) {
+      if (!x.email) { envio.sin_correo.push(x.proveedor); continue; }
+      try { envio.enviados.push(await Sol.enviarAProveedor(x.solicitud_id, x.sp_id, {}, req)); } catch (e) { envio.errores.push(`${x.proveedor}: ${e.message}`); }
+    }
+    res.json({ envio });
   }));
 
   // Proveedores sugeridos para unas líneas: los que ya han dado precio de esos materiales, luego el resto

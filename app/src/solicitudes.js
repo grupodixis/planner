@@ -64,6 +64,33 @@ async function solicitud(id, c = { query }) {
 }
 
 /* ---------- PDF de la petición de oferta (sin precios) ---------- */
+// Correo de petición de oferta a un proveedor (el mismo texto que propone Compras)
+async function enviarAProveedor(id, sp, { para, asunto, texto: txt, enlace = true } = {}, req) {
+  const s = await solicitud(id);
+  const prov = s.proveedores.find((x) => x.id === sp);
+  if (!prov) throw fallo(404, 'Proveedor no encontrado en esta petición');
+  para = String(para || prov.email || '').trim().slice(0, 300);
+  if (!para || !/@/.test(para)) throw fallo(400, `${prov.proveedor || 'El proveedor'} no tiene correo`);
+  const aj = await ajustes();
+  const url = enlace === false ? null : await portal.enlace(sp, req);
+  const pdf = await pdfSolicitud(s, aj, prov, url);
+  const recordar = !!prov.enviado_en;
+  const fechaTxt = s.responder_antes ? new Date(`${String(s.responder_antes).slice(0, 10)}T12:00:00`).toLocaleDateString('es-ES') : null;
+  let cuerpo = String(txt || '').slice(0, 5000) || (recordar
+    ? `Buenos días:\n\nLes recordamos nuestra petición de oferta ${s.codigo}${fechaTxt ? `, que necesitaríamos antes del ${fechaTxt}` : ''}. Se la adjuntamos de nuevo.\n\nUn saludo,\n${aj.empresa.nombre}`
+    : `Buenos días:\n\nLes adjuntamos petición de oferta ${s.codigo}. Les agradeceríamos precio y plazo de entrega${fechaTxt ? ` antes del ${fechaTxt}` : ''}, indicando si los portes están incluidos.\nSi responden por correo, mantengan la referencia ${s.codigo} en el asunto.\n\nUn saludo,\n${aj.empresa.nombre}`);
+  if (url && !cuerpo.includes(url)) cuerpo += `\n\n— Puede responder directamente en nuestra plataforma, sin registrarse, poniendo sus precios línea a línea:\n${url}`;
+  await correo.enviarOFallar({
+    para, asunto: String(asunto || '').slice(0, 200) || `${recordar ? 'Recordatorio: ' : ''}[${s.codigo}] Petición de oferta · ${aj.empresa.nombre}`,
+    texto: cuerpo, adjuntos: [{ nombre: `${s.codigo}.pdf`, datos: pdf, tipo: 'application/pdf' }],
+    ref: { tipo: 'solicitud', id: sp, proveedor_id: prov.proveedor_id },
+  });
+  if (recordar) await query('UPDATE solicitud_proveedores SET recordado_en = now() WHERE id = $1', [sp]);
+  else await query(`UPDATE solicitud_proveedores SET enviado_en = now(), enviado_correo = TRUE, enviado_a = $2,
+                          estado = CASE WHEN estado = 'pendiente' THEN 'enviada' ELSE estado END WHERE id = $1`, [sp, para]);
+  return { proveedor: prov.proveedor, para };
+}
+
 function pdfSolicitud(s, aj, prov, url) {
   return new Promise((ok, mal) => {
     const doc = new PDFDocument({ size: 'A4', margin: 48, info: { Title: `Petición de oferta ${s.codigo}`, Author: aj.empresa.nombre } });
@@ -281,27 +308,13 @@ function montar(app, asyncH) {
     const s = await abierta(id);
     const prov = s.proveedores.find((x) => x.id === sp);
     if (!prov) throw fallo(404, 'Proveedor no encontrado en esta petición');
-    const recordar = !!prov.enviado_en;
-    let para = null;
     if (b.correo) {
-      para = texto(b.para, 300);
+      const para = texto(b.para, 300);
       if (!para || !/@/.test(para)) throw fallo(400, 'Falta el correo del proveedor');
-      const aj = await ajustes();
-      const url = b.enlace === false ? null : await portal.enlace(sp, req);
-      const pdf = await pdfSolicitud(s, aj, prov, url);
-      let cuerpo = String(b.texto || '').slice(0, 5000);
-      if (url && !cuerpo.includes(url)) cuerpo += `\n\n— Puede responder directamente en nuestra plataforma, sin registrarse:\n${url}`;
-      await correo.enviarOFallar({
-        para, asunto: texto(b.asunto, 200) || `[${s.codigo}] Petición de oferta · ${aj.empresa.nombre}`,
-        texto: cuerpo, adjuntos: [{ nombre: `${s.codigo}.pdf`, datos: pdf, tipo: 'application/pdf' }],
-        ref: { tipo: 'solicitud', id: sp, proveedor_id: prov.proveedor_id },
-      });
-    }
-    if (recordar) await query('UPDATE solicitud_proveedores SET recordado_en = now() WHERE id = $1', [sp]);
-    else {
-      await query(`UPDATE solicitud_proveedores SET enviado_en = now(), enviado_correo = $2, enviado_a = $3,
-                          estado = CASE WHEN estado = 'pendiente' THEN 'enviada' ELSE estado END WHERE id = $1`, [sp, !!b.correo, para]);
-    }
+      await enviarAProveedor(id, sp, { para, asunto: texto(b.asunto, 200), texto: b.texto ? String(b.texto).slice(0, 5000) : '', enlace: b.enlace }, req);
+    } else if (prov.enviado_en) await query('UPDATE solicitud_proveedores SET recordado_en = now() WHERE id = $1', [sp]);
+    else await query(`UPDATE solicitud_proveedores SET enviado_en = now(), enviado_correo = FALSE, enviado_a = NULL,
+                          estado = CASE WHEN estado = 'pendiente' THEN 'enviada' ELSE estado END WHERE id = $1`, [sp]);
     res.json(await solicitud(id));
   }));
 
@@ -355,4 +368,4 @@ function montar(app, asyncH) {
   }));
 }
 
-module.exports = { montar, solicitud, pdfSolicitud, siguienteCodigo };
+module.exports = { montar, solicitud, pdfSolicitud, siguienteCodigo, enviarAProveedor };
