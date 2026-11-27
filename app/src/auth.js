@@ -93,7 +93,14 @@ async function sesionIA(req, res, next) {
   if (!LOCAL.has(req.socket.remoteAddress) || dado.length !== bueno.length || !crypto.timingSafeEqual(dado, bueno)) {
     return res.status(401).json({ error: 'No autenticado' });
   }
-  if (req.method !== 'GET') return res.status(403).json({ error: 'La IA solo puede consultar (solo lectura)' });
+  if (req.method !== 'GET') {
+    // Solo para ejecutar un cambio que la persona ha confirmado en la tarjeta del asistente: mismo usuario, método y ruta
+    const pid = Number(req.headers['x-ia-propuesta']);
+    const { rows: [pr] } = pid ? await query(`SELECT usuario_id, metodo, ruta FROM ia_propuestas WHERE id = $1 AND estado = 'ejecutando'`, [pid]) : { rows: [] };
+    if (!pr || pr.usuario_id !== Number(req.headers['x-ia-usuario']) || pr.metodo !== req.method || pr.ruta !== req.originalUrl) {
+      return res.status(403).json({ error: 'La IA solo puede cambiar algo que hayas confirmado' });
+    }
+  }
   const { rows } = await query(
     `SELECT u.id, u.email, u.nombre, u.rol, u.recurso_id, r.nombre AS rol_nombre, u.roles_extra, ${SQL_PERMISOS} AS permisos, 'ia' AS via
        FROM usuarios u LEFT JOIN roles r ON r.clave = u.rol WHERE u.id = $1 AND u.activo`, [Number(req.headers['x-ia-usuario'])]);

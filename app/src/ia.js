@@ -34,6 +34,19 @@ async function get(ctx, ruta) {
   return datos;
 }
 
+// Ejecutar un cambio ya confirmado por la persona (src/ia-chat.js › confirmar): la API lo comprueba con x-ia-propuesta
+async function escribir(usuario, pr) {
+  const r = await fetch(`http://127.0.0.1:${PUERTO}${pr.ruta}`, {
+    method: pr.metodo,
+    headers: { 'x-ia-clave': auth.SECRETO_IA, 'x-ia-usuario': String(usuario.id), 'x-ia-propuesta': String(pr.id), accept: 'application/json', 'content-type': 'application/json' },
+    body: pr.cuerpo ? JSON.stringify(pr.cuerpo) : undefined,
+  });
+  const txt = await r.text();
+  let datos; try { datos = JSON.parse(txt); } catch { datos = null; }
+  if (!r.ok) throw fallo(r.status, datos?.error || `La API respondió ${r.status}`);
+  return datos;
+}
+
 /* ---------- catálogo de herramientas (fase 1: lectura) ---------- */
 // riesgo: leer | borrador | confirmar | nunca · permiso: el que exige la API por debajo (informativo; manda la API)
 const H = [];
@@ -249,8 +262,100 @@ herramienta({
   },
 });
 
-const PORNOMBRE = new Map(H.map((h) => [h.nombre, h]));
 const esquema = (h) => ({ type: 'object', properties: h.entrada || {}, required: h.requeridos || [], additionalProperties: false });
+
+/* ---------- herramientas que PREPARAN un cambio (riesgo «confirmar», solo en la app) ----------
+   run() no cambia nada: devuelve { propuesta } y la persona lo confirma en la tarjeta del asistente. */
+const cambio = (h) => herramienta({ riesgo: 'confirmar', canales: ['app'], grupo: 'Cambios (con confirmación)', ...h });
+const CLI = {
+  nombre: { type: 'string', description: 'Razón social (nombre fiscal completo, con SL/SA…)' },
+  nombre_comercial: { type: 'string', description: 'Nombre comercial, si es distinto' },
+  cif: { type: 'string', description: 'CIF/NIF' },
+  direccion_fiscal: { type: 'string', description: 'Dirección fiscal completa en una línea: calle y nº, código postal y localidad' },
+  telefono: { type: 'string' }, movil: { type: 'string' }, email: { type: 'string' }, email_facturas: { type: 'string' },
+  forma_pago: { type: 'string', description: 'Forma de pago (p. ej. «Transferencia 30 días»)' },
+  tipo: { type: 'string', description: 'empresa | particular | comunidad | administracion' },
+  notas: { type: 'string' },
+};
+const ETQ = { nombre: 'Razón social', nombre_comercial: 'Nombre comercial', cif: 'CIF', direccion_fiscal: 'Dirección fiscal', telefono: 'Teléfono', movil: 'Móvil', email: 'Correo', email_facturas: 'Correo de facturas', forma_pago: 'Forma de pago', tipo: 'Tipo', notas: 'Notas', papel: 'Papel', direccion: 'Dirección', localidad: 'Localidad', contacto: 'Contacto en obra', acceso: 'Acceso y horario' };
+const soloCif = (s) => String(s || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+const datosDe = (a, claves) => Object.fromEntries(claves.filter((k) => a[k] != null && String(a[k]).trim() !== '').map((k) => [k, String(a[k]).trim()]));
+const filas = (d) => Object.entries(d).map(([k, v]) => [ETQ[k] || k, v]);
+function validarCliente(d) {
+  if (d.tipo && !['empresa', 'particular', 'comunidad', 'administracion'].includes(d.tipo)) delete d.tipo;
+  for (const k of ['email', 'email_facturas']) if (d[k] && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(d[k])) throw fallo(400, `El ${ETQ[k].toLowerCase()} «${d[k]}» no es válido`);
+  if (d.cif) d.cif = soloCif(d.cif);
+}
+
+cambio({
+  nombre: 'crear_cliente',
+  descripcion: 'PREPARA el alta de un cliente nuevo (no lo crea: la persona lo confirma en una tarjeta). Antes comprueba que no exista (mismo nombre o CIF). Pon la dirección fiscal completa en una línea.',
+  entrada: CLI, requeridos: ['nombre'], permiso: 'proyectos',
+  async run(ctx, a) {
+    const d = datosDe(a, Object.keys(CLI)); validarCliente(d);
+    const avisos = [];
+    for (const q of [d.cif, d.nombre].filter(Boolean)) {
+      const r = await get(ctx, `/api/clientes?q=${encodeURIComponent(q)}`);
+      for (const c of r) {
+        if (norm(c.nombre) === norm(d.nombre)) throw fallo(409, `Ya existe el cliente «${c.nombre}» (id ${c.id}). Si hay que completar sus datos, usa editar_cliente.`);
+        if (d.cif && soloCif(c.cif) === d.cif) throw fallo(409, `Ya hay un cliente con el CIF ${d.cif}: «${c.nombre}» (id ${c.id}). Si hay que cambiar sus datos, usa editar_cliente.`);
+        if (!avisos.some((x) => x.includes(c.nombre))) avisos.push(`Hay un cliente parecido: «${c.nombre}»${c.cif ? ` (${c.cif})` : ''}`);
+      }
+    }
+    if (!d.cif) avisos.push('Sin CIF: hará falta para presupuestos y facturas');
+    return { propuesta: { titulo: `Crear el cliente «${d.nombre}»`, campos: filas(d), avisos: avisos.slice(0, 3), metodo: 'POST', ruta: '/api/clientes', cuerpo: d, abrir: '/clientes.html?id=:id' } };
+  },
+});
+
+cambio({
+  nombre: 'editar_cliente',
+  descripcion: 'PREPARA cambios en los datos de un cliente existente (la persona los confirma). Busca antes su id con clientes_buscar. Solo pasa los campos que cambian.',
+  entrada: { cliente_id: { type: 'number', description: 'id del cliente (de clientes_buscar)' }, ...CLI },
+  requeridos: ['cliente_id'], permiso: 'proyectos',
+  async run(ctx, a) {
+    const c = await get(ctx, `/api/clientes/${a.cliente_id}`);
+    const d = datosDe(a, Object.keys(CLI)); validarCliente(d);
+    const cambia = Object.fromEntries(Object.entries(d).filter(([k, v]) => String(c[k] ?? '') !== v));
+    if (!Object.keys(cambia).length) throw fallo(400, 'No cambia nada: esos datos ya son los que tiene');
+    return { propuesta: { titulo: `Cambiar datos del cliente «${c.nombre}»`, campos: Object.entries(cambia).map(([k, v]) => [ETQ[k] || k, c[k] ? `${c[k]} → ${v}` : v]), avisos: [],
+      metodo: 'PUT', ruta: `/api/clientes/${c.id}`, cuerpo: cambia, abrir: `/clientes.html?id=${c.id}` } };
+  },
+});
+
+cambio({
+  nombre: 'anadir_contacto_cliente',
+  descripcion: 'PREPARA añadir una persona de contacto a un cliente (la persona lo confirma). Busca antes el id del cliente con clientes_buscar.',
+  entrada: { cliente_id: { type: 'number', description: 'id del cliente' }, nombre: { type: 'string' }, papel: { type: 'string', description: 'Cargo o papel: gerente, jefe de obra, administración…' },
+    telefono: { type: 'string' }, email: { type: 'string' }, notas: { type: 'string' } },
+  requeridos: ['cliente_id', 'nombre'], permiso: 'proyectos',
+  async run(ctx, a) {
+    const c = await get(ctx, `/api/clientes/${a.cliente_id}`);
+    const d = datosDe(a, ['nombre', 'papel', 'telefono', 'email', 'notas']);
+    if (d.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(d.email)) throw fallo(400, `El correo «${d.email}» no es válido`);
+    const ya = (c.contactos || []).find((x) => norm(x.nombre) === norm(d.nombre));
+    return { propuesta: { titulo: `Añadir a ${d.nombre} como contacto de «${c.nombre}»`, campos: filas(d), avisos: ya ? [`Ya tiene un contacto llamado ${ya.nombre}`] : [],
+      metodo: 'POST', ruta: `/api/clientes/${c.id}/contactos`, cuerpo: d, abrir: `/clientes.html?id=${c.id}` } };
+  },
+});
+
+cambio({
+  nombre: 'crear_obra',
+  descripcion: 'PREPARA el alta de una obra (dirección donde se trabaja); la persona la confirma. Comprueba antes con obras_buscar que no exista.',
+  entrada: { direccion: { type: 'string', description: 'Calle y número' }, localidad: { type: 'string' }, nombre: { type: 'string', description: 'Nombre corto (si no, la calle)' },
+    contacto: { type: 'string', description: 'Persona de contacto en obra' }, telefono: { type: 'string' }, acceso: { type: 'string', description: 'Acceso y horario' },
+    promotor: { type: 'string' }, constructora: { type: 'string' }, notas: { type: 'string' } },
+  requeridos: ['direccion'], permiso: 'proyectos',
+  async run(ctx, a) {
+    const d = datosDe(a, ['nombre', 'direccion', 'localidad', 'contacto', 'telefono', 'acceso', 'promotor', 'constructora', 'notas']);
+    const r = await get(ctx, `/api/obras?vista=todas&q=${encodeURIComponent(d.direccion)}`);
+    const lista = Array.isArray(r) ? r : (r.obras || r.items || []);
+    const igual = lista.find((o) => norm(o.direccion) === norm(d.direccion));
+    if (igual) throw fallo(409, `Ya hay una obra en esa dirección: «${igual.nombre}» (id ${igual.id})`);
+    return { propuesta: { titulo: `Crear la obra «${d.nombre || d.direccion}»`, campos: filas(d), avisos: [], metodo: 'POST', ruta: '/api/obras', cuerpo: d, abrir: '/obras.html?id=:id' } };
+  },
+});
+
+const PORNOMBRE = new Map(H.map((h) => [h.nombre, h]));
 
 /* ---------- ajustes ---------- */
 const AJ_DEF = { activo: true, canales: { app: true, mcp: true }, apagadas: {}, limite_dia: 500 };
@@ -282,10 +387,18 @@ async function ejecutar(usuario, canal, nombre, args, extra = {}) {
       const v = args[k];
       if (def.type === 'number') { const x = Number(v); if (!Number.isFinite(x)) throw fallo(400, `«${k}» debe ser un número`); a[k] = x; }
       else if (def.type === 'boolean') a[k] = v === true || v === 'true';
-      else a[k] = String(v).slice(0, 200);
+      else a[k] = String(v).slice(0, h.riesgo === 'confirmar' ? 2000 : 200);
     }
     for (const k of h.requeridos || []) if (a[k] == null) throw fallo(400, `Falta «${k}»`);
     resultado = await h.run({ usuario }, a);
+    if (h.riesgo === 'confirmar' && resultado?.propuesta) {
+      const p = resultado.propuesta;
+      const { rows: [pr] } = await query(`INSERT INTO ia_propuestas (usuario_id, conversacion_id, mensaje_id, herramienta, titulo, campos, avisos, metodo, ruta, cuerpo, abrir)
+        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING id`,
+      [usuario.id, extra.conversacion_id || null, extra.mensaje_id || null, nombre, p.titulo, JSON.stringify(p.campos || []), JSON.stringify(p.avisos || []), p.metodo, p.ruta, p.cuerpo ? JSON.stringify(p.cuerpo) : null, p.abrir || null]);
+      resultado = { preparado: true, propuesta_id: pr.id, titulo: p.titulo, datos: Object.fromEntries(p.campos || []), avisos: p.avisos || [],
+        importante: 'AÚN NO ESTÁ HECHO. Ha salido una tarjeta con ✔ Confirmar: dile que revise los datos y lo confirme ahí. No digas que ya está creado o cambiado.' };
+    }
     ok = true;
     return resultado;
   } catch (e) {
@@ -300,6 +413,7 @@ async function ejecutar(usuario, canal, nombre, args, extra = {}) {
   }
 }
 function resumir(r) {
+  if (r.preparado) return `Propuesta ${r.propuesta_id}: ${r.titulo}`;
   if (r.total != null) return `${r.total} resultado${r.total === 1 ? '' : 's'}`;
   if (r.tramos?.total != null) return `${r.tramos.total} tramos${r.avisos?.length ? ` · ${r.avisos.length} avisos` : ''}`;
   if (r.tareas) return `${r.tareas.length} tareas`;
@@ -435,4 +549,4 @@ function montar(app, asyncH, { puerto } = {}) {
   }));
 }
 
-module.exports = { montar, montarPublico, ejecutar, herramientas: H, ajustesIA: ajustes };
+module.exports = { montar, montarPublico, ejecutar, escribir, herramientas: H, ajustesIA: ajustes };

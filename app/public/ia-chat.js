@@ -19,7 +19,7 @@
   const NOMBRES = {
     ots_en_riesgo: 'OTs en riesgo', proyectos_buscar: 'proyectos', ot_detalle: 'detalle de OT', planificacion_dia: 'cuadrante del día',
     agenda_persona: 'agenda', personas_libres: 'quién está libre', ausencias: 'ausencias', pedidos_compra: 'pedidos', envios_transporte: 'envíos',
-    incidencias: 'incidencias', clientes_buscar: 'clientes', obras_buscar: 'obras', capacidades_quien: 'capacidades', materiales_buscar: 'materiales',
+    incidencias: 'incidencias', clientes_buscar: 'clientes', obras_buscar: 'obras', capacidades_quien: 'capacidades', materiales_buscar: 'materiales', crear_cliente: 'preparar cliente', editar_cliente: 'preparar cambios', anadir_contacto_cliente: 'preparar contacto', crear_obra: 'preparar obra',
   };
   const SUGERENCIAS = {
     '/gantt.html': ['¿Qué OTs no llegan a su entrega?', '¿Qué falta por planificar esta semana?'],
@@ -77,7 +77,7 @@
       lista,
       el('form', { class: 'iac-pie', onsubmit: (ev) => { ev.preventDefault(); enviar(); } },
         entrada, microfono(), el('button', { type: 'submit', class: 'primario', 'aria-label': 'Enviar', title: 'Enviar (Intro)' }, '➤')),
-      el('div', { class: 'iac-nota' }, 'Solo consulta: no cambia nada. Puede equivocarse; comprueba lo importante.'));
+      el('div', { class: 'iac-nota' }, 'Consulta, y solo cambia lo que confirmas en una tarjeta. Puede equivocarse; comprueba lo importante.'));
     panel.addEventListener('keydown', (ev) => { if (ev.key === 'Escape') abrir(false); });
     document.body.append(panel);
   }
@@ -113,7 +113,7 @@
       const her = (m.herramientas || []);
       const pend = m.pensando || m.estado === 'pensando';
       const div = el('div', { class: `iac-m ia${m.error ? ' mal' : ''}${pend ? ' pensando' : ''}` },
-        her.length ? el('div', { class: 'iac-her' }, her.map((h) => el('span', { class: h.ok === null ? 'va' : h.ok ? '' : 'mal', title: `${h.nombre} ${JSON.stringify(h.args || {})}${h.error ? `\n${h.error}` : ''}` }, `🔎 ${NOMBRES[h.nombre] || h.nombre}`))) : null);
+        her.length ? el('div', { class: 'iac-her' }, her.map((h) => el('span', { class: h.ok === null ? 'va' : h.ok ? '' : 'mal', title: `${h.nombre} ${JSON.stringify(h.args || {})}${h.error ? `\n${h.error}` : ''}` }, `${/^(crear|editar|anadir)_/.test(h.nombre) ? '✎' : '🔎'} ${NOMBRES[h.nombre] || h.nombre}`))) : null);
       if (pend) {
         const seg = m.creado ? Math.max(0, Math.round((Date.now() - new Date(m.creado).getTime()) / 1000)) : 0;
         const fase = { consultando: 'Consultando', redactando: 'Redactando la respuesta', pensando: 'Pensando', esperando: 'El modelo está saturado, reintentando' }[m.fase] || 'Pensando';
@@ -121,9 +121,34 @@
       }
       else if (m.error) div.append(el('p', {}, `✕ ${m.error}`), el('button', { type: 'button', class: 'mini', onclick: () => reintentar(m) }, '↻ Reintentar'));
       else { const c = el('div', { class: 'iac-txt' }); c.innerHTML = md(m.texto); div.append(c); if (m.aviso) div.append(el('small', { class: 'iac-aviso' }, `ℹ ${m.aviso}`)); }
+      for (const p of (!pend && m.propuestas) || []) div.append(tarjeta(p, m));
       return div;
     }));
     lista.scrollTop = lista.scrollHeight;
+  }
+
+  // Cambio preparado por la IA: no se hace hasta pulsar ✔ Confirmar (con tus permisos, por la API normal)
+  function tarjeta(p, m) {
+    const hecha = p.estado === 'hecha'; const cancelada = p.estado === 'cancelada';
+    const t = el('div', { class: `iac-prop ${p.estado}` },
+      el('div', { class: 'iac-prop-tit' }, hecha ? '✔ ' : cancelada ? '✕ ' : '✎ ', p.titulo),
+      el('dl', {}, (p.campos || []).flatMap(([k, v]) => [el('dt', {}, k), el('dd', {}, String(v))])),
+      ...(p.avisos || []).map((a) => el('p', { class: 'iac-prop-aviso' }, `⚠ ${a}`)),
+      p.error ? el('p', { class: 'iac-prop-err' }, `✕ ${p.error}`) : null);
+    if (hecha) t.append(el('p', { class: 'iac-prop-ok' }, 'Hecho. ', p.enlace ? el('a', { href: p.enlace }, 'Abrir la ficha →') : null));
+    else if (cancelada) t.append(el('p', { class: 'iac-prop-ok' }, 'Cancelado: no se ha cambiado nada.'));
+    else {
+      const ok = el('button', { type: 'button', class: 'primario mini', onclick: async () => {
+        ok.disabled = true; ok.textContent = 'Guardando…';
+        try { Object.assign(p, await api('POST', `/api/ia/propuestas/${p.id}/confirmar`)); }
+        catch (e) { p.error = e.message; }
+        pintar();
+      } }, '✔ Confirmar');
+      t.append(el('div', { class: 'iac-prop-acc' }, ok,
+        el('button', { type: 'button', class: 'ghost mini', onclick: async () => { try { await api('POST', `/api/ia/propuestas/${p.id}/cancelar`); p.estado = 'cancelada'; } catch (e) { p.error = e.message; } pintar(); } }, '✕ Cancelar'),
+        el('small', {}, 'No se guarda nada hasta que confirmes')));
+    }
+    return t;
   }
 
   async function enviar(texto) {

@@ -1763,6 +1763,21 @@ const MIGRACIONES = [
   // pintura por componentes: litros = Σ m² de pintura de la partida × consumo (l/m², en por_ud)
   `ALTER TABLE presupuesto_lineas DROP CONSTRAINT IF EXISTS presupuesto_lineas_calculo_check`,
   `ALTER TABLE presupuesto_lineas ADD CONSTRAINT presupuesto_lineas_calculo_check CHECK (calculo IN ('kg_perfiles', 'm2_perfiles', 'l_pintura'))`,
+  // Asistente: cambios que prepara la IA y la persona confirma (tarjeta ✔ Confirmar / ✕ Cancelar)
+  `CREATE TABLE IF NOT EXISTS ia_propuestas (
+     id SERIAL PRIMARY KEY,
+     usuario_id INT NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+     conversacion_id INT, mensaje_id INT,
+     herramienta TEXT NOT NULL,
+     titulo TEXT NOT NULL,
+     campos JSONB NOT NULL DEFAULT '[]',     -- [[etiqueta, valor]] lo que se enseña en la tarjeta
+     avisos JSONB NOT NULL DEFAULT '[]',
+     metodo TEXT NOT NULL, ruta TEXT NOT NULL, cuerpo JSONB,
+     abrir TEXT,                             -- plantilla de enlace al resultado (:id)
+     estado TEXT NOT NULL DEFAULT 'pendiente' CHECK (estado IN ('pendiente', 'ejecutando', 'hecha', 'cancelada')),
+     error TEXT, resultado_id INT, enlace TEXT,
+     creado TIMESTAMPTZ NOT NULL DEFAULT now(), decidido_en TIMESTAMPTZ)`,
+  `CREATE INDEX IF NOT EXISTS ia_propuestas_mensaje ON ia_propuestas (mensaje_id)`,
 ];
 
 async function migrar() {
