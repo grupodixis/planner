@@ -1742,6 +1742,12 @@ const MIGRACIONES = [
   `ALTER TABLE capturas ADD CONSTRAINT capturas_categoria_check CHECK (categoria IN ('material', 'averia', 'calidad', 'seguridad', 'mejora', 'otro', 'lead'))`,
   `ALTER TABLE capturas DROP CONSTRAINT IF EXISTS capturas_estado_check`,
   `ALTER TABLE capturas ADD CONSTRAINT capturas_estado_check CHECK (estado IN ('bandeja', 'asunto', 'tarea', 'info', 'resuelta', 'descartada', 'lead'))`,
+  `ALTER TABLE presupuestos ADD COLUMN IF NOT EXISTS alcance TEXT`,
+  `ALTER TABLE presupuestos ADD COLUMN IF NOT EXISTS exclusiones TEXT`,
+  `ALTER TABLE presupuestos ADD COLUMN IF NOT EXISTS plazo TEXT`,
+  `ALTER TABLE presupuestos ADD COLUMN IF NOT EXISTS forma_pago TEXT`,
+  `ALTER TABLE presupuestos ADD COLUMN IF NOT EXISTS atencion TEXT`,
+  `ALTER TABLE presupuestos ADD COLUMN IF NOT EXISTS calidad TEXT`,
 ];
 
 async function migrar() {

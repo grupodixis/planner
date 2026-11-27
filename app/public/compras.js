@@ -747,6 +747,8 @@
         el('h3', { class: 'ancho' }, 'Datos de la empresa en el pedido'),
         campo('Nombre', aj.empresa.nombre, emp('nombre')), campo('CIF', aj.empresa.cif, emp('cif')),
         campo('Dirección', aj.empresa.direccion, emp('direccion'), { ancho: 'ancho' }), campo('Teléfono', aj.empresa.telefono, emp('telefono')), campo('Email', aj.empresa.email, emp('email')),
+        campo('Razón social', aj.empresa.razon_social, emp('razon_social')), campo('Nombre comercial (presupuestos)', aj.empresa.nombre_comercial, emp('nombre_comercial')),
+        campo('Móvil / WhatsApp', aj.empresa.movil, emp('movil')), campo('Email para clientes', aj.empresa.email_comercial, emp('email_comercial')), campo('Web', aj.empresa.web, emp('web')),
         campo('Condiciones (al pie del pedido)', aj.condiciones, (v) => guardar({ condiciones: v }), { tag: 'textarea', rows: 5, ancho: 'ancho' })),
       tiene('usuarios') ? await panelCorreo() : null));
   }

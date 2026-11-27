@@ -1466,10 +1466,10 @@ Endpoints: `GET /api/ia`, `PUT /api/ia/ajustes`, `POST /api/ia/probar/:nombre`, 
 - Las ofertas confirmadas (`solicitud_precios`) aparecen en la línea como `nuevo` (la más barata) → `POST /api/presupuesto-lineas/:id/aplicar {sp_id}` o `POST /api/presupuestos/:id/aplicar-todos`. La línea pasa a «real», con fuente oferta.
 - Si la petición se cierra sin ofertas, la línea vuelve a contar como estimada.
 
-**PDF** (`GET /api/presupuestos/:id/pdf[?detallado=1]`)
-- Lleva la empresa (Compras › Ajustes), el cliente, la obra, y las partidas con su descripción comercial, medición, precio de venta e importe.
-- Incluye totales por capítulo, base, IVA 21 %, total y condiciones.
-- El detallado añade, bajo cada partida, la descomposición por unidad a **precio de venta** (coste × k), sin costes ni márgenes.
+**PDF** (`src/presupuestos-pdf.js`, formato de los presupuestos de HAM hechos con Antigravity; `GET /api/presupuestos/:id/pdf[?detallado=1|?interno=1]`)
+- **Cliente** (A4 vertical): cabecera con razón social · CIF, nombre comercial y contacto (Compras › Ajustes › empresa: `razon_social`, `nombre_comercial`, `movil`, `email_comercial`, `web`; los campos vacíos toman los datos de HAM de serie); «PRESUPUESTO código — TÍTULO»; recuadro verde **Alcance del suministro** (`presupuestos.alcance`); ficha (cliente con CIF, domicilio fiscal, nº, fecha, atención/obra —`atencion` o el primer contacto del cliente—, validez, `calidad`); partidas (Nº, nombre en negrita y descripción técnica con **negritas** y viñetas, ud, cantidad, precio, subtotal; capítulos si hay varios); totales con IVA 21 %; **Condiciones comerciales y logística** (forma de pago —`forma_pago` o «100% a la aceptación»—, `plazo`, una por línea de `condiciones`, validez) y **Exclusiones y aclaraciones técnicas** (`exclusiones`, una por línea); pie con página. Importes con punto de miles. El detallado añade bajo cada partida la descomposición por unidad a precio de venta.
+- **Interno** (A4 apaisado, «uso interno exclusivo»): costes directos línea a línea (tipo, cantidades por unidad y totales, coste unitario y total, origen del precio: real / tarifa / estimado / pedido, proveedor, fecha), rentabilidad (coste, venta, beneficio bruto, % sobre venta y sobre coste, IVA, total), reparto por tipo de coste y horas, y pendientes (precios estimados o pedidos, dudas de la IA, notas).
+- La IA rellena `alcance`, `calidad`, `plazo`, `condiciones` y `exclusiones` (solo si están vacíos) y escribe la descripción comercial al estilo de HAM. Se editan en la ficha, «📄 Lo que sale en el PDF del cliente».
 
 **Otras rutas**
 - `GET·POST /api/presupuestos`, `GET·PUT·DELETE /api/presupuestos/:id` (borra en preparación; si tiene peticiones, anula).

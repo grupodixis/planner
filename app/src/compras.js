@@ -20,14 +20,19 @@ const cantTxt = (x) => Number(x).toLocaleString('es-ES', { maximumFractionDigits
 
 const AJUSTES_DEF = {
   limite_aprobacion: 3000,
-  empresa: { nombre: 'HAM Menorca', cif: '', direccion: '', telefono: '', email: 'compras@hamenorca.com' },
+  // datos de la empresa (los que salen en los presupuestos de HAM); lo que se rellene en Ajustes manda
+  empresa: { nombre: 'HAM Menorca', cif: 'B57825432', direccion: 'Av. Circunval·lació, 11 · Pol. Ind. Sant Lluís, 07710 Sant Lluís (Menorca)', telefono: '+34 971 35 20 18',
+    email: 'compras@hamenorca.com', razon_social: 'Dixis Recursos y Soluciones S.L.', nombre_comercial: 'HAM Estructuras Metálicas Menorca', movil: '+34 669 769 541',
+    email_comercial: 'info@hamenorca.com', web: 'www.hamenorca.com' },
   entregar_en: 'Taller HAM Menorca',
   condiciones: 'Indicar el nº de pedido en el albarán y en la factura.\nEnviar el certificado de material (3.1 EN 10204) con la entrega cuando corresponda.\nFacturas a compras@hamenorca.com.',
 };
 async function ajustes() {
   const { rows } = await query(`SELECT valor FROM ajustes WHERE clave = 'compras'`);
   const v = rows[0]?.valor || {};
-  return { ...AJUSTES_DEF, ...v, empresa: { ...AJUSTES_DEF.empresa, ...(v.empresa || {}) } };
+  const emp = { ...AJUSTES_DEF.empresa };
+  for (const [k, x] of Object.entries(v.empresa || {})) if (x) emp[k] = x;   // un campo vacío en Ajustes no borra el de serie
+  return { ...AJUSTES_DEF, ...v, empresa: emp };
 }
 
 /* ---------- Proveedores ---------- */
@@ -261,7 +266,7 @@ function montar(app, asyncH) {
       condiciones: b.condiciones != null ? String(b.condiciones).slice(0, 3000) : act.condiciones,
       empresa: { ...act.empresa },
     };
-    for (const k of ['nombre', 'cif', 'direccion', 'telefono', 'email']) if (b.empresa && k in b.empresa) v.empresa[k] = texto(b.empresa[k], 200) || '';
+    for (const k of ['nombre', 'cif', 'direccion', 'telefono', 'email', 'razon_social', 'nombre_comercial', 'movil', 'email_comercial', 'web']) if (b.empresa && k in b.empresa) v.empresa[k] = texto(b.empresa[k], 200) || '';
     await query(`INSERT INTO ajustes (clave, valor) VALUES ('compras', $1) ON CONFLICT (clave) DO UPDATE SET valor = EXCLUDED.valor`, [JSON.stringify(v)]);
     res.json(v);
   }));

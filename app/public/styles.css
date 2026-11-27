@@ -3305,3 +3305,12 @@ dialog.pz-dlg { width: min(760px, calc(100vw - 32px)); } dialog.pz-dlg-ancho { w
 .pz-lead-dato input { font-size: 14px; }
 .pz-lead-tel { display: flex; gap: 6px; align-items: flex-end; } .pz-lead-tel .pz-lead-dato { flex: 1; min-width: 0; }
 .cap-doc { display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 26px; } .cap-doc small { font-size: 10px; max-width: 70px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.pz-doc { margin-top: 12px; border: 1px solid #2a3340; border-radius: 8px; padding: 6px 12px; }
+.pz-doc summary { cursor: pointer; font-weight: 600; padding: 4px 0; }
+.pz-doc-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 14px; padding: 8px 0; }
+.pz-doc-grid label { display: flex; flex-direction: column; gap: 3px; font-size: 12px; color: #9aa4b2; }
+.pz-doc-grid label.ancho { grid-column: 1 / -1; }
+.pz-doc-grid textarea, .pz-doc-grid input { font-size: 13px; width: 100%; }
+@media (max-width: 800px) { .pz-doc-grid { grid-template-columns: 1fr; } }
+.pz-doc-grid textarea { font-family: inherit; line-height: 1.4; }

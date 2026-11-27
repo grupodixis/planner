@@ -230,11 +230,16 @@ Esquema:
 {
   "titulo": "de qué es, corto (p. ej. «Escalera exterior y barandillas»)",
   "resumen": "2-3 frases: qué se presupuesta y cómo lo has entendido",
+  "alcance": "ALCANCE DEL SUMINISTRO para el cliente, 1-2 frases técnicas: qué incluye (fabricación, materiales, acabado, montaje, transporte)",
+  "calidad": "materiales y normativa en una línea (p. ej. «Acero S275JR · Galvanizado en caliente UNE-EN ISO 1461 · Soldadura MAG») " | null,
+  "plazo": "plazo de ejecución (p. ej. «3 a 4 semanas desde la confirmación del pedido y la toma de medidas»)" | null,
+  "condiciones": [ "condiciones comerciales y logísticas que apliquen además de forma de pago y validez (entrega, transporte, toma de medidas…)" ],
+  "exclusiones": [ "lo que NO incluye y aclaraciones técnicas (albañilería, licencias, medios de elevación especiales, ayudas de obra…)" ],
   "cliente": { "nombre": texto|null, "cif": texto|null, "email": texto|null, "telefono": texto|null, "direccion": texto|null, "contacto": texto|null },
   "obra": { "nombre": texto|null, "direccion": texto|null, "localidad": texto|null },
   "capitulos": [ { "nombre": texto, "partidas": [ {
       "nombre": "nombre interno corto",
-      "descripcion_comercial": "lo que lee el cliente: qué es, medidas, material, acabado, qué incluye",
+      "descripcion_comercial": "lo que lee el cliente, al estilo de HAM: una frase de qué es (suministro, fabricación e instalación…), luego líneas que empiezan por «• **Elemento:**» con medidas, perfiles, material, soldadura y acabado, y al final qué incluye. Puedes usar **negrita** y saltos de línea",
       "unidad": "ml" | "m2" | "ud" | "kg" | "h" | "pa",
       "medicion": número,
       "lineas": [ {
@@ -363,6 +368,9 @@ async function generar(id, { tituloAuto = false } = {}) {
       }
       const dudas = (Array.isArray(d.dudas) ? d.dudas : []).map((x) => (typeof x === 'string' ? { partida: null, texto: x } : { partida: texto(x.partida, 200), texto: texto(x.texto, 500) })).filter((x) => x.texto).slice(0, 40);
       for (const n of (Array.isArray(d.no_leido) ? d.no_leido : []).slice(0, 10)) avisos.push(`La IA no pudo interpretar: ${String(n).slice(0, 200)}`);
+      const lista = (x) => (Array.isArray(x) ? x.map((t) => texto(t, 300)).filter(Boolean).slice(0, 12).join('\n') : texto(x, 2000));
+      await c.query(`UPDATE presupuestos SET alcance = COALESCE(alcance, $2), calidad = COALESCE(calidad, $3), plazo = COALESCE(plazo, $4), condiciones = COALESCE(condiciones, $5), exclusiones = COALESCE(exclusiones, $6) WHERE id = $1`,
+        [id, texto(d.alcance, 1000), texto(d.calidad, 400), texto(d.plazo, 400), lista(d.condiciones), lista(d.exclusiones)]);
       await c.query(`UPDATE presupuestos SET titulo = COALESCE(NULLIF($2, ''), titulo), ia_estado = 'listo', ia_fase = NULL, ia_error = NULL, ia_resumen = $3, ia_dudas = $4, ia_borrador = $5,
                        ia_modelo = $6, ia_ms = $7, ia_avisos = $8, cambiado = now() WHERE id = $1`,
       [id, tituloAuto ? texto(d.titulo, 200) : null, texto(d.resumen, 1000), JSON.stringify(dudas), JSON.stringify(d), cfg.modelo, Date.now() - t0, JSON.stringify(avisos.slice(0, 40))]);

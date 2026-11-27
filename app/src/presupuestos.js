@@ -54,7 +54,8 @@ async function precioTarifa(tarifaId, td) {
 /* ---------- el presupuesto entero, con sus cálculos ---------- */
 async function cargar(id) {
   const { rows: [p] } = await query(`
-    SELECT p.*, p.gg_pct::float AS gg_pct, p.bi_pct::float AS bi_pct, c.nombre AS cliente, o.nombre AS obra, o.direccion AS obra_direccion, u.nombre AS creado_por_nombre
+    SELECT p.*, p.gg_pct::float AS gg_pct, p.bi_pct::float AS bi_pct, c.nombre AS cliente, c.cif AS cliente_cif, c.direccion_fiscal AS cliente_direccion,
+           (SELECT cc.nombre FROM cliente_contactos cc WHERE cc.cliente_id = c.id ORDER BY cc.id LIMIT 1) AS cliente_contacto, o.nombre AS obra, o.direccion AS obra_direccion, u.nombre AS creado_por_nombre
       FROM presupuestos p LEFT JOIN clientes c ON c.id = p.cliente_id LEFT JOIN obras o ON o.id = p.obra_id LEFT JOIN usuarios u ON u.id = p.creado_por
      WHERE p.id = $1`, [id]);
   if (!p) return null;
@@ -182,82 +183,11 @@ const ud = (u) => UD[u] || u || 'ud';
 const latin = (t) => String(t ?? '').replace(/[→⇒]/g, '-').replace(/[“”]/g, '"').replace(/[‘’]/g, "'").replace(/[^\x09\x0A\x0D\x20-\x7E\xA0-\xFF€–—•…]/g, '');
 const TIPO_TXT = { material: 'Materiales', mano_obra: 'Mano de obra', maquinaria: 'Maquinaria y medios', auxiliar: 'Medios auxiliares', subcontrata: 'Trabajos subcontratados' };
 
-async function pdf(p, detallado) {
+async function pdf(p, detallado, interno = false) {
   const aj = await require('./compras').ajustes();
-  const emp = aj.empresa || {};
-  const doc = new PDFDocument({ size: 'A4', margin: 48, info: { Title: `Presupuesto ${p.codigo}` } });
-  const W = doc.page.width - 96; const gris = '#666';
-  let y = 48;
-  doc.font('Helvetica-Bold').fontSize(16).fillColor('#111').text(latin(emp.nombre || 'Empresa'), 48, y, { width: W * 0.6 });
-  doc.fontSize(15).text('PRESUPUESTO', 48 + W * 0.6, y, { width: W * 0.4, align: 'right' });
-  y += 22;
-  doc.font('Helvetica').fontSize(9).fillColor(gris).text(latin([emp.cif && `CIF ${emp.cif}`, emp.direccion, emp.telefono, emp.email].filter(Boolean).join(' · ')), 48, y, { width: W * 0.6 });
-  const hoy = new Date(); const f = `${hoy.getDate()}/${hoy.getMonth() + 1}/${hoy.getFullYear()}`;
-  doc.fontSize(10).fillColor('#111').text(`${p.codigo}\n${f}\nVálido ${p.validez_dias} días`, 48 + W * 0.6, y, { width: W * 0.4, align: 'right' });
-  y += 46;
-  doc.roundedRect(48, y, W, 44, 4).fill('#f2f2f2'); doc.fillColor('#111').fontSize(10);
-  doc.font('Helvetica-Bold').text('Cliente:', 60, y + 9, { continued: true }).font('Helvetica').text(` ${latin(p.cliente || '—')}`);
-  doc.font('Helvetica-Bold').text('Obra:', 60, y + 25, { continued: true }).font('Helvetica').text(` ${latin([p.obra, p.obra_direccion].filter(Boolean).join(' · ') || '—')}  ·  ${latin(p.titulo)}`);
-  y += 60;
-  const col = [48, 48 + 44, 48 + W * 0.66, 48 + W * 0.79]; // código, descripción, medición, precio, (importe a la derecha)
-  const cab = () => {
-    doc.font('Helvetica-Bold').fontSize(9).fillColor(gris);
-    doc.text('Código', col[0], y); doc.text('Descripción', col[1], y); doc.text('Medición', col[2], y, { width: W * 0.12, align: 'right' });
-    doc.text('Precio', col[3], y, { width: W * 0.1, align: 'right' }); doc.text('Importe', 48, y, { width: W, align: 'right' });
-    y += 14; doc.moveTo(48, y).lineTo(48 + W, y).strokeColor('#bbb').stroke(); y += 6;
-  };
-  const salto = (h) => { if (y + h > doc.page.height - 70) { doc.addPage(); y = 48; cab(); } };
-  cab();
-  for (const c of p.capitulos) {
-    if (!c.partidas.length) continue;
-    salto(30);
-    doc.font('Helvetica-Bold').fontSize(10).fillColor('#111').text(latin(`${c.codigo ? `${c.codigo} · ` : ''}${c.nombre}`.toUpperCase()), col[0], y, { width: W }); y += 16;
-    for (const pa of c.partidas) {
-      const desc = latin(pa.descripcion || pa.nombre);
-      doc.font('Helvetica').fontSize(9.5);
-      const h = doc.heightOfString(desc, { width: W * 0.52 });
-      salto(h + 8);
-      doc.fillColor('#111').text(latin(pa.codigo || ''), col[0], y, { width: 40 });
-      doc.text(desc, col[1], y, { width: W * 0.52 });
-      doc.text(`${cantTxt(pa.medicion)} ${ud(pa.unidad)}`, col[2], y, { width: W * 0.12, align: 'right' });
-      doc.text(eur(pa.venta_ud), col[3], y, { width: W * 0.1, align: 'right' });
-      doc.text(eur(pa.venta), 48, y, { width: W, align: 'right' });
-      y += h + 4;
-      if (detallado && pa.lineas.length) {
-        // descomposición a precio de VENTA (sin costes ni márgenes internos), por unidad de partida
-        doc.fontSize(8).fillColor(gris);
-        for (const t of TIPOS) {
-          const ls = pa.lineas.filter((l) => l.tipo === t && l.precio != null);
-          if (!ls.length) continue;
-          salto(12); doc.font('Helvetica-Oblique').text(TIPO_TXT[t], col[1] + 8, y); y += 10; doc.font('Helvetica');
-          for (const l of ls) {
-            salto(10);
-            const pv = r2(l.precio * p.k);
-            doc.text(latin(l.concepto), col[1] + 16, y, { width: W * 0.42 });
-            doc.text(`${cantTxt(l.cantidad_ud)} ${ud(l.unidad)} × ${eur(pv)}`, col[2] - 30, y, { width: W * 0.22, align: 'right' });
-            doc.text(eur(r2(l.cantidad_ud * pv)), col[3], y, { width: W * 0.1, align: 'right' });
-            y += 10;
-          }
-        }
-        doc.fontSize(9.5); y += 4;
-      }
-      doc.moveTo(col[1], y).lineTo(48 + W, y).strokeColor('#e3e3e3').stroke(); y += 5;
-    }
-    salto(18);
-    doc.font('Helvetica-Bold').fontSize(9.5).fillColor('#111').text(`Total ${latin(c.codigo ? `capítulo ${c.codigo}` : c.nombre)}`, col[1], y, { width: W * 0.8 - 44, align: 'right' });
-    doc.text(eur(c.venta), 48, y, { width: W, align: 'right' }); y += 18;
-  }
-  const iva = r2(p.venta * 0.21);
-  salto(70); y += 4;
-  doc.moveTo(48 + W * 0.55, y).lineTo(48 + W, y).strokeColor('#999').stroke(); y += 6;
-  for (const [t, v, b] of [['Base imponible', p.venta], ['IVA 21 %', iva], ['TOTAL', r2(p.venta + iva), true]]) {
-    doc.font(b ? 'Helvetica-Bold' : 'Helvetica').fontSize(b ? 11 : 10).fillColor('#111').text(t, 48 + W * 0.55, y, { width: W * 0.25 });
-    doc.text(eur(v), 48, y, { width: W, align: 'right' }); y += b ? 18 : 15;
-  }
-  const cond = p.condiciones || aj.condiciones_presupuesto || null;
-  if (cond) { salto(60); y += 8; doc.font('Helvetica-Bold').fontSize(9.5).text('Condiciones', 48, y); y += 13; doc.font('Helvetica').fontSize(8.5).fillColor(gris).text(latin(cond), 48, y, { width: W }); }
-  doc.end();
-  return doc;
+  const P = require('./presupuestos-pdf');
+  const q = { ...p, atencion: p.atencion || p.cliente_contacto || null };
+  return interno ? P.interno(q, aj) : P.cliente(q, aj, { detallado });
 }
 
 /* ---------- rutas ---------- */
@@ -313,7 +243,8 @@ function montar(app, asyncH) {
     for (const k of ['cliente_id', 'obra_id']) if (k in b) poner(k, num(b[k]));
     for (const k of ['gg_pct', 'bi_pct']) if (k in b) { const v = num(b[k]); if (v == null || v < -50 || v > 300) throw fallo(400, 'Porcentaje no válido'); poner(k, v); }
     if ('validez_dias' in b) poner('validez_dias', Math.max(1, Math.min(365, Number(b.validez_dias) || 30)));
-    for (const k of ['condiciones', 'notas']) if (k in b) poner(k, texto(b[k], 4000));
+    for (const k of ['condiciones', 'notas', 'exclusiones', 'alcance']) if (k in b) poner(k, texto(b[k], 4000));
+    for (const k of ['plazo', 'forma_pago', 'atencion', 'calidad']) if (k in b) poner(k, texto(b[k], 400));
     if (!sets.length) throw fallo(400, 'Nada que cambiar');
     sets.push('cambiado = now()');
     await query(`UPDATE presupuestos SET ${sets.join(', ')} WHERE id = $1`, vals);
@@ -540,10 +471,11 @@ function montar(app, asyncH) {
   app.get('/api/presupuestos/:id/pdf', ver, asyncH(async (req, res) => {
     const p = await cargar(Number(req.params.id));
     if (!p) throw fallo(404, 'Presupuesto no encontrado');
-    const det = req.query.detallado === '1';
+    const det = req.query.detallado === '1'; const int = req.query.interno === '1';
+    if (int && !auth.tiene(req.usuario, 'costes') && !auth.tiene(req.usuario, 'presupuestos')) throw fallo(403, 'Sin permiso');
     res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `${req.query.descargar ? 'attachment' : 'inline'}; filename="${p.codigo}${det ? '-detallado' : ''}.pdf"`);
-    (await pdf(p, det)).pipe(res);
+    res.setHeader('Content-Disposition', `${req.query.descargar ? 'attachment' : 'inline'}; filename="${p.codigo}${int ? '-interno-costes' : det ? '-detallado' : ''}.pdf"`);
+    (await pdf(p, det, int)).pipe(res);
   }));
 }
 
