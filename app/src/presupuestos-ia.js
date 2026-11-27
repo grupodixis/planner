@@ -259,6 +259,7 @@ Esquema:
 Reglas:
 - Las cantidades de cada línea son por 1 unidad de partida. Mide con lo que veas en planos y mediciones; si no hay medida, supón lo razonable y ponlo en dudas.
 - Mano de obra y maquinaria: usa SOLO los nombres de la tarifa que te paso (campo "tarifa"); si ninguno encaja, el más parecido y una duda.
+- Materiales: perfiles, tubos, pletinas y macizos en «ml» por unidad de partida (calcula la longitud real: zancas, peldaños, bastidores, barrotes…); chapa en «m2»; tornillería y anclajes en «ud». Usa los nombres del catálogo (p. ej. «UPN 120 S275», «Angular L 40×40×4 S235», «Chapa lisa negra 4 mm 1250×2500»).
 - Galvanizado en caliente como subcontrata con "calculo" kg_perfiles. La pintura la hacemos nosotros (nunca al horno): línea auxiliar de pintura con "calculo" m2_perfiles y precio_estimado del material por m², más sus horas de mano de obra. En ambas, "por_ud" 1.
 - Nada de líneas de riesgo, imprevistos, margen o reserva: ese coste va dentro de la línea que lo causa.
 - No pongas precios a los materiales (el sistema usa su lista de precios). No apliques margen.
@@ -360,15 +361,21 @@ async function generar(id, { tituloAuto = false } = {}) {
               por_ud: Math.max(0, num(l.por_ud) ?? 1), calculo: ['kg_perfiles', 'm2_perfiles'].includes(l.calculo) && ['subcontrata', 'auxiliar'].includes(tipo) ? l.calculo : null, precio: null, estado_precio: 'estimado', fuente: null, precio_info: null, nota: texto(l.nota, 500) };
             if (base.calculo) { base.unidad = base.calculo === 'kg_perfiles' ? 'kg' : 'm2'; base.por_ud = 1; }
             if (tipo === 'material') {
-              const m = await emparejar(base.concepto);
-              if (m) {
-                const eq = await U.deCatalogo(m.id);
-                base.catalogo_id = m.id; base.concepto = m.nombre;
-                // la unidad que pide la IA si el material sabe convertirla; si no, la base del material
-                if (eq && U.unidad(base.unidad) !== eq.base && !eq.factores[U.unidad(base.unidad)]) { avisos.push(`«${m.nombre}»: la IA lo midió en ${base.unidad}; pasado a ${eq.base} sin convertir la cantidad: revísala.`); base.unidad = eq.base; }
+              // de la lista de materiales; si no está, se añade a la lista (con sus equivalencias y precio estimado)
+              let m = await emparejar(base.concepto); let nuevo = false;
+              if (!m) { m = await require('./catalogo').crearMaterial({ nombre: base.concepto, unidad: null }); nuevo = true; avisos.push(`«${m.nombre}» no estaba en la lista de materiales: añadido (revisa el nombre y su precio).`); }
+              const eq = await U.deCatalogo(m.id);
+              base.catalogo_id = m.id; base.concepto = m.nombre;
+              // la cantidad, siempre en la unidad del material (ml en perfiles, m² en chapa): si la IA la dio en kg, se convierte
+              const uIA = U.unidad(base.unidad);
+              if (eq && uIA !== eq.base) {
+                const c2 = U.convertirCantidad(base.por_ud, uIA, eq.base, eq.factores);
+                if (c2 != null) base.por_ud = +c2.toFixed(4);
+                else avisos.push(`«${m.nombre}»: la IA lo midió en ${base.unidad} y no se puede pasar a ${eq.base}: revisa la cantidad.`);
+                base.unidad = eq.base;
               }
               Object.assign(base, await precios.precioMaterial(base.catalogo_id, base.unidad, base.concepto));
-              if (!m) base.precio_info = { ...(base.precio_info || {}), aviso: 'No está en el catálogo: precio a mano o pedir precio' };
+              if (nuevo && !base.precio) base.precio_info = { ...(base.precio_info || {}), aviso: 'Material nuevo en la lista: pon su precio o pídelo' };
             } else if ((tipo === 'mano_obra' || tipo === 'maquinaria') && l.tarifa) {
               const lista = tipo === 'mano_obra' ? td.mano_obra : td.maquinaria;
               const t = buscarTarifa(lista.filter((x) => x.activo !== false), l.tarifa) || buscarTarifa(lista, l.tarifa);

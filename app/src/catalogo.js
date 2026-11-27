@@ -111,6 +111,39 @@ function montar(app, asyncH) {
   }));
 }
 
+// Material nuevo en la lista (desde Presupuestos: lo añade quien presupuesta o la IA si no existe). Su familia se
+// deduce del nombre, las equivalencias (kg/ml, m² de pintura…) se calculan del nombre y lleva un precio estimado.
+const FAMILIAS = [[/^tubo.*inox|inox.*tubo/i, 'Tubos inox'], [/^tubo/i, 'Tubos acero'], [/^(ipe|ipn|hea|heb|hem|upn|upe|perfil\s+(ipe|heb|hea|upn))/i, 'Perfiles laminados'],
+  [/^correa/i, 'Correas'], [/^chapa/i, 'Chapas'], [/^(pletina|redondo|cuadrado macizo|angular|perfil t|perfil u)/i, 'Pletinas y macizos'], [/alumin/i, 'Aluminio'],
+  [/^(tornillo|tuerca|arandela|varilla roscada|remache)/i, 'Tornillería'], [/(anclaje|taco|resina)/i, 'Anclajes'], [/(pintura|imprimaci|esmalte)/i, 'Pinturas y tratamientos'], [/vidrio/i, 'Vidrio']];
+async function crearMaterial({ nombre, unidad = null, usuarioId = null, origen = 'usuario' }) {
+  const n = texto(nombre, 200); if (!n) throw fallo(400, 'Falta el nombre del material');
+  const familia = (FAMILIAS.find(([re]) => re.test(n)) || [0, 'Añadidos'])[1];
+  const U = require('./unidades');
+  const g = U.geometria(n, unidad || 'ud', '');
+  const uCat = texto(unidad, 20) || (g.base && g.base !== 'ud' ? (g.base === 'ml' ? 'barra' : g.base) : 'ud');
+  const { rows: [c] } = await query(
+    `INSERT INTO catalogo (tipo, familia, nombre, unidad, origen, creado_por) VALUES ('material', $1, $2, $3, $4, $5)
+     ON CONFLICT (tipo, lower(nombre)) DO UPDATE SET activo = TRUE RETURNING id, tipo, familia, nombre, unidad, detalle`,
+    [familia, n, uCat, 'usuario', usuarioId]);   // los de la IA también: creado_por vacío
+  const g2 = U.geometria(c.nombre, c.unidad, c.detalle);
+  await query('UPDATE catalogo SET unidad_base = $2, equiv = $3, equiv_origen = $4 WHERE id = $1 AND equiv_origen IS DISTINCT FROM \'manual\'',
+    [c.id, g2.base, g2.kg_ml || g2.kg_m2 || g2.ml_barra || g2.m2_ud ? JSON.stringify(g2) : null, 'calculado']).catch(() => {});
+  U.olvidar?.(c.id);
+  cache = null;
+  // precio estimado, si hay regla para él
+  try {
+    const { rows: [x] } = await query('SELECT id, familia, nombre, unidad, unidad_base, equiv FROM catalogo WHERE id = $1', [c.id]);
+    const e = require('./precios-estimar').estimar(x);
+    const { rows: ya } = await query('SELECT 1 FROM precios WHERE catalogo_id = $1 LIMIT 1', [c.id]);
+    if (e?.precio > 0 && !ya.length) {
+      await query(`INSERT INTO precios (catalogo_id, descripcion, desc_norm, precio, unidad, fecha, origen, via, unidad_base, precio_base, nota) VALUES ($1,$2,$3,$4,$5,CURRENT_DATE,'estimado','estimacion',$5,$4,$6)`,
+        [c.id, c.nombre, require('./precios').norm(c.nombre), e.precio, U.unidad(x.unidad_base || x.unidad) || 'ud', `${e.nota}${e.conf ? ` · fiabilidad ${e.conf}` : ''}`]);
+    }
+  } catch (err) { console.warn('precio estimado del material nuevo', err.message); }
+  return c;
+}
+
 // sumar un uso (para que lo más usado salga antes)
 function usado(id) { if (id && cache) { const x = cache.lista.find((c) => c.id === id); if (x) x.uso++; } }
 
@@ -120,4 +153,4 @@ async function buscarCatalogo(q, tipo = 'material', limite = 10) {
   return buscar(c.lista, tipo, String(q || '').slice(0, 100), limite).map(publico);
 }
 
-module.exports = { montar, sembrar, usado, buscarCatalogo };
+module.exports = { montar, sembrar, usado, buscarCatalogo, crearMaterial };

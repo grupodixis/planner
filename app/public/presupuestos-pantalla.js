@@ -360,13 +360,14 @@
         const opcionesT = tipo === 'mano_obra' ? est.tarifa.mano_obra : tipo === 'maquinaria' ? est.tarifa.maquinaria : null;
         const concepto = opcionesT && l.tarifa_id
           ? el('select', { disabled: !abiertoP(), 'aria-label': 'De la tarifa', onchange: (ev) => putL(l, { tarifa_id: ev.target.value }, 'Cambiado') }, opcionesT.filter((t) => t.activo || t.id === l.tarifa_id).map((t) => el('option', { value: t.id, selected: t.id === l.tarifa_id }, t.nombre)))
-          : campo(l.concepto, (v) => putL(l, { concepto: v }), { class: 'pz-in-con', 'aria-label': 'Concepto' });
+          : tipo === 'material' && abiertoP() ? buscadorMaterial((b) => putL(l, b, b.nuevo_material ? 'Añadido a la lista de materiales' : 'Material cambiado'), { valor: l.concepto, placeholder: 'Material de la lista', clase: 'pz-in-con' })
+            : campo(l.concepto, (v) => putL(l, { concepto: v }), { class: 'pz-in-con', 'aria-label': 'Concepto' });
         lineas.push(el('tr', { class: l.nuevo ? 'pz-con-nuevo' : '' },
-          el('td', {}, concepto, l.catalogo_id ? el('small', {}, 'catálogo') : null),
+          el('td', {}, concepto, l.tipo === 'material' ? el('small', {}, l.catalogo_id ? (l.equiv_txt || 'de la lista') : '⚠ no está en la lista: elígelo') : null),
           el('td', { class: 'n' }, l.calculo ? el('span', { title: l.calculo_txt }, pu(l.cantidad_ud)) : campo(fmt(l.por_ud), (v) => putL(l, { por_ud: leer(v) }), { class: 'pz-num', inputmode: 'decimal', 'aria-label': `Cantidad por ${ud(pa.unidad)}` }),
             ['auxiliar', 'subcontrata'].includes(l.tipo) && abiertoP() ? el('select', { class: 'pz-calc', 'aria-label': 'Cómo se calcula la cantidad', onchange: (ev) => putL(l, { calculo: ev.target.value || null }, 'Cálculo cambiado') },
               [['', 'a mano'], ['kg_perfiles', 'Σ kg perfiles'], ['m2_perfiles', 'Σ m² pintura']].map(([v, t]) => el('option', { value: v, selected: (l.calculo || '') === v }, t))) : null),
-          el('td', {}, l.calculo || l.tarifa_id ? ud(l.unidad) : campo(l.unidad, (v) => putL(l, { unidad: v }), { class: 'pz-ud', 'aria-label': 'Unidad' })),
+          el('td', {}, l.calculo || l.tarifa_id || (l.tipo === 'material' && l.catalogo_id) ? el('span', { title: l.equiv_txt || '' }, ud(l.unidad)) : campo(l.unidad, (v) => putL(l, { unidad: v }), { class: 'pz-ud', 'aria-label': 'Unidad' })),
           el('td', { class: 'n' }, `${pu(l.cantidad_total)} ${ud(l.unidad)}`),
           el('td', { class: 'n' }, precioLinea(l)),
           el('td', { class: 'n' }, eur(l.importe)),
@@ -402,6 +403,27 @@
   }
 
   // fila para añadir una línea de cada tipo
+  // Buscador de la lista de materiales: elegir uno o añadir uno nuevo a la lista. elegir({ catalogo_id } | { nuevo_material })
+  function buscadorMaterial(elegir, { valor = '', placeholder = '＋ Material: escribe para buscar en la lista (tubo 40x40, UPN 120…)', clase = 'pz-busca' } = {}) {
+    const i = el('input', { type: 'search', value: valor, placeholder, class: clase, 'aria-label': 'Material de la lista', autocomplete: 'off' });
+    const sug = el('div', { class: 'pz-sug', hidden: true });
+    let t = null;
+    const fin = (b) => { sug.hidden = true; elegir(b); };
+    i.addEventListener('input', () => {
+      clearTimeout(t); const q = i.value.trim();
+      if (q.length < 2) { sug.hidden = true; return; }
+      t = setTimeout(async () => {
+        const res = await api('GET', `/api/presupuestos-sugerir?q=${encodeURIComponent(q)}`).catch(() => []);
+        sug.replaceChildren(...res.map((m) => el('button', { type: 'button', onmousedown: (ev) => ev.preventDefault(), onclick: () => { i.value = m.nombre; fin({ catalogo_id: m.id }); } }, el('span', {}, m.nombre, m.equiv ? el('small', {}, ` · ${m.equiv}`) : null),
+          el('span', { class: m.precio == null ? 'ayuda' : m.estado_precio === 'real' ? 'pz-verde' : 'pz-naranja' }, m.precio == null ? 'sin precio' : `${pu(m.precio)} €/${ud(m.unidad_base)} · ${m.estado_precio === 'real' ? `real ${fecha(m.precio_info?.fecha)}` : m.precio_info?.origen === 'estimado' ? 'estimado' : `hace ${m.precio_info?.dias} días`}`))),
+        el('button', { type: 'button', class: 'pz-sug-libre', onmousedown: (ev) => ev.preventDefault(), onclick: () => fin({ nuevo_material: q }) }, `＋ Añadir «${q}» a la lista de materiales`));
+        sug.hidden = false;
+      }, 250);
+    });
+    i.addEventListener('keydown', (ev) => { if (ev.key === 'Escape') { sug.hidden = true; i.value = valor; i.blur(); } });
+    i.addEventListener('blur', () => setTimeout(() => { sug.hidden = true; if (valor) i.value = valor; }, 150));
+    return el('div', { class: 'pz-busca-caja' }, i, sug);
+  }
   function anadir(tipo, pa) {
     const post = (b) => hacer('POST', `/api/presupuesto-partidas/${pa.id}/lineas`, { tipo, ...b }, 'Añadida');
     if (tipo === 'mano_obra' || tipo === 'maquinaria') {
@@ -411,25 +433,7 @@
       sel.addEventListener('change', () => { if (sel.value) post({ tarifa_id: sel.value, por_ud: 1 }); });
       return [sel, ops.length ? null : el('span', { class: 'ayuda' }, ' La tarifa está vacía: ', el('a', { href: '/tarifa.html' }, 'Informes › Tarifa'))];
     }
-    if (tipo === 'material') {
-      const i = el('input', { type: 'search', placeholder: '＋ Material: escribe para buscar en el catálogo (tubo 40x40, pletina…)', class: 'pz-busca', 'aria-label': 'Buscar material' });
-      const sug = el('div', { class: 'pz-sug', hidden: true });
-      let t = null; let res = [];
-      const elegirM = (m) => { sug.hidden = true; i.value = ''; post(m ? { catalogo_id: m.id, por_ud: 1 } : { concepto: i.dataset.q, unidad: 'ud', por_ud: 1 }); };
-      i.addEventListener('input', () => {
-        clearTimeout(t); const q = i.value.trim(); i.dataset.q = q;
-        if (q.length < 2) { sug.hidden = true; return; }
-        t = setTimeout(async () => {
-          res = await api('GET', `/api/presupuestos-sugerir?q=${encodeURIComponent(q)}`).catch(() => []);
-          sug.replaceChildren(...res.map((m) => el('button', { type: 'button', onclick: () => elegirM(m) }, el('span', {}, m.nombre, m.equiv ? el('small', {}, ` · ${m.equiv}`) : null),
-            el('span', { class: m.precio == null ? 'ayuda' : m.estado_precio === 'real' ? 'pz-verde' : 'pz-naranja' }, m.precio == null ? 'sin precio' : `${pu(m.precio)} €/${ud(m.unidad_base)} · ${m.estado_precio === 'real' ? `real ${fecha(m.precio_info?.fecha)}` : `hace ${m.precio_info?.dias} días`}`))),
-          el('button', { type: 'button', class: 'pz-sug-libre', onclick: () => elegirM(null) }, `＋ «${q}» sin catálogo (precio a mano)`));
-          sug.hidden = false;
-        }, 250);
-      });
-      i.addEventListener('keydown', (ev) => { if (ev.key === 'Escape') sug.hidden = true; });
-      return el('div', { class: 'pz-busca-caja' }, i, sug);
-    }
+    if (tipo === 'material') return buscadorMaterial((b) => post({ ...b, por_ud: 1 }));
     // auxiliar / subcontrata
     const con = el('input', { placeholder: tipo === 'auxiliar' ? '＋ Auxiliar: plataforma, andamio, consumibles…' : '＋ Subcontrata: galvanizado, lacado, transporte…', class: 'pz-in-con', 'aria-label': 'Concepto' });
     const calc = el('select', { 'aria-label': 'Cantidad' }, el('option', { value: '' }, 'cantidad a mano'), el('option', { value: 'kg_perfiles' }, '🧮 kg de los perfiles'), el('option', { value: 'm2_perfiles' }, '🧮 m² de pintura de los perfiles'));

@@ -100,6 +100,7 @@ async function cargar(id) {
       if (k1 != null) kg += k1; else sinEquiv.push(l.concepto);
       const ml = m ? U.convertirCantidad(l.por_ud, l.unidad, 'ml', m.factores) : null;
       if (ml != null && m.pint_m2_ml) m2 += ml * m.pint_m2_ml;
+      else if (m && m.base === 'm2') { const s2 = U.convertirCantidad(l.por_ud, l.unidad, 'm2', m.factores); if (s2 != null) m2 += 2 * s2; }   // chapa: las dos caras
     }
     pa.lineas = ls.map((l) => {
       const cant = l.calculo === 'kg_perfiles' ? +kg.toFixed(4) : l.calculo === 'm2_perfiles' ? +m2.toFixed(4) : l.por_ud;
@@ -162,23 +163,24 @@ async function lineaNueva(b, td) {
   const out = { tipo, concepto: texto(b.concepto, 300), catalogo_id: null, tarifa_id: null, unidad: texto(b.unidad, 12) || 'ud', por_ud: num(b.por_ud) ?? 1, calculo: null,
     precio: num(b.precio), estado_precio: 'estimado', fuente: num(b.precio) != null ? 'manual' : null, precio_info: null };
   if (['kg_perfiles', 'm2_perfiles'].includes(b.calculo)) { out.calculo = b.calculo; out.unidad = b.calculo === 'kg_perfiles' ? 'kg' : 'm2'; }
+  if (tipo === 'material' && !b.catalogo_id && (b.nuevo_material || out.concepto)) {
+    // siempre de la lista de materiales: el que corresponda o, si no existe, se añade
+    const m = b.nuevo_material ? null : await require('./presupuestos-ia').emparejar(out.concepto);
+    b.catalogo_id = (m || await require('./catalogo').crearMaterial({ nombre: b.nuevo_material || out.concepto, usuarioId: b.usuarioId })).id;
+    out.concepto = null;
+  }
   if (tipo === 'material' && b.catalogo_id) {
     const { rows: [c] } = await query('SELECT id, nombre, unidad FROM catalogo WHERE id = $1', [Number(b.catalogo_id)]);
     if (!c) throw fallo(400, 'Material no encontrado en el catálogo');
     const m = await U.deCatalogo(c.id);
     out.catalogo_id = c.id; out.concepto = out.concepto || c.nombre;
-    out.unidad = texto(b.unidad, 12) || m?.base || U.unidad(c.unidad) || 'ud';
+    out.unidad = m?.base || U.unidad(c.unidad) || 'ud';   // la unidad la pone el material (ml, m², ud…)
     if (out.precio == null) Object.assign(out, await precioMaterial(c.id, out.unidad, c.nombre));
   } else if (['mano_obra', 'maquinaria'].includes(tipo) && b.tarifa_id) {
     const pt = await precioTarifa(b.tarifa_id, td);
     if (!pt) throw fallo(400, 'No está en la tarifa');
     out.tarifa_id = pt.t.id; out.concepto = out.concepto || pt.t.nombre; out.unidad = pt.t.unidad || 'h';
     if (out.precio == null) { const { t, ...rest } = pt; Object.assign(out, rest); }
-  } else if (tipo === 'material' && out.concepto) {
-    // escrito a mano: si está en el catálogo (aunque se llame distinto: «Perfil UPN 140»), se enlaza
-    const m = await require('./presupuestos-ia').emparejar(out.concepto);
-    if (m) { out.catalogo_id = m.id; out.concepto = m.nombre; }
-    if (out.precio == null) Object.assign(out, await precioMaterial(out.catalogo_id, out.unidad, out.concepto));
   }
   if (!out.concepto) throw fallo(400, 'Falta el concepto');
   return out;
@@ -342,7 +344,7 @@ function montar(app, asyncH) {
   // Líneas: { tipo, catalogo_id | tarifa_id | concepto, unidad, por_ud, precio, calculo }
   app.post('/api/presupuesto-partidas/:id/lineas', ver, asyncH(async (req, res) => {
     const pa = await dePartida(Number(req.params.id));
-    const l = await lineaNueva(req.body || {});
+    const l = await lineaNueva({ ...(req.body || {}), usuarioId: req.usuario.id });
     const { rows: [n] } = await query('SELECT COALESCE(max(orden), -1) AS o FROM presupuesto_lineas WHERE partida_id = $1', [pa.id]);
     await insertarLinea({ query }, pa.id, l, n.o + 1);
     await tocar(pa.presupuesto_id); res.status(201).json(await cargar(pa.presupuesto_id));
@@ -359,7 +361,7 @@ function montar(app, asyncH) {
       if (c) { poner('unidad', c === 'kg_perfiles' ? 'kg' : 'm2'); poner('por_ud', 1); }
       l.calculo = c;
     }
-    if ('unidad' in b && !l.calculo) {
+    if ('unidad' in b && !l.calculo && !(l.tipo === 'material' && l.catalogo_id)) {   // en un material de la lista, la unidad la pone él
       // al cambiar de unidad, el precio se convierte (si es un material con equivalencias)
       const u = texto(b.unidad, 12) || 'ud'; poner('unidad', u);
       if (l.precio != null && l.tipo === 'material' && !('precio' in b)) {
@@ -383,15 +385,28 @@ function montar(app, asyncH) {
       }
       poner('precio', v); poner('estado_precio', 'estimado'); poner('fuente', v == null ? null : 'manual'); poner('precio_info', JSON.stringify(info));
     }
-    // concepto cambiado en un material sin catálogo: se intenta encontrar en el catálogo (y su precio)
-    if ('concepto' in b && l.tipo === 'material' && !l.catalogo_id) {
-      const m = await require('./presupuestos-ia').emparejar(texto(b.concepto, 300));
-      if (m) {
-        poner('catalogo_id', m.id); vals[sets.findIndex((x) => x.startsWith('concepto =')) + 1] = m.nombre;
-        if (!('precio' in b) && l.fuente !== 'manual') {
-          const pm = await precioMaterial(m.id, uLinea, m.nombre);
-          poner('precio', pm.precio); poner('estado_precio', pm.estado_precio); poner('fuente', pm.fuente); poner('precio_info', JSON.stringify(pm.precio_info || null));
-        }
+    // otro material de la lista (o uno nuevo que se añade): cantidad pasada a su unidad y su precio de la lista
+    if (l.tipo === 'material' && (b.catalogo_id || b.nuevo_material || ('concepto' in b && !l.catalogo_id))) {
+      let cid = Number(b.catalogo_id) || null;
+      if (!cid && b.nuevo_material) cid = (await require('./catalogo').crearMaterial({ nombre: b.nuevo_material, usuarioId: req.usuario.id })).id;
+      if (!cid) cid = (await require('./presupuestos-ia').emparejar(texto(b.concepto, 300)))?.id || (await require('./catalogo').crearMaterial({ nombre: b.concepto, usuarioId: req.usuario.id })).id;
+      const { rows: [c] } = await query('SELECT id, nombre, unidad FROM catalogo WHERE id = $1', [cid]);
+      if (!c) throw fallo(400, 'Material no encontrado en la lista');
+      const eqN = await U.deCatalogo(c.id); const eqV = await U.equivalencias(l.catalogo_id, l.concepto, l.unidad);
+      const uN = eqN?.base || U.unidad(c.unidad) || 'ud';
+      // la cantidad: de la unidad que tenía a la del material (por kg si hace falta)
+      let cant = Number(l.por_ud);
+      if (U.unidad(l.unidad) !== uN) {
+        const kg = eqV ? U.convertirCantidad(cant, l.unidad, 'kg', eqV.factores) : null;
+        const c2 = eqN ? (U.convertirCantidad(cant, l.unidad, uN, eqN.factores) ?? (kg != null ? U.convertirCantidad(kg, 'kg', uN, eqN.factores) : null)) : null;
+        if (c2 != null) cant = +c2.toFixed(4);
+      }
+      const ix = sets.findIndex((x) => x.startsWith('concepto ='));
+      if (ix >= 0) vals[ix + 1] = c.nombre; else poner('concepto', c.nombre);
+      poner('catalogo_id', c.id); poner('unidad', uN); if (!('por_ud' in b)) poner('por_ud', cant); poner('unidad_ver', null);
+      if (!('precio' in b)) {
+        const pm = await precioMaterial(c.id, uN, c.nombre);
+        poner('precio', pm.precio); poner('estado_precio', pm.estado_precio); poner('fuente', pm.fuente); poner('precio_info', JSON.stringify(pm.precio_info || null));
       }
     }
     if ('tarifa_id' in b && ['mano_obra', 'maquinaria'].includes(l.tipo)) {
@@ -526,4 +541,22 @@ function montar(app, asyncH) {
   }));
 }
 
-module.exports = { montar, cargar, precioMaterial, precioTarifa };
+// Una vez: los materiales de la lista que estaban en otra unidad (p. ej. perfiles en kg) pasan a la del material,
+// convirtiendo cantidad y precio; el precio se sigue viendo en la unidad que tenía (€/kg).
+async function normalizarUnidades() {
+  const { rows: [h] } = await query(`SELECT 1 FROM ajustes WHERE clave = 'migr_pres_unidades'`);
+  if (h) return;
+  const { rows } = await query(`SELECT id, catalogo_id, unidad, por_ud::float AS por_ud, precio::float AS precio FROM presupuesto_lineas WHERE tipo = 'material' AND catalogo_id IS NOT NULL AND calculo IS NULL`);
+  let n = 0;
+  for (const l of rows) {
+    const m = await U.deCatalogo(l.catalogo_id); if (!m || U.unidad(l.unidad) === m.base) continue;
+    const c = U.convertirCantidad(l.por_ud, l.unidad, m.base, m.factores); if (c == null) continue;
+    const p = l.precio == null ? null : U.convertirPrecio(l.precio, l.unidad, m.base, m.factores);
+    await query('UPDATE presupuesto_lineas SET unidad = $2, por_ud = $3, precio = COALESCE($4, precio), unidad_ver = $5 WHERE id = $1', [l.id, m.base, +c.toFixed(4), p == null ? null : +p.toFixed(4), U.unidad(l.unidad)]);
+    n++;
+  }
+  await query(`INSERT INTO ajustes (clave, valor) VALUES ('migr_pres_unidades', $1) ON CONFLICT (clave) DO NOTHING`, [JSON.stringify({ lineas: n })]);
+  if (n) console.log(`Presupuestos: ${n} línea(s) de material pasadas a la unidad de su material`);
+}
+
+module.exports = { normalizarUnidades, montar, cargar, precioMaterial, precioTarifa };

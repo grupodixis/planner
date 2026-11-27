@@ -3320,3 +3320,4 @@ dialog.pz-dlg { width: min(760px, calc(100vw - 32px)); } dialog.pz-dlg-ancho { w
 .pz-upre { width: auto; padding: 2px 4px; font-size: 12px; }
 
 .pz-calc { display: block; margin: 3px 0 0 auto; font-size: 11px; padding: 1px 3px; width: auto; }
+.pz-busca-caja .pz-sug { min-width: 440px; }
