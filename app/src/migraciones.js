@@ -1749,6 +1749,8 @@ const MIGRACIONES = [
   `ALTER TABLE presupuestos ADD COLUMN IF NOT EXISTS atencion TEXT`,
   `ALTER TABLE presupuestos ADD COLUMN IF NOT EXISTS calidad TEXT`,
   `ALTER TABLE presupuesto_lineas ADD COLUMN IF NOT EXISTS unidad_ver TEXT`,
+  // la IA llegó a poner «Σ kg de los perfiles» en los propios perfiles (salía 0 y no se podía editar): pasan a cantidad a mano
+  `UPDATE presupuesto_lineas SET calculo = NULL WHERE tipo = 'material' AND calculo IS NOT NULL`,
 ];
 
 async function migrar() {

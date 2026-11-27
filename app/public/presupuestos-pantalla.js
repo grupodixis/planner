@@ -363,7 +363,9 @@
           : campo(l.concepto, (v) => putL(l, { concepto: v }), { class: 'pz-in-con', 'aria-label': 'Concepto' });
         lineas.push(el('tr', { class: l.nuevo ? 'pz-con-nuevo' : '' },
           el('td', {}, concepto, l.catalogo_id ? el('small', {}, 'catálogo') : null),
-          el('td', { class: 'n' }, l.calculo ? el('span', { title: l.calculo_txt }, pu(l.cantidad_ud)) : campo(fmt(l.por_ud), (v) => putL(l, { por_ud: leer(v) }), { class: 'pz-num', inputmode: 'decimal', 'aria-label': `Cantidad por ${ud(pa.unidad)}` })),
+          el('td', { class: 'n' }, l.calculo ? el('span', { title: l.calculo_txt }, pu(l.cantidad_ud)) : campo(fmt(l.por_ud), (v) => putL(l, { por_ud: leer(v) }), { class: 'pz-num', inputmode: 'decimal', 'aria-label': `Cantidad por ${ud(pa.unidad)}` }),
+            ['auxiliar', 'subcontrata'].includes(l.tipo) && abiertoP() ? el('select', { class: 'pz-calc', 'aria-label': 'Cómo se calcula la cantidad', onchange: (ev) => putL(l, { calculo: ev.target.value || null }, 'Cálculo cambiado') },
+              [['', 'a mano'], ['kg_perfiles', 'Σ kg perfiles'], ['m2_perfiles', 'Σ m² pintura']].map(([v, t]) => el('option', { value: v, selected: (l.calculo || '') === v }, t))) : null),
           el('td', {}, l.calculo || l.tarifa_id ? ud(l.unidad) : campo(l.unidad, (v) => putL(l, { unidad: v }), { class: 'pz-ud', 'aria-label': 'Unidad' })),
           el('td', { class: 'n' }, `${pu(l.cantidad_total)} ${ud(l.unidad)}`),
           el('td', { class: 'n' }, precioLinea(l)),

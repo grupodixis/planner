@@ -353,6 +353,12 @@ function montar(app, asyncH) {
     if ('concepto' in b) { const t = texto(b.concepto, 300); if (!t) throw fallo(400, 'Falta el concepto'); poner('concepto', t); }
     if ('por_ud' in b) { const v = num(b.por_ud); if (v == null || v < 0) throw fallo(400, 'Cantidad no válida'); poner('por_ud', v); }
     if ('nota' in b) poner('nota', texto(b.nota, 500));
+    if ('calculo' in b) {   // Σ kg / Σ m² de los perfiles (galvanizado, pintura) o cantidad a mano
+      const c = ['kg_perfiles', 'm2_perfiles'].includes(b.calculo) && l.tipo !== 'material' ? b.calculo : null;
+      poner('calculo', c);
+      if (c) { poner('unidad', c === 'kg_perfiles' ? 'kg' : 'm2'); poner('por_ud', 1); }
+      l.calculo = c;
+    }
     if ('unidad' in b && !l.calculo) {
       // al cambiar de unidad, el precio se convierte (si es un material con equivalencias)
       const u = texto(b.unidad, 12) || 'ud'; poner('unidad', u);

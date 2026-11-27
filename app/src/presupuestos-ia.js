@@ -248,7 +248,7 @@ Esquema:
         "unidad": "ml" | "m2" | "ud" | "kg" | "h" | "dia" | …,
         "por_ud": número (cantidad POR UNIDAD de partida),
         "tarifa": "nombre EXACTO de una categoría de la tarifa, sin la unidad (p. ej. «Oficial 1ª»), solo en mano_obra y maquinaria" | null,
-        "calculo": "kg_perfiles" | "m2_perfiles" | null,
+        "calculo": "kg_perfiles" | "m2_perfiles" | null   (SOLO en subcontrata o auxiliar: galvanizado y pintura; NUNCA en materiales: un perfil lleva sus ml o kg por unidad en «por_ud»),
         "precio_estimado": € coste sin IVA por unidad de la línea, SOLO si no es material del catálogo ni de la tarifa (auxiliares, subcontratas) | null,
         "nota": "de dónde sale la cantidad (p. ej. «pasamanos + 2 montantes por ml»)" | null
       } ] } ] } ],
@@ -287,7 +287,7 @@ function encaja(pedido, encontrado) {
   const palabras = a.filter((t) => !/\d/.test(t) && t.length > 3 && !GENERICAS.has(t));
   return !palabras.length || palabras.some((w) => [...b].some((x) => x.startsWith(w.slice(0, 5))));
 }
-const GENERICAS = new Set(['perfil', 'perfiles', 'acero', 'laminado', 'laminada', 'estructural', 'metalico', 'metalica', 'negro', 'negra', 'barra', 'barras', 'pieza', 'piezas', 'material', 'hierro', 'calidad', 'para']);
+const GENERICAS = new Set(['espesor', 'medida', 'medidas', 'perfil', 'perfiles', 'acero', 'laminado', 'laminada', 'estructural', 'metalico', 'metalica', 'negro', 'negra', 'barra', 'barras', 'pieza', 'piezas', 'material', 'hierro', 'calidad', 'para']);
 // Material del catálogo que corresponde a un concepto (o null)
 async function emparejar(concepto) {
   if (!concepto) return null;
@@ -357,7 +357,7 @@ async function generar(id, { tituloAuto = false } = {}) {
           for (const l of (Array.isArray(pa.lineas) ? pa.lineas : []).slice(0, 60)) {
             const tipo = TIPOS.includes(l.tipo) ? l.tipo : 'auxiliar';
             const base = { tipo, concepto: texto(l.concepto, 300) || '(sin concepto)', catalogo_id: null, tarifa_id: null, unidad: U.unidad(l.unidad) || texto(l.unidad, 12) || 'ud',
-              por_ud: Math.max(0, num(l.por_ud) ?? 1), calculo: ['kg_perfiles', 'm2_perfiles'].includes(l.calculo) ? l.calculo : null, precio: null, estado_precio: 'estimado', fuente: null, precio_info: null, nota: texto(l.nota, 500) };
+              por_ud: Math.max(0, num(l.por_ud) ?? 1), calculo: ['kg_perfiles', 'm2_perfiles'].includes(l.calculo) && ['subcontrata', 'auxiliar'].includes(tipo) ? l.calculo : null, precio: null, estado_precio: 'estimado', fuente: null, precio_info: null, nota: texto(l.nota, 500) };
             if (base.calculo) { base.unidad = base.calculo === 'kg_perfiles' ? 'kg' : 'm2'; base.por_ud = 1; }
             if (tipo === 'material') {
               const m = await emparejar(base.concepto);
