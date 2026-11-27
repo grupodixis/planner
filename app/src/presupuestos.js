@@ -7,6 +7,7 @@
 //      auxiliar, subcontrata → a mano (estimado) o de una oferta real
 //    Estados: real (confirmado, ≤ 3 meses) · tarifa · estimado (a mano, viejo o sin precio) · solicitado (petición en marcha).
 //    calculo 'kg_perfiles' / 'm2_perfiles': la cantidad es la suma de los kg (o m² de pintura) de los perfiles de la partida.
+//    calculo 'l_pintura': litros de un componente de pintura = Σ m² de pintura × consumo (l/m², guardado en por_ud).
 //  · Venta: coste × (1 + GG % + beneficio %). El precio unitario de venta se redondea al céntimo y el importe sale de él.
 //  · Pedir precio: crea una petición de precio normal en Compras con motivo «presupuesto» (no crea pedidos); cuando se
 //    confirma una oferta, la línea muestra «precio nuevo» para aplicarlo.
@@ -104,7 +105,7 @@ async function cargar(id) {
       else if (m && m.base === 'm2') { const s2 = U.convertirCantidad(l.por_ud, l.unidad, 'm2', m.factores); if (s2 != null) m2 += 2 * s2; }   // chapa: las dos caras
     }
     pa.lineas = ls.map((l) => {
-      const cant = l.calculo === 'kg_perfiles' ? +kg.toFixed(4) : l.calculo === 'm2_perfiles' ? +m2.toFixed(4) : l.por_ud;
+      const cant = l.calculo === 'kg_perfiles' ? +kg.toFixed(4) : l.calculo === 'm2_perfiles' ? +m2.toFixed(4) : l.calculo === 'l_pintura' ? +(m2 * l.por_ud).toFixed(4) : l.por_ud;
       const imp = l.precio != null ? cant * pa.medicion * l.precio : 0;
       const of = l.sol_linea_id ? (ofertas[l.sol_linea_id] || []) : [];
       const nuevo = l.estado_precio === 'solicitado' && of.length ? of[0] : null;
@@ -122,7 +123,7 @@ async function cargar(id) {
       const precioVer = uVer && l.precio != null ? U.convertirPrecio(l.precio, l.unidad, uVer, eq.factores) : null;
       return { ...l, unidades, unidad_ver: uVer, precio_ver: precioVer, equiv_txt: eq ? `${U.explicar(eq)}${eq.desde_nombre ? ' (deducido del nombre)' : ''}` : null,
         cantidad_ud: cant, cantidad_total: +(cant * pa.medicion).toFixed(3), importe: r2(imp), nuevo, ofertas: of.length,
-        calculo_txt: l.calculo === 'kg_perfiles' ? `Σ kg de los perfiles de la partida${sinEquiv.length ? ` (sin peso: ${sinEquiv.join(', ')})` : ''}` : l.calculo === 'm2_perfiles' ? 'Σ m² de pintura de los perfiles de la partida' : null };
+        calculo_txt: l.calculo === 'kg_perfiles' ? `Σ kg de los perfiles de la partida${sinEquiv.length ? ` (sin peso: ${sinEquiv.join(', ')})` : ''}` : l.calculo === 'm2_perfiles' ? 'Σ m² de pintura de los perfiles de la partida' : l.calculo === 'l_pintura' ? `${+m2.toFixed(2)} m² de pintura × ${Number(l.por_ud)} l/m²` : null, m2_pintura: l.calculo === 'l_pintura' ? +m2.toFixed(3) : undefined };
     });
     pa.coste_ud = r2(pa.lineas.reduce((s, l) => s + (l.precio != null ? l.cantidad_ud * l.precio : 0), 0));
     pa.coste = r2(pa.lineas.reduce((s, l) => s + l.importe, 0));
@@ -178,6 +179,7 @@ async function lineaNueva(b, td) {
   const out = { tipo, concepto: texto(b.concepto, 300), catalogo_id: null, tarifa_id: null, unidad: texto(b.unidad, 12) || 'ud', por_ud: num(b.por_ud) ?? 1, calculo: null,
     precio: num(b.precio), estado_precio: 'estimado', fuente: num(b.precio) != null ? 'manual' : null, precio_info: null };
   if (['kg_perfiles', 'm2_perfiles'].includes(b.calculo)) { out.calculo = b.calculo; out.unidad = b.calculo === 'kg_perfiles' ? 'kg' : 'm2'; }
+  if (b.calculo === 'l_pintura' && tipo !== 'material') { out.calculo = 'l_pintura'; out.unidad = 'l'; if (!(out.por_ud > 0 && out.por_ud < 3)) out.por_ud = 0.2; }   // por_ud = consumo l/m²
   if (tipo === 'material' && !b.catalogo_id && (b.nuevo_material || out.concepto)) {
     // siempre de la lista de materiales: el que corresponda o, si no existe, se añade
     const m = b.nuevo_material ? null : await require('./presupuestos-ia').emparejar(out.concepto);
@@ -373,9 +375,10 @@ function montar(app, asyncH) {
     if ('por_ud' in b) { const v = num(b.por_ud); if (v == null || v < 0) throw fallo(400, 'Cantidad no válida'); poner('por_ud', v); }
     if ('nota' in b) poner('nota', texto(b.nota, 500));
     if ('calculo' in b) {   // Σ kg / Σ m² de los perfiles (galvanizado, pintura) o cantidad a mano
-      const c = ['kg_perfiles', 'm2_perfiles'].includes(b.calculo) && l.tipo !== 'material' ? b.calculo : null;
+      const c = ['kg_perfiles', 'm2_perfiles', 'l_pintura'].includes(b.calculo) && l.tipo !== 'material' ? b.calculo : null;
       poner('calculo', c);
-      if (c) { poner('unidad', c === 'kg_perfiles' ? 'kg' : 'm2'); poner('por_ud', 1); }
+      if (c === 'l_pintura') { poner('unidad', 'l'); if (!('por_ud' in b)) poner('por_ud', 0.2); }   // por_ud = consumo l/m²
+      else if (c) { poner('unidad', c === 'kg_perfiles' ? 'kg' : 'm2'); poner('por_ud', 1); }
       l.calculo = c;
     }
     if ('unidad' in b && !l.calculo && !(l.tipo === 'material' && l.catalogo_id)) {   // en un material de la lista, la unidad la pone él

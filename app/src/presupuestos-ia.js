@@ -72,7 +72,7 @@ Las demás Skills vienen del presupuestador anterior. En Planéalo:
 - Materiales con su nombre normalizado y dimensiones: «Tubo cuadrado 40x40x2», «Pletina 40x5», «UPN 200», «Chapa lagrimada 6 mm», «Varilla redonda Ø12». Perfiles y tubos en ml, chapa en m² o kg, tornillería y anclajes en ud.
 - Mano de obra separada en diseño/toma de medidas (oficina técnica), fabricación (taller) y montaje (obra), con las categorías de la tarifa.
 - Galvanizado en caliente: subcontrata en kg (cálculo kg_perfiles).
-- Pintura: la hacemos nosotros, **nunca al horno**: imprimación epoxi + acabado poliuretano, línea auxiliar en m² (cálculo m2_perfiles) más las horas de pintura.
+- Pintura: la hacemos nosotros, **nunca al horno**. Un sistema según la categoría de corrosividad (Skill «Sistemas de pintura»): una línea auxiliar POR COMPONENTE (imprimación, intermedia, acabado, diluyente) en litros con cálculo l_pintura y en por_ud el consumo práctico en l/m², más las horas de pintura (y el chorreado si va).
 - Auxiliares (plataforma, andamio, grúa, consumibles) como líneas propias, no como porcentaje.
 - Transporte a obra si la obra no está en Menorca o hay grúa.
 
@@ -249,7 +249,7 @@ Esquema:
         "unidad": "ml" | "m2" | "ud" | "kg" | "h" | "dia" | …,
         "por_ud": número (cantidad POR UNIDAD de partida),
         "tarifa": "nombre EXACTO de una categoría de la tarifa, sin la unidad (p. ej. «Oficial 1ª»), solo en mano_obra y maquinaria" | null,
-        "calculo": "kg_perfiles" | "m2_perfiles" | null   (SOLO en subcontrata o auxiliar: galvanizado y pintura; NUNCA en materiales: un perfil lleva sus ml o kg por unidad en «por_ud»),
+        "calculo": "kg_perfiles" | "m2_perfiles" | "l_pintura" | null   (SOLO en subcontrata o auxiliar: galvanizado y pintura; NUNCA en materiales: un perfil lleva sus ml o kg por unidad en «por_ud». Con l_pintura, «por_ud» es el consumo práctico en l/m² del componente y el sistema lo multiplica por los m² a pintar),
         "precio_estimado": € coste sin IVA por unidad de la línea, SOLO si no es material del catálogo ni de la tarifa (auxiliares, subcontratas) | null,
         "nota": "de dónde sale la cantidad (p. ej. «pasamanos + 2 montantes por ml»)" | null
       } ] } ] } ],
@@ -261,7 +261,7 @@ Reglas:
 - Las cantidades de cada línea son por 1 unidad de partida. Mide con lo que veas en planos y mediciones; si no hay medida, supón lo razonable y ponlo en dudas.
 - Mano de obra y maquinaria: usa SOLO los nombres de la tarifa que te paso (campo "tarifa"); si ninguno encaja, el más parecido y una duda.
 - Materiales: perfiles, tubos, pletinas y macizos en «ml» por unidad de partida (calcula la longitud real: zancas, peldaños, bastidores, barrotes…); chapa en «m2»; tornillería y anclajes en «ud». Usa los nombres del catálogo (p. ej. «UPN 120 S275», «Angular L 40×40×4 S235», «Chapa lisa negra 4 mm 1250×2500»).
-- Galvanizado en caliente como subcontrata con "calculo" kg_perfiles. La pintura la hacemos nosotros (nunca al horno): línea auxiliar de pintura con "calculo" m2_perfiles y precio_estimado del material por m², más sus horas de mano de obra. En ambas, "por_ud" 1.
+- Galvanizado en caliente como subcontrata con "calculo" kg_perfiles y "por_ud" 1. La pintura la hacemos nosotros (nunca al horno): elige el sistema por la categoría de corrosividad (C2…C5) y pon UNA línea auxiliar por componente (imprimación, intermedia, acabado, diluyente), unidad «l», "calculo" l_pintura, "por_ud" = consumo práctico en l/m² (espesor seco µm ÷ (10 × sólidos en volumen %) ÷ (1 − pérdidas)) y en "nota" el cálculo; en el concepto, lo que necesita el proveedor para cotizar (tipo, función, espesor seco, color RAL y brillo del acabado, categoría). precio_estimado en €/l. Además sus horas de mano de obra. Si la pinta un taller de fuera, una subcontrata con "calculo" m2_perfiles y el sistema completo en el concepto.
 - Nada de líneas de riesgo, imprevistos, margen o reserva: ese coste va dentro de la línea que lo causa.
 - No pongas precios a los materiales (el sistema usa su lista de precios). No apliques margen.
 - Español, sin inventar datos del cliente: null si no aparecen.`;
@@ -360,8 +360,9 @@ async function generar(id, { tituloAuto = false } = {}) {
           for (const l of (Array.isArray(pa.lineas) ? pa.lineas : []).slice(0, 60)) {
             const tipo = TIPOS.includes(l.tipo) ? l.tipo : 'auxiliar';
             const base = { tipo, concepto: texto(l.concepto, 300) || '(sin concepto)', catalogo_id: null, tarifa_id: null, unidad: U.unidad(l.unidad) || texto(l.unidad, 12) || 'ud',
-              por_ud: Math.max(0, num(l.por_ud) ?? 1), calculo: ['kg_perfiles', 'm2_perfiles'].includes(l.calculo) && ['subcontrata', 'auxiliar'].includes(tipo) ? l.calculo : null, precio: null, estado_precio: 'estimado', fuente: null, precio_info: null, nota: texto(l.nota, 500) };
-            if (base.calculo) { base.unidad = base.calculo === 'kg_perfiles' ? 'kg' : 'm2'; base.por_ud = 1; }
+              por_ud: Math.max(0, num(l.por_ud) ?? 1), calculo: ['kg_perfiles', 'm2_perfiles', 'l_pintura'].includes(l.calculo) && ['subcontrata', 'auxiliar'].includes(tipo) ? l.calculo : null, precio: null, estado_precio: 'estimado', fuente: null, precio_info: null, nota: texto(l.nota, 500) };
+            if (base.calculo === 'l_pintura') { base.unidad = 'l'; if (!(base.por_ud > 0 && base.por_ud < 3)) { base.por_ud = 0.2; avisos.push(`«${base.concepto}»: consumo de pintura no válido, puesto 0,2 l/m² (revísalo).`); } }
+            else if (base.calculo) { base.unidad = base.calculo === 'kg_perfiles' ? 'kg' : 'm2'; base.por_ud = 1; }
             if (tipo === 'material') {
               // de la lista de materiales; si no está, se añade a la lista (con sus equivalencias y precio estimado)
               let m = await emparejar(base.concepto); let nuevo = false;

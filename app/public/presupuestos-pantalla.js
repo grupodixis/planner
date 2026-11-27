@@ -377,9 +377,9 @@
             : campo(l.concepto, (v) => putL(l, { concepto: v }), { class: 'pz-in-con', 'aria-label': 'Concepto' });
         lineas.push(el('tr', { class: l.nuevo ? 'pz-con-nuevo' : '' },
           el('td', {}, concepto, l.tipo === 'material' ? el('small', {}, l.catalogo_id ? (l.equiv_txt || 'de la lista') : '⚠ no está en la lista: elígelo') : null),
-          el('td', { class: 'n' }, l.calculo ? el('span', { title: l.calculo_txt }, pu(l.cantidad_ud)) : campo(fmt(l.por_ud), (v) => putL(l, { por_ud: leer(v) }), { class: 'pz-num', inputmode: 'decimal', 'aria-label': `Cantidad por ${ud(pa.unidad)}` }),
+          el('td', { class: 'n' }, l.calculo === 'l_pintura' ? el('span', { class: 'pz-lpint', title: l.calculo_txt }, campo(fmt(l.por_ud), (v) => putL(l, { por_ud: leer(v) }), { class: 'pz-num', inputmode: 'decimal', 'aria-label': 'Consumo en l/m²' }), el('small', {}, ` l/m² × ${pu(l.m2_pintura)} m² = ${pu(l.cantidad_ud)} l`)) : l.calculo ? el('span', { title: l.calculo_txt }, pu(l.cantidad_ud)) : campo(fmt(l.por_ud), (v) => putL(l, { por_ud: leer(v) }), { class: 'pz-num', inputmode: 'decimal', 'aria-label': `Cantidad por ${ud(pa.unidad)}` }),
             ['auxiliar', 'subcontrata'].includes(l.tipo) && abiertoP() ? el('select', { class: 'pz-calc', 'aria-label': 'Cómo se calcula la cantidad', onchange: (ev) => putL(l, { calculo: ev.target.value || null }, 'Cálculo cambiado') },
-              [['', 'a mano'], ['kg_perfiles', 'Σ kg perfiles'], ['m2_perfiles', 'Σ m² pintura']].map(([v, t]) => el('option', { value: v, selected: (l.calculo || '') === v }, t))) : null),
+              [['', 'a mano'], ['kg_perfiles', 'Σ kg perfiles'], ['m2_perfiles', 'Σ m² pintura'], ['l_pintura', 'l/m² × Σ m² pintura']].map(([v, t]) => el('option', { value: v, selected: (l.calculo || '') === v }, t))) : null),
           el('td', {}, l.calculo || l.tarifa_id || (l.tipo === 'material' && l.catalogo_id) ? el('span', { title: l.equiv_txt || '' }, ud(l.unidad)) : campo(l.unidad, (v) => putL(l, { unidad: v }), { class: 'pz-ud', 'aria-label': 'Unidad' })),
           el('td', { class: 'n' }, `${pu(l.cantidad_total)} ${ud(l.unidad)}`),
           el('td', { class: 'n' }, precioLinea(l)),
@@ -449,11 +449,11 @@
     if (tipo === 'material') return buscadorMaterial((b) => post({ ...b, por_ud: 1 }));
     // auxiliar / subcontrata
     const con = el('input', { placeholder: tipo === 'auxiliar' ? '＋ Auxiliar: plataforma, andamio, consumibles…' : '＋ Subcontrata: galvanizado, lacado, transporte…', class: 'pz-in-con', 'aria-label': 'Concepto' });
-    const calc = el('select', { 'aria-label': 'Cantidad' }, el('option', { value: '' }, 'cantidad a mano'), el('option', { value: 'kg_perfiles' }, '🧮 kg de los perfiles'), el('option', { value: 'm2_perfiles' }, '🧮 m² de pintura de los perfiles'));
+    const calc = el('select', { 'aria-label': 'Cantidad' }, el('option', { value: '' }, 'cantidad a mano'), el('option', { value: 'kg_perfiles' }, '🧮 kg de los perfiles'), el('option', { value: 'm2_perfiles' }, '🧮 m² de pintura de los perfiles'), el('option', { value: 'l_pintura' }, '🧮 litros: l/m² × m² de pintura'));
     const u = el('input', { value: 'ud', class: 'pz-ud', 'aria-label': 'Unidad' });
     const pr = el('input', { placeholder: '€', class: 'pz-num', inputmode: 'decimal', 'aria-label': 'Precio' });
-    calc.addEventListener('change', () => { u.disabled = !!calc.value; if (calc.value) u.value = calc.value === 'kg_perfiles' ? 'kg' : 'm2'; });
-    const ir = () => { if (!con.value.trim()) { con.focus(); return; } post({ concepto: con.value, calculo: calc.value || null, unidad: u.value, por_ud: 1, precio: leer(pr.value) }); };
+    calc.addEventListener('change', () => { u.disabled = !!calc.value; if (calc.value) u.value = calc.value === 'kg_perfiles' ? 'kg' : calc.value === 'l_pintura' ? 'l' : 'm2'; });
+    const ir = () => { if (!con.value.trim()) { con.focus(); return; } post({ concepto: con.value, calculo: calc.value || null, unidad: u.value, por_ud: calc.value === 'l_pintura' ? 0.2 : 1, precio: leer(pr.value) }); };
     pr.addEventListener('keydown', (ev) => { if (ev.key === 'Enter') ir(); });
     return el('div', { class: 'pz-add-fila' }, con, calc, u, pr, el('button', { type: 'button', class: 'ghost mini', onclick: ir }, 'Añadir'));
   }

@@ -1760,6 +1760,9 @@ const MIGRACIONES = [
      skill_nombre TEXT, titulo TEXT NOT NULL, texto TEXT NOT NULL, motivo TEXT, estado TEXT NOT NULL DEFAULT 'pendiente' CHECK (estado IN ('pendiente','aceptada','descartada')),
      creado TIMESTAMPTZ NOT NULL DEFAULT now(), decidido_por INT REFERENCES usuarios(id), decidido_en TIMESTAMPTZ)`,
   `ALTER TABLE presupuestos ADD COLUMN IF NOT EXISTS aprendido_en TIMESTAMPTZ`,
+  // pintura por componentes: litros = Σ m² de pintura de la partida × consumo (l/m², en por_ud)
+  `ALTER TABLE presupuesto_lineas DROP CONSTRAINT IF EXISTS presupuesto_lineas_calculo_check`,
+  `ALTER TABLE presupuesto_lineas ADD CONSTRAINT presupuesto_lineas_calculo_check CHECK (calculo IN ('kg_perfiles', 'm2_perfiles', 'l_pintura'))`,
 ];
 
 async function migrar() {
