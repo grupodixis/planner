@@ -1459,6 +1459,9 @@ Endpoints: `GET /api/ia`, `PUT /api/ia/ajustes`, `POST /api/ia/probar/:nombre`, 
 - Venta por unidad = coste por unidad × (1 + GG % + beneficio %), redondeada al céntimo. Venta = venta por unidad × medición.
 - Se calculan también el % del coste con precio real o de tarifa y los pendientes (estimados, solicitados y precios nuevos).
 
+**Precio en otra unidad** (€/kg, €/t, €/barra…): `PUT /api/presupuesto-lineas/:id {precio, precio_unidad}` convierte a la unidad de la línea con `unidades.equivalencias` (las del catálogo o, si el material no está, las deducidas del nombre: «Perfil HEB 160» → 42,6 kg/ml) y guarda la unidad elegida en `presupuesto_lineas.unidad_ver`; `cargar` devuelve `unidades` (las posibles), `unidad_ver`, `precio_ver` y `equiv_txt`. Los perfiles estructurales (IPE, IPN, HE, UPN, UPE, correas) se enseñan en €/kg de serie. El Σ kg / m² de pintura de la partida cuenta también los materiales sin catálogo con peso deducido.
+**Enlace con el catálogo** (`presupuestos-ia.emparejar`): al crear con IA, al añadir un material escrito a mano o al cambiar el concepto de uno sin catálogo, se busca su material ignorando palabras genéricas (perfil, acero, laminado…) y con sinónimos (varilla redonda → redondo macizo, ángulo → angular, platina → pletina); si no pide galvanizado / inox / aluminio, se prefiere el que no lo es.
+
 **Pedir precio** (`POST /api/presupuestos/:id/pedir-precio {linea_ids, proveedor_ids, responder_antes, notas}`)
 - Crea una petición de precio en Compras con `motivo = 'presupuesto'` y `presupuesto_id`. Una línea por material y unidad, con la cantidad total y `catalogo_id`.
 - Las líneas del presupuesto pasan a «solicitado».

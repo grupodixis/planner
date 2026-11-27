@@ -342,6 +342,20 @@
     for (const [tipo, titulo] of TIPOS) {
       const ls = pa.lineas.filter((l) => l.tipo === tipo);
       lineas.push(el('tr', { class: 'pz-tipo' }, el('td', { colspan: 8 }, titulo)));
+      // precio en la unidad que se quiera (€/kg en perfiles, €/barra…): el sistema lo pasa a la de la línea
+      const precioLinea = (l) => {
+        const uv = l.unidad_ver || l.unidad;
+        const val = l.unidad_ver ? l.precio_ver : l.precio;
+        const inp = campo(fmt(val == null ? '' : +Number(val).toFixed(4)), (v) => putL(l, { precio: leer(v), precio_unidad: uv }, l.unidad_ver ? `Precio en €/${ud(uv)}: pasado a €/${ud(l.unidad)}` : 'Precio a mano: queda como estimado'),
+          { class: `pz-num${l.precio == null ? ' falta' : ''}`, inputmode: 'decimal', 'aria-label': `Coste por ${ud(uv)}` });
+        const us = l.unidades || [l.unidad];
+        const sel = us.length > 1 && abiertoP()
+          ? el('select', { class: 'pz-upre', 'aria-label': 'Unidad del precio', title: l.equiv_txt || '', onchange: (ev) => putL(l, { precio_unidad: ev.target.value }, `Precio en €/${ud(ev.target.value)}`) },
+            us.map((u) => el('option', { value: u, selected: u === uv }, `€/${ud(u)}`)))
+          : el('span', { class: 'ayuda' }, ` €/${ud(uv)}`);
+        return el('div', { class: 'pz-precio' }, el('div', { class: 'pz-precio-fila' }, inp, sel),
+          l.unidad_ver && l.precio != null ? el('small', { class: 'ayuda' }, `= ${pu(+Number(l.precio).toFixed(2))} €/${ud(l.unidad)}`) : null);
+      };
       for (const l of ls) {
         const opcionesT = tipo === 'mano_obra' ? est.tarifa.mano_obra : tipo === 'maquinaria' ? est.tarifa.maquinaria : null;
         const concepto = opcionesT && l.tarifa_id
@@ -352,7 +366,7 @@
           el('td', { class: 'n' }, l.calculo ? el('span', { title: l.calculo_txt }, pu(l.cantidad_ud)) : campo(fmt(l.por_ud), (v) => putL(l, { por_ud: leer(v) }), { class: 'pz-num', inputmode: 'decimal', 'aria-label': `Cantidad por ${ud(pa.unidad)}` })),
           el('td', {}, l.calculo || l.tarifa_id ? ud(l.unidad) : campo(l.unidad, (v) => putL(l, { unidad: v }), { class: 'pz-ud', 'aria-label': 'Unidad' })),
           el('td', { class: 'n' }, `${pu(l.cantidad_total)} ${ud(l.unidad)}`),
-          el('td', { class: 'n' }, campo(fmt(l.precio == null ? '' : +Number(l.precio).toFixed(4)), (v) => putL(l, { precio: leer(v) }, 'Precio a mano: queda como estimado'), { class: `pz-num${l.precio == null ? ' falta' : ''}`, inputmode: 'decimal', 'aria-label': 'Coste por unidad' }), el('span', { class: 'ayuda' }, ` €/${ud(l.unidad)}`)),
+          el('td', { class: 'n' }, precioLinea(l)),
           el('td', { class: 'n' }, eur(l.importe)),
           el('td', {}, el('span', { class: `pz-chip ${CHIP[l.estado_precio]}` }, l.estado_precio), el('small', {}, infoPrecio(l)),
             l.nuevo ? el('div', { class: 'pz-nuevo' }, `Nuevo: ${pu(l.nuevo.precio)} €/${ud(l.unidad)} · ${l.nuevo.proveedor} `,

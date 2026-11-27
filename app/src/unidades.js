@@ -75,7 +75,7 @@ function geometria(nombre, unidadCat, detalle) {
     const [a, e] = [n(m[1]), n(m[2])];
     return perfil('pletina', a * e, 2 * (a + e), `pletina ${a}×${e}`);
   }
-  if ((m = nm.match(new RegExp(`(?:redondo|macizo)[^Ø\\d]*Ø\\s*${NUM}`, 'i')))) {
+  if ((m = nm.match(new RegExp(`(?:redondo|macizo|varilla(?! roscada))[^Ø\\d]*Ø\\s*${NUM}`, 'i')))) {
     const D = n(m[1]);
     return perfil('redondo macizo', Math.PI * D * D / 4, Math.PI * D, `redondo Ø${D}`);
   }
@@ -217,4 +217,20 @@ async function aLinea(catalogoId, unidadLinea, precio, unidadCot) {
   return { precio: +p.toFixed(4), precio_cotizado: Number(precio), unidad_cotizada: uc };
 }
 
-module.exports = { unidad, geometria, factores, convertirPrecio, convertirCantidad, DENS, calcularCatalogo, deCatalogo, precioEn, explicar, olvidar, armar, opcionesLinea, aLinea };
+// Equivalencias de una línea: las del material del catálogo o, si no está, las que se deducen de su nombre («Perfil UPN 140»)
+async function equivalencias(catalogoId, nombre, unidadLinea) {
+  const m = catalogoId ? await deCatalogo(catalogoId) : null;
+  if (m) return m;
+  const g = geometria(String(nombre || ''), unidadLinea || 'ml', '');
+  if (!g || !(g.kg_ml || g.kg_m2 || g.ml_barra || g.m2_ud)) return null;
+  return { ...armar({ unidad: unidadLinea, unidad_base: g.base, equiv: g }), nombre, desde_nombre: true };
+}
+// Unidades en las que se puede escribir el precio de una línea (la suya primero)
+function unidadesPrecio(m, unidadLinea) {
+  const un = unidad(unidadLinea) || 'ud';
+  if (!m || !m.factores[un]) return [un];
+  return [un, ...Object.keys(m.factores).filter((u) => u !== un && !['m', 'mm', 'cm'].includes(u))
+    .sort((a, b) => (ORDEN_U.indexOf(a) + 99) % 99 - (ORDEN_U.indexOf(b) + 99) % 99)];
+}
+
+module.exports = { unidad, geometria, factores, convertirPrecio, convertirCantidad, DENS, calcularCatalogo, deCatalogo, precioEn, explicar, olvidar, armar, opcionesLinea, aLinea, equivalencias, unidadesPrecio };

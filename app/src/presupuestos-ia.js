@@ -276,12 +276,31 @@ function buscarTarifa(lista, pedido) {
 }
 const tok = (s) => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[×*]/g, 'x').replace(/[^a-z0-9.,x ]+/g, ' ').split(/\s+/).filter(Boolean);
 // ¿el material encontrado en el catálogo es el que pedía la IA? (las medidas tienen que coincidir)
+// cómo lo escribe la gente → cómo está en el catálogo
+const sinonimos = (t) => tok(t).join(' ').replace(/\bvarilla (redonda|lisa)\b/, 'redondo macizo liso').replace(/\bvarilla\b(?! roscada)/, 'redondo macizo')
+  .replace(/\bangulo\b/, 'angular').replace(/\bplatina\b/, 'pletina');
 function encaja(pedido, encontrado) {
-  const a = tok(pedido); const b = new Set(tok(encontrado));
+  const a = tok(sinonimos(pedido)); const b = new Set(tok(encontrado));
   const medidas = a.filter((t) => /\d/.test(t));
   if (medidas.length && !medidas.every((m) => b.has(m) || [...b].some((x) => x.includes(m)))) return false;
-  const palabras = a.filter((t) => !/\d/.test(t) && t.length > 3);
+  // palabras genéricas que no distinguen («Perfil UPN 140» es «UPN 140 S275»)
+  const palabras = a.filter((t) => !/\d/.test(t) && t.length > 3 && !GENERICAS.has(t));
   return !palabras.length || palabras.some((w) => [...b].some((x) => x.startsWith(w.slice(0, 5))));
+}
+const GENERICAS = new Set(['perfil', 'perfiles', 'acero', 'laminado', 'laminada', 'estructural', 'metalico', 'metalica', 'negro', 'negra', 'barra', 'barras', 'pieza', 'piezas', 'material', 'hierro', 'calidad', 'para']);
+// Material del catálogo que corresponde a un concepto (o null)
+async function emparejar(concepto) {
+  if (!concepto) return null;
+  const sin = tok(sinonimos(concepto)).filter((t) => !GENERICAS.has(t)).join(' ');
+  for (const q of [concepto, sin]) {
+    const cands = await require('./catalogo').buscarCatalogo(q, 'material', 8);
+    // si no pide galvanizado / inox / aluminio, mejor el que no lo es
+    const pide = tok(concepto).join(' ');
+    const extra = (n) => ['galv', 'inox', 'alumin', 'lacad', 'perfor'].filter((k) => n.toLowerCase().includes(k) && !pide.includes(k)).length;
+    const m = cands.filter((x) => encaja(concepto, x.nombre)).sort((a, b) => extra(a.nombre) - extra(b.nombre))[0];
+    if (m) return m;
+  }
+  return null;
 }
 
 async function generar(id, { tituloAuto = false } = {}) {
@@ -341,8 +360,7 @@ async function generar(id, { tituloAuto = false } = {}) {
               por_ud: Math.max(0, num(l.por_ud) ?? 1), calculo: ['kg_perfiles', 'm2_perfiles'].includes(l.calculo) ? l.calculo : null, precio: null, estado_precio: 'estimado', fuente: null, precio_info: null, nota: texto(l.nota, 500) };
             if (base.calculo) { base.unidad = base.calculo === 'kg_perfiles' ? 'kg' : 'm2'; base.por_ud = 1; }
             if (tipo === 'material') {
-              const cands = await require('./catalogo').buscarCatalogo(base.concepto, 'material', 3);
-              const m = cands.find((x) => encaja(base.concepto, x.nombre));
+              const m = await emparejar(base.concepto);
               if (m) {
                 const eq = await U.deCatalogo(m.id);
                 base.catalogo_id = m.id; base.concepto = m.nombre;
@@ -507,4 +525,4 @@ async function crear({ titulo, cliente_id, obra_id, prompt, adjuntos = [], skill
   return id;
 }
 
-module.exports = { montar, crear, generar, guardarAdjunto, reanudar, sembrarSkills, leerAdjuntos, elegirSkills };
+module.exports = { montar, crear, generar, guardarAdjunto, reanudar, sembrarSkills, leerAdjuntos, elegirSkills, emparejar };

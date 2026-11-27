@@ -3314,3 +3314,7 @@ dialog.pz-dlg { width: min(760px, calc(100vw - 32px)); } dialog.pz-dlg-ancho { w
 .pz-doc-grid textarea, .pz-doc-grid input { font-size: 13px; width: 100%; }
 @media (max-width: 800px) { .pz-doc-grid { grid-template-columns: 1fr; } }
 .pz-doc-grid textarea { font-family: inherit; line-height: 1.4; }
+
+.pz-precio { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
+.pz-precio-fila { display: flex; gap: 4px; align-items: center; justify-content: flex-end; }
+.pz-upre { width: auto; padding: 2px 4px; font-size: 12px; }

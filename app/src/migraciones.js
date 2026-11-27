@@ -1748,6 +1748,7 @@ const MIGRACIONES = [
   `ALTER TABLE presupuestos ADD COLUMN IF NOT EXISTS forma_pago TEXT`,
   `ALTER TABLE presupuestos ADD COLUMN IF NOT EXISTS atencion TEXT`,
   `ALTER TABLE presupuestos ADD COLUMN IF NOT EXISTS calidad TEXT`,
+  `ALTER TABLE presupuesto_lineas ADD COLUMN IF NOT EXISTS unidad_ver TEXT`,
 ];
 
 async function migrar() {

@@ -83,6 +83,10 @@ async function cargar(id) {
   const k = 1 + (p.gg_pct + p.bi_pct) / 100;
   const mats = new Map();
   for (const l of lins) if (l.tipo === 'material' && l.catalogo_id) mats.set(l.catalogo_id, await U.deCatalogo(l.catalogo_id));
+  // equivalencias de cada línea de material (catálogo o, si no está, por su nombre: «Perfil UPN 140» → 16 kg/ml)
+  const eqLinea = async (l) => (l.catalogo_id ? mats.get(l.catalogo_id) : await U.equivalencias(null, l.concepto, l.unidad));
+  const eqs = new Map();
+  for (const l of lins) if (l.tipo === 'material' && !l.calculo) eqs.set(l.id, await eqLinea(l));
   let coste = 0; let venta = 0; let costeReal = 0; const pend = { estimado: 0, solicitado: 0, nuevos: 0 };
   p.capitulos = caps.map((c) => ({ ...c, partidas: [], coste: 0, venta: 0 }));
   const sinCap = { id: null, codigo: '', nombre: 'Sin capítulo', partidas: [], coste: 0, venta: 0 };
@@ -90,8 +94,8 @@ async function cargar(id) {
     const ls = lins.filter((l) => l.partida_id === pa.id);
     // kg y m² de pintura de los perfiles de la partida (por unidad de partida)
     let kg = 0; let m2 = 0; const sinEquiv = [];
-    for (const l of ls.filter((x) => x.tipo === 'material' && x.catalogo_id)) {
-      const m = mats.get(l.catalogo_id);
+    for (const l of ls.filter((x) => x.tipo === 'material' && !x.calculo)) {
+      const m = eqs.get(l.id);
       const k1 = m ? U.convertirCantidad(l.por_ud, l.unidad, 'kg', m.factores) : null;
       if (k1 != null) kg += k1; else sinEquiv.push(l.concepto);
       const ml = m ? U.convertirCantidad(l.por_ud, l.unidad, 'ml', m.factores) : null;
@@ -107,7 +111,15 @@ async function cargar(id) {
       if (l.estado_precio === 'estimado') pend.estimado++;
       if (l.estado_precio === 'solicitado') pend.solicitado++;
       if (nuevo) pend.nuevos++;
-      return { ...l, cantidad_ud: cant, cantidad_total: +(cant * pa.medicion).toFixed(3), importe: r2(imp), nuevo, ofertas: of.length,
+      // precio en otra unidad (€/kg en perfiles…): se guarda en la de la línea y se enseña en la que se eligió
+      const eq = eqs.get(l.id);
+      const unidades = l.tipo === 'material' && !l.calculo ? U.unidadesPrecio(eq, l.unidad) : [l.unidad];
+      // perfiles estructurales (IPE, HEB, UPN…): el precio se maneja en €/kg si no se ha elegido otra cosa
+      const estructural = /^(perfil\s+)?(ipe|ipn|hea|heb|hem|upn|upe|upa|correa)\b/i.test(String(l.concepto || '').trim());
+      const uVer = l.unidad_ver && l.unidad_ver !== U.unidad(l.unidad) && unidades.includes(l.unidad_ver) ? l.unidad_ver : !l.unidad_ver && estructural && unidades.includes('kg') && l.unidad !== 'kg' ? 'kg' : null;
+      const precioVer = uVer && l.precio != null ? U.convertirPrecio(l.precio, l.unidad, uVer, eq.factores) : null;
+      return { ...l, unidades, unidad_ver: uVer, precio_ver: precioVer, equiv_txt: eq ? `${U.explicar(eq)}${eq.desde_nombre ? ' (deducido del nombre)' : ''}` : null,
+        cantidad_ud: cant, cantidad_total: +(cant * pa.medicion).toFixed(3), importe: r2(imp), nuevo, ofertas: of.length,
         calculo_txt: l.calculo === 'kg_perfiles' ? `Σ kg de los perfiles de la partida${sinEquiv.length ? ` (sin peso: ${sinEquiv.join(', ')})` : ''}` : l.calculo === 'm2_perfiles' ? 'Σ m² de pintura de los perfiles de la partida' : null };
     });
     pa.coste_ud = r2(pa.lineas.reduce((s, l) => s + (l.precio != null ? l.cantidad_ud * l.precio : 0), 0));
@@ -162,8 +174,11 @@ async function lineaNueva(b, td) {
     if (!pt) throw fallo(400, 'No está en la tarifa');
     out.tarifa_id = pt.t.id; out.concepto = out.concepto || pt.t.nombre; out.unidad = pt.t.unidad || 'h';
     if (out.precio == null) { const { t, ...rest } = pt; Object.assign(out, rest); }
-  } else if (tipo === 'material' && out.concepto && out.precio == null) {
-    Object.assign(out, await precioMaterial(null, out.unidad, out.concepto));
+  } else if (tipo === 'material' && out.concepto) {
+    // escrito a mano: si está en el catálogo (aunque se llame distinto: «Perfil UPN 140»), se enlaza
+    const m = await require('./presupuestos-ia').emparejar(out.concepto);
+    if (m) { out.catalogo_id = m.id; out.concepto = m.nombre; }
+    if (out.precio == null) Object.assign(out, await precioMaterial(out.catalogo_id, out.unidad, out.concepto));
   }
   if (!out.concepto) throw fallo(400, 'Falta el concepto');
   return out;
@@ -341,11 +356,37 @@ function montar(app, asyncH) {
     if ('unidad' in b && !l.calculo) {
       // al cambiar de unidad, el precio se convierte (si es un material con equivalencias)
       const u = texto(b.unidad, 12) || 'ud'; poner('unidad', u);
-      if (l.precio != null && l.catalogo_id && !('precio' in b)) { const p = await U.precioEn(l.catalogo_id, Number(l.precio), l.unidad, u); if (p != null) poner('precio', +p.toFixed(4)); }
+      if (l.precio != null && l.tipo === 'material' && !('precio' in b)) {
+        const eq = await U.equivalencias(l.catalogo_id, l.concepto, l.unidad);
+        const p = eq ? U.convertirPrecio(Number(l.precio), l.unidad, u, eq.factores) : null; if (p != null) poner('precio', +p.toFixed(4));
+      }
     }
+    // unidad en la que se escribe / se ve el precio (kg, t, barra…): se convierte con las equivalencias
+    const uLinea = 'unidad' in b && !l.calculo ? (texto(b.unidad, 12) || 'ud') : l.unidad;
+    let uPre = 'precio_unidad' in b ? (U.unidad(b.precio_unidad) || null) : null;
+    if (uPre === U.unidad(uLinea)) uPre = null;
+    if ('precio_unidad' in b) poner('unidad_ver', U.unidad(b.precio_unidad) || null);   // también la de la línea: así no se aplica el €/kg de serie
     if ('precio' in b) {   // escrito a mano: estimado
-      const v = num(b.precio); if (v != null && (v < 0 || v > 1e7)) throw fallo(400, 'Precio no válido');
-      poner('precio', v); poner('estado_precio', 'estimado'); poner('fuente', v == null ? null : 'manual'); poner('precio_info', JSON.stringify({ aviso: 'Escrito a mano' }));
+      let v = num(b.precio); if (v != null && (v < 0 || v > 1e7)) throw fallo(400, 'Precio no válido');
+      let info = { aviso: 'Escrito a mano' };
+      if (v != null && uPre) {
+        const eq = await U.equivalencias(l.catalogo_id, l.concepto, uLinea);
+        const p2 = eq ? U.convertirPrecio(v, uPre, uLinea, eq.factores) : null;
+        if (p2 == null) throw fallo(400, `No sé pasar de €/${uPre} a €/${uLinea} en este material: falta su peso o medida`);
+        info = { aviso: `Escrito a mano: ${String(v).replace('.', ',')} €/${uPre}`, cotizado: { precio: v, unidad: uPre } }; v = +p2.toFixed(4);
+      }
+      poner('precio', v); poner('estado_precio', 'estimado'); poner('fuente', v == null ? null : 'manual'); poner('precio_info', JSON.stringify(info));
+    }
+    // concepto cambiado en un material sin catálogo: se intenta encontrar en el catálogo (y su precio)
+    if ('concepto' in b && l.tipo === 'material' && !l.catalogo_id) {
+      const m = await require('./presupuestos-ia').emparejar(texto(b.concepto, 300));
+      if (m) {
+        poner('catalogo_id', m.id); vals[sets.findIndex((x) => x.startsWith('concepto =')) + 1] = m.nombre;
+        if (!('precio' in b) && l.fuente !== 'manual') {
+          const pm = await precioMaterial(m.id, uLinea, m.nombre);
+          poner('precio', pm.precio); poner('estado_precio', pm.estado_precio); poner('fuente', pm.fuente); poner('precio_info', JSON.stringify(pm.precio_info || null));
+        }
+      }
     }
     if ('tarifa_id' in b && ['mano_obra', 'maquinaria'].includes(l.tipo)) {
       const pt = await precioTarifa(b.tarifa_id); if (!pt) throw fallo(400, 'No está en la tarifa');
