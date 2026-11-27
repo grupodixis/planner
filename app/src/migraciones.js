@@ -1762,7 +1762,7 @@ const MIGRACIONES = [
   `ALTER TABLE presupuestos ADD COLUMN IF NOT EXISTS aprendido_en TIMESTAMPTZ`,
   // pintura por componentes: litros = Σ m² de pintura de la partida × consumo (l/m², en por_ud)
   `ALTER TABLE presupuesto_lineas DROP CONSTRAINT IF EXISTS presupuesto_lineas_calculo_check`,
-  `ALTER TABLE presupuesto_lineas ADD CONSTRAINT presupuesto_lineas_calculo_check CHECK (calculo IN ('kg_perfiles', 'm2_perfiles', 'l_pintura'))`,
+  `ALTER TABLE presupuesto_lineas ADD CONSTRAINT presupuesto_lineas_calculo_check CHECK (calculo IN ('kg_perfiles', 'm2_perfiles', 'l_pintura', 'x_m2'))`,
   // Asistente: cambios que prepara la IA y la persona confirma (tarjeta ✔ Confirmar / ✕ Cancelar)
   `CREATE TABLE IF NOT EXISTS ia_propuestas (
      id SERIAL PRIMARY KEY,

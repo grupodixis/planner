@@ -524,6 +524,25 @@
     d.addEventListener('close', () => d.remove()); document.body.append(d); d.showModal(); buscar(); q.focus();
   }
 
+  /* ---------- ⚙ Ajustes de presupuestos ---------- */
+  async function dialogoAjustes() {
+    const aj = await api('GET', '/api/presupuestos-ajustes');
+    const puede = window.s360.tiene('aprobar_descuentos') || window.s360.tiene('usuarios');
+    const lim = el('input', { class: 'pz-num', inputmode: 'decimal', value: fmt(aj.dto_limite), disabled: !puede, 'aria-label': 'Límite de descuento sin aprobación' });
+    const casa = el('textarea', { rows: 3, disabled: !puede, placeholder: 'correo@empresa.es, otra-empresa.com', 'aria-label': 'Correos de la casa' }, aj.correos_casa || '');
+    const d = el('dialog', { class: 'dlg-cos pz-dlg' },
+      el('h2', {}, '⚙ Ajustes de presupuestos'),
+      el('label', { class: 'pz-aj' }, el('b', {}, 'Descuento máximo sin aprobación (%)'), lim, el('small', {}, 'Por encima, hay que pedir aprobación a quien tiene el permiso «aprobar descuentos».')),
+      el('label', { class: 'pz-aj' }, el('b', {}, 'Correos de la casa'), casa,
+        el('small', {}, 'Correos o dominios (separados por comas) de personas de la casa que nos reenvían peticiones desde otras cuentas. Si uno de ellos reenvía un correo (RV/FW) a la cuenta de presupuestos, se usan solo los datos del correo original: nunca los de quien lo reenvía. Los usuarios de Planéalo y el dominio de la propia cuenta ya cuentan como de la casa.')),
+      puede ? null : el('p', { class: 'ayuda' }, 'Solo los cambia quien tiene «aprobar descuentos» o gestiona usuarios.'),
+      el('div', { class: 'acciones' }, el('button', { type: 'button', class: 'ghost', onclick: () => d.close() }, 'Cerrar'),
+        puede ? el('button', { type: 'button', class: 'primario', onclick: async () => {
+          try { await api('PUT', '/api/presupuestos-ajustes', { dto_limite: leer(lim.value), correos_casa: casa.value }); aviso('Ajustes guardados'); d.close(); if (est.p) cargar(); } catch (e) { aviso(e.message); }
+        } }, 'Guardar') : null));
+    d.addEventListener('close', () => d.remove()); document.body.append(d); d.showModal();
+  }
+
   /* ---------- correo al cliente: consulta o envío del presupuesto (borrador con IA, lo envía la persona) ---------- */
   async function dialogoCorreo(p, tipo) {
     let info;
@@ -752,6 +771,7 @@
     est.id = Number(q.get('id')) || null; est.partida = Number(q.get('partida')) || null;
     $('#pz-nuevo').onclick = dialogoNuevo;
     $('#pz-skills').onclick = dialogoSkills;
+    if ($('#pz-ajustes')) $('#pz-ajustes').onclick = dialogoAjustes;
     if (q.get('skills')) dialogoSkills();
     est.soloLeads = q.get('vista') === 'leads';
     $('#pz-leads').onclick = () => { est.soloLeads = !est.soloLeads; const u = new URL(location); if (est.soloLeads) u.searchParams.set('vista', 'leads'); else u.searchParams.delete('vista'); history.replaceState(null, '', u); cargarLista(); };

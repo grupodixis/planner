@@ -55,7 +55,7 @@ async function precioTarifa(tarifaId, td) {
 }
 
 /* ---------- ajustes de presupuestos (límite de descuento sin aprobación) ---------- */
-const AJ_P = { dto_limite: 10 };
+const AJ_P = { dto_limite: 10, correos_casa: '' };   // correos_casa: correos o dominios de la casa (sus reenvíos se leen por el correo original)
 async function ajustesP() {
   const { rows } = await query(`SELECT valor FROM ajustes WHERE clave = 'presupuestos'`);
   let v = {}; try { v = rows.length ? (typeof rows[0].valor === 'string' ? JSON.parse(rows[0].valor) : rows[0].valor) : {}; } catch { v = {}; }
@@ -617,8 +617,13 @@ function montar(app, asyncH) {
   }));
   app.get('/api/presupuestos-ajustes', ver, asyncH(async (req, res) => res.json(await ajustesP())));
   app.put('/api/presupuestos-ajustes', auth.permiso('aprobar_descuentos', 'usuarios'), asyncH(async (req, res) => {
-    const v = num(req.body?.dto_limite); if (v == null || v < 0 || v > 100) throw fallo(400, 'El límite va de 0 a 100 %');
-    const nuevo = { ...(await ajustesP()), dto_limite: v };
+    const b = req.body || {}; const nuevo = await ajustesP();
+    if ('dto_limite' in b) { const v = num(b.dto_limite); if (v == null || v < 0 || v > 100) throw fallo(400, 'El límite va de 0 a 100 %'); nuevo.dto_limite = v; }
+    if ('correos_casa' in b) {
+      const l = String(b.correos_casa || '').toLowerCase().split(/[\s,;]+/).map((x) => x.trim()).filter(Boolean);
+      for (const x of l) if (!/^@?[a-z0-9._%+-]*@?[a-z0-9.-]+\.[a-z]{2,}$/.test(x)) throw fallo(400, `«${x}» no es un correo ni un dominio`);
+      nuevo.correos_casa = l.join(', ').slice(0, 2000);
+    }
     await query(`INSERT INTO ajustes (clave, valor) VALUES ('presupuestos', $1) ON CONFLICT (clave) DO UPDATE SET valor = EXCLUDED.valor`, [JSON.stringify(nuevo)]);
     res.json(nuevo);
   }));
