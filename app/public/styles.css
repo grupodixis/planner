@@ -3341,3 +3341,9 @@ dialog.pz-dlg { width: min(760px, calc(100vw - 32px)); } dialog.pz-dlg-ancho { w
 .pz-dto p { margin: 6px 0; } .pz-dto-lim .pz-num { width: 4em; display: inline-block; }
 .pz-tabla tr.pz-sub td { font-size: 12px; color: var(--suave, #aaa); border-top: 0; }
 .pz-dto-chip { display: block; font-size: 11px; color: #f59e0b; }
+.pz-dlg-correo { width: min(760px, 96vw); }
+.pz-correo { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 12px; }
+.pz-correo label { display: flex; flex-direction: column; gap: 3px; } .pz-correo label > span { font-size: 12px; color: var(--suave, #999); }
+.pz-correo .ancho { grid-column: 1 / -1; } .pz-correo textarea { width: 100%; font: inherit; line-height: 1.45; }
+.pz-correo-ia { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; } .pz-correo-ia input { flex: 1; min-width: 220px; }
+@media (max-width: 640px) { .pz-correo { grid-template-columns: 1fr; } }

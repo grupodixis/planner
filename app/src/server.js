@@ -316,7 +316,8 @@ require('./precios').montar(app, asyncH, auth);   // Lista de precios y lo que a
 require('./tarifa').montar(app, asyncH);   // Tarifa de mano de obra y maquinaria (venta y coste por rendimiento real)
 require('./presupuestos').montar(app, asyncH);   // Presupuestos: capítulos › partidas › descomposición, precios de la lista y la tarifa
 require('./presupuestos-leads').montar(app, asyncH);
-require('./presupuestos-aprender').montar(app, asyncH);   // Aprender de los presupuestos corregidos → propuestas para las Skills   // Leads capturados desde el móvil
+require('./presupuestos-aprender').montar(app, asyncH);
+require('./presupuestos-enviar').montar(app, asyncH);   // Escribir al cliente y enviar el presupuesto (borrador con IA, lo envía la persona)   // Aprender de los presupuestos corregidos → propuestas para las Skills   // Leads capturados desde el móvil
 require('./presupuestos-ia').montar(app, asyncH);   // Presupuestos con IA (texto + adjuntos) y Skills de presupuestación
 require('./incidencias').montar(app, asyncH);   // incidencias: material, transporte, calidad… con reclamación y cierre
 require('./pedido-transporte').montar(app, asyncH);   // cómo llega cada pedido: proveedor, recogida o almacén del transportista

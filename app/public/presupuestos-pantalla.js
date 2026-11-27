@@ -259,6 +259,8 @@
           abiertoP() && p.capitulos[0]?.id ? el('button', { type: 'button', class: 'ghost', onclick: () => nuevaPartida(p.capitulos[p.capitulos.length - 1].id) }, '＋ Partida') : null,
           abiertoP() ? el('button', { type: 'button', class: pendientes ? 'primario' : 'ghost', onclick: dialogoPedir }, `✉ Pedir precio de lo pendiente${p.pendientes.estimado ? ` (${p.pendientes.estimado})` : ''}`) : null,
           abiertoP() ? el('button', { type: 'button', class: 'ghost', title: 'Vuelve a coger los precios de la lista y de la tarifa (no toca lo escrito a mano ni lo pedido)', onclick: () => hacer('POST', `/api/presupuestos/${p.id}/actualizar-precios`, {}, (r) => `${r.cambiados} precio(s) actualizados`) }, '⟳ Actualizar precios') : null,
+          ['preparacion', 'enviado'].includes(p.estado) && p.n_partidas ? el('button', { type: 'button', class: p.estado === 'preparacion' && !pendientes ? 'primario' : 'ghost', onclick: () => dialogoCorreo(p, 'presupuesto') }, p.estado === 'enviado' ? '📨 Reenviar presupuesto' : '📨 Enviar presupuesto') : null,
+          ['lead', 'preparacion', 'enviado', 'aceptado'].includes(p.estado) ? el('button', { type: 'button', class: 'ghost', onclick: () => dialogoCorreo(p, 'consulta') }, '✉ Escribir al cliente') : null,
           el('a', { class: 'boton ghost', href: `/api/presupuestos/${p.id}/pdf`, target: '_blank', rel: 'noopener' }, '📄 PDF cliente'),
           el('a', { class: 'boton ghost', href: `/api/presupuestos/${p.id}/pdf?detallado=1`, target: '_blank', rel: 'noopener', title: 'Con la descomposición de cada partida a precio de venta' }, '📄 PDF detallado'),
           el('a', { class: 'boton ghost', href: `/api/presupuestos/${p.id}/pdf?interno=1`, target: '_blank', rel: 'noopener', title: 'Documento interno: costes línea a línea, origen de cada precio, margen y beneficio. No es para el cliente.' }, '🔒 PDF interno de costes'),
@@ -514,6 +516,57 @@
     };
     let t = null; q.addEventListener('input', () => { clearTimeout(t); t = setTimeout(buscar, 250); });
     d.addEventListener('close', () => d.remove()); document.body.append(d); d.showModal(); buscar(); q.focus();
+  }
+
+  /* ---------- correo al cliente: consulta o envío del presupuesto (borrador con IA, lo envía la persona) ---------- */
+  async function dialogoCorreo(p, tipo) {
+    let info;
+    try { info = await api('GET', `/api/presupuestos/${p.id}/correo`); } catch (e) { aviso(e.message); return; }
+    const envio = tipo === 'presupuesto';
+    const para = el('input', { type: 'text', value: info.para[0]?.email || '', placeholder: 'correo@cliente.com', 'aria-label': 'Para', list: 'pz-correo-para' });
+    const dl = el('datalist', { id: 'pz-correo-para' }, info.para.map((x) => el('option', { value: x.email }, `${x.nombre || ''} · ${x.de}`)));
+    const cc = el('input', { type: 'text', placeholder: 'opcional', 'aria-label': 'CC' });
+    const asunto = el('input', { type: 'text', 'aria-label': 'Asunto', maxlength: 200 });
+    const cuerpo = el('textarea', { rows: 12, 'aria-label': 'Texto del correo' });
+    const pdf = el('select', { 'aria-label': 'Adjuntar' }, ...(envio ? [] : [el('option', { value: '' }, 'sin adjunto')]),
+      el('option', { value: 'cliente' }, `📄 ${p.codigo}.pdf (presupuesto)`), el('option', { value: 'detallado' }, `📄 ${p.codigo}-detallado.pdf (con descomposición)`));
+    const ind = el('input', { type: 'text', placeholder: envio ? 'Indicaciones para la IA: «menciona que el montaje va incluido»…' : 'Qué quieres preguntarle (si no, usa las dudas y los datos que faltan)', 'aria-label': 'Indicaciones para la IA' });
+    const estadoIA = el('span', { class: 'ayuda' });
+    const redactar = async () => {
+      bIA.disabled = true; estadoIA.textContent = ' ✨ Redactando…';
+      try {
+        const r = await api('POST', `/api/presupuestos/${p.id}/correo/redactar`, { tipo, indicaciones: ind.value || null });
+        asunto.value = r.asunto; cuerpo.value = r.texto;
+        estadoIA.textContent = r.aviso ? ` ${r.aviso}` : r.ia ? ' ✨ Borrador de la IA: revísalo antes de enviar' : ' Plantilla: revísala antes de enviar';
+      } catch (e) { estadoIA.textContent = ` ${e.message}`; }
+      bIA.disabled = false;
+    };
+    const bIA = el('button', { type: 'button', class: 'ghost mini', onclick: redactar }, '✨ Redactar con IA');
+    const bEnviar = el('button', { type: 'button', class: 'primario' }, envio ? '📨 Enviar el presupuesto' : '✉ Enviar');
+    const d = el('dialog', { class: 'dlg-cos pz-dlg pz-dlg-correo' },
+      el('h2', {}, envio ? `📨 Enviar ${p.codigo} al cliente` : `✉ Escribir al cliente · ${p.codigo}`),
+      el('p', { class: 'ayuda' }, `Sale de ${info.cuenta ? `${info.cuenta.direccion}` : 'la cuenta principal'}${info.en_hilo ? ', en el mismo hilo que su correo' : ''}. Cuando el cliente responda, su respuesta (y lo que adjunte) aparece en este presupuesto.${envio ? ' Al enviarlo, el presupuesto queda como «enviado».' : ''}`),
+      p.dto_necesita && envio ? el('p', { class: 'pz-rojo' }, `⚠ El descuento (${fmt(p.dto_max_pct)} %) está pendiente de aprobación${window.s360.tiene('aprobar_descuentos') ? ': al enviarlo quedará aprobado por ti.' : ': no se puede enviar todavía.'}`) : null,
+      el('div', { class: 'pz-correo' },
+        el('label', {}, el('span', {}, 'Para'), para, dl), el('label', {}, el('span', {}, 'CC'), cc),
+        el('label', { class: 'ancho' }, el('span', {}, 'Asunto'), asunto),
+        el('label', { class: 'ancho' }, el('span', {}, 'Texto'), cuerpo),
+        el('label', {}, el('span', {}, 'Adjuntar'), pdf),
+        el('div', { class: 'ancho pz-correo-ia' }, ind, bIA, estadoIA)),
+      el('div', { class: 'acciones' }, el('button', { type: 'button', class: 'ghost', onclick: () => d.close() }, 'Cancelar'), bEnviar));
+    bEnviar.addEventListener('click', async () => {
+      if (!para.value.trim()) { aviso('Falta el destinatario'); para.focus(); return; }
+      if (!asunto.value.trim() || !cuerpo.value.trim()) { aviso('Faltan el asunto o el texto'); return; }
+      if (!confirm(`¿Enviar a ${para.value}${pdf.value ? ' con el PDF' : ''}?`)) return;
+      bEnviar.disabled = true; bEnviar.textContent = 'Enviando…';
+      try {
+        est.p = await api('POST', `/api/presupuestos/${p.id}/correo/enviar`, { tipo, para: para.value, cc: cc.value, asunto: asunto.value, texto: cuerpo.value, pdf: pdf.value || null });
+        d.close(); pintar(); cargarLista(); aviso(envio ? `Presupuesto enviado a ${para.value}` : `Enviado a ${para.value}`);
+      } catch (e) { aviso(e.message); bEnviar.disabled = false; bEnviar.textContent = envio ? '📨 Enviar el presupuesto' : '✉ Enviar'; }
+    });
+    d.addEventListener('close', () => d.remove()); document.body.append(d); d.showModal();
+    if (!info.para.length) estadoIA.textContent = ' ⚠ El cliente no tiene correo: escríbelo en «Para» (y guárdalo en su ficha).';
+    if (envio || (p.ia_dudas || []).length || (p.datos_pedidos || []).length) redactar(); else asunto.value = `${p.titulo} [${p.codigo}]`;
   }
 
   /* ---------- pedir precio ---------- */

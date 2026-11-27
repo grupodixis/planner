@@ -701,4 +701,4 @@ async function preciosAntiguosALista() {
   if (rows.length) console.log(`Presupuestos: ${rows.length} precio(s) corregido(s) a mano pasados a la Lista de precios`);
 }
 
-module.exports = { normalizarUnidades, montar, cargar, precioMaterial, precioTarifa };
+module.exports = { normalizarUnidades, montar, cargar, precioMaterial, precioTarifa, pdfDe: (p, det) => pdf(p, det, false) };

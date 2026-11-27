@@ -1790,6 +1790,7 @@ const MIGRACIONES = [
   `ALTER TABLE presupuestos ADD COLUMN IF NOT EXISTS dto_pedido_por INT REFERENCES usuarios(id) ON DELETE SET NULL`,
   `ALTER TABLE presupuestos ADD COLUMN IF NOT EXISTS dto_respuesta TEXT`,
   `ALTER TABLE presupuesto_partidas ADD COLUMN IF NOT EXISTS dto_pct NUMERIC(7,3)`,
+  `ALTER TABLE presupuestos ADD COLUMN IF NOT EXISTS reenvio_de JSONB`,   // petición reenviada por alguien de la casa con «presupuestar»: {email, nombre, por} del cliente original
   `DO $$ BEGIN
      IF NOT EXISTS (SELECT 1 FROM ajustes WHERE clave = 'migr_permiso_aprobar_descuentos') THEN
        UPDATE roles SET permisos = array_append(permisos, 'aprobar_descuentos') WHERE clave IN ('admin', 'direccion') AND NOT ('aprobar_descuentos' = ANY(permisos));
