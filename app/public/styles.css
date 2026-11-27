@@ -3336,3 +3336,8 @@ dialog.pz-dlg { width: min(760px, calc(100vw - 32px)); } dialog.pz-dlg-ancho { w
 .pz-busca-caja .pz-sug { min-width: 440px; }
 .pz-lpint .pz-num { width: 4.2em; } .pz-lpint small { display: block; white-space: nowrap; }
 .pz-sin-correo { color: #e05252; }
+.pz-dto { border: 1px solid var(--borde, #333); border-radius: 8px; padding: 6px 10px; margin: 10px 0; }
+.pz-dto summary { font-weight: 600; cursor: pointer; }
+.pz-dto p { margin: 6px 0; } .pz-dto-lim .pz-num { width: 4em; display: inline-block; }
+.pz-tabla tr.pz-sub td { font-size: 12px; color: var(--suave, #aaa); border-top: 0; }
+.pz-dto-chip { display: block; font-size: 11px; color: #f59e0b; }

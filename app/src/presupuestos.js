@@ -53,6 +53,14 @@ async function precioTarifa(tarifaId, td) {
     precio_info: { coste_ficha: t.coste_ficha ?? t.coste_efectivo, rendimiento_pct: t.rendimiento_pct ?? null, venta: t.precio_venta, unidad: t.unidad } };
 }
 
+/* ---------- ajustes de presupuestos (límite de descuento sin aprobación) ---------- */
+const AJ_P = { dto_limite: 10 };
+async function ajustesP() {
+  const { rows } = await query(`SELECT valor FROM ajustes WHERE clave = 'presupuestos'`);
+  let v = {}; try { v = rows.length ? (typeof rows[0].valor === 'string' ? JSON.parse(rows[0].valor) : rows[0].valor) : {}; } catch { v = {}; }
+  return { ...AJ_P, ...v };
+}
+
 /* ---------- el presupuesto entero, con sus cálculos ---------- */
 async function cargar(id) {
   const { rows: [p] } = await query(`
@@ -63,7 +71,7 @@ async function cargar(id) {
   if (!p) return null;
   const [{ rows: caps }, { rows: parts }, { rows: lins }, { rows: eventos }] = await Promise.all([
     query('SELECT * FROM presupuesto_capitulos WHERE presupuesto_id = $1 ORDER BY orden, id', [id]),
-    query('SELECT *, medicion::float AS medicion FROM presupuesto_partidas WHERE presupuesto_id = $1 ORDER BY orden, id', [id]),
+    query('SELECT *, medicion::float AS medicion, COALESCE(dto_pct, 0)::float AS dto_pct FROM presupuesto_partidas WHERE presupuesto_id = $1 ORDER BY orden, id', [id]),
     query(`SELECT l.*, l.por_ud::float AS por_ud, l.precio::float AS precio, sl.solicitud_id, s.codigo AS sol_codigo, s.responder_antes::text AS sol_responder_antes, s.estado AS sol_estado
              FROM presupuesto_lineas l JOIN presupuesto_partidas pp ON pp.id = l.partida_id
              LEFT JOIN solicitud_lineas sl ON sl.id = l.sol_linea_id LEFT JOIN solicitudes_precio s ON s.id = sl.solicitud_id
@@ -89,7 +97,7 @@ async function cargar(id) {
   const eqLinea = async (l) => (l.catalogo_id ? mats.get(l.catalogo_id) : await U.equivalencias(null, l.concepto, l.unidad));
   const eqs = new Map();
   for (const l of lins) if (l.tipo === 'material' && !l.calculo) eqs.set(l.id, await eqLinea(l));
-  let coste = 0; let venta = 0; let costeReal = 0; const pend = { estimado: 0, solicitado: 0, nuevos: 0 };
+  let coste = 0; let venta = 0; let costeReal = 0; let brutaTot = 0; const pend = { estimado: 0, solicitado: 0, nuevos: 0 };
   p.capitulos = caps.map((c) => ({ ...c, partidas: [], coste: 0, venta: 0 }));
   const sinCap = { id: null, codigo: '', nombre: 'Sin capítulo', partidas: [], coste: 0, venta: 0 };
   for (const pa of parts) {
@@ -128,7 +136,10 @@ async function cargar(id) {
     pa.coste_ud = r2(pa.lineas.reduce((s, l) => s + (l.precio != null ? l.cantidad_ud * l.precio : 0), 0));
     pa.coste = r2(pa.lineas.reduce((s, l) => s + l.importe, 0));
     pa.venta_ud = r2(pa.coste_ud * k);
-    pa.venta = r2(pa.venta_ud * pa.medicion);
+    pa.venta_bruta = r2(pa.venta_ud * pa.medicion);
+    pa.dto = r2(pa.venta_bruta * pa.dto_pct / 100);   // descuento de la partida
+    pa.venta = r2(pa.venta_bruta - pa.dto);
+    brutaTot += pa.venta_bruta;
     pa.kg_ud = +kg.toFixed(3); pa.m2_ud = +m2.toFixed(3);
     pa.estados = pa.lineas.reduce((o, l) => { o[l.estado_precio] = (o[l.estado_precio] || 0) + 1; return o; }, {});
     pa.sin_precio = pa.lineas.filter((l) => l.precio == null).length;
@@ -138,7 +149,26 @@ async function cargar(id) {
     cap.partidas.push(pa); cap.coste = r2(cap.coste + pa.coste); cap.venta = r2(cap.venta + pa.venta);
   }
   if (sinCap.partidas.length) p.capitulos.push(sinCap);
-  p.coste = r2(coste); p.venta = r2(venta); p.k = k;
+  p.coste = r2(coste); p.k = k;
+  // Descuentos: los de las partidas ya van en su venta; el general, sobre la suma (en % o importe fijo)
+  p.suma = r2(venta); p.venta_bruta = r2(brutaTot);
+  p.dto_pct = p.dto_pct == null ? null : Number(p.dto_pct); p.dto_objetivo = p.dto_objetivo == null ? null : Number(p.dto_objetivo);
+  p.dto_general = p.dto_objetivo != null ? Math.max(0, r2(p.suma - p.dto_objetivo)) : r2(p.suma * (p.dto_pct || 0) / 100);
+  p.dto_general_pct = p.suma ? +((p.dto_general / p.suma) * 100).toFixed(2) : 0;
+  p.dto_partidas = r2(p.capitulos.flatMap((c) => c.partidas).reduce((s, x) => s + x.dto, 0));
+  p.venta = r2(p.suma - p.dto_general);   // base imponible
+  p.dto_total = r2(p.venta_bruta - p.venta);
+  p.dto_total_pct = p.venta_bruta ? +((p.dto_total / p.venta_bruta) * 100).toFixed(2) : 0;
+  // aprobación: el mayor descuento (general o de una partida) frente al límite
+  p.dto_limite = (await ajustesP()).dto_limite;
+  p.dto_max_pct = Math.max(p.dto_total_pct, ...parts.map((x) => x.dto_pct || 0), 0);   // el descuento total o el de una partida, el mayor
+  p.dto_aprobado_pct = p.dto_aprobado_pct == null ? null : Number(p.dto_aprobado_pct);
+  p.dto_necesita = p.dto_max_pct > p.dto_limite + 1e-6 && !(p.dto_aprobado_pct != null && p.dto_max_pct <= p.dto_aprobado_pct + 1e-6);
+  // margen que queda después del descuento
+  p.beneficio = r2(p.venta - p.coste);
+  p.margen_real_pct = p.coste ? +((p.venta / p.coste - 1) * 100).toFixed(1) : null;
+  p.no_cubre_gg = p.coste > 0 && p.venta < p.coste * (1 + p.gg_pct / 100) - 0.005;
+  p.perdidas = p.coste > 0 && p.venta < p.coste - 0.005;
   p.margen_pct = p.gg_pct + p.bi_pct;
   p.real_pct = coste ? Math.round((costeReal / coste) * 100) : null;
   p.pendientes = pend;
@@ -146,6 +176,8 @@ async function cargar(id) {
   return p;
 }
 
+const eurTxt = (v) => `${Number(v || 0).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`;
+const fmtPct = (v) => String(+Number(v || 0).toFixed(2)).replace('.', ',');
 const editable = (p) => { if (!p) throw fallo(404, 'Presupuesto no encontrado'); if (!['preparacion', 'enviado'].includes(p.estado)) throw fallo(400, 'Este presupuesto ya está cerrado: no se puede cambiar'); };
 async function dePartida(partidaId) {
   const { rows: [r] } = await query('SELECT pp.*, p.estado FROM presupuesto_partidas pp JOIN presupuestos p ON p.id = pp.presupuesto_id WHERE pp.id = $1', [partidaId]);
@@ -237,6 +269,7 @@ function montar(app, asyncH) {
       const p = await cargar(r.id);
       out.push({ id: p.id, codigo: p.codigo, titulo: p.titulo, cliente: p.cliente, obra: p.obra, estado: p.estado, coste: p.coste, venta: p.venta, capitulos: p.capitulos.filter((c) => c.id).length,
         partidas: p.n_partidas, pendientes: p.pendientes, ia_estado: p.ia_estado, origen: p.origen, real_pct: p.real_pct, enviado_en: p.enviado_en, decidido_en: p.decidido_en, cambiado: p.cambiado, creado: p.creado,
+        dto_total_pct: p.dto_total_pct, dto_necesita: p.dto_necesita, dto_pedido: !!(p.dto_necesita && p.dto_pedido_en),
         lead: p.estado === 'lead' ? { ...(p.lead_datos || {}), autor: p.captura_autor } : null });
     }
     res.json(out);
@@ -279,6 +312,17 @@ function montar(app, asyncH) {
     if ('validez_dias' in b) poner('validez_dias', Math.max(1, Math.min(365, Number(b.validez_dias) || 30)));
     for (const k of ['condiciones', 'notas', 'exclusiones', 'alcance']) if (k in b) poner(k, texto(b[k], 4000));
     for (const k of ['plazo', 'forma_pago', 'atencion', 'calidad']) if (k in b) poner(k, texto(b[k], 400));
+    // descuento general: { dto_pct } o { dto_objetivo } = «dejarlo en X €» sin IVA (el otro se borra) · { dto_motivo }
+    if ('dto_pct' in b) { const v = num(b.dto_pct); if (v != null && (v < 0 || v > 100)) throw fallo(400, 'El descuento va de 0 a 100 %'); poner('dto_pct', v || null); poner('dto_objetivo', null); }
+    else if ('dto_objetivo' in b) { const v = num(b.dto_objetivo); if (v != null && v <= 0) throw fallo(400, 'Importe no válido'); poner('dto_objetivo', v || null); poner('dto_pct', null); }
+    if ('dto_motivo' in b) poner('dto_motivo', texto(b.dto_motivo, 300));
+    if (b.estado === 'enviado' && p.estado !== 'enviado') {
+      const x = await cargar(id);
+      if (x.dto_necesita) {
+        if (!auth.tiene(req.usuario, 'aprobar_descuentos')) throw fallo(400, `El descuento (${fmtPct(x.dto_max_pct)} %) pasa del límite del ${fmtPct(x.dto_limite)} %: pide aprobación antes de enviarlo`);
+        sets.push('dto_aprobado_en = now()'); poner('dto_aprobado_pct', x.dto_max_pct); poner('dto_aprobado_por', req.usuario.id);   // quien puede aprobar, se lo aprueba al enviarlo
+      }
+    }
     if (!sets.length) throw fallo(400, 'Nada que cambiar');
     sets.push('cambiado = now()');
     await query(`UPDATE presupuestos SET ${sets.join(', ')} WHERE id = $1`, vals);
@@ -351,6 +395,7 @@ function montar(app, asyncH) {
     if ('unidad' in b) poner('unidad', texto(b.unidad, 12) || 'ud');
     if ('medicion' in b) { const v = num(b.medicion); if (v == null || v < 0) throw fallo(400, 'Medición no válida'); poner('medicion', v); }
     if ('capitulo_id' in b) poner('capitulo_id', num(b.capitulo_id));
+    if ('dto_pct' in b) { const v = num(b.dto_pct); if (v != null && (v < 0 || v > 100)) throw fallo(400, 'El descuento va de 0 a 100 %'); poner('dto_pct', v || null); }
     if (sets.length) await query(`UPDATE presupuesto_partidas SET ${sets.join(', ')} WHERE id = $1`, vals);
     await tocar(pa.presupuesto_id); res.json(await cargar(pa.presupuesto_id));
   }));
@@ -540,6 +585,33 @@ function montar(app, asyncH) {
       }
     }
     res.status(201).json({ ...(await cargar(id)), solicitud_id: sid, envio });
+  }));
+
+  // Descuento por encima del límite: pedir aprobación · aprobar / no aprobar (permiso aprobar_descuentos)
+  const N = () => require('./notificaciones');
+  app.post('/api/presupuestos/:id/descuento/pedir', ver, asyncH(async (req, res) => {
+    const id = Number(req.params.id); const p = await cargar(id); editable(p);
+    if (!p.dto_necesita) throw fallo(400, 'Este descuento no necesita aprobación');
+    await query('UPDATE presupuestos SET dto_pedido_en = now(), dto_pedido_por = $2, dto_respuesta = NULL WHERE id = $1', [id, req.usuario.id]);
+    await query(`INSERT INTO presupuesto_eventos (presupuesto_id, clase, texto) VALUES ($1, 'aviso', $2)`, [id, `Se pide aprobar un descuento del ${fmtPct(p.dto_max_pct)} % (${req.usuario.nombre})${p.dto_motivo ? `: ${p.dto_motivo}` : ''}`]).catch(() => {});
+    N().avisarLuego(N().conPermiso('aprobar_descuentos'), 'presupuesto_dto', { titulo: `Descuento del ${fmtPct(p.dto_max_pct)} % por aprobar`, cuerpo: `${p.codigo} · ${p.cliente || p.titulo} · ${eurTxt(p.venta)} sin IVA, margen ${p.margen_real_pct ?? '—'} %${p.dto_motivo ? ` · ${p.dto_motivo}` : ''}`, url: `/presupuestos.html?id=${id}`, tag: `pz-dto-${id}` });
+    res.json(await cargar(id));
+  }));
+  app.post('/api/presupuestos/:id/descuento/decidir', auth.permiso('aprobar_descuentos'), asyncH(async (req, res) => {
+    const id = Number(req.params.id); const p = await cargar(id); editable(p); const b = req.body || {};
+    const nota = texto(b.nota, 300);
+    if (b.ok) await query('UPDATE presupuestos SET dto_aprobado_pct = $2, dto_aprobado_por = $3, dto_aprobado_en = now(), dto_pedido_en = NULL, dto_respuesta = $4 WHERE id = $1', [id, p.dto_max_pct, req.usuario.id, nota]);
+    else { if (!nota) throw fallo(400, 'Di el motivo'); await query('UPDATE presupuestos SET dto_pedido_en = NULL, dto_respuesta = $2 WHERE id = $1', [id, `No aprobado: ${nota}`]); }
+    await query(`INSERT INTO presupuesto_eventos (presupuesto_id, clase, texto) VALUES ($1, 'aviso', $2)`, [id, `${b.ok ? '✔ Descuento aprobado' : '✕ Descuento no aprobado'} (${fmtPct(p.dto_max_pct)} %) por ${req.usuario.nombre}${nota ? `: ${nota}` : ''}`]).catch(() => {});
+    if (p.dto_pedido_por) N().avisarLuego([p.dto_pedido_por], 'presupuesto_dto', { titulo: `${b.ok ? '✔ Aprobado' : '✕ No aprobado'}: descuento de ${p.codigo}`, cuerpo: `${fmtPct(p.dto_max_pct)} % · ${req.usuario.nombre}${nota ? ` · ${nota}` : ''}`, url: `/presupuestos.html?id=${id}`, tag: `pz-dto-${id}` });
+    res.json(await cargar(id));
+  }));
+  app.get('/api/presupuestos-ajustes', ver, asyncH(async (req, res) => res.json(await ajustesP())));
+  app.put('/api/presupuestos-ajustes', auth.permiso('aprobar_descuentos', 'usuarios'), asyncH(async (req, res) => {
+    const v = num(req.body?.dto_limite); if (v == null || v < 0 || v > 100) throw fallo(400, 'El límite va de 0 a 100 %');
+    const nuevo = { ...(await ajustesP()), dto_limite: v };
+    await query(`INSERT INTO ajustes (clave, valor) VALUES ('presupuestos', $1) ON CONFLICT (clave) DO UPDATE SET valor = EXCLUDED.valor`, [JSON.stringify(nuevo)]);
+    res.json(nuevo);
   }));
 
   // Peticiones de este presupuesto abiertas y sin enviar a algún proveedor · enviarlas todas por correo

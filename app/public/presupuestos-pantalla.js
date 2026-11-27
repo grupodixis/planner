@@ -48,7 +48,8 @@
       if (!ls.length) return k === 'lead' && est.soloLeads ? [el('p', { class: 'ayuda' }, 'No hay leads. Se capturan desde el móvil: Capturar › 🎯 Lead.')] : [];
       if (k === 'lead') return [el('div', { class: 'pz-tag' }, `${t} (${ls.length})`), ...ls.map(itemLead)];
       return [el('div', { class: 'pz-tag' }, `${t} (${ls.length})`), ...ls.map((p) => el('button', { type: 'button', class: `pz-item${p.id === est.id ? ' sel' : ''}`, onclick: () => abrir(p.id) },
-        el('div', { class: 'pz-item-1' }, el('b', {}, p.codigo), el('span', {}, p.venta ? eur0(p.venta) : '—')),
+        el('div', { class: 'pz-item-1' }, el('b', {}, p.codigo), el('span', {}, p.venta ? eur0(p.venta) : '—', p.dto_total_pct ? el('small', { class: p.dto_necesita ? 'pz-rojo' : 'ayuda' }, ` −${fmt(p.dto_total_pct)} %`) : null)),
+        p.dto_necesita ? el('small', { class: 'pz-rojo' }, p.dto_pedido ? '⏳ descuento esperando aprobación' : '⚠ descuento por encima del límite') : null,
         el('div', {}, [p.cliente, p.titulo].filter(Boolean).join(' · ')),
         p.ia_estado === 'creando' ? el('small', { class: 'pz-azul' }, '🤖 preparándolo la IA…') : p.ia_estado === 'error' ? el('small', { class: 'pz-rojo' }, '⚠ la IA no pudo prepararlo') : null,
         el('small', {}, p.origen === 'correo' ? '📧 ' : p.origen === 'captura' ? '🎯 ' : '', p.partidas ? `${p.capitulos} capítulo${p.capitulos === 1 ? '' : 's'} · ${p.partidas} partida${p.partidas === 1 ? '' : 's'}` : 'sin partidas',
@@ -224,10 +225,14 @@
         filas.push(el('tr', { class: 'pz-par', tabindex: 0, onclick: () => abrir(p.id, pa.id), onkeydown: (ev) => { if (ev.key === 'Enter') abrir(p.id, pa.id); } },
           el('td', {}, el('span', { class: 'pz-cod' }, pa.codigo || ''), ' ', pa.nombre, pa.descripcion ? null : el('small', { class: 'pz-naranja' }, 'sin descripción comercial')),
           el('td', { class: 'n' }, `${fmt(pa.medicion)} ${ud(pa.unidad)}`), el('td', { class: 'n' }, eur(pa.coste_ud)), el('td', { class: 'n' }, eur0(pa.coste)),
-          el('td', { class: 'n' }, eur(pa.venta_ud)), el('td', { class: 'n' }, eur0(pa.venta)), el('td', {}, chipsPartida(pa))));
+          el('td', { class: 'n' }, eur(pa.venta_ud)), el('td', { class: 'n' }, eur0(pa.venta), pa.dto_pct ? el('small', { class: 'pz-dto-chip' }, `dto. ${fmt(pa.dto_pct)} %`) : null), el('td', {}, chipsPartida(pa))));
       }
     }
-    filas.push(el('tr', { class: 'pz-tot' }, el('td', {}, 'Total'), el('td', {}), el('td', {}), el('td', { class: 'n' }, eur0(p.coste)), el('td', {}), el('td', { class: 'n' }, eur0(p.venta)), el('td', {})));
+    if (p.dto_general) {
+      filas.push(el('tr', { class: 'pz-sub' }, el('td', {}, 'Suma de partidas'), el('td', {}), el('td', {}), el('td', {}), el('td', {}), el('td', { class: 'n' }, eur0(p.suma)), el('td', {})));
+      filas.push(el('tr', { class: 'pz-sub' }, el('td', {}, `Descuento comercial (${fmt(p.dto_general_pct)} %)`), el('td', {}), el('td', {}), el('td', {}), el('td', {}), el('td', { class: 'n' }, `−${eur0(p.dto_general)}`), el('td', {})));
+    }
+    filas.push(el('tr', { class: 'pz-tot' }, el('td', {}, p.dto_total ? 'Total (base imponible)' : 'Total'), el('td', {}), el('td', {}), el('td', { class: 'n' }, eur0(p.coste)), el('td', {}), el('td', { class: 'n' }, eur0(p.venta)), el('td', {})));
 
     $('#pz-det').replaceChildren(
       el('div', { class: 'pz-card' },
@@ -248,6 +253,7 @@
           el('thead', {}, el('tr', {}, el('th', {}, 'Capítulo / partida'), el('th', { class: 'n' }, 'Medición'), el('th', { class: 'n' }, 'Coste / ud'), el('th', { class: 'n' }, 'Coste'),
             el('th', { class: 'n' }, 'Venta / ud'), el('th', { class: 'n' }, 'Venta'), el('th', {}, 'Precios'))),
           el('tbody', {}, filas))),
+        bloqueDescuento(p, put),
         el('div', { class: 'pz-acc' },
           abiertoP() ? el('button', { type: 'button', class: 'ghost', onclick: () => hacer('POST', `/api/presupuestos/${p.id}/capitulos`, {}, 'Capítulo añadido') }, '＋ Capítulo') : null,
           abiertoP() && p.capitulos[0]?.id ? el('button', { type: 'button', class: 'ghost', onclick: () => nuevaPartida(p.capitulos[p.capitulos.length - 1].id) }, '＋ Partida') : null,
@@ -269,10 +275,44 @@
             el('label', {}, el('span', {}, 'Exclusiones y aclaraciones técnicas (una por línea)'), campo(p.exclusiones || '', (v) => put({ exclusiones: v }, 'Guardado'), { multilinea: true, rows: 4, placeholder: 'No incluye albañilería ni ayudas de obra…' }))))),
       el('div', { class: 'pz-kpis' },
         el('div', { class: 'pz-kpi' }, el('small', {}, 'Coste técnico'), el('b', {}, eur0(p.coste)), el('small', {}, p.real_pct == null ? '—' : `${p.real_pct} % del coste con precio real o de tarifa`)),
-        el('div', { class: 'pz-kpi' }, el('small', {}, 'Margen'), el('b', {}, `+ ${fmt(p.margen_pct)} %`), el('small', {}, `GG ${fmt(p.gg_pct)} % + beneficio ${fmt(p.bi_pct)} %`)),
-        el('div', { class: 'pz-kpi' }, el('small', {}, 'Precio de venta (sin IVA)'), el('b', { class: 'pz-verde' }, eur0(p.venta)), el('small', {}, `con IVA ${eur0(p.venta * 1.21)}`)),
+        el('div', { class: 'pz-kpi' }, el('small', {}, 'Margen'), el('b', { class: p.perdidas || p.no_cubre_gg ? 'pz-rojo' : '' }, `+ ${fmt(p.dto_total ? p.margen_real_pct : p.margen_pct)} %`), el('small', {}, p.dto_total ? `tras el descuento (sin él, +${fmt(p.margen_pct)} %)` : `GG ${fmt(p.gg_pct)} % + beneficio ${fmt(p.bi_pct)} %`)),
+        el('div', { class: 'pz-kpi' }, el('small', {}, 'Precio de venta (sin IVA)'), el('b', { class: 'pz-verde' }, eur0(p.venta)), el('small', {}, `con IVA ${eur0(p.venta * 1.21)}${p.dto_total ? ` · dto. ${fmt(p.dto_total_pct)} %` : ''}`)),
         el('div', { class: 'pz-kpi' }, el('small', {}, 'Pendiente'), el('b', { class: pendientes ? 'pz-naranja' : 'pz-verde' }, pendientes ? `${pendientes} precio${pendientes === 1 ? '' : 's'}` : 'nada'),
           el('small', {}, `${p.pendientes.estimado} estimados · ${p.pendientes.solicitado} solicitados${p.pendientes.nuevos ? ` · ${p.pendientes.nuevos} nuevos` : ''}`))));
+  }
+
+  // 🏷 Descuento: general (% o «dejarlo en X €») + los de las partidas; margen que queda y aprobación si pasa del límite
+  function bloqueDescuento(p, put) {
+    const puedeAprobar = window.s360.tiene('aprobar_descuentos');
+    const hay = p.dto_total > 0;
+    const motivos = el('datalist', { id: 'pz-dto-motivos' }, ['Cliente habitual', 'Competencia', 'Volumen de obra', 'Pronto pago', 'Redondeo', 'Cortesía comercial'].map((m) => el('option', { value: m })));
+    const estado = [];
+    if (p.dto_necesita) {
+      estado.push(el('p', { class: 'pz-rojo' }, `⚠ El descuento (${fmt(p.dto_max_pct)} %) pasa del límite sin aprobación (${fmt(p.dto_limite)} %). No se puede marcar como enviado hasta que se apruebe; el PDF del cliente sale como borrador.`));
+      if (puedeAprobar) estado.push(el('div', { class: 'pz-acc' },
+        el('button', { type: 'button', class: 'primario mini', onclick: () => hacer('POST', `/api/presupuestos/${p.id}/descuento/decidir`, { ok: true }, 'Descuento aprobado') }, '✔ Aprobar el descuento'),
+        el('button', { type: 'button', class: 'ghost mini', onclick: () => { const n = prompt('¿Por qué no se aprueba?'); if (n) hacer('POST', `/api/presupuestos/${p.id}/descuento/decidir`, { ok: false, nota: n }, 'Descuento no aprobado'); } }, '✕ No aprobar'),
+        p.dto_pedido_en ? el('span', { class: 'ayuda' }, ` Pedido el ${fecha(p.dto_pedido_en)}`) : null));
+      else estado.push(p.dto_pedido_en ? el('p', { class: 'pz-azul' }, `⏳ Esperando aprobación (pedida el ${fecha(p.dto_pedido_en)})`)
+        : el('button', { type: 'button', class: 'primario mini', onclick: () => hacer('POST', `/api/presupuestos/${p.id}/descuento/pedir`, {}, 'Aprobación pedida: les llega un aviso') }, '✉ Pedir aprobación'));
+    } else if (p.dto_aprobado_en && hay && p.dto_max_pct > p.dto_limite) estado.push(el('p', { class: 'pz-verde' }, `✔ Aprobado hasta el ${fmt(p.dto_aprobado_pct)} % (${fecha(p.dto_aprobado_en)})`));
+    if (p.dto_respuesta) estado.push(el('p', { class: 'ayuda' }, `Respuesta: ${p.dto_respuesta}`));
+    const limite = puedeAprobar || window.s360.tiene('usuarios')
+      ? el('label', { class: 'pz-dto-lim' }, 'Límite sin aprobación ', el('input', { class: 'pz-num', inputmode: 'decimal', value: fmt(p.dto_limite), 'aria-label': 'Límite de descuento sin aprobación (%)',
+        onchange: async (ev) => { try { await api('PUT', '/api/presupuestos-ajustes', { dto_limite: leer(ev.target.value) }); aviso('Límite guardado para todos los presupuestos'); cargar(); } catch (e) { aviso(e.message); } } }), ' %')
+      : el('span', { class: 'ayuda' }, `Límite sin aprobación: ${fmt(p.dto_limite)} %`);
+    return el('details', { class: 'pz-dto', open: hay || p.dto_necesita },
+      el('summary', {}, '🏷 Descuento', hay ? el('span', { class: p.dto_necesita ? 'pz-rojo' : 'pz-verde' }, ` · −${eur0(p.dto_total)} (${fmt(p.dto_total_pct)} %)`) : null),
+      el('div', { class: 'pz-campos' },
+        el('label', {}, el('span', {}, 'Descuento general %'), campo(p.dto_pct ? fmt(p.dto_pct) : '', (v) => put({ dto_pct: leer(v) || null }, 'Descuento guardado'), { class: 'pz-num', inputmode: 'decimal', placeholder: p.dto_objetivo ? fmt(p.dto_general_pct) : '0' })),
+        el('label', {}, el('span', {}, 'o dejarlo en (€ sin IVA)'), campo(p.dto_objetivo ? fmt(p.dto_objetivo) : '', (v) => { const x = leer(v); put({ dto_objetivo: x || null }, 'Descuento guardado'); }, { class: 'pz-num', inputmode: 'decimal', placeholder: fmt(Math.round(p.suma)) })),
+        el('label', { class: 'ancho' }, el('span', {}, 'Motivo'), campo(p.dto_motivo || '', (v) => put({ dto_motivo: v }, 'Guardado'), { list: 'pz-dto-motivos', placeholder: 'Cliente habitual, competencia, volumen…' })), motivos),
+      el('p', { class: 'ayuda' }, 'El descuento general va sobre la suma de las partidas; el de una partida se pone en la propia partida (Dto. %). Los dos salen en el PDF del cliente. ', limite),
+      p.dto_objetivo && p.dto_objetivo > p.suma ? el('p', { class: 'pz-naranja' }, `«Dejarlo en» ${eur0(p.dto_objetivo)} es más que la suma de las partidas (${eur0(p.suma)}): no se aplica descuento general.`) : null,
+      hay ? el('p', {}, `Venta sin descuento ${eur0(p.venta_bruta)}`, p.dto_partidas ? ` · en partidas −${eur0(p.dto_partidas)}` : '', p.dto_general ? ` · general −${eur0(p.dto_general)}` : '', ' → ', el('b', {}, `${eur0(p.venta)} sin IVA`),
+        el('br'), el('span', { class: p.perdidas || p.no_cubre_gg ? 'pz-rojo' : 'pz-verde' },
+          p.perdidas ? `⛔ Se pierde dinero: ${eur0(p.beneficio)} (por debajo del coste)` : p.no_cubre_gg ? `⚠ Queda ${eur0(p.beneficio)} (+${fmt(p.margen_real_pct)} % sobre coste): no cubre los gastos generales (${fmt(p.gg_pct)} %)` : `Beneficio que queda: ${eur0(p.beneficio)} (+${fmt(p.margen_real_pct)} % sobre coste)`)) : null,
+      ...estado);
   }
 
   // Lo que hizo la IA: resumen, dudas, avisos, adjuntos y «Rehacer con IA»
@@ -403,6 +443,7 @@
           el('label', { class: 'ancho' }, el('span', {}, 'Nombre interno'), campo(pa.nombre, (v) => putP({ nombre: v }))),
           el('label', {}, el('span', {}, 'Unidad'), campo(pa.unidad, (v) => putP({ unidad: v }), { class: 'pz-ud' })),
           el('label', {}, el('span', {}, 'Medición'), campo(fmt(pa.medicion), (v) => putP({ medicion: leer(v) }), { class: 'pz-num', inputmode: 'decimal' })),
+          el('label', { title: 'Descuento de esta partida: sale en el PDF del cliente (precio, «Dto. %» y subtotal ya rebajado)' }, el('span', {}, 'Dto. %'), campo(pa.dto_pct ? fmt(pa.dto_pct) : '', (v) => putP({ dto_pct: leer(v) || null }, 'Descuento de la partida guardado'), { class: 'pz-num', inputmode: 'decimal', placeholder: '0' })),
           el('label', {}, el('span', {}, 'Capítulo'), el('select', { disabled: !abiertoP(), onchange: (ev) => putP({ capitulo_id: ev.target.value }, 'Movida de capítulo') }, p.capitulos.filter((c) => c.id).map((c) => el('option', { value: c.id, selected: c.id === pa.capitulo_id }, `${c.codigo} · ${c.nombre}`))))),
         el('label', { class: 'pz-cond' }, el('span', {}, 'Descripción comercial ', el('small', {}, '(la que ve el cliente en el presupuesto)')),
           campo(pa.descripcion || '', (v) => putP({ descripcion: v }, 'Descripción guardada'), { multilinea: true, rows: 3, placeholder: 'Barandilla de escalera de 1,10 m de altura formada por… Incluye transporte y montaje.' })),

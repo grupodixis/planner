@@ -31,6 +31,7 @@ const TIPOS = {
   horas_extra: { txt: 'Horas extra: por autorizar (Dirección) o la respuesta a las que pedí', para: (u) => auth.tiene(u, 'autorizar_horas_extra') || auth.tiene(u, 'planificar') },
   oferta_recibida: { txt: 'Un proveedor responde una petición de precio en la plataforma', para: (u) => auth.tiene(u, 'compras') },
   lead_nuevo: { txt: 'Leads: un posible cliente capturado desde el móvil', para: (u) => auth.tiene(u, 'presupuestos') },
+  presupuesto_dto: { txt: 'Presupuestos: descuentos que esperan aprobación (y la respuesta)', para: (u) => auth.tiene(u, 'aprobar_descuentos') || auth.tiene(u, 'presupuestos') },
   presupuesto_correo: { txt: 'Presupuestos: petición de un cliente que llega a presupuestos@ (y sus respuestas)', para: (u) => auth.tiene(u, 'presupuestos') },
   correo_revisar: { txt: 'Correo entrante: una oferta o confirmación de pedido leída por la IA, para revisar', para: (u) => auth.tiene(u, 'compras') },
 };

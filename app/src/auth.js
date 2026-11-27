@@ -23,6 +23,7 @@ const PERMISOS = {
   autorizar_horas_extra: 'Autorizar horas extra (fuera del turno de cada persona)',
   mi_dia: 'Apuntar su propio día (Mi día). Solo, sin otros permisos: no ve nada más',
   ia: 'Usar la IA: asistente y conectar Claude Code / Antigravity (solo con sus propios permisos)',
+  aprobar_descuentos: 'Presupuestos: aprobar descuentos por encima del límite y cambiar ese límite',
   presupuestos: 'Presupuestos: prepararlos, pedir precio para presupuestar y recibir los avisos de las peticiones que llegan a presupuestos@',
 };
 // Permisos de un usuario «u»: los de su rol más los de sus roles añadidos (varios roles)

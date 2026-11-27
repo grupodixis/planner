@@ -10,6 +10,7 @@ const C = { osc: '#0f172a', ambar: '#b45309', gris: '#475569', gris2: '#64748b',
   verdeTxt: '#166534', total: '#fef3c7', conds: '#f8fafc', linea: '#e2e8f0', texto: '#1e293b', azulBg: '#eff6ff' };
 const r2 = (x) => Math.round((x + Number.EPSILON) * 100) / 100;
 // 1.234,56 (con punto de miles también en 4 cifras, como en los presupuestos de HAM)
+const pct = (v) => String(+Number(v || 0).toFixed(2)).replace('.', ',');
 const num = (n, d = 2) => { const [e, f] = Math.abs(Number(n || 0)).toFixed(d).split('.'); return `${Number(n) < 0 ? '-' : ''}${e.replace(/\B(?=(\d{3})+(?!\d))/g, '.')}${f ? `,${f}` : ''}`; };
 const eur = (n) => `${num(n, 2)} €`;
 const cant = (n) => Number(n || 0).toLocaleString('es-ES', { maximumFractionDigits: 3 });
@@ -87,6 +88,7 @@ async function cliente(p, aj, { detallado = false } = {}) {
   // título
   const tit = `PRESUPUESTO ${p.codigo} — ${String(p.titulo || '').toUpperCase()}`;
   doc.font('Helvetica-Bold').fontSize(11).fillColor(C.osc).text(latin(tit), x0, y, { width: W }); y += alto(doc, tit, W, 11, 'Helvetica-Bold') + 4;
+  if (p.dto_necesita) { doc.font('Helvetica-Bold').fontSize(9).fillColor('#c0392b').text('BORRADOR · descuento pendiente de aprobación: no enviar al cliente', x0, y, { width: W }); y += 14; }
 
   // alcance
   const alc = p.alcance || null;
@@ -156,6 +158,8 @@ async function cliente(p, aj, { detallado = false } = {}) {
       doc.font('Helvetica-Bold').text(cant(pa.medicion), xs[3], y + 5, { width: cols[3][1] * W - 4, align: 'right' });
       doc.font('Helvetica').text(eur(pa.venta_ud), xs[4], y + 5, { width: cols[4][1] * W - 4, align: 'right' });
       doc.font('Helvetica-Bold').text(eur(pa.venta), xs[5], y + 5, { width: cols[5][1] * W - 4, align: 'right' });
+      if (pa.dto) doc.font('Helvetica').fontSize(7).fillColor(C.gris).text(`Dto. ${pct(pa.dto_pct)} %`, xs[4], y + 16, { width: cols[4][1] * W - 4, align: 'right' })
+        .text(`(${eur(pa.venta_bruta)})`, xs[5], y + 16, { width: cols[5][1] * W - 4, align: 'right' }).fontSize(8.5).fillColor(C.texto);
       let yy = y + 5;
       doc.font('Helvetica-Bold').fontSize(8.5).fillColor(C.osc).text(latin(nom), xs[1] + 4, yy, { width: wDesc }); yy += alto(doc, nom, wDesc, 8.5, 'Helvetica-Bold') + 2;
       if (des) {
@@ -165,7 +169,7 @@ async function cliente(p, aj, { detallado = false } = {}) {
           rico(doc, parrafo || ' ', xs[1] + 4, yy, wDesc, { size: 7.5, color: C.gris }); yy += hp;
         }
       }
-      y = Math.max(yy, y + 17) + 3;
+      y = Math.max(yy, y + (pa.dto ? 26 : 17)) + 3;
       if (desglose.length) {
         // descomposición a precio de VENTA por unidad de partida (sin costes ni márgenes)
         doc.font('Helvetica-Oblique').fontSize(7).fillColor(C.gris2).text(`Descomposición por ${ud(pa.unidad)}:`, xs[1] + 10, y, { width: wDesc }); y += 10;
@@ -188,8 +192,9 @@ async function cliente(p, aj, { detallado = false } = {}) {
   // totales
   const iva = r2(p.venta * 0.21);
   const tw = W * 0.44; const tx = x0 + W - tw;
-  sitio(62);
-  [['Base Imponible', eur(p.venta), 'b'], ['IVA Régimen General (21%)', eur(iva), ''], ['TOTAL PRESUPUESTO', eur(r2(p.venta + iva)), 'g']].forEach(([t, v, k]) => {
+  sitio(p.dto_general ? 94 : 62);
+  [...(p.dto_general ? [['Suma de partidas', eur(p.suma), ''], [`Descuento comercial (${pct(p.dto_general_pct)} %)`, `-${eur(p.dto_general)}`, '']] : []),
+    ['Base Imponible', eur(p.venta), 'b'], ['IVA Régimen General (21%)', eur(iva), ''], ['TOTAL PRESUPUESTO', eur(r2(p.venta + iva)), 'g']].forEach(([t, v, k]) => {
     const h = k === 'g' ? 19 : 16;
     if (k === 'g') doc.rect(tx, y, tw, h).fill(C.total);
     doc.rect(tx, y, tw, h).strokeColor(C.borde).stroke();
@@ -297,6 +302,7 @@ async function interno(p, aj) {
   const ben = r2(p.venta - p.coste); const iva = r2(p.venta * 0.21);
   const rent = [
     ['Coste directo', eur(p.coste), p.venta ? `${num((p.coste / p.venta) * 100, 1)} %` : '—'],
+    ...(p.dto_total ? [['Venta antes de descuentos', eur(p.venta_bruta), ''], [`Descuentos (${num(p.dto_total_pct, 1)} %${p.dto_motivo ? `: ${p.dto_motivo}` : ''})`, `-${eur(p.dto_total)}`, '']] : []),
     ['Precio de venta (base)', eur(p.venta), '100 %', 'b'],
     ['Beneficio bruto', `+${eur(ben)}`, p.venta ? `${num((ben / p.venta) * 100, 1)} %` : '—', 'v'],
     ['Margen sobre coste', `+${num(p.coste ? (ben / p.coste) * 100 : 0, 1)} %`, `GG ${num(p.gg_pct, 0)} % + benef. ${num(p.bi_pct, 0)} %`],

@@ -1778,6 +1778,24 @@ const MIGRACIONES = [
      error TEXT, resultado_id INT, enlace TEXT,
      creado TIMESTAMPTZ NOT NULL DEFAULT now(), decidido_en TIMESTAMPTZ)`,
   `CREATE INDEX IF NOT EXISTS ia_propuestas_mensaje ON ia_propuestas (mensaje_id)`,
+  // Descuentos: general (% o importe: «dejarlo en X €») y por partida; por encima del límite (ajustes.presupuestos.dto_limite) los aprueba quien tiene «aprobar_descuentos»
+  `ALTER TABLE presupuestos ADD COLUMN IF NOT EXISTS dto_pct NUMERIC(7,3)`,
+  `ALTER TABLE presupuestos ADD COLUMN IF NOT EXISTS dto_importe NUMERIC(12,2)`,   // sin uso: se guarda el precio objetivo
+  `ALTER TABLE presupuestos ADD COLUMN IF NOT EXISTS dto_objetivo NUMERIC(12,2)`,   // «dejarlo en X €» (base imponible): el descuento general es lo que falta hasta ahí
+  `ALTER TABLE presupuestos ADD COLUMN IF NOT EXISTS dto_motivo TEXT`,
+  `ALTER TABLE presupuestos ADD COLUMN IF NOT EXISTS dto_aprobado_pct NUMERIC(7,3)`,
+  `ALTER TABLE presupuestos ADD COLUMN IF NOT EXISTS dto_aprobado_por INT REFERENCES usuarios(id) ON DELETE SET NULL`,
+  `ALTER TABLE presupuestos ADD COLUMN IF NOT EXISTS dto_aprobado_en TIMESTAMPTZ`,
+  `ALTER TABLE presupuestos ADD COLUMN IF NOT EXISTS dto_pedido_en TIMESTAMPTZ`,
+  `ALTER TABLE presupuestos ADD COLUMN IF NOT EXISTS dto_pedido_por INT REFERENCES usuarios(id) ON DELETE SET NULL`,
+  `ALTER TABLE presupuestos ADD COLUMN IF NOT EXISTS dto_respuesta TEXT`,
+  `ALTER TABLE presupuesto_partidas ADD COLUMN IF NOT EXISTS dto_pct NUMERIC(7,3)`,
+  `DO $$ BEGIN
+     IF NOT EXISTS (SELECT 1 FROM ajustes WHERE clave = 'migr_permiso_aprobar_descuentos') THEN
+       UPDATE roles SET permisos = array_append(permisos, 'aprobar_descuentos') WHERE clave IN ('admin', 'direccion') AND NOT ('aprobar_descuentos' = ANY(permisos));
+       INSERT INTO ajustes (clave, valor) VALUES ('migr_permiso_aprobar_descuentos', 'true');
+     END IF;
+   END $$`,
 ];
 
 async function migrar() {
