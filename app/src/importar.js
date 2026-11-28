@@ -919,6 +919,35 @@ function diferencias(fila, nuevo, mostrar = {}) {
   return out;
 }
 
+
+async function catalogo() {
+  const q = (sql) => pool.query(sql).then((r) => r.rows);
+    const [areas, capacidades, tipos, materiales, herramientas] = await Promise.all([
+      q(`SELECT l.nombre, l.tipo, l.exclusiva AS una_a_la_vez, d.nombre AS departamento, l.equipamiento AS otros_elementos_fijos,
+                COALESCE((SELECT json_agg(r.nombre ORDER BY r.nombre) FROM recursos r WHERE r.linea_id = l.id AND r.fijo_area AND r.activo), '[]') AS maquinas_fijas
+           FROM lineas l LEFT JOIN departamentos d ON d.id = l.departamento_id
+          WHERE l.activo AND l.tipo <> 'obra' ORDER BY d.orden NULLS LAST, l.orden, l.nombre`),
+      q(`SELECT k.familia, k.nombre,
+                (SELECT count(*)::int FROM recurso_capacidades rc JOIN recursos r ON r.id = rc.recurso_id AND r.activo
+                  WHERE rc.capacidad_id = k.id AND rc.estado = 'validada') AS personas
+           FROM capacidades k ORDER BY k.orden, lower(k.nombre)`),
+      q(`SELECT t.clase, t.nombre, t.familia, t.uso,
+                (SELECT count(*)::int FROM recurso_tipos rt JOIN recursos r ON r.id = rt.recurso_id AND r.activo WHERE rt.tipo_recurso_id = t.id) AS unidades
+           FROM tipos_recurso t ORDER BY t.clase, t.familia NULLS LAST, lower(t.nombre)`),
+      q(`SELECT familia, nombre, unidad FROM catalogo WHERE tipo = 'material' AND activo ORDER BY familia, nombre`),
+      q(`SELECT familia, nombre FROM catalogo WHERE tipo = 'herramienta' AND activo ORDER BY familia, nombre`),
+    ]);
+    return ({
+      formato: 's360-catalogo/1', generado: new Date().toISOString(), importacion: 's360-import/2',
+      areas, area_tipos: TIPOS_AREA,
+      capacidades,
+      equipos: tipos.filter((t) => t.clase === 'maquina').map(({ clase, ...t }) => t),
+      subcontratas: tipos.filter((t) => t.clase === 'subcontrata').map(({ clase, familia, uso, ...t }) => t),
+      categorias: tipos.filter((t) => t.clase === 'operario').map((t) => t.nombre),
+      materiales, herramientas,
+    });
+}
+
 module.exports = function montar(app, asyncH) {
   app.post('/api/importar', auth.permiso('proyectos'), asyncH(async (req, res) => {
     const b = req.body || {};
@@ -957,33 +986,8 @@ module.exports = function montar(app, asyncH) {
   }));
 
   // Catálogo de nombres que entiende la importación (para que el compositor use los nombres exactos)
-  app.get('/api/importar/catalogo', auth.permiso('proyectos'), asyncH(async (req, res) => {
-    const q = (sql) => pool.query(sql).then((r) => r.rows);
-    const [areas, capacidades, tipos, materiales, herramientas] = await Promise.all([
-      q(`SELECT l.nombre, l.tipo, l.exclusiva AS una_a_la_vez, d.nombre AS departamento, l.equipamiento AS otros_elementos_fijos,
-                COALESCE((SELECT json_agg(r.nombre ORDER BY r.nombre) FROM recursos r WHERE r.linea_id = l.id AND r.fijo_area AND r.activo), '[]') AS maquinas_fijas
-           FROM lineas l LEFT JOIN departamentos d ON d.id = l.departamento_id
-          WHERE l.activo AND l.tipo <> 'obra' ORDER BY d.orden NULLS LAST, l.orden, l.nombre`),
-      q(`SELECT k.familia, k.nombre,
-                (SELECT count(*)::int FROM recurso_capacidades rc JOIN recursos r ON r.id = rc.recurso_id AND r.activo
-                  WHERE rc.capacidad_id = k.id AND rc.estado = 'validada') AS personas
-           FROM capacidades k ORDER BY k.orden, lower(k.nombre)`),
-      q(`SELECT t.clase, t.nombre, t.familia, t.uso,
-                (SELECT count(*)::int FROM recurso_tipos rt JOIN recursos r ON r.id = rt.recurso_id AND r.activo WHERE rt.tipo_recurso_id = t.id) AS unidades
-           FROM tipos_recurso t ORDER BY t.clase, t.familia NULLS LAST, lower(t.nombre)`),
-      q(`SELECT familia, nombre, unidad FROM catalogo WHERE tipo = 'material' AND activo ORDER BY familia, nombre`),
-      q(`SELECT familia, nombre FROM catalogo WHERE tipo = 'herramienta' AND activo ORDER BY familia, nombre`),
-    ]);
-    res.json({
-      formato: 's360-catalogo/1', generado: new Date().toISOString(), importacion: 's360-import/2',
-      areas, area_tipos: TIPOS_AREA,
-      capacidades,
-      equipos: tipos.filter((t) => t.clase === 'maquina').map(({ clase, ...t }) => t),
-      subcontratas: tipos.filter((t) => t.clase === 'subcontrata').map(({ clase, familia, uso, ...t }) => t),
-      categorias: tipos.filter((t) => t.clase === 'operario').map((t) => t.nombre),
-      materiales, herramientas,
-    });
-  }));
+  app.get('/api/importar/catalogo', auth.permiso('proyectos', 'componer'), asyncH(async (req, res) => res.json(await catalogo())));
+
 
   // Historial de importaciones de un proyecto
   app.get('/api/importaciones', asyncH(async (req, res) => {
@@ -996,4 +1000,6 @@ module.exports = function montar(app, asyncH) {
   }));
 };
 
+module.exports.catalogo = catalogo;
+module.exports.importar = importar;
 module.exports._interno = { norm, parecido, erroresEsquema, erroresSemanticos, aplanar, validarEsquema };

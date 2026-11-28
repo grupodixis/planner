@@ -45,7 +45,7 @@ async function aprender(id, usuarioId = null) {
   if (!p.capitulos.some((c) => c.partidas.length)) throw fallo(400, 'El presupuesto no tiene partidas');
   const cfg = await require('./ia-proveedores').activo();
   if (!cfg?.clave) throw fallo(400, 'No hay proveedor de IA configurado (Recursos › IA)');
-  const { rows: sk } = await query('SELECT id, nombre, contenido FROM presupuesto_skills WHERE activo ORDER BY id');
+  const { rows: sk } = await query(`SELECT id, nombre, contenido FROM presupuesto_skills WHERE activo AND ambito = 'presupuesto' ORDER BY id`);
   const usadas = new Set(p.ia_skills || []);
   const contenido = JSON.stringify({
     presupuesto: { codigo: p.codigo, titulo: p.titulo, lo_que_pidio_el_cliente: (p.prompt || '').slice(0, 3000) },

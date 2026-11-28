@@ -112,6 +112,7 @@
       ['/incidencias.html', 'Incidencias', ['planificar', 'compras', 'logistica', 'proyectos', 'escandallo', 'aprobar_compras'], 'Material, transporte, calidad, averías…: seguimiento y cierre'],
       ['/mi-dia.html', 'Mi día', 'mi_dia', 'Apuntar mi propio día']]],
     ['Proyectos', [['/proyectos.html', 'Proyectos y OTs', null, 'Partidas, OTs, tareas, escandallo e importación'],
+      ['/compositor.html', '🏗 Compositor', 'componer', 'Presupuesto → borrador de proyecto (partidas, OTs, tareas con tiempos y recursos) que revisas y creas'],
       ['/obras.html', 'Obras', null, 'Direcciones con sus proyectos, contacto en obra y lo próximo'],
       ['/clientes.html', 'Clientes', null, 'Datos del cliente y sus personas de contacto']]],
     ['Presupuestos', [['/presupuestos.html?vista=leads', '🎯 Leads', ['presupuestos', 'costes'], 'Posibles clientes capturados desde el móvil (fotos, documentos, notas)'],

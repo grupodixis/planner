@@ -1027,7 +1027,7 @@
     cantidad: 'cantidad', unidad: 'unidad', nota: 'nota', enlaces: 'enlaces', desglose: 'desglose de tiempos' };
 
   function abrirImportar() {
-    Object.assign(imp, { archivo: null, nombre: '', resoluciones: {}, informe: null });
+    Object.assign(imp, { archivo: null, nombre: '', resoluciones: {}, informe: null, composicion: null });
     $('#imp-informe').replaceChildren();
     $('#imp-estado').textContent = '';
     $('#imp-soltar').hidden = false;
@@ -1172,6 +1172,7 @@
       const r = await api('POST', '/api/importar', { archivo: imp.archivo, resoluciones: imp.resoluciones });
       if (!r.ok) return pintarInforme(r);
       $('#dlg-importar').close();
+      if (imp.composicion) await api('POST', `/api/composiciones/${imp.composicion}/creada`, { proyecto_id: r.proyecto.id }).catch(() => {});
       const R = r.resumen.tareas;
       toast(`${r.proyecto.codigo} importado: ${R.crear} tareas nuevas, ${R.actualizar} actualizadas${R.borrar ? `, ${R.borrar} borradas` : ''}`);
       // la importación puede haber creado tipos de recurso y áreas
@@ -1363,6 +1364,18 @@
       }
     } else if (estado.proyectos.length) {
       await elegirProyecto(estado.proyectos[0].id);
+    }
+    // Desde el compositor: el borrador ya cargado en la vista previa de la importación
+    const comp = Number(q.get('componer')) || null;
+    if (comp) {
+      try {
+        const archivo = await api('GET', `/api/composiciones/${comp}/archivo`);
+        abrirImportar();
+        Object.assign(imp, { archivo, nombre: `Compositor · ${archivo.proyecto?.nombre || ''}`, resoluciones: {}, composicion: comp });
+        $('#imp-soltar').hidden = true; $('#imp-intro').hidden = true;
+        await simularImp();
+      } catch (e) { toast(e.message, true); }
+      history.replaceState(null, '', '/proyectos.html');
     }
   }
 

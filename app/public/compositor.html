@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <meta name="theme-color" content="#141414">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="apple-touch-icon" href="/apple-touch-icon-v2.png">
+  <title>Planéalo · Compositor</title>
+  <link rel="stylesheet" href="styles.css?v=202611280923">
+</head>
+<body class="cmp-pant">
+  <header class="top">
+    <h1 class="marca"><img src="/logo.svg" alt="" class="marca-ico">Planéalo <span>· Compositor</span></h1>
+    <nav class="menu" aria-label="Pantallas">
+      <a href="/">Cuadrante</a>
+      <a href="/proyectos.html">Proyectos</a>
+    </nav>
+    <div class="usuario"><span id="usuario-nombre"></span> <button id="salir" class="ghost">Salir</button></div>
+  </header>
+  <main class="cmp-main">
+    <aside class="cmp-lista panel" data-ayuda="cmp-lista">
+      <div class="cmp-lista-cab"><h2>Compositor</h2><div><button type="button" class="ghost" id="cmp-skills" title="Skills del compositor: cómo se compone un proyecto (lo que sigue la IA)">🧠 Skills</button> <button type="button" class="primario" id="cmp-nueva">＋ Nueva</button></div></div>
+      <p class="ayuda">Presupuesto → borrador de proyecto (partidas, OTs y tareas) que revisas y creas.</p>
+      <label class="co-chk"><input type="checkbox" id="cmp-todas"> Ver también las descartadas</label>
+      <div id="cmp-items"></div>
+    </aside>
+    <section class="cmp-det" id="cmp-det"><div class="panel cmp-vacio"><p class="ayuda">Elige una composición de la lista o crea una nueva desde un presupuesto.</p></div></section>
+  </main>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <script src="pwa.js?v=202611280923"></script>
+  <script src="comun.js?v=202611280923"></script>
+  <script src="ayuda-textos.js?v=202611280923"></script>
+  <script src="ayuda.js?v=202611280923"></script>
+  <script src="compositor.js?v=202611280923"></script>
+</body>
+</html>

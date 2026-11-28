@@ -104,7 +104,7 @@ async function sembrarSkills() {
 // Importar Skills de un .zip (p. ej. el de Antigravity) o de un .md suelto. Con «indice.json» en el zip:
 // [{ archivo, nombre, siempre, activo, claves, comodin }]; sin él, cada .md (menos README) con el nombre de su primer «# ».
 // Si ya existe una Skill con ese nombre, se actualiza su contenido (queda la versión anterior) y sus ajustes.
-async function importarSkills(datos, nombreArchivo, usuarioId) {
+async function importarSkills(datos, nombreArchivo, usuarioId, ambito = 'presupuesto') {
   const lista = [];
   if (/\.zip$/i.test(nombreArchivo) || datos.slice(0, 2).toString() === 'PK') {
     const zip = await require('jszip').loadAsync(datos);
@@ -131,8 +131,8 @@ async function importarSkills(datos, nombreArchivo, usuarioId) {
     if (!nombre) continue;
     const { rows: [a] } = await query('SELECT * FROM presupuesto_skills WHERE nombre = $1', [nombre]);
     if (!a) {
-      await query(`INSERT INTO presupuesto_skills (nombre, contenido, siempre, activo, claves, comodin, cambiado_por) VALUES ($1,$2,$3,$4,$5,$6,$7)`,
-        [nombre, contenido, !!e.siempre, e.activo !== false, texto(e.claves, 1000), !!e.comodin, usuarioId]);
+      await query(`INSERT INTO presupuesto_skills (nombre, contenido, siempre, activo, claves, comodin, cambiado_por, ambito) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
+        [nombre, contenido, !!e.siempre, e.activo !== false, texto(e.claves, 1000), !!e.comodin, usuarioId, ambito]);
       res.nuevas.push(nombre); continue;
     }
     if (a.contenido !== contenido) {
@@ -171,13 +171,13 @@ const tipoDe = (tipo, nombre) => {
   if (e === 'pdf') return 'application/pdf';
   return t || 'application/octet-stream';
 };
-async function guardarAdjunto({ datos, nombre, tipo, presupuestoId = null, origen = 'pantalla', usuarioId = null }) {
+async function guardarAdjunto({ datos, nombre, tipo, presupuestoId = null, origen = 'pantalla', usuarioId = null, composicionId = null }) {
   const mes = new Date().toISOString().slice(0, 7);
   const rel = path.join('presupuestos', mes, `${crypto.randomBytes(10).toString('hex')}_${String(nombre || 'archivo').replace(/[^\w.\-]+/g, '_').slice(-80)}`);
   await fs.promises.mkdir(path.join(DIR, path.dirname(rel)), { recursive: true });
   await fs.promises.writeFile(path.join(DIR, rel), datos);
-  const { rows: [r] } = await query(`INSERT INTO presupuesto_adjuntos (presupuesto_id, nombre, tipo, bytes, ruta, origen, creado_por) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id`,
-    [presupuestoId, String(nombre || 'archivo').slice(0, 200), tipoDe(tipo, nombre), datos.length, rel, origen, usuarioId]);
+  const { rows: [r] } = await query(`INSERT INTO presupuesto_adjuntos (presupuesto_id, nombre, tipo, bytes, ruta, origen, creado_por, composicion_id) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id`,
+    [presupuestoId, String(nombre || 'archivo').slice(0, 200), tipoDe(tipo, nombre), datos.length, rel, origen, usuarioId, composicionId]);
   return r.id;
 }
 async function excelATexto(datos) {
@@ -321,7 +321,7 @@ async function generar(id, { tituloAuto = false } = {}) {
     for (const a of archivos.filter((x) => x.tipo === 'application/pdf').slice(0, 3)) {
       try { const r = await require('./pdf-leer').prepararPDF(a.datos); for (const [i, png] of r.imagenes.slice(0, 3).entries()) archivos.push({ tipo: 'image/png', nombre: `${a.nombre} · pág. ${i + 1}`, datos: png }); } catch { /* sin más */ }
     }
-    const { rows: todasSk } = await query('SELECT id, nombre, contenido, siempre, activo, claves, comodin FROM presupuesto_skills ORDER BY siempre DESC, id');
+    const { rows: todasSk } = await query(`SELECT id, nombre, contenido, siempre, activo, claves, comodin FROM presupuesto_skills WHERE ambito = 'presupuesto' ORDER BY siempre DESC, id`);
     const { rows: nomAdj } = await query('SELECT nombre FROM presupuesto_adjuntos WHERE presupuesto_id = $1', [id]);
     const skills = elegirSkills(todasSk, p.skills || [], [p.prompt, p.titulo, ...nomAdj.map((a) => a.nombre), ...textos.map((x) => String(x.texto || x).slice(0, 4000))].join(' '));
     await query('UPDATE presupuestos SET ia_skills = $2 WHERE id = $1', [id, skills.map((x) => x.nombre)]);
@@ -424,22 +424,23 @@ async function reanudar() {
 /* ---------- rutas ---------- */
 function montar(app, asyncH) {
   const ver = auth.permiso('presupuestos', 'costes');
+  const verAdj = auth.permiso('presupuestos', 'costes', 'componer');
 
   // Subir un adjunto (cualquier tipo, 25 MB): cuerpo = el archivo; cabecera x-nombre
-  app.post('/api/presupuestos-adjuntos', ver, express.raw({ type: () => true, limit: MAX_ADJ }), asyncH(async (req, res) => {
+  app.post('/api/presupuestos-adjuntos', verAdj, express.raw({ type: () => true, limit: MAX_ADJ }), asyncH(async (req, res) => {
     if (!Buffer.isBuffer(req.body) || !req.body.length) throw fallo(400, 'Archivo vacío');
     const nombre = req.headers['x-nombre'] ? decodeURIComponent(String(req.headers['x-nombre'])).slice(0, 200) : 'archivo';
-    const id = await guardarAdjunto({ datos: req.body, nombre, tipo: req.headers['content-type'], presupuestoId: Number(req.query.presupuesto) || null, usuarioId: req.usuario.id });
+    const id = await guardarAdjunto({ datos: req.body, nombre, tipo: req.headers['content-type'], presupuestoId: Number(req.query.presupuesto) || null, composicionId: Number(req.query.composicion) || null, usuarioId: req.usuario.id });
     res.status(201).json({ id, nombre });
   }));
-  app.get('/api/presupuestos-adjuntos/:id', ver, asyncH(async (req, res) => {
+  app.get('/api/presupuestos-adjuntos/:id', verAdj, asyncH(async (req, res) => {
     const { rows: [a] } = await query('SELECT * FROM presupuesto_adjuntos WHERE id = $1', [req.params.id]);
     if (!a) throw fallo(404, 'No encontrado');
     res.setHeader('Content-Type', a.tipo);
     res.setHeader('Content-Disposition', `${req.query.descargar ? 'attachment' : 'inline'}; filename*=UTF-8''${encodeURIComponent(a.nombre)}`);
     fs.createReadStream(path.join(DIR, a.ruta)).on('error', () => res.status(404).end()).pipe(res);
   }));
-  app.delete('/api/presupuestos-adjuntos/:id', ver, asyncH(async (req, res) => {
+  app.delete('/api/presupuestos-adjuntos/:id', verAdj, asyncH(async (req, res) => {
     await query('DELETE FROM presupuesto_adjuntos WHERE id = $1', [req.params.id]);
     res.json({ ok: true });
   }));
@@ -475,20 +476,22 @@ function montar(app, asyncH) {
     res.json(rows);
   }));
 
-  // Skills de presupuestación
-  app.get('/api/presupuesto-skills', ver, asyncH(async (req, res) => {
-    const { rows } = await query(`SELECT s.*, u.nombre AS cambiado_por_nombre FROM presupuesto_skills s LEFT JOIN usuarios u ON u.id = s.cambiado_por ORDER BY s.nombre <> 'Reglas generales', s.siempre DESC, s.activo DESC, s.nombre`);
+  // Skills de presupuestación (ambito=presupuesto) y del compositor (ambito=composicion)
+  const verSk = auth.permiso('presupuestos', 'costes', 'componer');
+  const ambitoDe = (req) => (req.query.ambito === 'composicion' || req.body?.ambito === 'composicion' ? 'composicion' : 'presupuesto');
+  app.get('/api/presupuesto-skills', verSk, asyncH(async (req, res) => {
+    const { rows } = await query(`SELECT s.*, u.nombre AS cambiado_por_nombre FROM presupuesto_skills s LEFT JOIN usuarios u ON u.id = s.cambiado_por WHERE s.ambito = $1 ORDER BY s.nombre NOT IN ('Reglas generales', 'Reglas de composición'), s.siempre DESC, s.activo DESC, s.nombre`, [ambitoDe(req)]);
     res.json(rows);
   }));
-  app.post('/api/presupuesto-skills', ver, asyncH(async (req, res) => {
+  app.post('/api/presupuesto-skills', verSk, asyncH(async (req, res) => {
     const nombre = texto(req.body?.nombre, 80)?.replace(/\.md$/i, '');
     if (!nombre) throw fallo(400, 'Falta el nombre (p. ej. Barandillas)');
     const contenido = texto(req.body?.contenido, 60000) || `# ${nombre}\n\n## Descomposición tipo\n- \n\n## Rendimientos\n- \n\n## Reglas\n- \n\n## Descripción comercial\n`;
-    const { rows: [s] } = await query(`INSERT INTO presupuesto_skills (nombre, contenido, cambiado_por) VALUES ($1,$2,$3) ON CONFLICT (nombre) DO NOTHING RETURNING id`, [nombre, contenido, req.usuario.id]);
+    const { rows: [s] } = await query(`INSERT INTO presupuesto_skills (nombre, contenido, cambiado_por, ambito) VALUES ($1,$2,$3,$4) ON CONFLICT (nombre) DO NOTHING RETURNING id`, [nombre, contenido, req.usuario.id, ambitoDe(req)]);
     if (!s) throw fallo(409, 'Ya hay una Skill con ese nombre');
     res.status(201).json(s);
   }));
-  app.put('/api/presupuesto-skills/:id', ver, asyncH(async (req, res) => {
+  app.put('/api/presupuesto-skills/:id', verSk, asyncH(async (req, res) => {
     const b = req.body || {};
     const { rows: [s] } = await query('SELECT * FROM presupuesto_skills WHERE id = $1', [req.params.id]);
     if (!s) throw fallo(404, 'No encontrada');
@@ -497,22 +500,22 @@ function montar(app, asyncH) {
       await query('UPDATE presupuesto_skills SET contenido = $2, version = version + 1, cambiado_por = $3, cambiado_en = now() WHERE id = $1', [s.id, String(b.contenido).slice(0, 60000), req.usuario.id]);
     }
     if ('activo' in b) await query('UPDATE presupuesto_skills SET activo = $2 WHERE id = $1', [s.id, !!b.activo]);
-    if ('siempre' in b && s.nombre !== 'Reglas generales') await query('UPDATE presupuesto_skills SET siempre = $2 WHERE id = $1', [s.id, !!b.siempre]);
+    if ('siempre' in b && !['Reglas generales', 'Reglas de composición'].includes(s.nombre)) await query('UPDATE presupuesto_skills SET siempre = $2 WHERE id = $1', [s.id, !!b.siempre]);
     if ('claves' in b) await query('UPDATE presupuesto_skills SET claves = $2 WHERE id = $1', [s.id, texto(b.claves, 1000)]);
     if ('nombre' in b && texto(b.nombre, 80)) await query('UPDATE presupuesto_skills SET nombre = $2 WHERE id = $1', [s.id, texto(b.nombre, 80).replace(/\.md$/i, '')]);
     const { rows: [n] } = await query('SELECT * FROM presupuesto_skills WHERE id = $1', [s.id]);
     res.json(n);
   }));
-  app.post('/api/presupuesto-skills/importar', ver, express.raw({ type: () => true, limit: '20mb' }), asyncH(async (req, res) => {
+  app.post('/api/presupuesto-skills/importar', verSk, express.raw({ type: () => true, limit: '20mb' }), asyncH(async (req, res) => {
     if (!Buffer.isBuffer(req.body) || !req.body.length) throw fallo(400, 'Archivo vacío');
-    res.json(await importarSkills(req.body, String(req.query.nombre || ''), req.usuario.id));
+    res.json(await importarSkills(req.body, String(req.query.nombre || ''), req.usuario.id, req.query.ambito === 'composicion' ? 'composicion' : 'presupuesto'));
   }));
-  app.get('/api/presupuesto-skills/:id/versiones', ver, asyncH(async (req, res) => {
+  app.get('/api/presupuesto-skills/:id/versiones', verSk, asyncH(async (req, res) => {
     const { rows } = await query(`SELECT v.id, v.version, v.cambiado_en, u.nombre AS cambiado_por, length(v.contenido) AS largo FROM presupuesto_skill_versiones v LEFT JOIN usuarios u ON u.id = v.cambiado_por
                                    WHERE v.skill_id = $1 ORDER BY v.version DESC`, [req.params.id]);
     res.json(rows);
   }));
-  app.get('/api/presupuesto-skills/:id/md', ver, asyncH(async (req, res) => {
+  app.get('/api/presupuesto-skills/:id/md', verSk, asyncH(async (req, res) => {
     const { rows: [s] } = await query('SELECT nombre, contenido FROM presupuesto_skills WHERE id = $1', [req.params.id]);
     if (!s) throw fallo(404, 'No encontrada');
     res.setHeader('Content-Type', 'text/markdown; charset=utf-8');
@@ -537,4 +540,4 @@ async function crear({ titulo, cliente_id, obra_id, prompt, adjuntos = [], skill
   return id;
 }
 
-module.exports = { montar, crear, generar, guardarAdjunto, reanudar, sembrarSkills, leerAdjuntos, elegirSkills, emparejar };
+module.exports = { montar, crear, generar, guardarAdjunto, reanudar, sembrarSkills, leerAdjuntos, elegirSkills, emparejar, importarSkills };

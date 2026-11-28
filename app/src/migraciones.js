@@ -1794,7 +1794,33 @@ const MIGRACIONES = [
   // Hierro de obra: «factor × Σ m² de pintura» también en mano de obra y maquinaria (h/m²); piezas y kg en el PDF
   `ALTER TABLE presupuesto_lineas DROP CONSTRAINT IF EXISTS presupuesto_lineas_calculo_check`,
   `ALTER TABLE presupuesto_lineas ADD CONSTRAINT presupuesto_lineas_calculo_check CHECK (calculo IN ('kg_perfiles', 'm2_perfiles', 'l_pintura', 'x_m2'))`,
-  `ALTER TABLE presupuesto_partidas ADD COLUMN IF NOT EXISTS desglose_kg BOOLEAN NOT NULL DEFAULT FALSE`,   // petición reenviada por alguien de la casa con «presupuestar»: {email, nombre, por} del cliente original
+  `ALTER TABLE presupuesto_partidas ADD COLUMN IF NOT EXISTS desglose_kg BOOLEAN NOT NULL DEFAULT FALSE`,
+  // Compositor de proyectos: presupuesto (o petición suelta) → borrador s360-import/2 editable → proyecto
+  `CREATE TABLE IF NOT EXISTS composiciones (
+     id SERIAL PRIMARY KEY,
+     titulo TEXT NOT NULL,
+     presupuesto_id INT REFERENCES presupuestos(id) ON DELETE SET NULL,
+     prompt TEXT,
+     estado TEXT NOT NULL DEFAULT 'borrador' CHECK (estado IN ('borrador', 'creada', 'descartada')),
+     ia_estado TEXT CHECK (ia_estado IN ('creando', 'listo', 'error')), ia_fase TEXT, ia_error TEXT,
+     ia_resumen TEXT, ia_dudas JSONB NOT NULL DEFAULT '[]', ia_avisos JSONB NOT NULL DEFAULT '[]', ia_skills TEXT[],
+     ia_borrador JSONB, ia_modelo TEXT, ia_ms INT,
+     datos JSONB,                       -- el borrador s360-import/2, tal como se edita
+     al_crear JSONB,                    -- lo que se importó (para aprender: IA ↔ editado ↔ real)
+     proyecto_id INT REFERENCES proyectos(id) ON DELETE SET NULL,
+     creado_por INT REFERENCES usuarios(id) ON DELETE SET NULL, creado TIMESTAMPTZ NOT NULL DEFAULT now(),
+     cambiado_por INT REFERENCES usuarios(id) ON DELETE SET NULL, cambiado TIMESTAMPTZ NOT NULL DEFAULT now(), creada_en TIMESTAMPTZ)`,
+  `CREATE INDEX IF NOT EXISTS composiciones_pres ON composiciones (presupuesto_id)`,
+  `ALTER TABLE presupuesto_adjuntos ADD COLUMN IF NOT EXISTS composicion_id INT REFERENCES composiciones(id) ON DELETE SET NULL`,
+  // Skills: las de presupuestar y las de componer, en la misma tabla
+  `ALTER TABLE presupuesto_skills ADD COLUMN IF NOT EXISTS ambito TEXT NOT NULL DEFAULT 'presupuesto'`,
+  // permiso nuevo «componer»: jefe de operaciones y administrador
+  `DO $$ BEGIN
+     IF NOT EXISTS (SELECT 1 FROM ajustes WHERE clave = 'migr_permiso_componer') THEN
+       UPDATE roles SET permisos = array_append(permisos, 'componer') WHERE clave IN ('admin', 'operaciones') AND NOT ('componer' = ANY(permisos));
+       INSERT INTO ajustes (clave, valor) VALUES ('migr_permiso_componer', 'true');
+     END IF;
+   END $$`,   // petición reenviada por alguien de la casa con «presupuestar»: {email, nombre, por} del cliente original
   `DO $$ BEGIN
      IF NOT EXISTS (SELECT 1 FROM ajustes WHERE clave = 'migr_permiso_aprobar_descuentos') THEN
        UPDATE roles SET permisos = array_append(permisos, 'aprobar_descuentos') WHERE clave IN ('admin', 'direccion') AND NOT ('aprobar_descuentos' = ANY(permisos));

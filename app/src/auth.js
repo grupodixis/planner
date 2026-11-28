@@ -23,6 +23,7 @@ const PERMISOS = {
   autorizar_horas_extra: 'Autorizar horas extra (fuera del turno de cada persona)',
   mi_dia: 'Apuntar su propio día (Mi día). Solo, sin otros permisos: no ve nada más',
   ia: 'Usar la IA: asistente y conectar Claude Code / Antigravity (solo con sus propios permisos)',
+  componer: 'Compositor: convertir presupuestos en borradores de proyecto (partidas, OTs, tareas) y crearlos',
   aprobar_descuentos: 'Presupuestos: aprobar descuentos por encima del límite y cambiar ese límite',
   presupuestos: 'Presupuestos: prepararlos, pedir precio para presupuestar y recibir los avisos de las peticiones que llegan a presupuestos@',
 };

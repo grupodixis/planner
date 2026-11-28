@@ -317,7 +317,8 @@ require('./tarifa').montar(app, asyncH);   // Tarifa de mano de obra y maquinari
 require('./presupuestos').montar(app, asyncH);   // Presupuestos: capítulos › partidas › descomposición, precios de la lista y la tarifa
 require('./presupuestos-leads').montar(app, asyncH);
 require('./presupuestos-aprender').montar(app, asyncH);
-require('./presupuestos-enviar').montar(app, asyncH);   // Escribir al cliente y enviar el presupuesto (borrador con IA, lo envía la persona)   // Aprender de los presupuestos corregidos → propuestas para las Skills   // Leads capturados desde el móvil
+require('./presupuestos-enviar').montar(app, asyncH);
+require('./compositor').montar(app, asyncH);   // Compositor: presupuesto → borrador de proyecto editable → importación   // Escribir al cliente y enviar el presupuesto (borrador con IA, lo envía la persona)   // Aprender de los presupuestos corregidos → propuestas para las Skills   // Leads capturados desde el móvil
 require('./presupuestos-ia').montar(app, asyncH);   // Presupuestos con IA (texto + adjuntos) y Skills de presupuestación
 require('./incidencias').montar(app, asyncH);   // incidencias: material, transporte, calidad… con reclamación y cierre
 require('./pedido-transporte').montar(app, asyncH);   // cómo llega cada pedido: proveedor, recogida o almacén del transportista
@@ -367,6 +368,8 @@ const PORT = Number(process.env.PORT || 3000);
   await require('./unidades').calcularCatalogo().catch((e) => console.error('Unidades:', e.message));
   await require('./presupuestos-ia').sembrarSkills().catch((e) => console.error('Skills:', e.message));
   await require('./presupuestos-ia').reanudar().catch(() => {});
+  await require('./compositor').sembrar().catch((e) => console.error('Compositor:', e.message));
+  await require('./compositor').reanudar().catch(() => {});
   await require('./compras').migrarPedidosSueltos().catch((e) => console.error('Pedidos sueltos:', e.message));
   await require('./precios').cargaInicial().catch((e) => console.error('Lista de precios:', e.message));
   require('./presupuestos').normalizarUnidades().catch((e) => console.error('Presupuestos unidades:', e.message));
