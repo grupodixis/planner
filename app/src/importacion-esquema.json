@@ -437,6 +437,18 @@
           ],
           "description": "Tipo de área cuando no se sabe la concreta. «obra» = el área de la obra de este proyecto (se crea si no existe)."
         },
+        "taller_externo": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120,
+          "description": "v2.1 · Proveedor (por nombre) que hace la tarea en SU taller (taller de calderería, galvanizadora, transportista…). La tarea va a la fila de ese taller en el cuadrante; «horas» = días × jornada."
+        },
+        "subcontrata_obra": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120,
+          "description": "v2.1 · Proveedor (por nombre) que hace la tarea AQUÍ (montador autónomo, pintor…): conserva su área (la obra) y no pide operarios propios."
+        },
         "requiere": {
           "type": "array",
           "items": {

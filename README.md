@@ -681,6 +681,11 @@ Lo que trae cada tarea (v2):
 - Área por nombre (sus máquinas fijas van solas) o por tipo; `area_tipo: "obra"` va al área
   «Obra · ‹obra del proyecto›», que se crea sola.
 - **Dependencias** (`despues_de`, con `espera_h` de secado/curado) y **condiciones previas**.
+- **Trabajo fuera (v2.1)**: `taller_externo: "Proveedor"` (se hace en su taller: va a su área
+  externa, sin operarios ni capacidades; `horas` = días × 8) o `subcontrata_obra: "Proveedor"`
+  (la hace aquí un montador autónomo o subcontrata: `ext_en_obra`). El proveedor se busca en
+  Proveedores (nombre exacto o alias; si no, sale en «nombres que no coinciden» para asociarlo).
+  Quedan como tareas externas: el pedido o la petición de precio se hace con «🏭 Subcontratar…».
 
 Cada partida trae su **escandallo** (`materiales`, con `ref_externa` estable); con
 `enviar_a_logistica: true` se envía directamente a logística (aviso para revisar stock).
@@ -757,7 +762,7 @@ pasar el ratón).
 
 ## Talleres externos (lo que se hace fuera)
 
-Una tarea de una OT la puede hacer un **taller de fuera** (Ferros Puig, una carpintería de aluminio, la galvanizadora,
+Una tarea de una OT la puede hacer un **taller de fuera** (un taller de península, una carpintería de aluminio, la galvanizadora,
 el transporte…). No hay etapas fijas: las etapas son **las tareas de la OT**, en su orden y con sus dependencias
 (`src/externos.js`).
 
@@ -792,7 +797,7 @@ el transporte…). No hay etapas fijas: las etapas son **las tareas de la OT**, 
   días). No ocupa a nadie de aquí: sin avisos de operarios, requisitos, capacidades ni jornada (`externa` en
   `conflictos.js`; solo dependencias y exceso). Si una tarea va después de una tarea externa que aún no ha terminado, el
   aviso de dependencia es **grave** (la pieza no está aquí). Bloques con 🏭 y su avance.
-- **Situación del producto** (por OT): recorre sus tareas externas en orden → «En Ferros Puig · Fabricación · 60 % ·
+- **Situación del producto** (por OT): recorre sus tareas externas en orden → «En un taller de península · Fabricación · 60 % ·
   termina ~26/11 · «nota»», «En Tenas: galvanizado terminado · lo siguiente: Transporte (Ydica)», «Aún no ha salido…» o
   «Ya no está fuera». En Proyectos (lista de OTs y ficha, con las tareas externas y sus fechas) y en el detalle del
   cuadrante. `situacion` en `/api/ordenes` y `/api/ordenes/:id`; `situaciones` en `/api/tablero`.
@@ -1556,6 +1561,7 @@ Endpoints: `GET /api/ia`, `PUT /api/ia/ajustes`, `POST /api/ia/probar/:nombre`, 
 - **Crear**: «✔ Comprobar» (= `POST /api/importar?simular=1`) y «🏗 Crear el proyecto» → `proyectos.html?componer=ID`, que abre la importación con el borrador cargado; al importar, `POST /api/composiciones/:id/creada {proyecto_id}` (estado `creada`, `al_crear`). Volver a crearlo actualiza el mismo proyecto (mismas `ref_externa`).
 - En el presupuesto aceptado o enviado: botón «🏗 Componer proyecto» (`/compositor.html?presupuesto=ID`; si ya tiene composición, la abre).
 - API: `GET·POST /api/composiciones`, `GET /api/composiciones/presupuestos`, `GET·PUT /api/composiciones/:id`, `POST …/:id/ia`, `GET …/:id/archivo[?descargar=1]`, `POST …/:id/creada`. Skills: `/api/presupuesto-skills?ambito=composicion` (también importar `.zip`/.md con `&ambito=composicion`).
+- **Talleres externos y subcontratas**: Skill sembrada «Talleres externos y subcontratas». Por partida, `extra.fabricacion = {donde: propio|externo, taller, material: taller|nosotros}` (en el editor «Se fabrica: en nuestro taller / en un taller externo», con el taller de Proveedores y quién pone el material; por defecto el taller de península lo pone él y el local, nosotros). Por tarea, «Quién la hace»: nosotros, 🏭 taller externo (días de taller, sin operarios ni capacidades) o 🏗 subcontrata aquí (operarios = los que pone la subcontrata). Lo habitual: fabricación fuera, pequeños ajustes o pintura en nuestro taller y montaje nuestro o de un autónomo. Si el material lo pone el taller, `paraImportar` lo saca del escandallo (no va a logística; queda en `extra.material_del_taller`). `GET /api/composiciones/proveedores` da los proveedores para elegir. Tras crear el proyecto, la petición de precio o el pedido al taller se hacen desde la OT con «🏭 Subcontratar…».
 - **Siguientes fases**: aprender de las correcciones del jefe de operaciones (`ia_borrador` frente a `al_crear`, propuestas para las Skills) y de lo real de los partes (rendimiento por concepto del desglose → tabla de rendimientos que usan el compositor y el presupuestador).
 
 ## Tarifa de mano de obra y maquinaria (Informes › Tarifa)

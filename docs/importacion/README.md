@@ -146,6 +146,8 @@ asigna `PR-###` y `OT-####`.
 | `equipos` | ○ **v2** | array | Máquinas de las que hay pocas, por tipo. |
 | `subcontratas` | ○ **v2** | array | Subcontratas y alquileres, por tipo. |
 | `herramientas` | ○ **v2** | array | Herramientas de mano. |
+| `taller_externo` | ○ **v2.1** | texto ≤ 120 | Proveedor que la hace **en su taller** (nombre de Proveedores o alias). Va a su área externa, sin operarios ni capacidades; `horas` = días de taller × 8. |
+| `subcontrata_obra` | ○ **v2.1** | texto ≤ 120 | Proveedor (montador autónomo, subcontrata) que la hace **aquí**, en obra o en nuestro taller; `operarios` = los que pone. |
 | `materiales` | ○ **v2** | array | Material de la partida que consume. |
 | `despues_de` | ○ | array | Tareas que van antes (§3.6). |
 | `requiere` | ○ | array | *Forma v1*, se sigue aceptando (`tipo_recurso`, `recurso`). En v2 usar `equipos` / `subcontratas`. |
@@ -378,6 +380,9 @@ npx ajv-cli validate --spec=draft2020 -c ajv-formats -s esquema.json -d mi-proye
   `herramientas`, `materiales`. `oficio` y `requiere` siguen aceptándose. Catálogo en
   `GET /api/importar/catalogo`. Desde el 2026-11-18, por partida `pvp` y `presupuesto` (control de
   costes), también opcionales.
+- **v2.1** (2026-11-28), mismo formato `s360-import/2`: por tarea `taller_externo` y
+  `subcontrata_obra` (trabajo fuera; quedan como tareas externas del proveedor). Si el proveedor
+  no se encuentra, sale para asociarlo (clase «Taller externo / subcontrata»).
 - `s360-import/1` (2026-11-12): proyecto, partidas, OTs, tareas con horas, operarios, oficio, área,
   requisitos, dependencias y condiciones. Se sigue aceptando.
 

@@ -265,6 +265,7 @@ async function importar(c, archivo, resoluciones, usuario, simular) {
   const recursos = (await c.query('SELECT id, tipo, nombre, activo FROM recursos ORDER BY tipo, nombre')).rows;
   const alias = (await c.query('SELECT clase, nombre, destino_id FROM import_alias')).rows;
   const capacidades = (await c.query('SELECT id, familia, nombre FROM capacidades ORDER BY orden, lower(nombre)')).rows;
+  const proveedores = (await c.query('SELECT id, nombre, zona, transportista FROM proveedores WHERE activo ORDER BY lower(nombre)')).rows;
   // Áreas que puede usar este proyecto: las fijas y sus propias obras (o las obras sueltas, sin proyecto)
   const areasActivas = areas.filter((a) => a.activo && (a.tipo !== 'obra' || !a.proyecto_id || a.proyecto_id === proy?.id));
   const recursosActivos = recursos.filter((r) => r.activo);
@@ -297,6 +298,7 @@ async function importar(c, archivo, resoluciones, usuario, simular) {
       pedir(claveArea(t), { clase: 'area_tipo', nombre: tipo === 'obra' ? nombreObra : tipo, area_tipo: tipo, desde: [] });
       if (t.area && !resolver.get(claveArea(t)).desde.includes(t.area.trim())) resolver.get(claveArea(t)).desde.push(t.area.trim());
     }
+    for (const k of ['taller_externo', 'subcontrata_obra']) if (t[k]) pedir(`proveedor:${norm(t[k])}`, { clase: 'proveedor', nombre: t[k].trim() });
     const ops = t.operarios ?? 1;
     if (t.oficio && ops >= 1) pedir(`tipo:operario:${norm(t.oficio)}`, { clase: 'tipo', subclase: 'operario', nombre: t.oficio.trim() });
     for (const k of (t.capacidades || []).map(leerCapacidad)) {
@@ -340,6 +342,14 @@ async function importar(c, archivo, resoluciones, usuario, simular) {
           : { accion: 'ignorar', estado: delTipo.length ? 'varias' : 'falta' };
         e.nombre = `Área de tipo «${e.area_tipo}»`;
       }
+    } else if (e.clase === 'proveedor') {
+      existe = proveedores.find((p) => norm(p.nombre) === norm(e.nombre));
+      opciones = proveedores;
+      puede = ['asociar', 'ignorar'];
+      const al = aliasDe('proveedor', e.nombre);
+      const sug = masParecido(e.nombre, proveedores);
+      defecto = al && proveedores.some((p) => p.id === al) ? { accion: 'asociar', id: al, estado: 'recordado' }
+        : sug ? { accion: 'asociar', id: sug.id, estado: 'parecido' } : { accion: 'ignorar', estado: 'falta' };
     } else if (e.clase === 'capacidad') {
       existe = capacidades.find((k) => norm(k.nombre) === norm(e.nombre));
       opciones = capacidades;
@@ -662,6 +672,7 @@ async function importar(c, archivo, resoluciones, usuario, simular) {
                        WHERE q.tarea_id = t.id), '') AS req_tipo_txt,
             COALESCE((SELECT string_agg(r.nombre, ', ' ORDER BY lower(r.nombre))
                         FROM tarea_requisitos q JOIN recursos r ON r.id = q.recurso_id WHERE q.tarea_id = t.id), '') AS req_rec_txt,
+            t.proveedor_id, t.ext_en_obra,
             COALESCE((SELECT string_agg(p.ref_externa || '+' || d.espera_h, ', ' ORDER BY p.ref_externa)
                         FROM tarea_dependencias d JOIN tareas p ON p.id = d.depende_de_id WHERE d.tarea_id = t.id), '') AS dep_txt
        FROM tareas t WHERE t.ref_externa = ANY($1)`, [plano.tareas.map((x) => x.d.ref_externa)]);
@@ -689,7 +700,7 @@ async function importar(c, archivo, resoluciones, usuario, simular) {
         if (id) reqTipo.set(id, Math.max(reqTipo.get(id) || 0, r.cantidad));
       }
     }
-    if (ops === 0 && !reqDe(t).length) avisos.push({ ruta: x.ruta, mensaje: `«${t.nombre}» no tiene operarios ni requisitos: nadie la hace` });
+    if (ops === 0 && !reqDe(t).length && !t.taller_externo && !t.subcontrata_obra) avisos.push({ ruta: x.ruta, mensaje: `«${t.nombre}» no tiene operarios ni requisitos: nadie la hace` });
 
     const nuevo = {
       orden_id: idOT.get(x.ot), nombre: t.nombre.trim(), duracion_h: t.horas, operarios_req: ops, orden_en_of: x.orden,
@@ -712,15 +723,24 @@ async function importar(c, archivo, resoluciones, usuario, simular) {
         });
       }
     }
+    // v2.1 · quién la hace: un taller externo (va a la fila de su taller) o una subcontrata aquí (conserva su área)
+    let lineaFinal = lineaId;
+    if ('taller_externo' in t || 'subcontrata_obra' in t || !previa.has(t.ref_externa)) {
+      const prov = t.taller_externo ? idDe(`proveedor:${norm(t.taller_externo)}`) : t.subcontrata_obra ? idDe(`proveedor:${norm(t.subcontrata_obra)}`) : null;
+      nuevo.proveedor_id = prov; nuevo.ext_en_obra = !!(prov && !t.taller_externo);
+      if (prov && t.taller_externo) lineaFinal = await require('./externos').areaExterna(c, prov);
+      if (prov) resumen.externas = (resumen.externas || 0) + 1;
+      if ((t.taller_externo || t.subcontrata_obra) && !prov) avisos.push({ ruta: x.ruta, mensaje: `«${t.nombre}»: el proveedor «${t.taller_externo || t.subcontrata_obra}» no se ha asociado: queda como tarea propia` });
+    }
     // Si el área no se pudo resolver, se deja la que tenga (puesta a mano)
-    if (lineaId || !previa.has(t.ref_externa)) nuevo.linea_id = lineaId;
+    if (lineaFinal || !previa.has(t.ref_externa)) nuevo.linea_id = lineaFinal;
     const ya = previa.get(t.ref_externa);
     let id;
     if (!ya) {
       const { rows } = await c.query(
-        `INSERT INTO tareas (orden_id, nombre, duracion_h, operarios_req, linea_id, orden_en_of, notas, extra, ref_externa, actualizado_por, desglose)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING id`,
-        [nuevo.orden_id, nuevo.nombre, nuevo.duracion_h, ops, lineaId, x.orden, nuevo.notas, nuevo.extra, t.ref_externa, usuario.id, nuevo.desglose ? JSON.stringify(nuevo.desglose) : null]);
+        `INSERT INTO tareas (orden_id, nombre, duracion_h, operarios_req, linea_id, orden_en_of, notas, extra, ref_externa, actualizado_por, desglose, proveedor_id, ext_en_obra)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) RETURNING id`,
+        [nuevo.orden_id, nuevo.nombre, nuevo.duracion_h, ops, lineaFinal, x.orden, nuevo.notas, nuevo.extra, t.ref_externa, usuario.id, nuevo.desglose ? JSON.stringify(nuevo.desglose) : null, nuevo.proveedor_id ?? null, !!nuevo.ext_en_obra]);
       id = rows[0].id;
       resumen.tareas.crear++;
       cambios.push({ nivel: 'tarea', accion: 'crear', ref: t.ref_externa, nombre: nuevo.nombre, horas: t.horas, ot: x.ot });

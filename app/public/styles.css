@@ -3394,3 +3394,6 @@ dialog.pz-dlg { width: min(760px, calc(100vw - 32px)); } dialog.pz-dlg-ancho { w
 #cmp .asig { font-size: 12px; white-space: nowrap; } #cmp .asig.w { color: var(--warn); font-weight: 600; } #cmp .asig.z { color: var(--mut); }
 #cmp .cmp-pie { margin: 18px 0 6px; }
 @media (max-width: 900px) { .cmp-main { grid-template-columns: 1fr; } .cmp-lista { position: static; max-height: none; } #cmp .row { grid-template-columns: 1fr; } }
+#cmp .fab { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: 4px 0 2px; font-size: 13px; } #cmp .fab.ext { background: rgba(245,158,11,.08); border: 1px dashed #f59e0b66; border-radius: 8px; padding: 5px 8px; }
+#cmp .fab input { min-width: 220px; } #cmp .fab input.malo, #cmp input.malo { border-color: #f87171; } #cmp .fab button { font-size: 12px; padding: 2px 8px; }
+#cmp .pill.ext { background: rgba(245,158,11,.16); color: #fbbf24; }

@@ -60,9 +60,44 @@ Cómo pasar un presupuesto a proyecto: partidas › OTs › tareas que se planif
 - Añade los consumibles que hagan falta (hilo, gas, discos, varilla TIG…) como material nuevo de la partida.
 `;
 
+const TALLERES = `# Talleres externos y subcontratas
+
+Cuándo y cómo se compone una partida que se fabrica fuera.
+
+## Cuándo va fuera
+- Si el presupuesto lleva la fabricación como subcontrata a nombre de un taller (p. ej. «Fabricación en taller X €/kg»), la partida se fabrica en ese taller.
+- Estructuras grandes o pesadas que no caben en nuestro taller o en nuestros plazos: proponlo como duda.
+
+## Cómo se compone una partida externa («fabricacion»: «externo»)
+1. **Planos de fabricación para el taller** — nosotros, oficina técnica (horas, con desglose).
+2. **Fabricación** — el taller («taller_externo»), en **días** de trabajo. Sin operarios ni capacidades propias.
+3. **Galvanizado** si va — la galvanizadora («taller_externo»), en días.
+4. **Transporte a Menorca** si el taller es de la península — el transportista («taller_externo»), en días.
+5. **Recepción y control** en nuestro taller — nosotros, 1–2 h.
+6. **Retoques o pequeñas modificaciones** en taller y **pintura en local** si las hay — nosotros.
+7. **Montaje en obra** — nosotros, o un montador autónomo («subcontrata_obra»: conserva el área de obra y sus personas).
+
+## Material
+- Taller de la **península**: el material lo pone el taller («material»: «taller»): no va a nuestra logística.
+- Subcontratación **local** (Menorca): el material lo ponemos nosotros («material»: «nosotros»).
+
+## Plazos de referencia (se afinan con el seguimiento real de cada taller)
+- Fabricación: según tamaño; pide el plazo al taller.
+- Galvanizado: 5–7 días laborables.
+- Transporte península → Menorca: 3–5 días laborables desde la recogida.
+`;
+
 async function sembrar() {
   await query(`INSERT INTO presupuesto_skills (nombre, contenido, siempre, ambito) VALUES ('Reglas de composición', $1, TRUE, 'composicion') ON CONFLICT (nombre) DO NOTHING`, [REGLAS]);
+  await query(`INSERT INTO presupuesto_skills (nombre, contenido, siempre, ambito) VALUES ('Talleres externos y subcontratas', $1, TRUE, 'composicion') ON CONFLICT (nombre) DO NOTHING`, [TALLERES]);
 }
+
+// Talleres, galvanizadoras, transportistas y subcontratas que puede usar la IA
+async function proveedoresTaller() {
+  const { rows } = await query(`SELECT id, nombre, zona, transportista, left(array_to_string(materiales, ', '), 120) AS sirve FROM proveedores WHERE activo ORDER BY lower(nombre)`);
+  return rows;
+}
+const JORNADA_H = 8;   // 1 día de un taller externo = una jornada (así lo muestra el cuadrante)
 
 /* ---------- lo que la IA necesita del presupuesto ---------- */
 async function datosPresupuesto(pid) {
@@ -126,11 +161,14 @@ Devuelve SOLO este JSON:
   "partidas": [
     { "partida": "código de la partida del presupuesto (o un código nuevo si no hay presupuesto)",
       "nombre": "≤ 30 caracteres",
+      "fabricacion": { "donde": "propio" | "externo", "taller": "nombre EXACTO del proveedor (si es externo)" | null, "material": "nosotros" | "taller" },
       "materiales_nuevos": [ { "clave": "N1", "descripcion": "nombre del catálogo si lo sabes", "cantidad": 1, "unidad": "ud", "nota": "" } ],
       "ots": [
         { "titulo": "≤ 35 caracteres", "descripcion": "", "prioridad": "normal",
           "tareas": [
             { "clave": "T1 (única en todo el proyecto)", "nombre": "verbo + objeto, ≤ 40",
+              "taller_externo": "nombre EXACTO del proveedor si la hace FUERA en su taller (fabricación, galvanizado, transporte)" | null, "dias": "solo con taller_externo: días de trabajo",
+              "subcontrata_obra": "nombre del proveedor si la hace AQUÍ un subcontratista (montador autónomo)" | null,
               "operarios": 1, "area": "nombre EXACTO de un área del catálogo" | null, "area_tipo": "taller|pintura|oficina|obra|transporte|otro" | null,
               "capacidades": [ { "capacidad": "nombre del catálogo", "cantidad": 1 } ],
               "equipos": [ { "tipo": "nombre del catálogo", "cantidad": 1 } ], "subcontratas": [ { "tipo": "nombre", "cantidad": 1 } ],
@@ -147,7 +185,8 @@ Reglas:
 - Las HORAS no las pones tú: salen del desglose (h-persona = cantidad × rendimiento). Con «operarios» > 1, la duración se reparte.
 - Compara con las horas de mano de obra presupuestadas de cada partida («horas_presupuestadas»): si tu total se aleja más de un 25 %, explícalo en «dudas».
 - La obra (montaje, anclajes, replanteo) va con area_tipo "obra". El transporte, en el área «Transporte».
-- Máquinas fijas → la tarea en su área; no las pidas como equipo.`;
+- Máquinas fijas → la tarea en su área; no las pidas como equipo.
+- Partida que se fabrica FUERA (Skill «Talleres externos»): «fabricacion.donde» = "externo" con su taller; la fabricación, el galvanizado y el transporte son tareas con «taller_externo» y «dias» (sin operarios, capacidades ni desglose); nosotros hacemos los planos, la recepción, los retoques o la pintura local y el montaje (o un autónomo con «subcontrata_obra»). Usa SOLO nombres de «proveedores» para taller_externo y subcontrata_obra. Si el taller es de la península, va un transporte a Menorca y el material lo pone el taller.`;
 }
 
 /* ---------- construir el s360-import/2 a partir de lo que devuelve la IA ---------- */
@@ -169,11 +208,13 @@ function construir(d, ctx) {
     const cod = texto(src?.codigo || dp.partida, 30) || String(nPart).padStart(2, '0');
     const ref = `${base}/${cod.replace(/\s+/g, '')}`.slice(0, 80);
     const part = { ref_externa: ref, codigo: cod, nombre: texto(dp.nombre, 120) || texto(src?.nombre, 120) || `Partida ${cod}`, materiales: [...(src ? ctx.escandallos.get(src.id) || [] : [])], ots: [] };
+    const fab = dp.fabricacion && dp.fabricacion.donde === 'externo' ? { donde: 'externo', taller: texto(dp.fabricacion.taller, 120), material: dp.fabricacion.material === 'nosotros' ? 'nosotros' : 'taller' } : null;
     if (src) {
       part.pvp = r2(src.venta || 0);
       const pr = costePorTipo(src); if (Object.keys(pr).length) part.presupuesto = pr;
       part.extra = { unidad: src.unidad, cantidad: src.medicion, precio_unitario: src.venta_ud, presupuesto_partida_id: src.id };
     }
+    if (fab) part.extra = { ...(part.extra || {}), fabricacion: fab };
     // refs de material: M01 del escandallo y N1 nuevos
     const local = new Map(part.materiales.map((m) => [m.ref_externa.split('/').pop(), m.ref_externa]));
     for (const mn of Array.isArray(dp.materiales_nuevos) ? dp.materiales_nuevos : []) {
@@ -195,7 +236,8 @@ function construir(d, ctx) {
         nT++;
         const tref = `${oref}/T${nT}`;
         const t = { ref_externa: tref, nombre: texto(dt.nombre, 120) || `Tarea ${nT}` };
-        const op = Math.max(0, Math.min(50, Math.round(num(dt.operarios) ?? 1)));
+        const taller = texto(dt.taller_externo, 120); const subObra = taller ? null : texto(dt.subcontrata_obra, 120);
+        const op = taller ? 0 : Math.max(0, Math.min(50, Math.round(num(dt.operarios) ?? 1)));
         const des = (Array.isArray(dt.desglose) ? dt.desglose : []).map((x) => {
           let hp = num(x.horas_persona); const c = num(x.cantidad); const rd = num(x.rendimiento);
           if (!(hp > 0) && c > 0 && rd > 0) hp = c * rd;
@@ -206,13 +248,14 @@ function construir(d, ctx) {
           return o;
         }).filter(Boolean);
         const hp = des.reduce((s, x) => s + x.horas_persona, 0);
-        t.horas = des.length ? arriba05(hp / Math.max(1, op)) : arriba05(num(dt.horas) || 1);
+        t.horas = taller ? arriba05((num(dt.dias) || 1) * JORNADA_H) : des.length ? arriba05(hp / Math.max(1, op)) : arriba05(num(dt.horas) || 1);
         t.operarios = op;
+        if (taller) t.taller_externo = taller; else if (subObra) t.subcontrata_obra = subObra;
         if (texto(dt.area, 120)) t.area = texto(dt.area, 120); else if (TIPOS_AREA.includes(dt.area_tipo)) t.area_tipo = dt.area_tipo;
-        if (des.length) t.desglose = des;
+        if (des.length && !taller) t.desglose = des;
         const lst = (v, f) => (Array.isArray(v) ? v : []).map(f).filter(Boolean);
         const caps = lst(dt.capacidades, (c) => { const n = texto(typeof c === 'string' ? c : c?.capacidad, 120); if (!n) return null; const q = Math.min(Math.max(1, Math.round(num(c?.cantidad) || 1)), Math.max(1, op)); return q > 1 ? { capacidad: n, cantidad: q } : n; });
-        if (caps.length) t.capacidades = caps;
+        if (caps.length && !taller && !subObra) t.capacidades = caps;
         const eq = lst(dt.equipos, (c) => { const n = texto(typeof c === 'string' ? c : c?.tipo, 120); if (!n) return null; const q = Math.max(1, Math.round(num(c?.cantidad) || 1)); return q > 1 ? { tipo: n, cantidad: q } : n; });
         if (eq.length) t.equipos = eq;
         const sb = lst(dt.subcontratas, (c) => { const n = texto(typeof c === 'string' ? c : c?.tipo, 120); if (!n) return null; const q = Math.max(1, Math.round(num(c?.cantidad) || 1)); return q > 1 ? { tipo: n, cantidad: q } : n; });
@@ -265,6 +308,26 @@ function cuadre(archivo, partidas) {
   return out;
 }
 
+/* ---------- el archivo que se importa ----------
+   Partida que se fabrica fuera con el material del taller: ese material NO va a nuestro escandallo (logística no lo
+   pide): queda en extra.material_del_taller, y las tareas dejan de consumirlo. */
+function paraImportar(datos) {
+  const d = JSON.parse(JSON.stringify(datos));
+  const fuera = new Set();
+  for (const p of d.proyecto?.partidas || []) {
+    const fab = p.extra?.fabricacion;
+    if (fab?.donde === 'externo' && fab.material === 'taller' && p.materiales?.length) {
+      p.extra.material_del_taller = p.materiales.map((m) => ({ descripcion: m.descripcion, cantidad: m.cantidad, unidad: m.unidad || null }));
+      p.materiales.forEach((m) => fuera.add(m.ref_externa)); delete p.materiales; delete p.enviar_a_logistica;
+    }
+  }
+  if (fuera.size) for (const p of d.proyecto.partidas) for (const o of p.ots || []) for (const t of o.tareas || []) {
+    if (t.materiales) { t.materiales = t.materiales.filter((m) => !fuera.has(m.ref)); if (!t.materiales.length) delete t.materiales; }
+  }
+  d.generado = new Date().toISOString();
+  return d;
+}
+
 /* ---------- generar con IA (en segundo plano) ---------- */
 async function generar(id) {
   const t0 = Date.now();
@@ -307,6 +370,7 @@ async function generar(id) {
         herramientas: cat.herramientas.map((x) => x.nombre),
       },
       proyectos_parecidos_ya_compuestos: parecidas,
+      proveedores: (await proveedoresTaller()).map((x) => ({ nombre: x.nombre, zona: x.zona, ...(x.transportista ? { transportista: true } : {}), ...(x.sirve ? { sirve: x.sirve } : {}) })),
       adjuntos_leidos: archivos.map((a) => a.nombre), hojas_de_calculo: textos, adjuntos_no_leidos: otros,
     });
     await fase('la IA está componiendo el proyecto');
@@ -399,6 +463,7 @@ function montar(app, asyncH) {
     }
     res.status(201).json({ id: c.id });
   }));
+  app.get('/api/composiciones/proveedores', ver, asyncH(async (req, res) => res.json(await proveedoresTaller())));
   app.get('/api/composiciones/:id', ver, asyncH(async (req, res) => {
     const c = await cargar(Number(req.params.id)); if (!c) throw fallo(404, 'No encontrada'); res.json(c);
   }));
@@ -434,7 +499,7 @@ function montar(app, asyncH) {
   app.get('/api/composiciones/:id/archivo', ver, asyncH(async (req, res) => {
     const { rows: [c] } = await query('SELECT datos, titulo FROM composiciones WHERE id = $1', [Number(req.params.id)]);
     if (!c?.datos) throw fallo(404, 'Aún no hay borrador');
-    const d = { ...c.datos, generado: new Date().toISOString() };
+    const d = paraImportar(c.datos);
     if (req.query.descargar) res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${encodeURIComponent(`${d.proyecto.ref_externa}.s360.json`)}`);
     res.json(d);
   }));
@@ -448,4 +513,4 @@ function montar(app, asyncH) {
   }));
 }
 
-module.exports = { montar, generar, reanudar, sembrar, construir, cuadre, REGLAS };
+module.exports = { montar, generar, reanudar, sembrar, construir, cuadre, paraImportar, REGLAS, TALLERES };

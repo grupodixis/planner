@@ -28,7 +28,8 @@
   const leerLocal = (k) => { try { return JSON.parse(localStorage.getItem(`cmp:${k}`) || 'null'); } catch { return null; } };
   const ponerLocal = (k, v) => { try { localStorage.setItem(`cmp:${k}`, JSON.stringify(v)); } catch { /* sin almacenamiento */ } };
 
-  let CAT = null; let IDX = {}; let MAT = new Map();
+  let CAT = null; let IDX = {}; let MAT = new Map(); let PROV = new Map();
+  const JORNADA_H = 8;   // un día de taller externo = una jornada
   let C = null; let DATA = null; let lista = []; let sondeo = null; let guardarT = null; let estadoGuardado = '';
   const open = new Set(leerLocal('open') || []);
 
@@ -47,6 +48,12 @@
       <datalist id="dlSub">${opt(CAT.subcontratas)}</datalist><datalist id="dlHer">${opt(CAT.herramientas, (x) => x.familia)}</datalist>
       <datalist id="dlMat">${(c.materiales || []).map((x) => `<option value="${esc(x.nombre)}">${esc(`${x.familia || ''} · ${x.unidad || ''}`)}</option>`).join('')}</datalist>`;
     $('#cmp-dl')?.remove(); document.body.append(dls);
+  }
+  function setProv(lst) {
+    PROV = new Map(lst.map((x) => [norm(x.nombre), x]));
+    $('#dlProv')?.remove();
+    const dl = el('datalist', { id: 'dlProv' }); dl.innerHTML = lst.map((x) => `<option value="${esc(x.nombre)}">${esc(`${x.transportista ? '🚚 transportista' : x.zona === 'peninsula' ? 'península' : 'Menorca'}${x.sirve ? ` · ${x.sirve}` : ''}`)}</option>`).join('');
+    document.body.append(dl);
   }
   const FAMILIAS = () => [...new Set(CAT.capacidades.map((c) => c.familia))].concat(['Otras']);
 
@@ -71,12 +78,14 @@
     const sub = t._sub.filter((x) => x.nombre.trim()).map((x) => (x.cantidad > 1 ? { tipo: x.nombre.trim(), cantidad: x.cantidad } : x.nombre.trim()));
     const her = t._her.filter((x) => x.nombre.trim()).map((x) => ((x.cantidad > 1 || x.nota) ? { nombre: x.nombre.trim(), ...(x.cantidad > 1 ? { cantidad: x.cantidad } : {}), ...(x.nota ? { nota: x.nota } : {}) } : x.nombre.trim()));
     const put = (k, arr, had) => { if (arr.length || had) o[k] = arr; else delete o[k]; };
-    put('capacidades', cap, t._had.cap); put('equipos', eq, false); put('subcontratas', sub, false); put('herramientas', her, false);
+    if (t.taller_externo) { cap.length = 0; delete o.desglose; o.operarios = 0; }
+    put('capacidades', cap, t._had.cap && !t.taller_externo); put('equipos', eq, false); put('subcontratas', sub, false); put('herramientas', her, false);
     put('materiales', (t._mat || []).filter((x) => x.ref && x.cantidad > 0).map((x) => ({ ref: x.ref, cantidad: x.cantidad })), false);
     if (o.desglose && !o.desglose.length) delete o.desglose;
     if (o.despues_de && !o.despues_de.length) delete o.despues_de;
     if (!o.notas) delete o.notas;
-    const orden = ['ref_externa', 'nombre', 'horas', 'operarios', 'area', 'area_tipo', 'desglose', 'capacidades', 'equipos', 'subcontratas', 'herramientas', 'materiales', 'despues_de', 'requiere', 'oficio', 'notas', 'extra'];
+    if (!o.taller_externo) delete o.taller_externo; if (!o.subcontrata_obra) delete o.subcontrata_obra;
+    const orden = ['ref_externa', 'nombre', 'horas', 'operarios', 'taller_externo', 'subcontrata_obra', 'area', 'area_tipo', 'desglose', 'capacidades', 'equipos', 'subcontratas', 'herramientas', 'materiales', 'despues_de', 'requiere', 'oficio', 'notas', 'extra'];
     const r = {}; orden.forEach((k) => { if (k in o) r[k] = o[k]; }); Object.keys(o).forEach((k) => { if (!(k in r)) r[k] = o[k]; });
     return r;
   }
@@ -116,6 +125,9 @@
   /* ---------- avisos de una tarea ---------- */
   function warnings(t) {
     const w = []; const op = t.operarios ?? 1;
+    const prov = t.taller_externo || t.subcontrata_obra;
+    if (prov && !PROV.has(norm(prov))) w.push(`«${prov}» no está en Proveedores: dalo de alta o elige otro.`);
+    if (t.taller_externo) return w;
     if (t.area && !IDX.area.has(norm(t.area))) w.push(`Área «${t.area}» no está en el catálogo.`);
     if (!t.area && !t.area_tipo) w.push('Sin área ni tipo de área.');
     t._cap.forEach((c) => { if (c.cantidad > op) w.push(`«${c.nombre}» pide ${c.cantidad} personas y la tarea tiene ${op} operario(s).`); });
@@ -125,9 +137,9 @@
     t._eq.forEach((e) => { const c = IDX.eq.get(norm(e.nombre)); if (c && e.cantidad > c.unidades) w.push(`Se piden ${e.cantidad} «${e.nombre}» y hay ${c.unidades}.`); });
     const a = t.area && IDX.area.get(norm(t.area));
     if (a?.maquinas_fijas?.length) t._eq.forEach((e) => { if (a.maquinas_fijas.some((m) => norm(m) === norm(e.nombre))) w.push(`«${e.nombre}» ya va fija con el área «${a.nombre}».`); });
-    if (op > 0 && !t._cap.length) w.push('Sin capacidades.');
+    if (op > 0 && !t._cap.length && !t.subcontrata_obra) w.push('Sin capacidades.');
     const A = allMats(); (t._mat || []).forEach((x) => { if (!A.has(x.ref)) w.push(`Consume ${x.ref}, que no está en ninguna partida.`); });
-    if (op === 0 && !t._eq.length && !t._sub.length) w.push('Sin operarios, equipos ni subcontratas.');
+    if (op === 0 && !t._eq.length && !t._sub.length && !t.subcontrata_obra) w.push('Sin operarios, equipos ni subcontratas.');
     const hp = hpDesglose(t); const hpt = (t.horas || 0) * Math.max(1, op);
     if (t.desglose?.length && Math.abs(hp - hpt) > Math.max(0.5, hpt * 0.1)) w.push(`El desglose suma ${coma(hp)} h-persona y la tarea tiene ${coma(hpt)} (${t.horas} h × ${Math.max(1, op)}).`);
     if (String(t.nombre || '').length > 40) w.push('Nombre de más de 40 caracteres: el detalle, en notas.');
@@ -139,14 +151,23 @@
   function partHead(p) {
     const pi = DATA.proyecto.partidas.indexOf(p); const x = p.extra || {}; const q = x.cantidad; const ed = open.has(`pe:${p.ref_externa}`);
     return `<div class="part" data-p="${pi}"><span class="pc">Partida ${esc(p.codigo || '')}</span><span>${esc(p.nombre)}</span>${q != null ? `<span class="pu">(${fmt(q)} ${esc(unidadTxt(q, x.unidad))})</span>` : ''}${p.pvp != null ? `<span class="pv">PVP ${coma(p.pvp)} €</span>` : ''}<button type="button" data-pedit>${ed ? 'Cerrar' : 'Editar'}</button><button type="button" data-otadd title="Añadir una OT a esta partida">＋ OT</button></div>
+      ${fabHTML(p, pi)}
       <div class="pedit ${ed ? 'on' : ''}" data-p="${pi}"><label>Nombre</label><input class="pn" maxlength="120" value="${esc(p.nombre)}" data-pf="nombre"><label>Código</label><input class="pq" maxlength="30" value="${esc(p.codigo || '')}" data-pf="codigo">
         <button type="button" class="del" data-pdel>Quitar partida</button></div>`;
+  }
+  function fabHTML(p, pi) {
+    const f = p.extra?.fabricacion; const ext = f?.donde === 'externo';
+    return `<div class="fab ${ext ? 'ext' : ''}" data-p="${pi}"><span class="hint">Se fabrica</span>
+      <select data-fab="donde"><option value="propio" ${ext ? '' : 'selected'}>🏠 en nuestro taller</option><option value="externo" ${ext ? 'selected' : ''}>🏭 en un taller externo</option></select>
+      ${ext ? `<input list="dlProv" data-fab="taller" value="${esc(f.taller || '')}" placeholder="Taller (proveedor)…" class="${f.taller && !PROV.has(norm(f.taller)) ? 'malo' : ''}">
+        <select data-fab="material"><option value="taller" ${f.material !== 'nosotros' ? 'selected' : ''}>el material lo pone el taller</option><option value="nosotros" ${f.material === 'nosotros' ? 'selected' : ''}>el material lo ponemos nosotros</option></select>
+        <button type="button" data-fabaplicar title="Pone ese taller en las tareas de fabricación que aún no tienen a nadie">Aplicar a sus tareas…</button>` : ''}</div>`;
   }
   function escandallo(p) {
     const pi = DATA.proyecto.partidas.indexOf(p); const u = usage(); const k = `esc:${p.ref_externa}`; const isOpen = open.has(k);
     const nOut = p.materiales.filter((m) => !matInCat(m)).length; const over = p.materiales.filter((m) => (u.get(m.ref_externa) || 0) > m.cantidad + 1e-9).length; const free = p.materiales.filter((m) => !u.get(m.ref_externa)).length;
     let h = `<div class="esc ${isOpen ? 'open' : ''}" data-p="${pi}"><div class="eh" data-esc="${esc(k)}"><b>Materiales · escandallo</b>
-      <span class="pills"><span class="pill">${p.materiales.length} líneas</span>${nOut ? `<span class="pill">${nOut} fuera de catálogo</span>` : ''}${free ? `<span class="pill">${free} sin asignar</span>` : ''}${over ? `<span class="pill w">${over} repartido de más</span>` : ''}</span></div>
+      <span class="pills">${p.extra?.fabricacion?.donde === 'externo' && p.extra.fabricacion.material !== 'nosotros' ? '<span class="pill w">lo pone el taller: no va a nuestra logística</span>' : ''}<span class="pill">${p.materiales.length} líneas</span>${nOut ? `<span class="pill">${nOut} fuera de catálogo</span>` : ''}${free ? `<span class="pill">${free} sin asignar</span>` : ''}${over ? `<span class="pill w">${over} repartido de más</span>` : ''}</span></div>
       <div class="eb"><label class="hint"><input type="checkbox" data-log ${p.enviar_a_logistica ? 'checked' : ''}> Enviar a logística al crear el proyecto (el escandallo ya está revisado)</label>
       <table class="mt"><thead><tr><th>Ref.</th><th>Descripción (catálogo)</th><th>Cant. total</th><th>Unidad</th><th>Nota</th><th>Asignado</th><th></th></tr></thead><tbody>`;
     p.materiales.forEach((m, mi) => {
@@ -229,7 +250,7 @@
           <input class="otn" value="${esc(ot.titulo)}" maxlength="120" data-otf="titulo" aria-label="Título de la OT">
           <label class="hint">entrega <input type="date" value="${esc(ot.fecha_entrega || '')}" data-otf="fecha_entrega"></label>
           <select data-otf="prioridad" aria-label="Prioridad">${['', 'urgente', 'alta', 'normal', 'baja'].map((x) => `<option value="${x}" ${x === (ot.prioridad || '') ? 'selected' : ''}>${x || 'prioridad…'}</option>`).join('')}</select>
-          <span class="hint">${ot.tareas.length} tareas · ${coma(ot.tareas.reduce((s, t) => s + (t.horas || 0) * Math.max(1, t.operarios ?? 1), 0))} h-p</span>
+          <span class="hint">${ot.tareas.length} tareas · ${coma(ot.tareas.reduce((s, t) => s + (t.taller_externo ? 0 : (t.horas || 0) * Math.max(1, t.operarios ?? 1)), 0))} h-p</span>
           <button type="button" data-tadd>＋ Tarea</button><button type="button" class="del" data-otdel>Quitar OT</button></div>`;
         if (!otOpen) return;
         ot.tareas.forEach((t) => {
@@ -240,16 +261,20 @@
           const isOpen = open.has(t.ref_externa);
           h += `<div class="task ${isOpen ? 'open' : ''} ${w.length ? 'hasw' : ''}" data-t="${idx}">
             <div class="th"><span class="n">${esc(t.nombre)}</span><span class="r">${esc(t.ref_externa.split('/').slice(-2).join('/'))}</span>
-              <span class="pills"><span class="pill">${coma(t.horas)} h × ${t.operarios ?? 1} op</span><span class="pill">${esc(t.area || (t.area_tipo ? `tipo: ${t.area_tipo}` : 'sin área'))}</span>
+              <span class="pills">${t.taller_externo ? `<span class="pill ext">🏭 ${esc(t.taller_externo)} · ${coma(t.horas / JORNADA_H)} días</span>` : `${t.subcontrata_obra ? `<span class="pill ext">🏗 ${esc(t.subcontrata_obra)}</span>` : ''}<span class="pill">${coma(t.horas)} h × ${t.operarios ?? 1} op</span>`}${t.taller_externo ? '' : `<span class="pill">${esc(t.area || (t.area_tipo ? `tipo: ${t.area_tipo}` : 'sin área'))}</span>`}
               <span class="pill">${t._cap.length} cap · ${t._eq.length + t._sub.length} rec · ${t._her.length} herr · ${(t._mat || []).length} mat${t.despues_de?.length ? ` · ⤷${t.despues_de.length}` : ''}</span>${w.length ? `<span class="pill w">${w.length} aviso${w.length > 1 ? 's' : ''}</span>` : ''}</span></div>
             <div class="tb">
               <div class="row"><label>Nombre</label><div class="inl"><input class="tn" value="${esc(t.nombre)}" maxlength="120" data-tname><button type="button" class="del" data-tdel>Eliminar tarea</button></div></div>
-              <div class="row"><label>Duración</label><div class="inl">
+              <div class="row"><label>Quién la hace</label><div class="inl">
+                <select data-quien><option value="" ${t.taller_externo || t.subcontrata_obra ? '' : 'selected'}>👷 Nosotros</option><option value="taller" ${t.taller_externo ? 'selected' : ''}>🏭 Taller externo (en su taller)</option><option value="obra" ${t.subcontrata_obra ? 'selected' : ''}>🏗 Subcontrata aquí (montador autónomo…)</option></select>
+                ${t.taller_externo || t.subcontrata_obra ? `<input list="dlProv" data-prov value="${esc(t.taller_externo || t.subcontrata_obra)}" placeholder="Proveedor…">` : ''}
+                ${t.taller_externo ? `<span>Días <input type="number" min="0.5" step="0.5" value="${fmt((t.horas || 0) / JORNADA_H)}" data-dias></span><span class="hint">sin operarios ni capacidades propias</span>` : ''}</div></div>
+              ${t.taller_externo ? '' : `<div class="row"><label>Duración</label><div class="inl">
                 <span>Horas <input type="number" min="0.5" max="999" step="0.5" value="${t.horas}" data-num="horas"></span>
                 <span>Operarios <input type="number" min="0" max="50" step="1" value="${t.operarios ?? 1}" data-num="operarios"></span>
-                <span class="hint">${coma((t.horas || 0) * (t.operarios ?? 1))} h-persona</span></div></div>
-              <div class="row"><label>Desglose<br><span class="hint">de dónde salen las horas</span></label><div>${desgloseHTML(t)}</div></div>
-              <div class="row"><label>Área</label><div class="inl">${areaSelect(t)}</div></div>
+                <span class="hint">${coma((t.horas || 0) * (t.operarios ?? 1))} h-persona${t.subcontrata_obra ? ' (operarios = personas que pone la subcontrata)' : ''}</span></div></div>
+              <div class="row"><label>Desglose<br><span class="hint">de dónde salen las horas</span></label><div>${desgloseHTML(t)}</div></div>`}
+              ${t.taller_externo ? '' : `<div class="row"><label>Área</label><div class="inl">${areaSelect(t)}</div></div>`}
               <div class="row"><label>Capacidades<br><span class="hint">qué tienen que saber hacer</span></label><div class="chips">${t._cap.map((x, i) => chip('_cap', i, x, t)).join('')}${addBox('_cap', 'dlCap', 'Añadir capacidad…')}</div></div>
               <div class="row"><label>Equipos<br><span class="hint">máquinas de las que hay pocas</span></label><div class="chips">${t._eq.map((x, i) => chip('_eq', i, x, t)).join('')}${addBox('_eq', 'dlEq', 'Añadir equipo…')}</div></div>
               <div class="row"><label>Subcontratas<br><span class="hint">grúa, plataforma, lacado…</span></label><div class="chips">${t._sub.map((x, i) => chip('_sub', i, x, t)).join('')}${addBox('_sub', 'dlSub', 'Añadir subcontrata…')}</div></div>
@@ -284,6 +309,7 @@
 
   /* ---------- acciones del editor ---------- */
   const T = (n) => tasks()[+n.closest('[data-t]').dataset.t].t;
+  const Pp2 = (n) => { const x = tasks()[+n.closest('[data-t]').dataset.t]; return x?.p; };
   const Pp = (n) => DATA.proyecto.partidas[+n.closest('[data-p]').dataset.p];
   const OT = (n) => { const [pi, oi] = n.closest('[data-ot]').dataset.ot.split(':').map(Number); return { p: DATA.proyecto.partidas[pi], ot: DATA.proyecto.partidas[pi].ots[oi] }; };
   function guardarOpen() { ponerLocal('open', [...open].slice(-400)); }
@@ -336,6 +362,14 @@
         tasks().forEach(({ t }) => { t._mat = t._mat.filter((x) => !gone.has(x.ref)); if (t.despues_de) { t.despues_de = t.despues_de.filter((d) => !tr.has(depRef(d))); if (!t.despues_de.length) delete t.despues_de; } });
         cambio(); return;
       }
+      if (tg.matches('[data-fabaplicar]')) {
+        const p = Pp(tg); const f = p.extra?.fabricacion; if (!f?.taller) { aviso('Elige antes el taller'); return; }
+        const cand = p.ots.flatMap((o) => o.tareas).filter((t) => !t.taller_externo && !t.subcontrata_obra && /(fabric|armad|soldad|cort|plegad|mecaniz|calder)/i.test(t.nombre));
+        if (!cand.length) { aviso('No hay tareas de fabricación propias: añade una o elige el taller en cada tarea'); return; }
+        if (!confirm(`¿Pasar a ${f.taller} estas tareas?\n\n${cand.map((t) => `· ${t.nombre}`).join('\n')}`)) return;
+        cand.forEach((t) => { t.taller_externo = f.taller; t.operarios = 0; t.horas = Math.max(JORNADA_H, t.horas); });
+        cambio(); return;
+      }
       if (tg.matches('[data-otadd]')) { const p = Pp(tg); const usadas = refsUsadas(); const ref = nextRef(p.ref_externa, 'OT', (r) => usadas.has(r)); p.ots.push({ ref_externa: ref, titulo: 'OT nueva', tareas: [] }); nuevaTarea(p.ots[p.ots.length - 1]); return; }
       if (tg.matches('[data-otdel]')) {
         const { p, ot } = OT(tg); if (ot.tareas.length && !confirm(`¿Quitar la OT «${ot.titulo}» y sus ${ot.tareas.length} tareas?`)) return;
@@ -374,6 +408,25 @@
         cambio(); return;
       }
       if (n.matches('[data-pf]')) { const p = Pp(n); const v = n.value.trim(); if (v) p[n.dataset.pf] = v.slice(0, n.dataset.pf === 'codigo' ? 30 : 120); cambio(); return; }
+      if (n.matches('[data-fab]')) {
+        const p = Pp(n); p.extra = p.extra || {}; const k = n.dataset.fab; const v = n.value.trim();
+        if (k === 'donde') { if (v === 'externo') p.extra.fabricacion = { donde: 'externo', taller: null, material: 'taller' }; else delete p.extra.fabricacion; }
+        else if (p.extra.fabricacion) {
+          p.extra.fabricacion[k] = v || null;
+          if (k === 'taller') { const pv = PROV.get(norm(v)); if (pv) { p.extra.fabricacion.taller = pv.nombre; p.extra.fabricacion.material = pv.zona === 'peninsula' ? 'taller' : 'nosotros'; } }
+        }
+        cambio(); return;
+      }
+      if (n.matches('[data-quien]')) {
+        const t = T(n); const v = n.value; const prov = t.taller_externo || t.subcontrata_obra || Pp2(n)?.extra?.fabricacion?.taller || '';
+        delete t.taller_externo; delete t.subcontrata_obra;
+        if (v === 'taller') { t.taller_externo = prov || 'Taller'; t.operarios = 0; t.horas = Math.max(JORNADA_H, t.horas || JORNADA_H); }
+        else if (v === 'obra') { t.subcontrata_obra = prov || 'Subcontrata'; if (!t.operarios) t.operarios = 1; }
+        else if (!t.operarios) { t.operarios = 1; t.horas = Math.min(t.horas || 1, 8); }
+        cambio(); return;
+      }
+      if (n.matches('[data-prov]')) { const t = T(n); const pv = PROV.get(norm(n.value)); const v = pv ? pv.nombre : n.value.trim(); if (!v) return; if (t.taller_externo) t.taller_externo = v.slice(0, 120); else t.subcontrata_obra = v.slice(0, 120); cambio(); return; }
+      if (n.matches('[data-dias]')) { const t = T(n); const d = Math.max(0.5, Math.round((parseFloat(n.value) || 1) * 2) / 2); t.horas = d * JORNADA_H; cambio(); return; }
       if (n.matches('[data-log]')) { const p = Pp(n); if (n.checked) p.enviar_a_logistica = true; else delete p.enviar_a_logistica; cambio(); return; }
       if (n.matches('[data-otf]')) { const { ot } = OT(n); const f = n.dataset.otf; const v = n.value.trim(); if (f === 'titulo') { if (v) ot.titulo = v.slice(0, 120); } else if (v) ot[f] = v; else delete ot[f]; cambio(); return; }
       if (n.matches('[data-tname]')) { const v = n.value.trim(); if (v) T(n).nombre = v.slice(0, 120); cambio(); return; }
@@ -439,6 +492,7 @@
         el('span', { class: `cmp-estado ${c.estado}` }, c.estado === 'creada' ? `✔ Proyecto ${c.proyecto_codigo || ''}` : c.estado === 'descartada' ? 'descartada' : 'borrador')),
       el('p', { class: 'ayuda' }, c.presupuesto_id ? ['Del presupuesto ', el('a', { href: `/presupuestos.html?id=${c.presupuesto_id}` }, c.presupuesto_codigo), ` (${c.presupuesto_estado})`] : 'Sin presupuesto', ` · ${c.creado_por_nombre || ''} · ${fecha(c.creado)}`,
         c.proyecto_id ? [' · ', el('a', { href: `/proyectos.html?p=${c.proyecto_id}` }, 'Abrir el proyecto →')] : null),
+      c.proyecto_id && DATA && tasks().some(({ t }) => t.taller_externo || t.subcontrata_obra) ? el('p', { class: 'pz-nuevos' }, '🏭 Tiene trabajo fuera: pide precio o haz el pedido al taller desde la OT del proyecto con «🏭 Subcontratar…» (al enviar el pedido arranca su seguimiento). ', el('a', { class: 'boton ghost mini', href: `/proyectos.html?p=${c.proyecto_id}` }, 'Ir al proyecto')) : null,
       el('div', { class: 'cmp-acc' },
         bot(c.proyecto_id ? '⟳ Actualizar el proyecto…' : '🏗 Crear el proyecto…', crear, 'primario', { disabled: creando || !DATA, title: 'Abre la vista previa de la importación (Proyectos › Importar): nombres que faltan, avisos y confirmar' }),
         bot('✔ Comprobar', comprobar, 'ghost', { disabled: creando || !DATA, title: 'Vista previa de la importación sin crear nada' }),
@@ -462,10 +516,10 @@
   async function comprobar() {
     await guardar();
     let r;
-    try { r = await api('POST', '/api/importar?simular=1', { archivo: exportar(), resoluciones: {} }); } catch (e) { aviso(e.message); return; }
+    try { const archivo = await api('GET', `/api/composiciones/${C.id}/archivo`); r = await api('POST', '/api/importar?simular=1', { archivo, resoluciones: {} }); } catch (e) { aviso(e.message); return; }
     const R = r.resumen || {};
     const d = el('dialog', { class: 'dlg-cos cmp-dlg' }, el('h2', {}, r.errores?.length ? '✕ No se podría crear' : '✔ Se puede crear'),
-      R.tareas ? el('p', {}, `${R.partidas?.crear || 0} partida(s), ${R.ots?.crear || 0} OT, ${R.tareas?.crear || 0} tareas nuevas${R.tareas?.actualizar ? ` y ${R.tareas.actualizar} actualizadas` : ''} · ${coma(R.horas || 0)} h · ${coma(R.horas_persona || 0)} h-persona · ${R.materiales?.crear || 0} materiales.`) : null,
+      R.tareas ? el('p', {}, `${R.partidas?.crear || 0} partida(s), ${R.ots?.crear || 0} OT, ${R.tareas?.crear || 0} tareas nuevas${R.tareas?.actualizar ? ` y ${R.tareas.actualizar} actualizadas` : ''}${R.externas ? ` (${R.externas} en talleres externos o subcontratadas)` : ''} · ${coma(R.horas || 0)} h · ${coma(R.horas_persona || 0)} h-persona · ${R.materiales?.crear || 0} materiales.`) : null,
       r.errores?.length ? [el('b', {}, 'Errores (hay que corregirlos):'), el('ul', { class: 'warns' }, r.errores.map((x) => el('li', {}, `${x.ruta}: ${x.mensaje}`)))] : null,
       r.resolver?.length ? [el('b', {}, `Nombres que no existen en el planificador (${r.resolver.length}): se resuelven al crear`), el('ul', {}, r.resolver.slice(0, 30).map((x) => el('li', {}, `${x.clase}: ${x.nombre} → ${x.accion}${x.estado === 'parecido' ? ' (parecido)' : ''}`)))] : null,
       r.avisos?.length ? [el('b', {}, `Avisos (${r.avisos.length}):`), el('ul', { class: 'warns' }, r.avisos.slice(0, 40).map((x) => el('li', {}, `${x.ruta}: ${x.mensaje}`)))] : null,
@@ -553,6 +607,7 @@
     window.s360.iniciar(yo);
     $('#cmp-nueva').onclick = nueva; $('#cmp-skills').onclick = skills; $('#cmp-todas').onchange = cargarLista;
     try { setCat(await api('GET', '/api/importar/catalogo')); } catch (e) { aviso(`Catálogo: ${e.message}`); setCat({}); }
+    try { setProv(await api('GET', '/api/composiciones/proveedores')); } catch { setProv([]); }
     await cargarLista();
     const q = new URLSearchParams(location.search);
     if (q.get('presupuesto')) {
